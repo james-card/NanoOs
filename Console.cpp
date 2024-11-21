@@ -282,9 +282,8 @@ ConsoleBuffer* consoleGetBuffer(void) {
   return returnValue;
 }
 
-int printf(const char *format, ...) {
+int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
   int returnValue = 0;
-  va_list args;
   ConsoleBuffer *consoleBuffer = consoleGetBuffer();
   if (consoleBuffer == NULL) {
     // Nothing we can do.
@@ -292,13 +291,38 @@ int printf(const char *format, ...) {
     return returnValue;
   }
 
-  va_start(args, format);
   returnValue
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
-  va_end(args);
 
   Comessage *comessage = sendDataMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, NULL);
+  if (stream == stderr) {
+    while (comessage->handled == false) {
+      coroutineYield(NULL);
+    }
+  }
+
+  return returnValue;
+}
+
+int consoleFPrintf(FILE *stream, const char *format, ...) {
+  int returnValue = 0;
+  va_list args;
+
+  va_start(args, format);
+  returnValue = consoleVFPrintf(stream, format, args);
+  va_end(args);
+
+  return returnValue;
+}
+
+int consolePrintf(const char *format, ...) {
+  int returnValue = 0;
+  va_list args;
+
+  va_start(args, format);
+  returnValue = consoleVFPrintf(stdout, format, args);
+  va_end(args);
 
   return returnValue;
 }

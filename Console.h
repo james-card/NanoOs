@@ -78,8 +78,13 @@ typedef enum ConsoleResponse {
 void* runConsole(void *args);
 
 // Exported IO functions
-int consolePrintf(const char *format, ...);
+int consoleFPrintf(FILE *stream, const char *format, ...);
+#ifdef fprintf
+#undef fprintf
+#endif
+#define fprintf consoleFPrintf
 
+int consolePrintf(const char *format, ...);
 #ifdef printf
 #undef printf
 #endif
