@@ -133,6 +133,23 @@ static inline Comessage* sendDataMessageToPid(
   return comessage;
 }
 
+static inline void* waitForDataMessage(Comessage *sent, int type) {
+  void *returnValue = NULL;
+
+  while (sent->handled == false) {
+    coroutineYield(NULL);
+  }
+  releaseMessage(sent);
+
+  Comessage *incoming = comessagePopType(NULL, type);
+  if (incoming != NULL)  {
+    returnValue = incoming->funcData.data;
+    releaseMessage(incoming);
+  }
+
+  return returnValue;
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
