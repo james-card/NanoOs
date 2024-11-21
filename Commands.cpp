@@ -11,10 +11,9 @@ void* ps(void *args) {
 
   for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {
     if (coroutineResumable(runningCommands[ii].coroutine)) {
-      printConsole(coroutineId(runningCommands[ii].coroutine));
-      printConsole("  ");
-      printConsole(runningCommands[ii].name);
-      printConsole("\n");
+      printf("%d  %s\n",
+        coroutineId(runningCommands[ii].coroutine),
+        runningCommands[ii].name);
     }
   }
 
@@ -110,7 +109,7 @@ void handleCommand(const char *consoleInput) {
   }
 
   if (commandEntry != NULL) {
-    if (commandEntry->spawnNewProcess == true) {
+    if (commandEntry->userProcess == true) {
       int jj = NANO_OS_FIRST_PROCESS_ID;
       for (; jj < NANO_OS_NUM_COROUTINES; jj++) {
         Coroutine *coroutine = runningCommands[jj].coroutine;
@@ -127,7 +126,8 @@ void handleCommand(const char *consoleInput) {
       }
 
       if (jj == NANO_OS_NUM_COROUTINES) {
-        echo("Out of memory to launch process.");
+        printConsole("Out of memory to launch process.\n");
+        releaseConsole();
       }
     } else {
       // We need to run this command from the main thread (that's running the
@@ -145,7 +145,8 @@ void handleCommand(const char *consoleInput) {
       comessagePush(&mainCoroutine, comessage);
     }
   } else {
-    echo("Unknown command.\n");
+    printConsole("Unknown command.\n");
+    releaseConsole();
   }
 
   return;
@@ -155,27 +156,27 @@ CommandEntry commands[] = {
   {
     .name = "echo",
     .function = echo,
-    .spawnNewProcess = true
+    .userProcess = true
   },
   {
     .name = "kill",
     .function = kill,
-    .spawnNewProcess = false
+    .userProcess = false
   },
   {
     .name = "ps",
     .function = ps,
-    .spawnNewProcess = false
+    .userProcess = false
   },
   {
     .name = "runCounter",
     .function = runCounter,
-    .spawnNewProcess = true
+    .userProcess = true
   },
   {
     .name = "showCounter",
     .function = showCounter,
-    .spawnNewProcess = true
+    .userProcess = true
   }
 };
 const int NUM_COMMANDS = sizeof(commands) / sizeof(commands[0]);
