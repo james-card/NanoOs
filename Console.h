@@ -215,6 +215,10 @@ static inline int printConsole(const char *message) {
 }
 
 static inline void releaseConsole() {
+  // releaseConsole is sometimes called from within handleCommand, which runs
+  // from within the console coroutine.  That means we can't do blocking prints
+  // from this function.  i.e. We can't use printf here.  Use printConsole
+  // instead.
   printConsole("> ");
 }
 
