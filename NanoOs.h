@@ -13,14 +13,8 @@
 #include "NanoOsLibC.h"
 #include "Coroutines.h"
 #include "Commands.h"
-#include "Console.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#define NANO_OS_NUM_COROUTINES             9
+#define NANO_OS_NUM_COROUTINES             8
 #define NANO_OS_STACK_SIZE               512
 #define NANO_OS_NUM_MESSAGES               8
 #define NANO_OS_RESERVED_PROCESS_ID        0
@@ -38,17 +32,17 @@ extern Coroutine mainCoroutine;
 extern RunningCommand runningCommands[NANO_OS_NUM_COROUTINES];
 extern Comessage messages[NANO_OS_NUM_MESSAGES];
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 // Support functions
 static inline int freeRamBytes(void) {
   extern int __heap_start,*__brkval;
   int v;
   return (int)&v - (__brkval == 0  
     ? (int)&__heap_start : (int) __brkval);  
-}
-
-static inline void printFreeRam(void) {
-  Serial.print(F("- SRAM left: "));
-  Serial.println(freeRamBytes());
 }
 
 static unsigned long getElapsedMilliseconds(unsigned long startTime) {
@@ -68,6 +62,7 @@ static inline Comessage* getAvailableMessage(void) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
       availableMessage->inUse = true;
+      availableMessage->handled = false;
       break;
     }
   }
@@ -93,170 +88,18 @@ static inline int releaseMessage(Comessage *comessage) {
 } // extern "C"
 #endif
 
+// Console.h has to be included separately (and last).
+#include "Console.h"
+
 // C++ functions
-static inline int printConsole(char message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_CHAR;
-  comessage->funcData.data = comessage->storage;
-  *((char*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(unsigned char message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_UCHAR;
-  comessage->funcData.data = comessage->storage;
-  *((unsigned char*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_INT;
-  comessage->funcData.data = comessage->storage;
-  *((int*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_UINT;
-  comessage->funcData.data = comessage->storage;
-  *((unsigned int*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(long int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_LONG_INT;
-  comessage->funcData.data = comessage->storage;
-  *((long int*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(long unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_LONG_UINT;
-  comessage->funcData.data = comessage->storage;
-  *((long unsigned int*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(float message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_FLOAT;
-  comessage->funcData.data = comessage->storage;
-  *((float*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(double message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_DOUBLE;
-  comessage->funcData.data = comessage->storage;
-  *((double*) comessage->funcData.data) = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(const char *message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) WRITE_STRING;
-  comessage->funcData.data = message;
-  comessage->handled = false;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline void releaseConsole() {
-  printConsole("> ");
+static inline void printFreeRam(void) {
+  printConsole("- SRAM left: \n");
+  printConsole(freeRamBytes());
+  printConsole("\n");
+  printConsole("sizeof(void*): ");
+  printConsole(sizeof(void*));
+  printConsole("\n");
+  printf("blah\n");
 }
 
 #endif // NANO_OS_H

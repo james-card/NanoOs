@@ -1,70 +1,148 @@
 #include "Console.h"
 #include "Commands.h"
 
-void consoleWriteChar(void *data) {
-  const char *message = (const char *) data;
+#define CONSOLE_BUFFER_SIZE 96
+#define CONSOLE_NUM_BUFFERS  4
+
+typedef struct ConsoleBuffer {
+  char buffer[CONSOLE_BUFFER_SIZE];
+  bool inUse;
+} ConsoleBuffer;
+
+typedef struct ConsoleState {
+  ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
+} ConsoleState;
+
+void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
+  const char *message
+    = (const char *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteUChar(void *data) {
-  const unsigned char *message = (const unsigned char *) data;
+void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
+  const unsigned char *message
+    = (const unsigned char *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteInt(void *data) {
-  int *message = (int *) data;
+void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  int *message
+    = (int *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteUInt(void *data) {
-  unsigned int *message = (unsigned int *) data;
+void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  unsigned int *message
+    = (unsigned int *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteLongInt(void *data) {
-  long int *message = (long int *) data;
+void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  long int *message
+    = (long int *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteLongUInt(void *data) {
-  long int *message = (long int *) data;
+void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  long int *message
+    = (long int *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteFloat(void *data) {
-  float *message = (float *) data;
+void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
+  float *message
+    = (float *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteDouble(void *data) {
-  double *message = (double *) data;
+void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
+  double *message
+    = (double *) inputMessage->funcData.data;
   Serial.print(*message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void consoleWriteString(void *data) {
-  const char *message = (const char *) data;
+void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
+  const char *message
+    = (const char *) inputMessage->funcData.data;
   Serial.print(message);
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
 
   return;
 }
 
-void (*consoleCommandHandlers[])(void*) {
+void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
+  ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
+  ConsoleBuffer *returnValue = NULL;
+  Comessage *returnMessage = getAvailableMessage();
+  if (returnMessage == NULL)  {
+    // No return message available.  Nothing we can do.  Bail.
+    inputMessage->handled = true;
+    return;
+  }
+
+  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
+    if (consoleBuffers[ii].inUse == false) {
+      returnValue = &consoleBuffers[ii];
+      returnValue->inUse = true;
+      break;
+    }
+  }
+
+  if (returnValue != NULL) {
+    // Send the buffer back to the caller via the message we allocated earlier.
+    returnMessage->type = (int) CONSOLE_RETURNING_BUFFER;
+    returnMessage->funcData.data = returnValue;
+    if (comessagePush(inputMessage->from, returnMessage) != coroutineSuccess) {
+      releaseMessage(returnMessage);
+      returnValue->inUse = false;
+    }
+  } else {
+    // No free buffer.  Nothing we can do.
+    releaseMessage(returnMessage);
+  }
+
+  // Whether we were able to grab a buffer or not, we're now done with this
+  // call, so mark the input message handled.  This is a synchronous call and
+  // the caller is waiting on our response, so *DO NOT* release it.  The caller
+  // is responsible for releasing it when they've received the response.
+  inputMessage->handled = true;
+  return;
+}
+
+void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
   consoleWriteChar,
   consoleWriteUChar,
   consoleWriteInt,
@@ -74,9 +152,10 @@ void (*consoleCommandHandlers[])(void*) {
   consoleWriteFloat,
   consoleWriteDouble,
   consoleWriteString,
+  consoleGetBuffer,
 };
 
-static inline void handleConsoleMessages(void) {
+static inline void handleConsoleMessages(ConsoleState *consoleState) {
   Comessage *message = comessagePop(NULL);
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) message->type;
@@ -86,9 +165,8 @@ static inline void handleConsoleMessages(void) {
       continue;
     }
 
-    consoleCommandHandlers[messageType](message->funcData.data);
+    consoleCommandHandlers[messageType](consoleState, message);
     message->handled = true;
-    releaseMessage(message);
     message = comessagePop(NULL);
   }
 
@@ -114,6 +192,7 @@ unsigned char consoleIndex = 0;
 void* runConsole(void *args) {
   (void) args;
   int serialData = -1;
+  ConsoleState consoleState;
 
   while (1) {
     blink();
@@ -135,13 +214,74 @@ void* runConsole(void *args) {
       // If the command has already returned or wrote to the console before its
       // first yield, we may need to display its output.  Handle the next
       // next message in our queue just in case.
-      handleConsoleMessages();
+      handleConsoleMessages(&consoleState);
       consoleIndex = 0;
     }
     
     coroutineYield(NULL);
-    handleConsoleMessages();
+    handleConsoleMessages(&consoleState);
   }
 
   return NULL;
 }
+
+ConsoleBuffer* consoleGetBuffer(void) {
+  ConsoleBuffer *returnValue = NULL;
+
+  while (returnValue == NULL) {
+    Comessage *comessage = getAvailableMessage();
+    while (comessage == NULL) {
+      coroutineYield(NULL);
+      comessage = getAvailableMessage();
+    }
+
+    comessage->type = (int) CONSOLE_GET_BUFFER;
+    comessagePush(
+      runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
+      comessage);
+    while (comessage->handled == false) {
+      coroutineYield(NULL);
+    }
+    releaseMessage(comessage);
+
+    comessage = comessagePopType(NULL, CONSOLE_RETURNING_BUFFER);
+    if (comessage != NULL)  {
+      returnValue = (ConsoleBuffer*) comessage->funcData.data;
+      releaseMessage(comessage);
+    }
+  }
+
+  return returnValue;
+}
+
+int printf(const char *format, ...) {
+  int returnValue = 0;
+  va_list args;
+  ConsoleBuffer *consoleBuffer = consoleGetBuffer();
+
+  va_start(args, format);
+  returnValue
+    = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
+  va_end(args);
+
+  Comessage *comessage = getAvailableMessage();
+  while (comessage == NULL) {
+    coroutineYield(NULL);
+    comessage = getAvailableMessage();
+  }
+
+  comessage->type = (int) CONSOLE_WRITE_STRING;
+  comessage->funcData.data = consoleBuffer->buffer;
+  comessagePush(
+    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
+    comessage);
+  while (comessage->handled == false) {
+    coroutineYield(NULL);
+  }
+  // The command we just called is asynchronous and the message was released by
+  // the caller.  Just release the buffer.
+  consoleBuffer->inUse = false;
+
+  return returnValue;
+}
+
