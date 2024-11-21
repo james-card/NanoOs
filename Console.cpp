@@ -169,6 +169,18 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   return;
 }
 
+void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
+  ConsoleBuffer *consoleBuffer
+    = (ConsoleBuffer*) inputMessage->funcData.data;
+  const char *message = consoleBuffer->buffer;
+  Serial.print(message);
+  consoleBuffer->inUse = false;
+  inputMessage->handled = true;
+  releaseMessage(inputMessage);
+
+  return;
+}
+
 void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
   consoleWriteChar,
   consoleWriteUChar,
@@ -180,6 +192,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
   consoleWriteDouble,
   consoleWriteString,
   consoleGetBuffer,
+  consoleWriteBuffer,
 };
 
 static inline void handleConsoleMessages(ConsoleState *consoleState) {
@@ -284,23 +297,8 @@ int printf(const char *format, ...) {
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
   va_end(args);
 
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessage->type = (int) CONSOLE_WRITE_STRING;
-  comessage->funcData.data = consoleBuffer->buffer;
-  comessagePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-  while (comessage->handled == false) {
-    coroutineYield(NULL);
-  }
-  // The command we just called is asynchronous and the message was released by
-  // the caller.  Just release the buffer.
-  consoleBuffer->inUse = false;
+  Comessage *comessage = sendDataMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, NULL);
 
   return returnValue;
 }
