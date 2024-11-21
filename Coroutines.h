@@ -208,6 +208,18 @@ typedef struct Coroutine {
   (((coroutinePointer) != NULL) \
     && ((coroutinePointer)->state == COROUTINE_STATE_NOT_RUNNING))
 
+/// @def coroutineRunning(coroutinePointer)
+///
+/// @brief Examines a coroutine to determine whether or not it is still running.
+///
+/// @param coroutinePointer A pointer to the Coroutine to examine.
+///
+/// @return Returns true when the coroutine is allocated and its state
+/// indicates that it is still running.
+#define coroutineRunning(coroutinePointer) \
+  (((coroutinePointer) != NULL) \
+    && ((coroutinePointer)->state != COROUTINE_STATE_NOT_RUNNING))
+
 // Coroutine function prototypes.  Doxygen inline in source file.
 int coroutineConfig(Coroutine *first, int stackSize);
 Coroutine* coroutineCreate(CoroutineFunction func);
