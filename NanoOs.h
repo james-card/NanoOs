@@ -91,15 +91,4 @@ static inline int releaseMessage(Comessage *comessage) {
 // Console.h has to be included separately (and last).
 #include "Console.h"
 
-// C++ functions
-static inline void printFreeRam(void) {
-  printConsole("- SRAM left: \n");
-  printConsole(freeRamBytes());
-  printConsole("\n");
-  printConsole("sizeof(void*): ");
-  printConsole(sizeof(void*));
-  printConsole("\n");
-  printf("blah\n");
-}
-
 #endif // NANO_OS_H
