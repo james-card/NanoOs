@@ -1654,6 +1654,51 @@ Comessage* comessagePop(Coroutine *coroutine) {
   return comessage;
 }
 
+/// @fn Comessage* comessagePopType(Coroutine *coroutine, int type)
+///
+/// @brief Get the first message of the specified type from a coroutine's
+/// message queue and remove it from the queue.
+///
+/// @param coroutine A pointer to the Coroutine to interrogate.
+/// @param type The type of message to get.
+///
+/// @return Returns the first message of the specified type on success, NULL on
+/// failure.
+Comessage* comessagePopType(Coroutine *coroutine, int type) {
+  Comessage *comessage = NULL;
+  if (coroutine == NULL) {
+    coroutine = getRunningCoroutine();
+  }
+
+  if (coroutine != NULL) {
+    comessage = coroutine->nextMessage;
+    if (comessage != NULL) {
+      if (comessage->type == type) {
+        coroutine->nextMessage = comessage->next;
+        comessage->next = NULL;
+      } else {
+        Comessage *prev = comessage;
+        comessage = comessage->next;
+        while (comessage != NULL) {
+          if (comessage->type == type) {
+            break;
+          }
+
+          prev = comessage;
+          comessage = comessage->next;
+        }
+
+        if (comessage != NULL) {
+          prev->next = comessage->next;
+          comessage->next = NULL;
+        }
+      }
+    }
+  }
+
+  return comessage;
+}
+
 /// @fn int comessagePush(Coroutine *coroutine, Comessage *comessage)
 ///
 /// @brief Push a message onto a coroutine's message queue.
@@ -1663,11 +1708,11 @@ Comessage* comessagePop(Coroutine *coroutine) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int comessagePush(Coroutine *coroutine, Comessage *comessage) {
-  int returnValue = 0;
+  int returnValue = coroutineSuccess;
 
   if (comessage == NULL) {
     // This is invalid.
-    returnValue = 1;
+    returnValue = coroutineError;
     return returnValue;
   }
   comessage->from = getRunningCoroutine();
@@ -1689,7 +1734,7 @@ int comessagePush(Coroutine *coroutine, Comessage *comessage) {
     }
   } else {
     // Coroutines haven't been configured yet.
-    returnValue = -1;
+    returnValue = coroutineError;
   }
 
   return returnValue;

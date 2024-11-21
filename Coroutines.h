@@ -324,6 +324,7 @@ typedef struct Comessage {
 // Coroutine message function prototypes.  Doxygen inline in source file.
 Comessage* comessagePeek(Coroutine *coroutine);
 Comessage* comessagePop(Coroutine *coroutine);
+Comessage* comessagePopType(Coroutine *coroutine, int type);
 int comessagePush(Coroutine *coroutine, Comessage *comessage);
 
 
