@@ -15,7 +15,6 @@ void* ps(void *args) {
       printConsole("  ");
       printConsole(runningCommands[ii].name);
       printConsole("\n");
-      coroutineYield(NULL);
     }
   }
 
