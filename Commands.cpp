@@ -32,9 +32,9 @@ void* kill(void *args) {
     coroutineTerminate(runningCommands[processId].coroutine, NULL);
     runningCommands[processId].coroutine = NULL;
     runningCommands[processId].name = NULL;
-    printConsole("Process terminated.\n");
+    printf("Process terminated.\n");
   } else {
-    printConsole("ERROR:  Invalid process ID.\n");
+    printf("ERROR:  Invalid process ID.\n");
   }
 
   releaseConsole();
@@ -60,7 +60,7 @@ void* echo(void *args) {
     argsBegin[255] = '\0';
   }
 
-  printConsole(argsBegin);
+  printf(argsBegin);
   releaseConsole();
   return NULL;
 }
@@ -68,10 +68,8 @@ void* echo(void *args) {
 unsigned int counter = 0;
 void* showCounter(void *args) {
   (void) args;
-  printConsole("Current counter value: ");
-  printConsole(counter);
-  printConsole("\n");
-  printFreeRam();
+  printf("Current counter value: %d\n", counter);
+  printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
   return NULL;
 }
@@ -126,6 +124,9 @@ void handleCommand(const char *consoleInput) {
       }
 
       if (jj == NANO_OS_NUM_COROUTINES) {
+        // printf is blocking.  handleCommand is called from runConsole itself,
+        // so we can't use a blocking call here.  Use the non-blocking
+        // printConsole instead.
         printConsole("Out of memory to launch process.\n");
         releaseConsole();
       }
@@ -145,6 +146,9 @@ void handleCommand(const char *consoleInput) {
       comessagePush(&mainCoroutine, comessage);
     }
   } else {
+    // printf is blocking.  handleCommand is called from runConsole itself, so
+    // we can't use a blocking call here.  Use the non-blocking printConsole
+    // instead.
     printConsole("Unknown command.\n");
     releaseConsole();
   }
