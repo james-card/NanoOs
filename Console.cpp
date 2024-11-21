@@ -229,26 +229,14 @@ ConsoleBuffer* consoleGetBuffer(void) {
   ConsoleBuffer *returnValue = NULL;
 
   while (returnValue == NULL) {
-    Comessage *comessage = getAvailableMessage();
-    while (comessage == NULL) {
-      coroutineYield(NULL);
-      comessage = getAvailableMessage();
+    Comessage *comessage = sendDataMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, NULL);
+    if (comessage == NULL) {
+      break; // will return returnValue, which is NULL
     }
 
-    comessage->type = (int) CONSOLE_GET_BUFFER;
-    comessagePush(
-      runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-      comessage);
-    while (comessage->handled == false) {
-      coroutineYield(NULL);
-    }
-    releaseMessage(comessage);
-
-    comessage = comessagePopType(NULL, CONSOLE_RETURNING_BUFFER);
-    if (comessage != NULL)  {
-      returnValue = (ConsoleBuffer*) comessage->funcData.data;
-      releaseMessage(comessage);
-    }
+    returnValue = (ConsoleBuffer*) waitForDataMessage(
+      comessage, CONSOLE_RETURNING_BUFFER);
   }
 
   return returnValue;
@@ -258,6 +246,11 @@ int printf(const char *format, ...) {
   int returnValue = 0;
   va_list args;
   ConsoleBuffer *consoleBuffer = consoleGetBuffer();
+  if (consoleBuffer == NULL) {
+    // Nothing we can do.
+    returnValue = -1;
+    return returnValue;
+  }
 
   va_start(args, format);
   returnValue
