@@ -84,6 +84,55 @@ static inline int releaseMessage(Comessage *comessage) {
   return 0;
 }
 
+static inline Comessage* sendDataMessageToCoroutine(
+  Coroutine *coroutine, int type, void *data, void *storage
+) {
+  Comessage *comessage = NULL;
+  if (!coroutineRunning(coroutine)) {
+    // Can't send to a non-resumable coroutine.
+    return comessage; // NULL
+  }
+
+  comessage = getAvailableMessage();
+  while (comessage == NULL) {
+    coroutineYield(NULL);
+    comessage = getAvailableMessage();
+  }
+
+  comessage->type = type;
+  if (storage != NULL) {
+    *((uint64_t*) comessage->storage) = *((uint64_t*) storage);
+    if (data == NULL) {
+      comessage->funcData.data = comessage->storage;
+    } else {
+      comessage->funcData.data = data;
+    }
+  } else {
+    comessage->funcData.data = data;
+  }
+
+  if (comessagePush(coroutine, comessage) != coroutineSuccess) {
+    releaseMessage(comessage);
+    comessage = NULL;
+  }
+
+  return comessage;
+}
+
+static inline Comessage* sendDataMessageToPid(
+  int pid, int type, void *data, void *storage
+) {
+  Comessage *comessage = NULL;
+  if (pid >= NANO_OS_NUM_COROUTINES) {
+    // Not a valid PID.  Fail.
+    return comessage; // NULL
+  }
+
+  Coroutine *coroutine = runningCommands[pid].coroutine;
+  comessage = sendDataMessageToCoroutine(coroutine, type, data, storage);
+  return comessage;
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
