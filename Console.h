@@ -15,6 +15,9 @@ extern "C"
 {
 #endif
 
+// Defines
+#define LED_CYCLE_TIME_MS 1000
+
 // Custom types
 typedef enum ConsoleCommand {
   CONSOLE_WRITE_CHAR,
