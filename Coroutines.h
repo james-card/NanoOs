@@ -318,7 +318,7 @@ void* coconditionLastYieldValue(Cocondition *cond);
 /// @param data A pointer to the message data for the destination coroutine.
 /// @param storage 64-bits of storage for a small message.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
-/// @param handled A boolean flag to indicate whether or not the receiving
+/// @param done A boolean flag to indicate whether or not the receiving
 ///   coroutine has handled the message yet.
 /// @param inUse A boolean flag to indicate whether or not this Comessage is in
 ///   in use.
@@ -328,16 +328,41 @@ typedef struct Comessage {
   CoroutineFuncData funcData;
   uint8_t storage[sizeof(uint64_t)];
   struct Comessage *next;
-  bool handled;
+  bool done;
   bool inUse;
   Coroutine *from;
 } Comessage;
 
 // Coroutine message function prototypes.  Doxygen inline in source file.
+int comessageInit(Comessage *comessage, int type,
+  CoroutineFuncData funcData, void *storage, size_t storageLength);
+int comessageInitData(Comessage *comessage, int type,
+  void *data, void *storage, size_t storageLength);
+int comessageInitFunc(Comessage *comessage, int type,
+  CoroutineFunction func, void *storage, size_t storageLength);
+int comessageDestroy(Comessage *comessage);
 Comessage* comessagePeek(Coroutine *coroutine);
 Comessage* comessagePop(Coroutine *coroutine);
 Comessage* comessagePopType(Coroutine *coroutine, int type);
 int comessagePush(Coroutine *coroutine, Comessage *comessage);
+int comessageSetDone(Comessage *comessage);
+
+// Coroutine message accessors.
+#define comessageType(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
+#define comessageData(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->funcData.data : NULL)
+#define comessageFunc(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->funcData.func : NULL)
+#define comessageStorage(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->storage : NULL)
+// No accessor for next member element.
+#define comessageDone(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->done : true)
+#define comessageInUse(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->inUse : false)
+#define comessageFrom(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->from : NULL)
 
 
 #ifdef __cplusplus

@@ -1606,6 +1606,72 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
+int comessageInit(Comessage *comessage, int type,
+  CoroutineFuncData funcData, void *storage, size_t storageLength
+) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    comessage->type = type;
+    if (storage != NULL) {
+      memcpy(comessage->storage, storage, storageLength);
+      if (funcData.data == NULL) {
+        comessage->funcData.data = storage;
+      } else {
+        comessage->funcData = funcData;
+      }
+    } else {
+      comessage->funcData = funcData;
+    }
+    comessage->next = NULL;
+    comessage->done = false;
+    comessage->inUse = true;
+    comessage->from = NULL;
+  } else {
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
+int comessageInitData(Comessage *comessage, int type,
+  void *data, void *storage, size_t storageLength
+) {
+  CoroutineFuncData funcData = {
+    .data = data
+  };
+
+  return comessageInit(comessage, type, funcData, storage, storageLength);
+}
+
+int comessageInitFunc(Comessage *comessage, int type,
+  CoroutineFunction func, void *storage, size_t storageLength
+) {
+  CoroutineFuncData funcData = {
+    .func = func
+  };
+
+  return comessageInit(comessage, type, funcData, storage, storageLength);
+}
+
+int comessageDestroy(Comessage *comessage) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    comessage->type = 0;
+    comessage->funcData.data = NULL;
+    *((uint64_t*) comessage->storage) = 0;
+    // Don't touch comessage->next.
+    // Don't touch comessage->done.
+    comessage->inUse = false;
+    comessage->from = NULL;
+  } else {
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
 /// @fn Comessage* comessagePeek(Coroutine *coroutine)
 ///
 /// @brief Get the head of a coroutine's message queue but do not remove it from
@@ -1706,7 +1772,7 @@ Comessage* comessagePopType(Coroutine *coroutine, int type) {
 /// @param coroutine A pointer to the Coroutine with the message queue to add
 ///   to.
 ///
-/// @return Returns 0 on success, -1 on failure.
+/// @return Returns coroutineSuccess, coroutineError on failure.
 int comessagePush(Coroutine *coroutine, Comessage *comessage) {
   int returnValue = coroutineSuccess;
 
@@ -1734,6 +1800,25 @@ int comessagePush(Coroutine *coroutine, Comessage *comessage) {
     }
   } else {
     // Coroutines haven't been configured yet.
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
+/// @fn void comessageSetDone(Comessage *comessage)
+///
+/// @brief Set the done flag on a coroutine message to true.
+///
+/// @param comessage A pointer to the Comessage object to set the done flag of.
+///
+/// @return Returns coroutineSuccess, coroutineError on failure.
+int comessageSetDone(Comessage *comessage) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    comessage->done = true;
+  } else {
     returnValue = coroutineError;
   }
 
