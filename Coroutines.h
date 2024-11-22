@@ -355,7 +355,7 @@ int comessageSetDone(Comessage *comessage);
 #define comessageFunc(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->funcData.func : NULL)
 #define comessageStorage(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->storage : NULL)
+  (((comessagePointer) != NULL) ? &((comessagePointer)->storage) : NULL)
 // No accessor for next member element.
 #define comessageDone(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->done : true)
