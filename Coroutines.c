@@ -1606,6 +1606,23 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
+/// @fn int comessageInit(Comessage *comessage, int type, CoroutineFuncData funcData, void *storage, size_t storageLength)
+///
+/// @brief Initialize all the member elements of a Comessage structure.
+///
+/// @param comessage A pointer to the Comessage structure to initialize.
+/// @param type The type integer value to set for the Comessage.
+/// @param funcData The value to use for the funcData member element of the
+///   Comessage structure.  This value may be NULL.
+/// @param storage Any local storage to set for the Comessage.  This value may
+///   be NULL.  If it is *NOT* NULL and funcData *IS* NULL, then the data
+///   pointer of the funcData element in the Comessage will be set to the value
+///   of the storage pointer in the Comessage.
+/// @param storageLength The number of bytes pointed to by the provided storage
+///   pointer.  May be a value between 0 and 8, inclusive.  If it's larger than
+///   8, it will be truncated to 8.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
 int comessageInit(Comessage *comessage, int type,
   CoroutineFuncData funcData, void *storage, size_t storageLength
 ) {
@@ -1613,7 +1630,10 @@ int comessageInit(Comessage *comessage, int type,
 
   if (comessage != NULL) {
     comessage->type = type;
-    if (storage != NULL) {
+    if ((storage != NULL) && (storageLength > 0)) {
+      if (storageLength > sizeof(comessage->storage)) {
+        storageLength = sizeof(comessage->storage);
+      }
       memcpy(comessage->storage, storage, storageLength);
       if (funcData.data == NULL) {
         comessage->funcData.data = storage;
@@ -1621,6 +1641,7 @@ int comessageInit(Comessage *comessage, int type,
         comessage->funcData = funcData;
       }
     } else {
+      // No storage to copy.  Just use the funcData directly.
       comessage->funcData = funcData;
     }
     comessage->next = NULL;
