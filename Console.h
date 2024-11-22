@@ -101,10 +101,8 @@ static inline int printConsole(char message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_CHAR;
-  comessage->funcData.data = comessage->storage;
-  *((char*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_CHAR,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -119,10 +117,8 @@ static inline int printConsole(unsigned char message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_UCHAR;
-  comessage->funcData.data = comessage->storage;
-  *((unsigned char*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_UCHAR,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -137,10 +133,8 @@ static inline int printConsole(int message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_INT;
-  comessage->funcData.data = comessage->storage;
-  *((int*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_INT,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -155,10 +149,8 @@ static inline int printConsole(unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_UINT;
-  comessage->funcData.data = comessage->storage;
-  *((unsigned int*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_UINT,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -173,10 +165,8 @@ static inline int printConsole(long int message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_LONG_INT;
-  comessage->funcData.data = comessage->storage;
-  *((long int*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_LONG_INT,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -191,10 +181,8 @@ static inline int printConsole(long unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_LONG_UINT;
-  comessage->funcData.data = comessage->storage;
-  *((long unsigned int*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_LONG_UINT,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -209,10 +197,8 @@ static inline int printConsole(float message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_FLOAT;
-  comessage->funcData.data = comessage->storage;
-  *((float*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_FLOAT,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -227,10 +213,8 @@ static inline int printConsole(double message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_DOUBLE;
-  comessage->funcData.data = comessage->storage;
-  *((double*) comessage->funcData.data) = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_DOUBLE,
+    NULL, &message, sizeof(message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -245,9 +229,8 @@ static inline int printConsole(const char *message) {
     comessage = getAvailableMessage();
   }
 
-  comessage->type = (int) CONSOLE_WRITE_STRING;
-  comessage->funcData.data = message;
-  comessage->handled = false;
+  comessageInitData(comessage, CONSOLE_WRITE_STRING,
+    message, NULL, 0);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);

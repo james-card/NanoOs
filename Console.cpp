@@ -42,9 +42,11 @@ typedef struct ConsoleState {
 
 void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
   const char *message
-    = (const char *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (const char *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -52,9 +54,11 @@ void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
   const unsigned char *message
-    = (const unsigned char *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (const unsigned char *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -62,9 +66,11 @@ void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
   int *message
-    = (int *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (int *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -72,9 +78,11 @@ void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
   unsigned int *message
-    = (unsigned int *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (unsigned int *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -82,19 +90,23 @@ void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
   long int *message
-    = (long int *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (long int *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
 }
 
 void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
-  long int *message
-    = (long int *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+  long unsigned int *message
+    = (long unsigned int *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -102,9 +114,11 @@ void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
   float *message
-    = (float *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (float *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -112,9 +126,11 @@ void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
   double *message
-    = (double *) inputMessage->funcData.data;
-  Serial.print(*message);
-  inputMessage->handled = true;
+    = (double *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(*message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -122,9 +138,11 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
 
 void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
   const char *message
-    = (const char *) inputMessage->funcData.data;
-  Serial.print(message);
-  inputMessage->handled = true;
+    = (const char *) comessageData(inputMessage);
+  if (message != NULL) {
+    Serial.print(message);
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -136,7 +154,7 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   Comessage *returnMessage = getAvailableMessage();
   if (returnMessage == NULL)  {
     // No return message available.  Nothing we can do.  Bail.
-    inputMessage->handled = true;
+    comessageSetDone(inputMessage);
     return;
   }
 
@@ -150,9 +168,11 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
 
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
-    returnMessage->type = (int) CONSOLE_RETURNING_BUFFER;
-    returnMessage->funcData.data = returnValue;
-    if (comessagePush(inputMessage->from, returnMessage) != coroutineSuccess) {
+    comessageInitData(returnMessage, CONSOLE_RETURNING_BUFFER,
+      returnValue, NULL, 0);
+    if (comessagePush(comessageFrom(inputMessage), returnMessage)
+      != coroutineSuccess
+    ) {
       releaseMessage(returnMessage);
       returnValue->inUse = false;
     }
@@ -165,17 +185,21 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   // call, so mark the input message handled.  This is a synchronous call and
   // the caller is waiting on our response, so *DO NOT* release it.  The caller
   // is responsible for releasing it when they've received the response.
-  inputMessage->handled = true;
+  comessageSetDone(inputMessage);
   return;
 }
 
 void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   ConsoleBuffer *consoleBuffer
-    = (ConsoleBuffer*) inputMessage->funcData.data;
-  const char *message = consoleBuffer->buffer;
-  Serial.print(message);
-  consoleBuffer->inUse = false;
-  inputMessage->handled = true;
+    = (ConsoleBuffer*) comessageData(inputMessage);
+  if (consoleBuffer != NULL) {
+    const char *message = consoleBuffer->buffer;
+    if (message != NULL) {
+      Serial.print(message);
+    }
+    consoleBuffer->inUse = false;
+  }
+  comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
 
   return;
@@ -198,7 +222,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
 static inline void handleConsoleMessages(ConsoleState *consoleState) {
   Comessage *message = comessagePop(NULL);
   while (message != NULL) {
-    ConsoleCommand messageType = (ConsoleCommand) message->type;
+    ConsoleCommand messageType = (ConsoleCommand) comessageType(message);
     if (messageType >= NUM_CONSOLE_COMMANDS) {
       // Invalid.
       message = comessagePop(NULL);
@@ -206,7 +230,7 @@ static inline void handleConsoleMessages(ConsoleState *consoleState) {
     }
 
     consoleCommandHandlers[messageType](consoleState, message);
-    message->handled = true;
+    comessageSetDone(message);
     message = comessagePop(NULL);
   }
 
@@ -270,7 +294,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
 
   while (returnValue == NULL) {
     Comessage *comessage = sendDataMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, NULL);
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, NULL, 0);
     if (comessage == NULL) {
       break; // will return returnValue, which is NULL
     }
@@ -295,9 +319,9 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
 
   Comessage *comessage = sendDataMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, NULL);
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, NULL, 0);
   if (stream == stderr) {
-    while (comessage->handled == false) {
+    while (comessageDone(comessage) == false) {
       coroutineYield(NULL);
     }
   }

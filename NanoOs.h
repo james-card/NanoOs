@@ -96,8 +96,7 @@ static inline Comessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      availableMessage->inUse = true;
-      availableMessage->handled = false;
+      comessageInitData(availableMessage, 0, NULL, NULL, 0);
       break;
     }
   }
@@ -106,21 +105,11 @@ static inline Comessage* getAvailableMessage(void) {
 }
 
 static inline int releaseMessage(Comessage *comessage) {
-  if (comessage != NULL) {
-    comessage->type = 0;
-    comessage->funcData.data = NULL;
-    *((uint64_t*) comessage->storage) = 0;
-    // Don't touch comessage->next.
-    // Don't touch comessage->handled.
-    comessage->inUse = false;
-    comessage->from = NULL;
-  }
-
-  return 0;
+  return comessageDestroy(comessage);
 }
 
-static inline Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data, void *storage
+static inline Comessage* sendDataMessageToCoroutine(Coroutine *coroutine,
+  int type, void *data, void *storage, size_t storageLength
 ) {
   Comessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
@@ -134,17 +123,7 @@ static inline Comessage* sendDataMessageToCoroutine(
     comessage = getAvailableMessage();
   }
 
-  comessage->type = type;
-  if (storage != NULL) {
-    *((uint64_t*) comessage->storage) = *((uint64_t*) storage);
-    if (data == NULL) {
-      comessage->funcData.data = comessage->storage;
-    } else {
-      comessage->funcData.data = data;
-    }
-  } else {
-    comessage->funcData.data = data;
-  }
+  comessageInitData(comessage, type, data, storage, storageLength);
 
   if (comessagePush(coroutine, comessage) != coroutineSuccess) {
     releaseMessage(comessage);
@@ -155,7 +134,7 @@ static inline Comessage* sendDataMessageToCoroutine(
 }
 
 static inline Comessage* sendDataMessageToPid(
-  int pid, int type, void *data, void *storage
+  int pid, int type, void *data, void *storage, size_t storageLength
 ) {
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COROUTINES) {
@@ -164,14 +143,15 @@ static inline Comessage* sendDataMessageToPid(
   }
 
   Coroutine *coroutine = runningCommands[pid].coroutine;
-  comessage = sendDataMessageToCoroutine(coroutine, type, data, storage);
+  comessage
+    = sendDataMessageToCoroutine(coroutine, type, data, storage, storageLength);
   return comessage;
 }
 
 static inline void* waitForDataMessage(Comessage *sent, int type) {
   void *returnValue = NULL;
 
-  while (sent->handled == false) {
+  while (sent->done == false) {
     coroutineYield(NULL);
   }
   releaseMessage(sent);

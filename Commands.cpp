@@ -95,7 +95,7 @@ void* echo(void *args) {
 unsigned int counter = 0;
 void* showCounter(void *args) {
   (void) args;
-  printf("Current counter value: %d\n", counter);
+  printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
   return NULL;
@@ -166,10 +166,8 @@ void handleCommand(const char *consoleInput) {
         comessage = getAvailableMessage();
       }
 
-      comessage->type = (int) CALL_FUNCTION;
-      comessage->funcData.func = commandEntry->function;
-      memcpy(comessage->storage, &consoleInput, sizeof(consoleInput));
-      comessage->handled = false;
+      comessageInitFunc(comessage, CALL_FUNCTION,
+        commandEntry->function, &consoleInput, sizeof(consoleInput));
       comessagePush(&mainCoroutine, comessage);
     }
   } else {

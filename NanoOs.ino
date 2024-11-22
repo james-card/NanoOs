@@ -58,11 +58,11 @@ void setup() {
 }
 
 void callFunction(Comessage *comessage) {
-  CoroutineFunction func = comessage->funcData.func;
+  CoroutineFunction func = comessageFunc(comessage);
   Coroutine *coroutine = coroutineCreate(func);
   coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
   runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-  coroutineResume(coroutine, comessage->storage);
+  coroutineResume(coroutine, comessageStorage(comessage));
 }
 
 void (*mainCoroutineCommandHandlers[])(Comessage*) {
@@ -72,7 +72,8 @@ void (*mainCoroutineCommandHandlers[])(Comessage*) {
 static inline void handleMainCoroutineMessage(void) {
   Comessage *message = comessagePop(NULL);
   if (message != NULL) {
-    MainCoroutineCommand messageType = (MainCoroutineCommand) message->type;
+    MainCoroutineCommand messageType
+      = (MainCoroutineCommand) comessageType(message);
     if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
       // Invalid.
       return;
