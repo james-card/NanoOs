@@ -326,7 +326,7 @@ void* coconditionLastYieldValue(Cocondition *cond);
 typedef struct Comessage {
   int type;
   CoroutineFuncData funcData;
-  uint8_t storage[sizeof(uint64_t)];
+  uint64_t storage;
   struct Comessage *next;
   bool done;
   bool inUse;
