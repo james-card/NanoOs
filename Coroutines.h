@@ -348,10 +348,12 @@ int comessageSetDone(Comessage *comessage);
 // Coroutine message accessors.
 #define comessageType(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
-#define comessageData(comessagePointer) \
+#define comessageDataValue(comessagePointer) \
   (((comessagePointer) != NULL) \
     ? (comessagePointer)->data \
     : ((long long unsigned int) 0))
+#define comessageDataPointer(comessagePointer) \
+  ((void*) ((intptr_t) comessageDataValue(comessagePointer)))
 #define comessageFunc(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->func : NULL)
 // No accessor for next member element.

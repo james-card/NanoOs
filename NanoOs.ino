@@ -62,7 +62,7 @@ void callFunction(Comessage *comessage) {
   Coroutine *coroutine = coroutineCreate(func);
   coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
   runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-  coroutineResume(coroutine, (void*) ((intptr_t) comessageData(comessage)));
+  coroutineResume(coroutine, comessageDataPointer(comessage));
 }
 
 void (*mainCoroutineCommandHandlers[])(Comessage*) {

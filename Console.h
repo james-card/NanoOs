@@ -191,8 +191,9 @@ static inline int printConsole(float message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL,
-    *((long long unsigned int*) &message));
+  long long unsigned int data = 0;
+  memcpy(&data, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -207,8 +208,9 @@ static inline int printConsole(double message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL,
-    *((long long unsigned int*) &message));
+  long long unsigned int data = 0;
+  memcpy(&data, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
