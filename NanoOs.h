@@ -96,7 +96,7 @@ static inline Comessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      comessageInitData(availableMessage, 0, NULL, NULL, 0);
+      comessageInit(availableMessage, 0, NULL, NULL);
       break;
     }
   }
@@ -108,8 +108,8 @@ static inline int releaseMessage(Comessage *comessage) {
   return comessageDestroy(comessage);
 }
 
-static inline Comessage* sendDataMessageToCoroutine(Coroutine *coroutine,
-  int type, void *data, void *storage, size_t storageLength
+static inline Comessage* sendDataMessageToCoroutine(
+  Coroutine *coroutine, int type, void *data
 ) {
   Comessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
@@ -123,7 +123,7 @@ static inline Comessage* sendDataMessageToCoroutine(Coroutine *coroutine,
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, type, data, storage, storageLength);
+  comessageInit(comessage, type, NULL, (intptr_t) data);
 
   if (comessagePush(coroutine, comessage) != coroutineSuccess) {
     releaseMessage(comessage);
@@ -133,9 +133,7 @@ static inline Comessage* sendDataMessageToCoroutine(Coroutine *coroutine,
   return comessage;
 }
 
-static inline Comessage* sendDataMessageToPid(
-  int pid, int type, void *data, void *storage, size_t storageLength
-) {
+static inline Comessage* sendDataMessageToPid(int pid, int type, void *data) {
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COROUTINES) {
     // Not a valid PID.  Fail.
@@ -144,7 +142,7 @@ static inline Comessage* sendDataMessageToPid(
 
   Coroutine *coroutine = runningCommands[pid].coroutine;
   comessage
-    = sendDataMessageToCoroutine(coroutine, type, data, storage, storageLength);
+    = sendDataMessageToCoroutine(coroutine, type, data);
   return comessage;
 }
 
@@ -158,7 +156,7 @@ static inline void* waitForDataMessage(Comessage *sent, int type) {
 
   Comessage *incoming = comessagePopType(NULL, type);
   if (incoming != NULL)  {
-    returnValue = incoming->funcData.data;
+    returnValue = (void*) ((intptr_t) comessageData(incoming));
     releaseMessage(incoming);
   }
 

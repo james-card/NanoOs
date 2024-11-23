@@ -49,7 +49,7 @@ void* ps(void *args) {
 }
 
 void* kill(void *args) {
-  const char *processIdString = *((const char**) args);
+  const char *processIdString = (const char*) args;
   int processId = (int) strtol(processIdString, NULL, 10);
 
   if ((processId != NANO_OS_CONSOLE_PROCESS_ID)
@@ -166,8 +166,8 @@ void handleCommand(const char *consoleInput) {
         comessage = getAvailableMessage();
       }
 
-      comessageInitFunc(comessage, CALL_FUNCTION,
-        commandEntry->function, &consoleInput, sizeof(consoleInput));
+      comessageInit(comessage, CALL_FUNCTION,
+        commandEntry->function, (intptr_t) consoleInput);
       comessagePush(&mainCoroutine, comessage);
     }
   } else {

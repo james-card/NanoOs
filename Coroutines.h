@@ -149,8 +149,8 @@ typedef void* (*CoroutineFunction)(void *arg);
 /// @param func The function pointer portion of the pointer value.
 /// @param data The data pointer portion of the pointer value.
 typedef union CoroutineFuncData {
-  void* (*func)(void*);
-  void* data;
+  CoroutineFunction func;
+  void *data;
 } CoroutineFuncData;
 
 // Forward declarations.  Doxygen below.
@@ -315,8 +315,10 @@ void* coconditionLastYieldValue(Cocondition *cond);
 ///
 /// @param type Integer value designating the type of message for the receiving
 ///   coroutine.
-/// @param data A pointer to the message data for the destination coroutine.
-/// @param storage 64-bits of storage for a small message.
+/// @param func A CoroutineFunction function pointer to the function of the
+///   message.
+/// @param data The data of the message.  This storage for this value must be
+///   the type of the largest integer value supported by the platform.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
 /// @param done A boolean flag to indicate whether or not the receiving
 ///   coroutine has handled the message yet.
@@ -325,8 +327,8 @@ void* coconditionLastYieldValue(Cocondition *cond);
 /// @param from A pointer to the Coroutine instance for the sending coroutine.
 typedef struct Comessage {
   int type;
-  CoroutineFuncData funcData;
-  uint64_t storage;
+  CoroutineFunction func;
+  long long unsigned int data;
   struct Comessage *next;
   bool done;
   bool inUse;
@@ -335,11 +337,7 @@ typedef struct Comessage {
 
 // Coroutine message function prototypes.  Doxygen inline in source file.
 int comessageInit(Comessage *comessage, int type,
-  CoroutineFuncData funcData, void *storage, size_t storageLength);
-int comessageInitData(Comessage *comessage, int type,
-  void *data, void *storage, size_t storageLength);
-int comessageInitFunc(Comessage *comessage, int type,
-  CoroutineFunction func, void *storage, size_t storageLength);
+  CoroutineFunction func, long long unsigned int data);
 int comessageDestroy(Comessage *comessage);
 Comessage* comessagePeek(Coroutine *coroutine);
 Comessage* comessagePop(Coroutine *coroutine);
@@ -351,11 +349,11 @@ int comessageSetDone(Comessage *comessage);
 #define comessageType(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
 #define comessageData(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->funcData.data : NULL)
+  (((comessagePointer) != NULL) \
+    ? (comessagePointer)->data \
+    : ((long long unsigned int) 0))
 #define comessageFunc(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->funcData.func : NULL)
-#define comessageStorage(comessagePointer) \
-  (((comessagePointer) != NULL) ? &((comessagePointer)->storage) : NULL)
+  (((comessagePointer) != NULL) ? (comessagePointer)->func : NULL)
 // No accessor for next member element.
 #define comessageDone(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->done : true)

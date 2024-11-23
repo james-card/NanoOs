@@ -1606,45 +1606,27 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
-/// @fn int comessageInit(Comessage *comessage, int type, CoroutineFuncData funcData, void *storage, size_t storageLength)
+/// @fn int comessageInit(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
 ///
 /// @brief Initialize all the member elements of a Comessage structure.
 ///
 /// @param comessage A pointer to the Comessage structure to initialize.
 /// @param type The type integer value to set for the type of the Comessage.
-/// @param funcData The value to use for the funcData member element of the
-///   Comessage structure.  This value may be NULL.
-/// @param storage Any local storage to set for the Comessage.  This value may
-///   be NULL.  If it is *NOT* NULL and funcData *IS* NULL, then the data
-///   pointer of the funcData element in the Comessage will be set to the value
-///   of the storage pointer in the Comessage.
-/// @param storageLength The number of bytes pointed to by the provided storage
-///   pointer.  May be a value between 0 and the size of the storage member
-///   element, inclusive.  If it's larger than size of the storage member
-///   element, it will be truncated to the size of the storage member element.
+/// @param func A CoroutineFunction function pointer to the function of the
+///   message.
+/// @param data The data of the message.  This storage for this value must be
+///   the type of the largest integer value supported by the platform.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int comessageInit(Comessage *comessage, int type,
-  CoroutineFuncData funcData, void *storage, size_t storageLength
+  CoroutineFunction func, long long unsigned int data
 ) {
   int returnValue = coroutineSuccess;
 
   if (comessage != NULL) {
     comessage->type = type;
-    if ((storage != NULL) && (storageLength > 0)) {
-      if (storageLength > sizeof(comessage->storage)) {
-        storageLength = sizeof(comessage->storage);
-      }
-      memcpy(&comessage->storage, storage, storageLength);
-      if (funcData.data == NULL) {
-        comessage->funcData.data = storage;
-      } else {
-        comessage->funcData = funcData;
-      }
-    } else {
-      // No storage to copy.  Just use the funcData directly.
-      comessage->funcData = funcData;
-    }
+    comessage->func = func;
+    comessage->data = data;
     comessage->next = NULL;
     comessage->done = false;
     comessage->inUse = true;
@@ -1654,64 +1636,6 @@ int comessageInit(Comessage *comessage, int type,
   }
 
   return returnValue;
-}
-
-/// @fn int comessageInitData(Comessage *comessage, int type, void *data, void *storage, size_t storageLength)
-///
-/// @brief Wrapper around comessageInit to populate the funcData member with a
-/// data pointer.
-///
-/// @param comessage A pointer to the Comessage structure to initialize.
-/// @param type The type integer value to set for the type of the Comessage.
-/// @param data A pointer to the value to set for the data memeber of the
-///   funcData union in the Comessage.
-/// @param storage Any local storage to set for the Comessage.  This value may
-///   be NULL.  If it is *NOT* NULL and funcData *IS* NULL, then the data
-///   pointer of the funcData element in the Comessage will be set to the value
-///   of the storage pointer in the Comessage.
-/// @param storageLength The number of bytes pointed to by the provided storage
-///   pointer.  May be a value between 0 and the size of the storage member
-///   element, inclusive.  If it's larger than size of the storage member
-///   element, it will be truncated to the size of the storage member element.
-///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageInitData(Comessage *comessage, int type,
-  void *data, void *storage, size_t storageLength
-) {
-  CoroutineFuncData funcData = {
-    .data = data
-  };
-
-  return comessageInit(comessage, type, funcData, storage, storageLength);
-}
-
-/// @fn int comessageInitFunc(Comessage *comessage, int type, CoroutineFunction func, void *storage, size_t storageLength);
-///
-/// @brief Wrapper around comessageInit to populate the funcData member with a
-/// function pointer.
-///
-/// @param comessage A pointer to the Comessage structure to initialize.
-/// @param type The type integer value to set for the type of the Comessage.
-/// @param func The CoroutineFunction function pointer to use as the func member
-///   of the funcData union in the Comessage.
-/// @param storage Any local storage to set for the Comessage.  This value may
-///   be NULL.  If it is *NOT* NULL and funcData *IS* NULL, then the data
-///   pointer of the funcData element in the Comessage will be set to the value
-///   of the storage pointer in the Comessage.
-/// @param storageLength The number of bytes pointed to by the provided storage
-///   pointer.  May be a value between 0 and the size of the storage member
-///   element, inclusive.  If it's larger than size of the storage member
-///   element, it will be truncated to the size of the storage member element.
-///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageInitFunc(Comessage *comessage, int type,
-  CoroutineFunction func, void *storage, size_t storageLength
-) {
-  CoroutineFuncData funcData = {
-    .func = func
-  };
-
-  return comessageInit(comessage, type, funcData, storage, storageLength);
 }
 
 /// @fn int comessageDestroy(Comessage *comessage)
@@ -1727,8 +1651,8 @@ int comessageDestroy(Comessage *comessage) {
 
   if (comessage != NULL) {
     comessage->type = 0;
-    comessage->funcData.data = NULL;
-    comessage->storage = 0;
+    comessage->func = NULL;
+    comessage->data = (uint64_t) 0;
     // Don't touch comessage->next.
     // Don't touch comessage->done.
     comessage->inUse = false;

@@ -101,8 +101,7 @@ static inline int printConsole(char message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_CHAR,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -117,8 +116,7 @@ static inline int printConsole(unsigned char message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_UCHAR,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -133,8 +131,7 @@ static inline int printConsole(int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_INT,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -149,8 +146,7 @@ static inline int printConsole(unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_UINT,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -165,8 +161,7 @@ static inline int printConsole(long int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_LONG_INT,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -181,8 +176,7 @@ static inline int printConsole(long unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_LONG_UINT,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -197,8 +191,8 @@ static inline int printConsole(float message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_FLOAT,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL,
+    *((long long unsigned int*) &message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -213,8 +207,8 @@ static inline int printConsole(double message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_DOUBLE,
-    NULL, &message, sizeof(message));
+  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL,
+    *((long long unsigned int*) &message));
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -229,8 +223,8 @@ static inline int printConsole(const char *message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInitData(comessage, CONSOLE_WRITE_STRING,
-    message, NULL, 0);
+  comessageInit(comessage, CONSOLE_WRITE_STRING, NULL,
+    (intptr_t) message);
   comessagePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
