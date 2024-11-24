@@ -81,7 +81,7 @@ typedef struct RunningCommand {
 } RunningCommand;
 
 // Exported functions
-void handleCommand(const char *consoleInput);
+void handleCommand(char *consoleInput);
 
 #ifdef __cplusplus
 } // extern "C"

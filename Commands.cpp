@@ -69,7 +69,7 @@ void* kill(void *args) {
 }
 
 void* echo(void *args) {
-  char *argsBegin = (const char *) args;
+  char *argsBegin = (char *) args;
   char *newlineAt = strchr(argsBegin, '\r');
   if (newlineAt == NULL) {
     newlineAt = strchr(argsBegin, '\n');
@@ -113,7 +113,7 @@ void* runCounter(void *args) {
   return NULL;
 }
 
-void handleCommand(const char *consoleInput) {
+void handleCommand(char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   int searchIndex = NUM_COMMANDS >> 1;
   for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
