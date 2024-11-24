@@ -116,9 +116,9 @@ void* runCounter(void *args) {
 void handleCommand(char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   int searchIndex = NUM_COMMANDS >> 1;
+  size_t commandNameLength = strcspn(consoleInput, " \t\r\n");
   for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
     const char *commandName = commands[searchIndex].name;
-    size_t commandNameLength = strlen(commandName);
     int comparisonValue = strncmp(commandName, consoleInput, commandNameLength);
     if (comparisonValue == 0) {
       commandEntry = &commands[searchIndex];
