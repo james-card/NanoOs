@@ -69,7 +69,7 @@ void* kill(void *args) {
 }
 
 void* echo(void *args) {
-  char *argsBegin = (char *) args;
+  char *argsBegin = (char*) args;
   char *newlineAt = strchr(argsBegin, '\r');
   if (newlineAt == NULL) {
     newlineAt = strchr(argsBegin, '\n');
