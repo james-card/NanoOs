@@ -30,8 +30,8 @@
 
 // Coroutines support
 Coroutine mainCoroutine;
-RunningCommand runningCommands[NANO_OS_NUM_COROUTINES] = {0};
-Comessage messages[NANO_OS_NUM_MESSAGES] = {0};
+RunningCommand runningCommands[NANO_OS_NUM_COROUTINES] = {};
+Comessage messages[NANO_OS_NUM_MESSAGES] = {};
 
 // the setup function runs once when you press reset or power the board
 void setup() {
