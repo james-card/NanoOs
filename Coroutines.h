@@ -106,17 +106,51 @@ extern "C"
 #define COROUTINE_ID_TYPE int64_t
 #endif
 
+/// @def COROUTINE_ID_TYPE_int64_t_int64_t
+///
+/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int64_t.
+#define COROUTINE_ID_TYPE_int64_t_int64_t 1
+
+/// @def COROUTINE_ID_TYPE_int32_t_int32_t
+///
+/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int32_t.
+#define COROUTINE_ID_TYPE_int32_t_int32_t 1
+
+/// @def COROUTINE_ID_TYPE_int16_t_int16_t
+///
+/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int16_t.
+#define COROUTINE_ID_TYPE_int16_t_int16_t 1
+
+/// @def COROUTINE_ID_TYPE_int8_t_int8_t
+///
+/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int8_t.
+#define COROUTINE_ID_TYPE_int8_t_int8_t   1
+
+/// @def EXPAND_COROUTINE_ID_TYPE
+///
+/// @brief Second-level macro to fully expand the types passed into
+/// TEST_COROUTINE_ID_TYPE.
+#define EXPAND_COROUTINE_ID_TYPE(type1, type2) \
+  COROUTINE_ID_TYPE_##type1##_##type2
+
+/// @def TEST_COROUTINE_ID_TYPE
+///
+/// @brief Determine if the type specified by type1 matches the type specified
+/// by type2.
+#define TEST_COROUTINE_ID_TYPE(type1, type2) \
+  EXPAND_COROUTINE_ID_TYPE(type1, type2)
+
 /// @def COROUTINE_ID_NOT_SET
 ///
 /// @brief Special value to indicate that a coroutine's ID value is not set.
 /// This is the initial value just after the coroutine constructor completes.
-#if COROUTINE_ID_TYPE == int64_t
+#if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int64_t)
 #define COROUTINE_ID_NOT_SET ((int64_t) 0x8000000000000000)
-#elif COROUTINE_ID_TYPE == int32_t
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int32_t)
 #define COROUTINE_ID_NOT_SET ((int32_t) 0x80000000)
-#elif COROUTINE_ID_TYPE == int16_t
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int16_t)
 #define COROUTINE_ID_NOT_SET ((int16_t) 0x8000)
-#elif COROUTINE_ID_TYPE == int8_t
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int8_t)
 #define COROUTINE_ID_NOT_SET ((int8_t) 0x80)
 #else
 #error "Invalid COROUTINE_ID_TYPE."
