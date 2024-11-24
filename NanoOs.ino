@@ -35,6 +35,10 @@ Comessage messages[NANO_OS_NUM_MESSAGES] = {0};
 
 // the setup function runs once when you press reset or power the board
 void setup() {
+  // Make the compiler stop complaining about getElapsedMilliseconds not being
+  // used by this file.
+  (void) getElapsedMilliseconds(0);
+
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
