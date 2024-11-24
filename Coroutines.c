@@ -1612,14 +1612,12 @@ void* coconditionLastYieldValue(Cocondition* cond) {
 ///
 /// @param comessage A pointer to the Comessage structure to initialize.
 /// @param type The type integer value to set for the type of the Comessage.
-/// @param func A CoroutineFunction function pointer to the function of the
-///   message.
-/// @param data The data of the message.  This storage for this value must be
-///   the type of the largest integer value supported by the platform.
+/// @param func A function pointer to the function of the message.
+/// @param data The data of the message.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int comessageInit(Comessage *comessage, int type,
-  CoroutineFunction func, long long unsigned int data
+  ComessageData func, ComessageData data
 ) {
   int returnValue = coroutineSuccess;
 

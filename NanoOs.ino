@@ -58,7 +58,7 @@ void setup() {
 }
 
 void callFunction(Comessage *comessage) {
-  CoroutineFunction func = comessageFunc(comessage);
+  CoroutineFunction func = comessageFunc(comessage, CoroutineFunction);
   Coroutine *coroutine = coroutineCreate(func);
   coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
   runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
