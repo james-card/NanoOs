@@ -1649,7 +1649,7 @@ int comessageDestroy(Comessage *comessage) {
 
   if (comessage != NULL) {
     comessage->type = 0;
-    comessage->func = NULL;
+    comessage->func = 0;
     comessage->data = (uint64_t) 0;
     // Don't touch comessage->next.
     // Don't touch comessage->done.
