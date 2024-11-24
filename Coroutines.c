@@ -1606,7 +1606,7 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
-/// @fn int comessageInit(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
+/// @fn int comessageInit_(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
 ///
 /// @brief Initialize all the member elements of a Comessage structure.
 ///
@@ -1616,7 +1616,7 @@ void* coconditionLastYieldValue(Cocondition* cond) {
 /// @param data The data of the message.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageInit(Comessage *comessage, int type,
+int comessageInit_(Comessage *comessage, int type,
   ComessageData func, ComessageData data
 ) {
   int returnValue = coroutineSuccess;
