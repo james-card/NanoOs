@@ -72,6 +72,8 @@ extern "C"
 {
 #endif
 
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 // Support functions
 static inline int freeRamBytes(void) {
   extern int __heap_start,*__brkval;

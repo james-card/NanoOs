@@ -41,6 +41,8 @@ typedef struct ConsoleState {
 } ConsoleState;
 
 void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   char message = comessageDataValue(inputMessage, char);
   Serial.print(message);
   comessageSetDone(inputMessage);
@@ -50,6 +52,8 @@ void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   unsigned char message = comessageDataValue(inputMessage, unsigned char);
   Serial.print(message);
   comessageSetDone(inputMessage);
@@ -59,6 +63,8 @@ void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   int message = comessageDataValue(inputMessage, int);
   Serial.print(message);
   comessageSetDone(inputMessage);
@@ -68,6 +74,8 @@ void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   unsigned int message = comessageDataValue(inputMessage, unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
@@ -77,6 +85,8 @@ void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   long int message = comessageDataValue(inputMessage, long int);
   Serial.print(message);
   comessageSetDone(inputMessage);
@@ -86,6 +96,8 @@ void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   long unsigned int message
     = comessageDataValue(inputMessage, long unsigned int);
   Serial.print(message);
@@ -96,8 +108,11 @@ void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   ComessageData data = comessageDataValue(inputMessage, ComessageData);
-  float message = *((float*) &data);
+  float message = 0.0;
+  memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
@@ -106,8 +121,11 @@ void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   ComessageData data = comessageDataValue(inputMessage, ComessageData);
-  double message = *((double*) &data);
+  double message = 0.0;
+  memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
   releaseMessage(inputMessage);
@@ -116,6 +134,8 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   const char *message = (const char*) comessageDataPointer(inputMessage);
   if (message != NULL) {
     Serial.print(message);
@@ -168,6 +188,8 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
 }
 
 void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
+  (void) consoleState;
+
   ConsoleBuffer *consoleBuffer
     = (ConsoleBuffer*) comessageDataPointer(inputMessage);
   if (consoleBuffer != NULL) {

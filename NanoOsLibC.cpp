@@ -10,12 +10,14 @@
 ///
 /// @return Returns teh value of base on success, 0 on failure.
 int timespec_get(struct timespec* spec, int base) {
-  if (spec == 0) {
+  if (spec == NULL) {
     return 0;
   }
   
   unsigned long now = getElapsedMilliseconds(0);
   spec->tv_sec = (time_t) (now / 1000UL);
   spec->tv_nsec = now * 1000000UL;
+
+  return base;
 }
 

@@ -191,7 +191,7 @@ static inline int printConsole(float message) {
     comessage = getAvailableMessage();
   }
 
-  long long unsigned int data = 0;
+  ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
   comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data);
   comessagePush(
@@ -208,7 +208,7 @@ static inline int printConsole(double message) {
     comessage = getAvailableMessage();
   }
 
-  long long unsigned int data = 0;
+  ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
   comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data);
   comessagePush(

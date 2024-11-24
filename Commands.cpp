@@ -179,17 +179,21 @@ void handleCommand(char *consoleInput) {
         releaseConsole();
       }
     } else {
-      // We need to run this command from the main thread (that's running the
-      // scheduler).  We can't block the console.
-      Comessage *comessage = getAvailableMessage();
-      while (comessage == NULL) {
-        coroutineYield(NULL);
-        comessage = getAvailableMessage();
-      }
+      // We need to run this command from the reserved coroutine.
+      Coroutine *coroutine
+        = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
+      if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
+        coroutine = coroutineCreate(commandEntry->function);
+        coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
 
-      comessageInit(comessage, CALL_FUNCTION,
-        commandEntry->function, (intptr_t) consoleInput);
-      comessagePush(&mainCoroutine, comessage);
+        runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
+        runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
+
+        coroutineResume(coroutine, consoleInput);
+      } else {
+        printConsole("ERROR:  System busy.\n");
+        releaseConsole();
+      }
     }
   } else {
     // printf is blocking.  handleCommand is called from runConsole itself, so
