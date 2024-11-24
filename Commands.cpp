@@ -92,6 +92,13 @@ void* echo(void *args) {
   return NULL;
 }
 
+void* echoSomething(void *args) {
+  (void) args;
+  printf("Something\n");
+  releaseConsole();
+  return NULL;
+}
+
 unsigned int counter = 0;
 void* showCounter(void *args) {
   (void) args;
@@ -120,6 +127,20 @@ void handleCommand(char *consoleInput) {
   for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
     const char *commandName = commands[searchIndex].name;
     int comparisonValue = strncmp(commandName, consoleInput, commandNameLength);
+    if (comparisonValue == 0) {
+      // We need an exact match.  So, the character at index commandNameLength
+      // of commandName needs to be zero.  If it's anything else, we don't have
+      // an exact match and we need to continue our search.  Since the order
+      // we're comparing is commandName - consoleInput, what we're asserting
+      // is that consoleInput[commandNameLength] is a NULL byte (0).  However,
+      // it isn't really because of the whitespace inherent to commands.  So, we
+      // can't do a literal subtration here.  However, since it's assumed to be
+      // 0, this is the same as commandName[commandNameLength] - 0, or simply
+      // commandName[commandNameLength].  So, just use that value as the final
+      // comparison value here.
+      comparisonValue = ((int) commandName[commandNameLength]);
+    }
+
     if (comparisonValue == 0) {
       commandEntry = &commands[searchIndex];
       consoleInput += commandNameLength + 1;
@@ -181,10 +202,17 @@ void handleCommand(char *consoleInput) {
   return;
 }
 
+// REMINDER:  These commands have to be in alphabetical order so that the binary
+//            search will work!!!
 CommandEntry commands[] = {
   {
     .name = "echo",
     .function = echo,
+    .userProcess = true
+  },
+  {
+    .name = "echoSomething",
+    .function = echoSomething,
     .userProcess = true
   },
   {
