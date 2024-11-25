@@ -390,7 +390,7 @@ int coconditionBroadcast(Cocondition *cond);
 void coconditionDestroy(Cocondition *cond);
 int coconditionInit(Cocondition *cond);
 int coconditionSignal(Cocondition *cond);
-int conditionTimedwait(Cocondition *cond, Comutex *mtx,
+int conditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts);
 int coconditionWait(Cocondition *cond, Comutex *mtx);
 void* coconditionLastYieldValue(Cocondition *cond);
@@ -403,9 +403,9 @@ Comessage* comessageQueuePop(Coroutine *coroutine);
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
 Comessage* comessageQueueWait(Coroutine *coroutine);
 Comessage* comessageQueueWaitType(Coroutine *coroutine, int type);
-Comessage* comessageQueueTimedwait(Coroutine *coroutine,
+Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   const struct timespec *ts);
-Comessage* comessageQueueTimedwaitType(Coroutine *coroutine, int type,
+Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
   const struct timespec *ts);
 int comessagePush(Coroutine *coroutine, Comessage *comessage);
 
@@ -419,7 +419,7 @@ int comessageInit_(Comessage *comessage, int type,
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitDone(Comessage *comessage);
-int comessageTimedwaitDone(Comessage *comessage, const struct timespec *ts);
+int comessageTimedWaitDone(Comessage *comessage, const struct timespec *ts);
 
 
 // Comessage accessors

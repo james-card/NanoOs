@@ -1409,7 +1409,7 @@ int coconditionSignal(Cocondition *cond) {
   return returnValue;
 }
 
-/// @fn int conditionTimedwait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
+/// @fn int conditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
 ///
 /// @brief Wait for a condition to be signalled or until a specified time,
 /// whichever comes first.
@@ -1424,7 +1424,7 @@ int coconditionSignal(Cocondition *cond) {
 /// deadline is reached before the condition is signalled, or coroutineError
 /// if the request could not be honored (a parameter is NULL or timespec_get
 /// fails).
-int conditionTimedwait(Cocondition *cond, Comutex *mtx,
+int conditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts
 ) {
   if ((cond == NULL) || (mtx == NULL) || (ts == NULL)) {
