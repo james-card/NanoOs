@@ -402,7 +402,7 @@ Comessage* comessageQueuePeek(Coroutine *coroutine);
 Comessage* comessageQueuePop(Coroutine *coroutine);
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
 Comessage* comessageQueueWait(Coroutine *coroutine);
-Comessage* comessageQueueWaitType(Coroutine *coroutine);
+Comessage* comessageQueueWaitType(Coroutine *coroutine, int type);
 Comessage* comessageQueueTimedwait(Coroutine *coroutine,
   const struct timespec *ts);
 Comessage* comessageTimedWaitType(Coroutine *coroutine, int type,

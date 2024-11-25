@@ -1753,6 +1753,8 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
 /// @brief Block the current coroutine until a message is available in its
 /// message queue.
 ///
+/// @param coroutine A pointer to the Coroutine to interrogate.
+///
 /// @return Returns a pointer to the popped message on success, NULL on error.
 Comessage* comessageQueueWait(Coroutine *coroutine) {
   Comessage *returnValue = NULL;
@@ -1773,6 +1775,61 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
     }
 
     returnValue = comessageQueuePop(coroutine);
+
+    comutexUnlock(&coroutine->lock);
+  }
+
+  return returnValue;
+}
+
+/// @fn Comessage* comessageQueueWaitType(Coroutine *coroutine)
+///
+/// @brief Wait until there is a message of the specified type in the message
+/// queue and then remove and return it when it becomes available.
+///
+/// @param coroutine A pointer to the Coroutine to interrogate.
+/// @param type The message type to look for.
+///
+/// @return Returns the first message of the queue with the specified type on
+/// success, NULL on failure.
+Comessage* comessageQueueWaitType(Coroutine *coroutine, int type) {
+  Comessage *returnValue = NULL;
+  if (coroutine == NULL) {
+    coroutine = getRunningCoroutine();
+  }
+
+  if ((coroutine != NULL)
+    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+  ) {
+    while (returnValue == NULL) {
+      Comessage *cur = coroutine->nextMessage;
+      Comessage **prev = &coroutine->nextMessage;
+
+      while ((cur != NULL) && (cur->type != type)) {
+        prev = &cur->next;
+        cur = cur->next;
+      }
+
+      if (cur != NULL) {
+        // Desired type was found.  Remove the message from the coroutine.
+        returnValue = cur;
+        *prev = cur->next;
+        cur->next = NULL;
+
+        if (coroutine->nextMessage == NULL) {
+          // Empty coroutine.  Set coroutine->lastMessage to NULL too.
+          coroutine->lastMessage = NULL;
+        }
+      } else {
+        // Desired type was not found.  Block until something else is pushed.
+        if (coconditionWait(&coroutine->condition, &coroutine->lock)
+          != coroutineSuccess
+        ) {
+          comutexUnlock(&coroutine->lock);
+          return returnValue; // NULL
+        }
+      }
+    }
 
     comutexUnlock(&coroutine->lock);
   }
