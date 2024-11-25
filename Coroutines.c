@@ -1606,7 +1606,7 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
-/// @fn Comessage* comessagePeek(Coroutine *coroutine)
+/// @fn Comessage* comessageQueuePeek(Coroutine *coroutine)
 ///
 /// @brief Get the head of a coroutine's message queue but do not remove it from
 /// the queue.
@@ -1615,7 +1615,7 @@ void* coconditionLastYieldValue(Cocondition* cond) {
 ///
 /// @return Returns the head of the coroutine's message queue on success, NULL
 /// on failure.
-Comessage* comessagePeek(Coroutine *coroutine) {
+Comessage* comessageQueuePeek(Coroutine *coroutine) {
   Comessage *comessage = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
@@ -1628,7 +1628,7 @@ Comessage* comessagePeek(Coroutine *coroutine) {
   return comessage;
 }
 
-/// @fn Comessage* comessagePop(Coroutine *coroutine)
+/// @fn Comessage* comessageQueuePop(Coroutine *coroutine)
 ///
 /// @brief Get the head of a coroutine's message queue and remove it from the
 /// queue.
@@ -1637,7 +1637,7 @@ Comessage* comessagePeek(Coroutine *coroutine) {
 ///
 /// @return Returns the head of the coroutine's message queue on success, NULL
 /// on failure.
-Comessage* comessagePop(Coroutine *coroutine) {
+Comessage* comessageQueuePop(Coroutine *coroutine) {
   Comessage *comessage = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
@@ -1654,7 +1654,7 @@ Comessage* comessagePop(Coroutine *coroutine) {
   return comessage;
 }
 
-/// @fn Comessage* comessagePopType(Coroutine *coroutine, int type)
+/// @fn Comessage* comessageQueuePopType(Coroutine *coroutine, int type)
 ///
 /// @brief Get the first message of the specified type from a coroutine's
 /// message queue and remove it from the queue.
@@ -1664,7 +1664,7 @@ Comessage* comessagePop(Coroutine *coroutine) {
 ///
 /// @return Returns the first message of the specified type on success, NULL on
 /// failure.
-Comessage* comessagePopType(Coroutine *coroutine, int type) {
+Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
   Comessage *comessage = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();

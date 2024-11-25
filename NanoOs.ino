@@ -70,7 +70,7 @@ void (*mainCoroutineCommandHandlers[])(Comessage*) {
 };
 
 static inline void handleMainCoroutineMessage(void) {
-  Comessage *message = comessagePop(NULL);
+  Comessage *message = comessageQueuePop(NULL);
   if (message != NULL) {
     MainCoroutineCommand messageType
       = (MainCoroutineCommand) comessageType(message);

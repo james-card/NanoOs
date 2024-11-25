@@ -240,6 +240,12 @@ static inline void releaseConsole() {
   // from this function.  i.e. We can't use printf here.  Use printConsole
   // instead.
   printConsole("> ");
+  if (runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine->state
+    == COROUTINE_STATE_RUNNING
+  ) {
+    // A system process is exiting.  We need to clear the coroutine pointer.
+    runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = NULL;
+  }
 }
 
 #endif // CONSOLE_H

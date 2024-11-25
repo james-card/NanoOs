@@ -397,12 +397,13 @@ void* coconditionLastYieldValue(Cocondition *cond);
 
 
 // Comessage queue functions
-Comessage* comessagePeek(Coroutine *coroutine);
-Comessage* comessagePop(Coroutine *coroutine);
-Comessage* comessagePopType(Coroutine *coroutine, int type);
-Comessage* comessageWait(Coroutine *coroutine);
-Comessage* comessageWaitType(Coroutine *coroutine);
-Comessage* comessageTimedwait(Coroutine *coroutine, const struct timespec *ts);
+Comessage* comessageQueuePeek(Coroutine *coroutine);
+Comessage* comessageQueuePop(Coroutine *coroutine);
+Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
+Comessage* comessageQueueWait(Coroutine *coroutine);
+Comessage* comessageQueueWaitType(Coroutine *coroutine);
+Comessage* comessageQueueTimedwait(Coroutine *coroutine,
+  const struct timespec *ts);
 Comessage* comessageTimedWaitType(Coroutine *coroutine, int type,
   const struct timespec *ts);
 int comessagePush(Coroutine *coroutine, Comessage *comessage);
