@@ -302,6 +302,8 @@ ConsoleBuffer* consoleGetBuffer(void) {
       break; // will return returnValue, which is NULL
     }
 
+    coroutineYield(NULL);
+
     returnValue = (ConsoleBuffer*) waitForDataMessage(
       comessage, CONSOLE_RETURNING_BUFFER);
   }
