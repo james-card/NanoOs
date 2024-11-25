@@ -949,12 +949,12 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
 int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
-  }
 
-  if (coroutine == NULL) {
-    // Request to set the ID of the currently running Coroutine and there isn't
-    // one.  Bail.
-    return coroutineError;
+    if (coroutine == NULL) {
+      // Request to set the ID of the currently running Coroutine and there
+      // isn't one.  Bail.
+      return coroutineError;
+    }
   }
 
   coroutine->id = id;
@@ -975,10 +975,10 @@ int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
 COROUTINE_ID_TYPE coroutineId(Coroutine* coroutine) {
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
-  }
 
-  if (coroutine == NULL) {
-    return COROUTINE_ID_NOT_SET;
+    if (coroutine == NULL) {
+      return COROUTINE_ID_NOT_SET;
+    }
   }
 
   return coroutine->id;
@@ -1792,16 +1792,29 @@ int comessagePush(Coroutine *coroutine, Comessage *comessage) {
 int comessageDestroy(Comessage *comessage) {
   int returnValue = coroutineSuccess;
 
-  if (comessage != NULL) {
-    comessage->type = 0;
-    comessage->func = 0;
-    comessage->data = (uint64_t) 0;
-    // Don't touch comessage->next.
-    // Don't touch comessage->done.
-    comessage->inUse = false;
-    comessage->from = NULL;
-  } else {
-    returnValue = coroutineError;
+  // Don't touch comessage->type.
+  // Don't touch comessage->func.
+  // Don't touch comessage->data.
+  // Don't touch comessage->next.
+  // Don't touch comessage->waiting.
+  // Don't touch comessage->done.
+  comessage->inUse = false;
+  // Don't touch from.
+  if (comessage->configured == true) {
+    comutexLock(&comessage->lock);
+
+    if (comessage->waiting == false) {
+      // Nothing is waiting.  Destroy the resources.
+      comutexUnlock(&comessage->lock);
+      coconditionDestroy(&comessage->condition);
+      comutexDestroy(&comessage->lock);
+    } else {
+      // Something is waiting.  Signal the waiters.  It will be up to them to
+      // destroy this message again later.
+      comessage->done = true;
+      coconditionBroadcast(&comessage->condition);
+      comutexUnlock(&comessage->lock);
+    }
   }
 
   return returnValue;
