@@ -1837,6 +1837,49 @@ Comessage* comessageQueueWaitType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
+/// @fn Comessage* comessageQueueTimedWait(Coroutine *coroutine, const struct timespec *ts)
+///
+/// @brief Wait for a message to be available in the message queue or until a
+/// specified time has elapsed.  Remove the message from the queue and return
+/// it if one is available before the specified time is reached.
+///
+/// @param coroutine A pointer to the Coroutine to interrogate.
+/// @param ts A pointer to a struct timespec that specifies the end of the time
+///   period to wait for.
+///
+/// @return Returns the head of the queue if a message is available before the
+/// specified time.  Returns NULL if nothing is available within that time
+/// period or if an error occurrs.
+Comessage* comessageQueueTimedWait(Coroutine *coroutine,
+  const struct timespec *ts
+) {
+  Comessage *returnValue = NULL;
+  if (coroutine == NULL) {
+    coroutine = getRunningCoroutine();
+  }
+
+  if ((coroutine != NULL)
+    && (comutexTimedlock(&coroutine->lock, ts) == coroutineSuccess)
+  ) {
+    if (coroutine->nextMessage == NULL) {
+      if (conditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
+        != coroutineSuccess
+      ) {
+        comutexUnlock(&coroutine->lock);
+        return returnValue; // NULL
+      }
+    }
+    // coconditionTimedWait will return coroutineTimedout if the timeout is
+    // reached, so we'll never reach this point if we've exceeded our timeout.
+
+    returnValue = comessageQueuePop(coroutine);
+
+    comutexUnlock(&coroutine->lock);
+  }
+
+  return returnValue;
+}
+
 /// @fn int comessagePush(Coroutine *coroutine, Comessage *comessage)
 ///
 /// @brief Push a message onto a coroutine's message queue.
