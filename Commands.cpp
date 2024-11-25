@@ -136,6 +136,7 @@ void* showInfo(void *args) {
   printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", freeRamBytes());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
+  printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
