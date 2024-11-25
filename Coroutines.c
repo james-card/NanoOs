@@ -1409,7 +1409,7 @@ int coconditionSignal(Cocondition *cond) {
   return returnValue;
 }
 
-/// @fn int conditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
+/// @fn int coconditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
 ///
 /// @brief Wait for a condition to be signalled or until a specified time,
 /// whichever comes first.
@@ -1424,7 +1424,7 @@ int coconditionSignal(Cocondition *cond) {
 /// deadline is reached before the condition is signalled, or coroutineError
 /// if the request could not be honored (a parameter is NULL or timespec_get
 /// fails).
-int conditionTimedWait(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts
 ) {
   if ((cond == NULL) || (mtx == NULL) || (ts == NULL)) {
@@ -1862,14 +1862,14 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
     && (comutexTimedlock(&coroutine->lock, ts) == coroutineSuccess)
   ) {
     if (coroutine->nextMessage == NULL) {
-      if (conditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
+      if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
         != coroutineSuccess
       ) {
         comutexUnlock(&coroutine->lock);
         return returnValue; // NULL
       }
     }
-    // coconditionTimedWait will return coroutineTimedout if the timeout is
+    // cococonditionTimedWait will return coroutineTimedout if the timeout is
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
     returnValue = comessageQueuePop(coroutine);

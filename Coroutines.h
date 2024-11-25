@@ -390,7 +390,7 @@ int coconditionBroadcast(Cocondition *cond);
 void coconditionDestroy(Cocondition *cond);
 int coconditionInit(Cocondition *cond);
 int coconditionSignal(Cocondition *cond);
-int conditionTimedWait(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts);
 int coconditionWait(Cocondition *cond, Comutex *mtx);
 void* coconditionLastYieldValue(Cocondition *cond);
