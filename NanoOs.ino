@@ -81,6 +81,12 @@ int coroutineIndex = 0;
 void loop() {
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
+
+  RunningCommand runningCommandsStorage[NANO_OS_NUM_COROUTINES] = {};
+  runningCommands = runningCommandsStorage;
+  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  messages = messagesStorage;
+
   Coroutine *coroutine = coroutineCreate(runConsole);
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
@@ -89,11 +95,6 @@ void loop() {
   printConsole("\n");
   printConsole("Setup complete.\n");
   printConsole("> ");
-
-  RunningCommand runningCommandsStorage[NANO_OS_NUM_COROUTINES] = {};
-  runningCommands = runningCommandsStorage;
-  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  messages = messagesStorage;
 
   while (1) {
     coroutineResume(runningCommands[coroutineIndex].coroutine, NULL);
