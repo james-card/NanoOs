@@ -76,8 +76,22 @@ static inline void handleMainCoroutineMessage(void) {
   return;
 }
 
-// the loop function runs over and over again forever
-int coroutineIndex = 0;
+// In a normal Arduino sketch, the loop function runs over and over again
+// forever.  For NanoOs, it will be called once and never exit.  This is because
+// we want to do everything related to coroutines in this function.  The reason
+// we want to do this is because we want to hide as much of the coroutine
+// metadata storage as we can within the stack of the main loop.  Every stack,
+// including the stack for the main loop, is NANO_OS_STACK_SIZE bytes in size.
+// Because we need a stack for the main loop, there are effectively
+// NANO_OS_NUM_COROUTINES + 1 stacks.  If we do nothing with this stack, we're
+// just wasting space.  Also, making the storage for these things global
+// consumes precious memory.  It's much more efficient to just store the
+// pointers in the global address space and put the real storage in the main
+// loop.  However, that means that we have to do all the one-time setup from
+// within the main loop.  That, in turn, means that we can never exit this
+// function.  So, we will do all the one-time setup and then enter an infinite
+// loop from within this function that will be responsible for the task
+// switching.
 void loop() {
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
@@ -96,6 +110,7 @@ void loop() {
   printConsole("Setup complete.\n");
   printConsole("> ");
 
+  int coroutineIndex = 0;
   while (1) {
     coroutineResume(runningCommands[coroutineIndex].coroutine, NULL);
     handleMainCoroutineMessage();
