@@ -35,6 +35,10 @@ extern const int NUM_COMMANDS;
 
 void* ps(void *args) {
   (void) args;
+  // At this point, we were called by coroutineResume from handleCommand, so
+  // it's still suspended.  We're not processing any arguments (the console
+  // input), so we need to go ahead and yield now.
+  coroutineYield(NULL);
 
   for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {
     if (coroutineResumable(runningCommands[ii].coroutine)) {
@@ -52,6 +56,8 @@ void* ps(void *args) {
 void* kill(void *args) {
   const char *processIdString = (const char*) args;
   int processId = (int) strtol(processIdString, NULL, 10);
+  // We're done processing input from the console, so yield now.
+  coroutineYield(NULL);
 
   if ((processId != NANO_OS_CONSOLE_PROCESS_ID)
     && (processId < NANO_OS_NUM_COROUTINES)
@@ -70,14 +76,20 @@ void* kill(void *args) {
 }
 
 void* echo(void *args) {
+  // The consoleBuffer is 256 characters.  Stacks are 512, so we can declare our
+  // own buffer and still be safe.
+  char consoleCopy[256];
   char *argsBegin = (char*) args;
   char *newlineAt = strchr(argsBegin, '\r');
   if (newlineAt == NULL) {
     newlineAt = strchr(argsBegin, '\n');
   }
-  if (newlineAt) {
-    *newlineAt = '\0';
-  }
+  // One of the two must have succeeded, otherwise this command wouldn't have
+  // been called.  So, we can safely dereference the pointer here.
+  *newlineAt = '\0';
+  strcpy(consoleCopy, argsBegin);
+  // We're done with the console input, so yield now.
+  coroutineYield(NULL);
 
   size_t argsLength = strlen(argsBegin);
   if (argsLength < 255) {
@@ -95,6 +107,8 @@ void* echo(void *args) {
 
 void* echoSomething(void *args) {
   (void) args;
+  // We're not processing conosle input, so immediately yield.
+  coroutineYield(NULL);
   printf("Something\n");
   releaseConsole();
   return NULL;
@@ -103,6 +117,8 @@ void* echoSomething(void *args) {
 unsigned int counter = 0;
 void* showCounter(void *args) {
   (void) args;
+  // We're not processing conosle input, so immediately yield.
+  coroutineYield(NULL);
   printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
@@ -111,6 +127,8 @@ void* showCounter(void *args) {
 
 void* runCounter(void *args) {
   (void) args;
+  // We're not processing conosle input, so immediately yield.
+  coroutineYield(NULL);
 
   // This is a background process, so go ahead and release the console.
   releaseConsole();
