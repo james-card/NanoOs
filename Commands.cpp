@@ -44,6 +44,7 @@ void* ps(void *args) {
     }
   }
 
+  printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
   return NULL;
 }
