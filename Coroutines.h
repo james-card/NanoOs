@@ -258,6 +258,11 @@ typedef struct Cocondition {
 ///   coroutinePass function (on a yield or resume call).
 /// @param nextMessage A pointer to the next message that is waiting for the
 ///   coroutine to process.
+/// @param lastMessage A pointer to the last message that is waiting for the
+///   coroutine to process.
+/// @param condition A condition (Cocondition) that will allow for signalling
+///   between coroutines when adding a message to the queue.
+/// @param lock A mutex (Comutex) to guard the condition.
 typedef struct Coroutine {
   struct Coroutine *next;
   jmp_buf context;
@@ -268,6 +273,9 @@ typedef struct Coroutine {
   jmp_buf resetContext;
   CoroutineFuncData passed;
   Comessage *nextMessage;
+  Comessage *lastMessage;
+  Cocondition condition;
+  Comutex lock;
 } Coroutine;
 
 // Coroutine message support.
@@ -289,19 +297,30 @@ typedef long long unsigned int ComessageData;
 /// @param func A function pointer to the function of the message, if any.
 /// @param data The data of the message, if any.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
+/// @param waiting A Boolean flag to indicate whether or not the sender is
+///   waiting on a response message from the recipient of the message.
 /// @param done A Boolean flag to indicate whether or not the receiving
 ///   coroutine has handled the message yet.
 /// @param inUse A Boolean flag to indicate whether or not this Comessage is in
 ///   in use.
 /// @param from A pointer to the Coroutine instance for the sending coroutine.
+/// @param condition A condition (Cocondition) that will allow for signalling
+///   between coroutines when setting the done flag.
+/// @param lock A mutex (Comutex) to guard the condition.
+/// @param configured Whether or not the members of the message that requrie
+///   initializatoin have been configured yet.
 typedef struct Comessage {
   int type;
   ComessageData func;
   ComessageData data;
   struct Comessage *next;
+  bool waiting;
   bool done;
   bool inUse;
   Coroutine *from;
+  Cocondition condition;
+  Comutex lock;
+  bool configured;
 } Comessage;
 
 /// @def coroutineResumable(coroutinePointer)
