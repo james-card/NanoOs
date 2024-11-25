@@ -1748,6 +1748,38 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
+/// @fn Comessage* comessageQueueWait(Coroutine *coroutine)
+///
+/// @brief Block the current coroutine until a message is available in its
+/// message queue.
+///
+/// @return Returns a pointer to the popped message on success, NULL on error.
+Comessage* comessageQueueWait(Coroutine *coroutine) {
+  Comessage *returnValue = NULL;
+  if (coroutine == NULL) {
+    coroutine = getRunningCoroutine();
+  }
+
+  if ((coroutine != NULL)
+    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+  ) {
+    if (coroutine->nextMessage == NULL) {
+      if (coconditionWait(&coroutine->condition, &coroutine->lock)
+        != coroutineSuccess
+      ) {
+        comutexUnlock(&coroutine->lock);
+        return returnValue; // NULL
+      }
+    }
+
+    returnValue = comessageQueuePop(coroutine);
+
+    comutexUnlock(&coroutine->lock);
+  }
+
+  return returnValue;
+}
+
 /// @fn int comessagePush(Coroutine *coroutine, Comessage *comessage)
 ///
 /// @brief Push a message onto a coroutine's message queue.
