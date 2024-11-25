@@ -296,11 +296,6 @@ typedef long long unsigned int ComessageData;
 /// @param inUse A Boolean flag to indicate whether or not this Comessage is in
 ///   in use.
 /// @param from A pointer to the Coroutine instance for the sending coroutine.
-/// @param condition A condition (Cocondition) that will allow for signalling
-///   between threads when setting the done flag.
-/// @param lock A mutex (Comutex) to guard the condition.
-/// @param configured Whether or not the members of the message that require
-///   initialization have been configured yet.
 typedef struct Comessage {
   int type;
   ComessageData func;
@@ -310,9 +305,6 @@ typedef struct Comessage {
   bool done;
   bool inUse;
   Coroutine *from;
-  Cocondition condition;
-  Comutex lock;
-  bool configured;
 } Comessage;
 
 /// @def coroutineResumable(coroutinePointer)
