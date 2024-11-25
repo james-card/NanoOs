@@ -63,9 +63,8 @@ typedef enum MainCoroutineCommand {
 } MainCoroutineCommand;
 
 // Exported variables
-extern Coroutine mainCoroutine;
-extern RunningCommand runningCommands[NANO_OS_NUM_COROUTINES];
-extern Comessage messages[NANO_OS_NUM_MESSAGES];
+extern RunningCommand *runningCommands;
+extern Comessage *messages;
 
 // Function defines
 #define nanoOsExitProcess(returnValue) \

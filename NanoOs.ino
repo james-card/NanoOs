@@ -29,30 +29,20 @@
 #include "NanoOs.h"
 
 // Coroutines support
-Coroutine mainCoroutine;
-RunningCommand runningCommands[NANO_OS_NUM_COROUTINES] = {};
-Comessage messages[NANO_OS_NUM_MESSAGES] = {};
+RunningCommand *runningCommands = NULL;
+Comessage *messages = NULL;
 
-// the setup function runs once when you press reset or power the board
+// The setup function runs once when you press reset or power the board.  This
+// is to be used for Arduino-specific setup.  *ANYTHING* that requires use of
+// coroutines needs to be done in the loop function.
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
-
-  coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
 
   // start serial port at 9600 bps:
   Serial.begin(9600);
   // wait for serial port to connect. Needed for native USB port only.
   while (!Serial);
-
-  Coroutine *coroutine = coroutineCreate(runConsole);
-  coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
-  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
-  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "runConsole";
-
-  printConsole("\n");
-  printConsole("Setup complete.\n");
-  printConsole("> ");
 
   digitalWrite(LED_BUILTIN, HIGH);
 }
@@ -89,8 +79,26 @@ static inline void handleMainCoroutineMessage(void) {
 // the loop function runs over and over again forever
 int coroutineIndex = 0;
 void loop() {
-  coroutineResume(runningCommands[coroutineIndex].coroutine, NULL);
-  handleMainCoroutineMessage();
-  coroutineIndex++;
-  coroutineIndex %= NANO_OS_NUM_COROUTINES;
+  Coroutine mainCoroutine;
+  coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
+  Coroutine *coroutine = coroutineCreate(runConsole);
+  coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
+  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
+  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "runConsole";
+
+  printConsole("\n");
+  printConsole("Setup complete.\n");
+  printConsole("> ");
+
+  RunningCommand runningCommandsStorage[NANO_OS_NUM_COROUTINES] = {};
+  runningCommands = runningCommandsStorage;
+  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  messages = messagesStorage;
+
+  while (1) {
+    coroutineResume(runningCommands[coroutineIndex].coroutine, NULL);
+    handleMainCoroutineMessage();
+    coroutineIndex++;
+    coroutineIndex %= NANO_OS_NUM_COROUTINES;
+  }
 }
