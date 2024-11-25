@@ -49,7 +49,7 @@
 #include "Coroutines.h"
 #include "Commands.h"
 
-#define NANO_OS_NUM_COROUTINES             8
+#define NANO_OS_NUM_COROUTINES             7
 #define NANO_OS_STACK_SIZE               512
 #define NANO_OS_NUM_MESSAGES               8
 #define NANO_OS_RESERVED_PROCESS_ID        0
