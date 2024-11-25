@@ -1679,20 +1679,29 @@ Comessage* comessageQueuePeek(Coroutine *coroutine) {
 /// @return Returns the head of the coroutine's message queue on success, NULL
 /// on failure.
 Comessage* comessageQueuePop(Coroutine *coroutine) {
-  Comessage *comessage = NULL;
+  Comessage *head = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
   }
 
-  if (coroutine != NULL) {
-    comessage = coroutine->nextMessage;
-    if (comessage != NULL) {
-      coroutine->nextMessage = comessage->next;
-      comessage->next = NULL;
+  if ((coroutine != NULL)
+    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+  ) {
+    head = coroutine->nextMessage;
+    if (head != NULL) {
+      coroutine->nextMessage = head->next;
+      head->next = NULL;
     }
+
+    if (coroutine->nextMessage == NULL) {
+      // Empty queue.  Set coroutine->lastMessage to NULL too.
+      coroutine->lastMessage = NULL;
+    }
+
+    comutexUnlock(&coroutine->lock);
   }
 
-  return comessage;
+  return head;
 }
 
 /// @fn Comessage* comessageQueuePopType(Coroutine *coroutine, int type)
