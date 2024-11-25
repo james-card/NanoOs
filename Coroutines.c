@@ -1790,7 +1790,7 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
 /// @param coroutine A pointer to the Coroutine to interrogate.
 /// @param type The message type to look for.
 ///
-/// @return Returns the first message of the queue with the specified type on
+/// @return Returns the first message in the queue with the specified type on
 /// success, NULL on failure.
 Comessage* comessageQueueWaitType(Coroutine *coroutine, int type) {
   Comessage *returnValue = NULL;
@@ -1817,7 +1817,7 @@ Comessage* comessageQueueWaitType(Coroutine *coroutine, int type) {
         cur->next = NULL;
 
         if (coroutine->nextMessage == NULL) {
-          // Empty coroutine.  Set coroutine->lastMessage to NULL too.
+          // Empty queue.  Set coroutine->lastMessage to NULL too.
           coroutine->lastMessage = NULL;
         }
       } else {
@@ -1861,6 +1861,9 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   if ((coroutine != NULL)
     && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
   ) {
+    // comutexTimedLock will return coroutineTimedout if the timeout is reached,
+    // so we'll never reach this point if we've exceeded our timeout.
+
     if (coroutine->nextMessage == NULL) {
       if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
         != coroutineSuccess
@@ -1873,6 +1876,73 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
     returnValue = comessageQueuePop(coroutine);
+
+    comutexUnlock(&coroutine->lock);
+  }
+
+  return returnValue;
+}
+
+/// @fn Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type, const struct timespec *ts)
+///
+/// @brief Wait for a message of a given type to be available in the message
+/// queue or until a specified time has elapsed.  Remove the message from the
+/// queue and return it if one is available before the specified time is
+/// reached.
+///
+/// @param coroutine A pointer to the Coroutine to interrogate.
+/// @param type The message type to look for.
+/// @param ts A pointer to a struct timespec that specifies the end of the time
+///   period to wait for.
+///
+/// @return Returns the first message of the provided type if one is available
+/// before the specified time.  Returns NULL if no such message is available
+/// within that time period or if an error occurrs.
+Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
+  const struct timespec *ts
+) {
+  Comessage *returnValue = NULL;
+  if (coroutine == NULL) {
+    coroutine = getRunningCoroutine();
+  }
+
+  if ((coroutine != NULL)
+    && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
+  ) {
+    // comutexTimedLock will return coroutineTimedout if the timeout is reached,
+    // so we'll never reach this point if we've exceeded our timeout.
+
+    while (returnValue == NULL) {
+      Comessage *cur = coroutine->nextMessage;
+      Comessage **prev = &coroutine->nextMessage;
+
+      while ((cur != NULL) && (cur->type != type)) {
+        prev = &cur->next;
+        cur = cur->next;
+      }
+
+      if (cur != NULL) {
+        // Desired type was found.  Remove the message from the coroutine.
+        returnValue = cur;
+        *prev = cur->next;
+        cur->next = NULL;
+
+        if (coroutine->nextMessage == NULL) {
+          // Empty queue.  Set coroutine->lastMessage to NULL too.
+          coroutine->lastMessage = NULL;
+        }
+      } else {
+        // Desired type was not found.  Block until something else is pushed.
+        if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
+          != coroutineSuccess
+        ) {
+          comutexUnlock(&coroutine->lock);
+          return returnValue; // NULL
+        }
+        // coconditionTimedWait will return thrd_timedout if the timeout is
+        // reached, so we won't continue the loop if we've exceeded our timeout.
+      }
+    }
 
     comutexUnlock(&coroutine->lock);
   }
