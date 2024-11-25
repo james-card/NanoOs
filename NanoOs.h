@@ -51,7 +51,7 @@
 
 #define NANO_OS_NUM_COROUTINES             8
 #define NANO_OS_STACK_SIZE               512
-#define NANO_OS_NUM_MESSAGES               3
+#define NANO_OS_NUM_MESSAGES               8
 #define NANO_OS_RESERVED_PROCESS_ID        0
 #define NANO_OS_CONSOLE_PROCESS_ID         1
 #define NANO_OS_FIRST_PROCESS_ID           2
