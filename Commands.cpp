@@ -50,6 +50,7 @@ void* ps(void *args) {
 
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -72,6 +73,7 @@ void* kill(void *args) {
   }
 
   releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -102,6 +104,7 @@ void* echo(void *args) {
 
   printf(argsBegin);
   releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -111,6 +114,7 @@ void* echoSomething(void *args) {
   coroutineYield(NULL);
   printf("Something\n");
   releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -122,6 +126,7 @@ void* showCounter(void *args) {
   printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -136,6 +141,18 @@ void* runCounter(void *args) {
     counter++;
     coroutineYield(NULL);
   }
+  return NULL;
+}
+
+void* ver(void *args) {
+  (void) args;
+  // We're not processing conosle input, so immediately yield.
+  coroutineYield(NULL);
+
+  printf("NanoOs version 0.0.1\n");
+
+  releaseConsole();
+  nanoOsExitProcess();
   return NULL;
 }
 
@@ -260,7 +277,12 @@ CommandEntry commands[] = {
     .name = "showCounter",
     .function = showCounter,
     .userProcess = true
-  }
+  },
+  {
+    .name = "ver",
+    .function = ver,
+    .userProcess = true
+  },
 };
 const int NUM_COMMANDS = sizeof(commands) / sizeof(commands[0]);
 
