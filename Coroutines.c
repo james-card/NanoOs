@@ -1718,13 +1718,20 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
   Comessage *returnValue = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
+
+    if (coroutine == NULL) {
+      // Coroutines haven't been configured yet.
+      return returnValue;
+    }
   }
 
-  if ((coroutine != NULL)
-    && (comutexLock(&coroutine->lock) == coroutineSuccess)
-  ) {
-    Comessage *cur = coroutine->nextMessage;
-    Comessage **prev = &coroutine->nextMessage;
+  // Set these *BEFORE* calling comutexLock.  Setting them afterward was causing
+  // problems for some reason.
+  //
+  // JBC 2024-11-25
+  Comessage *cur = coroutine->nextMessage;
+  Comessage **prev = &coroutine->nextMessage;
+  if (comutexLock(&coroutine->lock) == coroutineSuccess) {
     while ((cur != NULL) && (cur->type != type)) {
       prev = &cur->next;
       cur = cur->next;
@@ -1959,33 +1966,37 @@ Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
 ///
 /// @return Returns coroutineSuccess, coroutineError on failure.
 int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
-  int returnValue = coroutineSuccess;
+  int returnValue = coroutineError;
 
   if (comessage == NULL) {
     // This is invalid.
-    returnValue = coroutineError;
-    return returnValue;
+    return returnValue; // coroutineError
   }
-  comessage->from = getRunningCoroutine();
 
   if (coroutine == NULL) {
     // Sending a message to ourselves.
-    coroutine = comessage->from;
+    coroutine = getRunningCoroutine();
   }
 
-  if (coroutine != NULL) {
-    Comessage *nextMessage = coroutine->nextMessage;
-    if (nextMessage != NULL) {
-      while (nextMessage->next != NULL) {
-        nextMessage = nextMessage->next;
-      }
-      nextMessage->next = comessage;
+  if ((coroutine != NULL)
+    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+  ){
+    comessage->from = getRunningCoroutine();
+    comessage->next = NULL;
+    if (coroutine->lastMessage != NULL) {
+      coroutine->lastMessage->next = comessage;
+      coroutine->lastMessage = comessage;
     } else {
+      // Empty queue.  Populate both coroutine->nextMessage and
+      // coroutine->lastMessage.
       coroutine->nextMessage = comessage;
+      coroutine->lastMessage = comessage;
     }
-  } else {
-    // Coroutines haven't been configured yet.
-    returnValue = coroutineError;
+
+    // Let all the waiters know that there's something new in the queue now.
+    returnValue = coconditionBroadcast(&coroutine->condition);
+
+    comutexUnlock(&coroutine->lock);
   }
 
   return returnValue;
