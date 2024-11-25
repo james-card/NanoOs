@@ -115,16 +115,6 @@ void* echoSomething(void *args) {
 }
 
 unsigned int counter = 0;
-void* showCounter(void *args) {
-  (void) args;
-  // We're not processing conosle input, so immediately yield.
-  coroutineYield(NULL);
-  printf("Current counter value: %u\n", counter);
-  printf("- SRAM left: %d\n", freeRamBytes());
-  releaseConsole();
-  nanoOsExitProcess(NULL);
-}
-
 void* runCounter(void *args) {
   (void) args;
   // We're not processing conosle input, so immediately yield.
@@ -137,6 +127,17 @@ void* runCounter(void *args) {
     coroutineYield(NULL);
   }
   return NULL;
+}
+
+void* showInfo(void *args) {
+  (void) args;
+  // We're not processing conosle input, so immediately yield.
+  coroutineYield(NULL);
+  printf("Current counter value: %u\n", counter);
+  printf("- SRAM left: %d\n", freeRamBytes());
+  printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
+  releaseConsole();
+  nanoOsExitProcess(NULL);
 }
 
 void* ver(void *args) {
@@ -268,8 +269,8 @@ CommandEntry commands[] = {
     .userProcess = true
   },
   {
-    .name = "showCounter",
-    .function = showCounter,
+    .name = "showInfo",
+    .function = showInfo,
     .userProcess = true
   },
   {
