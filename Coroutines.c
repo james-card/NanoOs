@@ -721,6 +721,9 @@ void coroutineMain(void *stack) {
   coroutineGlobalPush(&_globalIdle, &me);
 #endif
 
+  // Initialize the message queue.  (Destroying it also initializes it.)
+  comessageQueueDestroy(&me);
+
   // The target of coroutinePass() (the caller) is at the head of the running
   // list.  The return point for that Coroutine was either set in the setjmp
   // call in the coroutine constructor or in the setjmp call below.  In the
@@ -805,6 +808,9 @@ void coroutineMain(void *stack) {
     coroutineGlobalPush(&_globalIdle, currentCoroutine);
 #endif
 
+    // Destroy any messages that were sent.
+    comessageQueueDestroy(&me);
+
     // Block until we're called from the constructor again.
     funcData.data = ret;
     funcData = coroutinePass(&me, funcData);
@@ -856,6 +862,9 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
     // error condition because the desired state is achieved.
     return coroutineSuccess;
   }
+
+  // Destroy any messages that were sent.
+  comessageQueueDestroy(targetCoroutine);
 
   // Remove the target coroutine from the running stack if applicable.
   Coroutine* running = _globalRunning;
@@ -1602,6 +1611,38 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   if (cond != NULL) {
     returnValue = cond->lastYieldValue;
   }
+
+  return returnValue;
+}
+
+/// @fn int comessageQueueDestroy(Coroutine *coroutine)
+///
+/// @brief Destroy the message queue for the specified coroutine.
+///
+/// @param coroutine A pointer to the Coroutine to destroy the queue of.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageQueueDestroy(Coroutine *coroutine) {
+  int returnValue = coroutineSuccess;
+
+  if (coroutine == NULL) {
+    // Nothing to do.  The queue for a NULL coroutine is already destroyed, so
+    // this call is successful.
+    return returnValue; // coroutineSuccess
+  }
+
+  for (Comessage *cur = coroutine->nextMessage; cur != NULL; ) {
+    Comessage *next = cur->next;
+    comessageDestroy(cur);
+    cur = next;
+  }
+
+  coroutine->nextMessage = NULL;
+  coroutine->lastMessage = NULL;
+
+  // Re-initialize the member elements that require initialization.
+  comutexInit(&coroutine->lock, comutexPlain | comutexTimed | comutexRecursive);
+  coconditionInit(&coroutine->condition);
 
   return returnValue;
 }

@@ -397,6 +397,7 @@ void* coconditionLastYieldValue(Cocondition *cond);
 
 
 // Comessage queue functions
+int comessageQueueDestroy(Coroutine *coroutine);
 Comessage* comessageQueuePeek(Coroutine *coroutine);
 Comessage* comessageQueuePop(Coroutine *coroutine);
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
