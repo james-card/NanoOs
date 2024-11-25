@@ -67,6 +67,13 @@ extern Coroutine mainCoroutine;
 extern RunningCommand runningCommands[NANO_OS_NUM_COROUTINES];
 extern Comessage messages[NANO_OS_NUM_MESSAGES];
 
+// Function defines
+#define nanoOsExitProcess(returnValue) \
+  /* We need to clear the coroutine pointer. */ \
+  runningCommands[coroutineId(NULL)].coroutine = NULL; \
+  \
+  return returnValue /* Deliberately omitting semicolon. */
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -169,13 +176,6 @@ static inline void* waitForDataMessage(Comessage *sent, int type) {
   }
 
   return returnValue;
-}
-
-static inline void nanoOsExitProcess(void) {
-  // We need to clear the coroutine pointer.
-  runningCommands[coroutineId(NULL)].coroutine = NULL;
-
-  return;
 }
 
 #ifdef __cplusplus

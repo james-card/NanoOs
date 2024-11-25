@@ -50,8 +50,7 @@ void* ps(void *args) {
 
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 void* kill(void *args) {
@@ -73,8 +72,7 @@ void* kill(void *args) {
   }
 
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 void* echo(void *args) {
@@ -104,8 +102,7 @@ void* echo(void *args) {
 
   printf(argsBegin);
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 void* echoSomething(void *args) {
@@ -114,8 +111,7 @@ void* echoSomething(void *args) {
   coroutineYield(NULL);
   printf("Something\n");
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 unsigned int counter = 0;
@@ -126,8 +122,7 @@ void* showCounter(void *args) {
   printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", freeRamBytes());
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 void* runCounter(void *args) {
@@ -152,8 +147,7 @@ void* ver(void *args) {
   printf("NanoOs version 0.0.1\n");
 
   releaseConsole();
-  nanoOsExitProcess();
-  return NULL;
+  nanoOsExitProcess(NULL);
 }
 
 void handleCommand(char *consoleInput) {
