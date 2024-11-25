@@ -1715,38 +1715,37 @@ Comessage* comessageQueuePop(Coroutine *coroutine) {
 /// @return Returns the first message of the specified type on success, NULL on
 /// failure.
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
-  Comessage *comessage = NULL;
+  Comessage *returnValue = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
   }
 
-  if (coroutine != NULL) {
-    comessage = coroutine->nextMessage;
-    if (comessage != NULL) {
-      if (comessage->type == type) {
-        coroutine->nextMessage = comessage->next;
-        comessage->next = NULL;
-      } else {
-        Comessage *prev = comessage;
-        comessage = comessage->next;
-        while (comessage != NULL) {
-          if (comessage->type == type) {
-            break;
-          }
+  if ((coroutine != NULL)
+    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+  ) {
+    Comessage *cur = coroutine->nextMessage;
+    Comessage **prev = &coroutine->nextMessage;
+    while ((cur != NULL) && (cur->type != type)) {
+      prev = &cur->next;
+      cur = cur->next;
+    }
 
-          prev = comessage;
-          comessage = comessage->next;
-        }
+    if (cur != NULL) {
+      // Desired type was found.  Remove the message from the queue.
+      returnValue = cur;
+      *prev = cur->next;
+      cur->next = NULL;
 
-        if (comessage != NULL) {
-          prev->next = comessage->next;
-          comessage->next = NULL;
-        }
+      if (coroutine->nextMessage == NULL) {
+        // Empty queue.  Set coroutine->lastMessage to NULL too.
+        coroutine->lastMessage = NULL;
       }
     }
+
+    comutexUnlock(&coroutine->lock);
   }
 
-  return comessage;
+  return returnValue;
 }
 
 /// @fn int comessagePush(Coroutine *coroutine, Comessage *comessage)
