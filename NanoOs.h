@@ -51,7 +51,7 @@
 
 #define NANO_OS_NUM_COROUTINES             8
 #define NANO_OS_STACK_SIZE               512
-#define NANO_OS_NUM_MESSAGES               8
+#define NANO_OS_NUM_MESSAGES               3
 #define NANO_OS_RESERVED_PROCESS_ID        0
 #define NANO_OS_CONSOLE_PROCESS_ID         1
 #define NANO_OS_FIRST_PROCESS_ID           2
@@ -169,6 +169,13 @@ static inline void* waitForDataMessage(Comessage *sent, int type) {
   }
 
   return returnValue;
+}
+
+static inline void nanoOsExitProcess(void) {
+  // We need to clear the coroutine pointer.
+  runningCommands[coroutineId(NULL)].coroutine = NULL;
+
+  return;
 }
 
 #ifdef __cplusplus
