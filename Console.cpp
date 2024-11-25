@@ -251,12 +251,14 @@ void blink() {
   return;
 }
 
-char consoleBuffer[256];
-unsigned char consoleIndex = 0;
 void* runConsole(void *args) {
   (void) args;
+  unsigned char consoleIndex = 0;
   int serialData = -1;
   ConsoleState consoleState;
+  // Use the first console buffer as the buffer for console input.
+  consoleState.consoleBuffers[0].inUse = true;
+  char *consoleBuffer = consoleState.consoleBuffers[0].buffer;
 
   while (1) {
     blink();
@@ -266,6 +268,7 @@ void* runConsole(void *args) {
       consoleBuffer[consoleIndex] = (char) serialData;
       Serial.print(consoleBuffer[consoleIndex]);
       consoleIndex++;
+      consoleIndex %= CONSOLE_BUFFER_SIZE;
     }
 
     if ((serialData == ((int) '\n')) || (serialData == ((int) '\r'))) {
