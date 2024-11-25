@@ -168,7 +168,7 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
     // Send the buffer back to the caller via the message we allocated earlier.
     comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
       NULL, returnValue);
-    if (comessagePush(comessageFrom(inputMessage), returnMessage)
+    if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
       releaseMessage(returnMessage);

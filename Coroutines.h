@@ -407,7 +407,7 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   const struct timespec *ts);
 Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
   const struct timespec *ts);
-int comessagePush(Coroutine *coroutine, Comessage *comessage);
+int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
 
 // Comessage functions

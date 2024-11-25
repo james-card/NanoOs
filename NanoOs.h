@@ -139,7 +139,7 @@ static inline Comessage* sendDataMessageToCoroutine(
 
   comessageInit(comessage, type, NULL, (intptr_t) data);
 
-  if (comessagePush(coroutine, comessage) != coroutineSuccess) {
+  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
     releaseMessage(comessage);
     comessage = NULL;
   }

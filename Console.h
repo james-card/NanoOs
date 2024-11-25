@@ -102,7 +102,7 @@ static inline int printConsole(char message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -117,7 +117,7 @@ static inline int printConsole(unsigned char message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -132,7 +132,7 @@ static inline int printConsole(int message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -147,7 +147,7 @@ static inline int printConsole(unsigned int message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -162,7 +162,7 @@ static inline int printConsole(long int message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -177,7 +177,7 @@ static inline int printConsole(long unsigned int message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -194,7 +194,7 @@ static inline int printConsole(float message) {
   ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
   comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -211,7 +211,7 @@ static inline int printConsole(double message) {
   ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
   comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 
@@ -227,7 +227,7 @@ static inline int printConsole(const char *message) {
 
   comessageInit(comessage, CONSOLE_WRITE_STRING, NULL,
     (intptr_t) message);
-  comessagePush(
+  comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
 

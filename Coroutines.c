@@ -1950,7 +1950,7 @@ Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
   return returnValue;
 }
 
-/// @fn int comessagePush(Coroutine *coroutine, Comessage *comessage)
+/// @fn int comessageQueuePush(Coroutine *coroutine, Comessage *comessage)
 ///
 /// @brief Push a message onto a coroutine's message queue.
 ///
@@ -1958,7 +1958,7 @@ Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
 ///   to.
 ///
 /// @return Returns coroutineSuccess, coroutineError on failure.
-int comessagePush(Coroutine *coroutine, Comessage *comessage) {
+int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
   int returnValue = coroutineSuccess;
 
   if (comessage == NULL) {
