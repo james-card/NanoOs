@@ -1808,6 +1808,7 @@ int comessageDestroy(Comessage *comessage) {
       comutexUnlock(&comessage->lock);
       coconditionDestroy(&comessage->condition);
       comutexDestroy(&comessage->lock);
+      comessage->configured = false;
     } else {
       // Something is waiting.  Signal the waiters.  It will be up to them to
       // destroy this message again later.
