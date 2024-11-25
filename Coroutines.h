@@ -289,8 +289,6 @@ typedef long long unsigned int ComessageData;
 /// @param func A function pointer to the function of the message, if any.
 /// @param data The data of the message, if any.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
-/// @param waiting A Boolean flag to indicate whether or not the sender is
-///   waiting on a response message from the recipient of the message.
 /// @param done A Boolean flag to indicate whether or not the receiving
 ///   coroutine has handled the message yet.
 /// @param inUse A Boolean flag to indicate whether or not this Comessage is in
@@ -301,7 +299,6 @@ typedef struct Comessage {
   ComessageData func;
   ComessageData data;
   struct Comessage *next;
-  bool waiting;
   bool done;
   bool inUse;
   Coroutine *from;
