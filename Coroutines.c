@@ -1211,7 +1211,7 @@ void comutexDestroy(Comutex *mtx) {
   }
 }
 
-/// @fn int comutexTimedlock(Comutex* mtx, const struct timespec* ts)
+/// @fn int comutexTimedLock(Comutex* mtx, const struct timespec* ts)
 ///
 /// @brief Attempt to lock a coroutine mutex until the lock is acquired or a
 /// specified time is reached, whichever comes first.
@@ -1225,7 +1225,7 @@ void comutexDestroy(Comutex *mtx) {
 /// acquired, and coroutineError if the coroutine mutex is not a timed mutex,
 /// if the current system time could not be acquired, or if one of the provided
 /// parameters is NULL.
-int comutexTimedlock(Comutex *mtx, const struct timespec *ts) {
+int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   if ((mtx == NULL) || (ts == NULL)) {
     // Cannot honor the request.
     return coroutineError;
@@ -1859,7 +1859,7 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   }
 
   if ((coroutine != NULL)
-    && (comutexTimedlock(&coroutine->lock, ts) == coroutineSuccess)
+    && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
   ) {
     if (coroutine->nextMessage == NULL) {
       if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)

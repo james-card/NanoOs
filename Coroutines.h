@@ -380,7 +380,7 @@ int comutexInit(Comutex *mtx, int type);
 int comutexLock(Comutex *mtx);
 int comutexUnlock(Comutex *mtx);
 void comutexDestroy(Comutex *mtx);
-int comutexTimedlock(Comutex *mtx, const struct timespec *ts);
+int comutexTimedLock(Comutex *mtx, const struct timespec *ts);
 int comutexTrylock(Comutex *mtx);
 void* comutexLastYieldValue(Comutex *mtx);
 
