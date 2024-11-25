@@ -1606,62 +1606,6 @@ void* coconditionLastYieldValue(Cocondition* cond) {
   return returnValue;
 }
 
-/// @fn int comessageInit_(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
-///
-/// @brief Initialize all the member elements of a Comessage structure.
-///
-/// @param comessage A pointer to the Comessage structure to initialize.
-/// @param type The type integer value to set for the type of the Comessage.
-/// @param func A function pointer to the function of the message.
-/// @param data The data of the message.
-///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageInit_(Comessage *comessage, int type,
-  ComessageData func, ComessageData data
-) {
-  int returnValue = coroutineSuccess;
-
-  if (comessage != NULL) {
-    comessage->type = type;
-    comessage->func = func;
-    comessage->data = data;
-    comessage->next = NULL;
-    comessage->done = false;
-    comessage->inUse = true;
-    comessage->from = NULL;
-  } else {
-    returnValue = coroutineError;
-  }
-
-  return returnValue;
-}
-
-/// @fn int comessageDestroy(Comessage *comessage)
-///
-/// @brief Reset all the relevant elements of a Comessage structure back to
-/// their default states.
-///
-/// @param comessage A pointer to the Comessage to reset.
-///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageDestroy(Comessage *comessage) {
-  int returnValue = coroutineSuccess;
-
-  if (comessage != NULL) {
-    comessage->type = 0;
-    comessage->func = 0;
-    comessage->data = (uint64_t) 0;
-    // Don't touch comessage->next.
-    // Don't touch comessage->done.
-    comessage->inUse = false;
-    comessage->from = NULL;
-  } else {
-    returnValue = coroutineError;
-  }
-
-  return returnValue;
-}
-
 /// @fn Comessage* comessagePeek(Coroutine *coroutine)
 ///
 /// @brief Get the head of a coroutine's message queue but do not remove it from
@@ -1790,6 +1734,62 @@ int comessagePush(Coroutine *coroutine, Comessage *comessage) {
     }
   } else {
     // Coroutines haven't been configured yet.
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
+/// @fn int comessageDestroy(Comessage *comessage)
+///
+/// @brief Reset all the relevant elements of a Comessage structure back to
+/// their default states.
+///
+/// @param comessage A pointer to the Comessage to reset.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageDestroy(Comessage *comessage) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    comessage->type = 0;
+    comessage->func = 0;
+    comessage->data = (uint64_t) 0;
+    // Don't touch comessage->next.
+    // Don't touch comessage->done.
+    comessage->inUse = false;
+    comessage->from = NULL;
+  } else {
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
+/// @fn int comessageInit_(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
+///
+/// @brief Initialize all the member elements of a Comessage structure.
+///
+/// @param comessage A pointer to the Comessage structure to initialize.
+/// @param type The type integer value to set for the type of the Comessage.
+/// @param func A function pointer to the function of the message.
+/// @param data The data of the message.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageInit_(Comessage *comessage, int type,
+  ComessageData func, ComessageData data
+) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    comessage->type = type;
+    comessage->func = func;
+    comessage->data = data;
+    comessage->next = NULL;
+    comessage->done = false;
+    comessage->inUse = true;
+    comessage->from = NULL;
+  } else {
     returnValue = coroutineError;
   }
 
