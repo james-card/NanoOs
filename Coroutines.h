@@ -258,11 +258,6 @@ typedef struct Cocondition {
 ///   coroutinePass function (on a yield or resume call).
 /// @param nextMessage A pointer to the next message that is waiting for the
 ///   coroutine to process.
-/// @param lastMessage A pointer to the last message that is waiting for the
-///   coroutine to process.
-/// @param messageCondition A condition (Cocondition) that will allow for
-///   signalling between coroutines when adding a message to the message queue.
-/// @param messageLock A mutex (Comutex) to guard the condition.
 typedef struct Coroutine {
   struct Coroutine *next;
   jmp_buf context;
@@ -273,9 +268,6 @@ typedef struct Coroutine {
   jmp_buf resetContext;
   CoroutineFuncData passed;
   Comessage *nextMessage;
-  Comessage *lastMessage;
-  Cocondition messageCondition;
-  Comutex messageLock;
 } Coroutine;
 
 // Coroutine message support.
