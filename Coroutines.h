@@ -440,10 +440,6 @@ int comessageTimedwaitDone(Comessage *comessage, const struct timespec *ts);
   (((comessagePointer) != NULL) ? (comessagePointer)->inUse : false)
 #define comessageFrom(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->from : NULL)
-#define comessageCondition(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->condition : NULL)
-#define comessageLock(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->lock : NULL)
 #define comessageConfigured(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->configured : false)
 
