@@ -447,6 +447,8 @@ Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
   (((comessagePointer) != NULL) ? (comessagePointer)->inUse : false)
 #define comessageFrom(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->from : NULL)
+#define comessageTo(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->to : NULL)
 #define comessageConfigured(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->configured : false)
 
