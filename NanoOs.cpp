@@ -150,8 +150,9 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
 void* waitForDataMessage(Comessage *sent, int type) {
   void *returnValue = NULL;
 
-  while (sent->done == false) {
-    coroutineYield(NULL);
+  if (comessageWaitForDone(sent) != coroutineSuccess) {
+    printString("ERROR!!!  comessageWaitForDone was NOT successful.\n");
+    return returnValue; // NULL
   }
   if (comessageRelease(sent) != coroutineSuccess) {
     printString("ERROR!!!  "
