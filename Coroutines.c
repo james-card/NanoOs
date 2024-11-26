@@ -2442,8 +2442,8 @@ Comessage* comessageWaitForReplyWithType_(
           &coroutine->condition, &coroutine->lock, ts);
       }
       if (waitStatus != coroutineSuccess) {
-        comutexUnlock(&coroutine->lock);
-        return reply; // NULL
+        // Something isn't as expected.  Bail.
+        break;
       }
       // coconditionTimedWait will return thrd_timedout if the timeout is
       // reached, so we won't continue the loop if we've exceeded our timeout.
