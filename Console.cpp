@@ -34,7 +34,11 @@ void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
   char message = comessageDataValue(inputMessage, char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -45,7 +49,11 @@ void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
   unsigned char message = comessageDataValue(inputMessage, unsigned char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -56,7 +64,11 @@ void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
   int message = comessageDataValue(inputMessage, int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -67,7 +79,11 @@ void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
   unsigned int message = comessageDataValue(inputMessage, unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -78,7 +94,11 @@ void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
   long int message = comessageDataValue(inputMessage, long int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -90,7 +110,11 @@ void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
     = comessageDataValue(inputMessage, long unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -103,7 +127,11 @@ void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -116,7 +144,11 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -129,7 +161,11 @@ void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
     Serial.print(message);
   }
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
@@ -160,11 +196,21 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
       != coroutineSuccess
     ) {
       comessageRelease(returnMessage);
+      if (comessageRelease(inputMessage) != coroutineSuccess) {
+        Serial.print("ERROR!!!  Could not release returnMessage from ");
+        Serial.print(__func__);
+        Serial.print(" after comessageQueuePush.\n");
+      }
       returnValue->inUse = false;
     }
   } else {
     // No free buffer.  Nothing we can do.
     comessageRelease(returnMessage);
+    if (comessageRelease(inputMessage) != coroutineSuccess) {
+      Serial.print("ERROR!!!  Could not release returnMessage from ");
+      Serial.print(__func__);
+      Serial.print(" when returnValue was NULL.\n");
+    }
   }
 
   // Whether we were able to grab a buffer or not, we're now done with this
@@ -188,7 +234,11 @@ void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
     consoleBuffer->inUse = false;
   }
   comessageSetDone(inputMessage);
-  comessageRelease(inputMessage);
+  if (comessageRelease(inputMessage) != coroutineSuccess) {
+    Serial.print("ERROR!!!  Could not release inputMessage from ");
+    Serial.print(__func__);
+    Serial.print("\n");
+  }
 
   return;
 }
