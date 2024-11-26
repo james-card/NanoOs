@@ -1978,6 +1978,7 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
     && (comutexLock(&coroutine->lock) == coroutineSuccess)
   ){
     comessage->from = getRunningCoroutine();
+    comessage->to = coroutine;
     comessage->next = NULL;
     if (coroutine->lastMessage != NULL) {
       coroutine->lastMessage->next = comessage;

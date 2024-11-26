@@ -304,6 +304,7 @@ typedef long long unsigned int ComessageData;
 /// @param inUse A Boolean flag to indicate whether or not this Comessage is in
 ///   in use.
 /// @param from A pointer to the Coroutine instance for the sending coroutine.
+/// @param to A pointer to the Coroutine instance for the receiving coroutine.
 /// @param condition A condition (Cocondition) that will allow for signalling
 ///   between coroutines when setting the done flag.
 /// @param lock A mutex (Comutex) to guard the condition.
@@ -318,6 +319,7 @@ typedef struct Comessage {
   bool done;
   bool inUse;
   Coroutine *from;
+  Coroutine *to;
   Cocondition condition;
   Comutex lock;
   bool configured;
@@ -419,6 +421,12 @@ int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage);
 int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts);
+Comessage* comessageWaitForReply(Comessage *sent);
+Comessage* comessageWaitForReplyWithType(Comessage *sent, int type);
+Comessage* comessageTimedWaitForReply(Comessage *sent,
+  const struct timespec *ts);
+Comessage* comessageTimedWaitForReplyWithType(Comessage *sent, int type,
+  const struct timespec *ts);
 
 
 // Comessage accessors
