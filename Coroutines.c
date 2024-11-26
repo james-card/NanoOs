@@ -1849,6 +1849,11 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
   Comessage *returnValue = NULL;
   Coroutine *coroutine = getRunningCoroutine();
 
+  if (ts == NULL) {
+    // Invalid.
+    return returnValue;
+  }
+
   if ((coroutine != NULL)
     && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
   ) {
@@ -1890,6 +1895,11 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
 /// within that time period or if an error occurrs.
 Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts) {
   Comessage *returnValue = NULL;
+
+  if (ts == NULL) {
+    // Invalid.
+    return returnValue;
+  }
 
   Coroutine *coroutine = getRunningCoroutine();
   if (coroutine == NULL) {
