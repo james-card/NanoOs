@@ -402,10 +402,10 @@ Comessage* comessageQueuePeek(Coroutine *coroutine);
 Comessage* comessageQueuePop(Coroutine *coroutine);
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
 Comessage* comessageQueueWait(Coroutine *coroutine);
-Comessage* comessageQueueWaitType(Coroutine *coroutine, int type);
+Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type);
 Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   const struct timespec *ts);
-Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
+Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
   const struct timespec *ts);
 int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
@@ -419,7 +419,7 @@ int comessageInit_(Comessage *comessage, int type,
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage);
-int comessageTimedWaitDone(Comessage *comessage, const struct timespec *ts);
+int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts);
 
 
 // Comessage accessors

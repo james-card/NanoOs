@@ -1789,7 +1789,7 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueWaitType(Coroutine *coroutine)
+/// @fn Comessage* comessageQueueWaitForType(Coroutine *coroutine)
 ///
 /// @brief Wait until there is a message of the specified type in the message
 /// queue and then remove and return it when it becomes available.
@@ -1799,7 +1799,7 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
 ///
 /// @return Returns the first message in the queue with the specified type on
 /// success, NULL on failure.
-Comessage* comessageQueueWaitType(Coroutine *coroutine, int type) {
+Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
   Comessage *returnValue = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
@@ -1890,7 +1890,7 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type, const struct timespec *ts)
+/// @fn Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type, const struct timespec *ts)
 ///
 /// @brief Wait for a message of a given type to be available in the message
 /// queue or until a specified time has elapsed.  Remove the message from the
@@ -1905,7 +1905,7 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-Comessage* comessageQueueTimedWaitType(Coroutine *coroutine, int type,
+Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
   const struct timespec *ts
 ) {
   Comessage *returnValue = NULL;
