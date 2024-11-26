@@ -2054,7 +2054,6 @@ int comessageDestroy(Comessage *comessage) {
   // Don't touch comessage->data.
   // Don't touch comessage->next.
   // Don't touch comessage->waiting.
-  // Don't touch comessage->done.
   comessage->inUse = false;
   // Don't touch from.
   if (comessage->configured == true) {
