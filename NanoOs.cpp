@@ -51,13 +51,19 @@ void handleMainCoroutineMessage(void) {
       = (MainCoroutineCommand) comessageType(message);
     if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
       // Invalid.
+      if (comessageRelease(message) != coroutineSuccess) {
+        printString("ERROR!!!  "
+          "Could not release message from handleMainCoroutineMessage "
+          "for invalid message type.\n");
+      }
       return;
     }
 
     mainCoroutineCommandHandlers[messageType](message);
     if (comessageRelease(message) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release message from handleMainCoroutineMessage\n");
+        "Could not release message from handleMainCoroutineMessage "
+        "after handling message.\n");
     }
   }
 
