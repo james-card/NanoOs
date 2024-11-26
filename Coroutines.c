@@ -1868,7 +1868,7 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
         return returnValue; // NULL
       }
     }
-    // cococonditionTimedWaitFor will return coroutineTimedout if the timeout is
+    // cococonditionTimedWait will return coroutineTimedout if the timeout is
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
     returnValue = comessageQueuePop();
@@ -1939,7 +1939,7 @@ Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts) {
           comutexUnlock(&coroutine->lock);
           return returnValue; // NULL
         }
-        // coconditionTimedWaitFor will return thrd_timedout if the timeout is
+        // coconditionTimedWait will return thrd_timedout if the timeout is
         // reached, so we won't continue the loop if we've exceeded our timeout.
       }
 
@@ -2340,5 +2340,108 @@ int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts) {
   }
 
   return returnValue;
+}
+
+/// @fn Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone, const struct timespec *ts)
+///
+/// @brief Wait for a reply from the recipient of a message.
+///
+/// @param sent The message that was originally sent to the recipient.
+/// @param releaseAfterDone Whether or not the provided sent message should be
+///   released (*NOT* destroyed) after the recipient has indicated that they're
+///   done processing our sent message.
+/// @param ts A pointer to a struct timespec that holds the end time to wait
+///   until for a reply.  If this parameter is NULL, then an infinite timeout
+///   will be used.
+///
+/// @return Returns a pointer to the Comessage received from the recipient of
+/// the original message on success, NULL on failure or if the provided timeout
+/// time is reached.
+Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
+  const struct timespec *ts
+) {
+  Comessage *reply = NULL;
+
+  Coroutine *coroutine = getRunningCoroutine();
+  if (coroutine == NULL) {
+    // Coroutines haven't been configured yet.
+    return reply; // NULL
+  }
+
+  if (sent == NULL) {
+    // Invalid.
+    return reply; // NULL
+  } else if (comessageWaitForDone(sent) != coroutineSuccess) {
+    // Invalid state of the message.  Fail.
+    return reply; // NULL
+  }
+
+  // Recipient has processed the message.  We now need to wait for their reply.
+  // Any message is valid as long as its from the recipient of the original
+  // message.
+  Coroutine *recipient = sent->to;
+  if (releaseAfterDone == true) {
+    // We're done with the message that was originally sent and the caller has
+    // indicated that it is to be released now.
+    comessageRelease(sent);
+  }
+
+  // Enter our main wait loop.
+  int lockStatus = coroutineSuccess;
+  if (ts == NULL) {
+    lockStatus = comutexLock(&coroutine->lock);
+  } else {
+    lockStatus = comutexTimedLock(&coroutine->lock, ts);
+  }
+  if (lockStatus != coroutineSuccess) {
+    // Either we've timed out or there's a problem with the lock.  Either way,
+    // we're done.  Bail.
+    return reply; // NULL
+  }
+
+  // comutexTimedLock will return coroutineTimedout if the timeout is
+  // reached, so we'll never reach this point if we've exceeded our timeout.
+  Comessage *cur = coroutine->nextMessage;
+  Comessage **prev = &coroutine->nextMessage;
+  int waitStatus = coroutineSuccess;
+  while (reply == NULL) {
+    while ((cur != NULL) && (cur->from != recipient)) {
+      prev = &cur->next;
+      cur = cur->next;
+    }
+
+    if (cur != NULL) {
+      // Desired reply was found.  Remove the message from the coroutine.
+      reply = cur;
+      *prev = cur->next;
+      cur->next = NULL;
+
+      if (coroutine->nextMessage == NULL) {
+        // Empty queue.  Set coroutine->lastMessage to NULL too.
+        coroutine->lastMessage = NULL;
+      }
+    } else {
+      // Desired reply was not found.  Block until something else is pushed.
+      if (ts == NULL) {
+        waitStatus = coconditionWait(&coroutine->condition, &coroutine->lock);
+      } else {
+        waitStatus = coconditionTimedWait(
+          &coroutine->condition, &coroutine->lock, ts);
+      }
+      if (waitStatus != coroutineSuccess) {
+        comutexUnlock(&coroutine->lock);
+        return reply; // NULL
+      }
+      // coconditionTimedWait will return thrd_timedout if the timeout is
+      // reached, so we won't continue the loop if we've exceeded our timeout.
+    }
+
+    cur = coroutine->nextMessage;
+    prev = &coroutine->nextMessage;
+  }
+
+  comutexUnlock(&coroutine->lock);
+
+  return reply;
 }
 
