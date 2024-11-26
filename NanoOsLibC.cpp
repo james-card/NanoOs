@@ -21,3 +21,25 @@ int timespec_get(struct timespec* spec, int base) {
   return base;
 }
 
+/// @fn int printString(const char *string)
+///
+/// @brief C wrapper around Serial.print for a C string.
+///
+/// @return This function always returns 0;
+int printString(const char *string) {
+  Serial.print(string);
+
+  return 0;
+}
+
+/// @fn int printInt(int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printInt(int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+

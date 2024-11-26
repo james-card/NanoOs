@@ -56,6 +56,8 @@ struct timespec {
 #define TIME_UTC 1
 
 int timespec_get(struct timespec* spec, int base);
+int printString(const char *string);
+int printInt(int integer);
 
 #ifdef __cplusplus
 } // extern "C"
