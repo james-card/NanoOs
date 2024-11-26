@@ -1872,10 +1872,10 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
 
     returnValue = comessageQueuePop();
 
+exit:
     comutexUnlock(&coroutine->lock);
   }
 
-exit:
   return returnValue;
 }
 
