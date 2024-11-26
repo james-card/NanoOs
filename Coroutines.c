@@ -1342,7 +1342,7 @@ int coconditionBroadcast(Cocondition *cond) {
   int returnValue = coroutineSuccess;
 
   if (cond != NULL) {
-    cond->numSignals = cond->numWaiters;
+    cond->numSignals = cond->numWaitForers;
   } else {
     returnValue = coroutineError;
   }
@@ -1360,7 +1360,7 @@ int coconditionBroadcast(Cocondition *cond) {
 void coconditionDestroy(Cocondition *cond) {
   if (cond != NULL) {
     cond->lastYieldValue = NULL;
-    cond->numWaiters = 0;
+    cond->numWaitForers = 0;
     cond->numSignals = -1;
   }
 }
@@ -1378,7 +1378,7 @@ int coconditionInit(Cocondition* cond) {
 
   if (cond != NULL) {
     cond->lastYieldValue = NULL;
-    cond->numWaiters = 0;
+    cond->numWaitForers = 0;
     cond->numSignals = 0;
     cond->head = NULL;
     cond->tail = NULL;
@@ -1400,7 +1400,7 @@ int coconditionInit(Cocondition* cond) {
 int coconditionSignal(Cocondition *cond) {
   int returnValue = coroutineSuccess;
 
-  if ((cond != NULL) && (cond->numWaiters > 0)) {
+  if ((cond != NULL) && (cond->numWaitForers > 0)) {
     cond->numSignals++;
   } else {
     returnValue = coroutineError;
@@ -1409,9 +1409,9 @@ int coconditionSignal(Cocondition *cond) {
   return returnValue;
 }
 
-/// @fn int coconditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
+/// @fn int coconditionTimedWaitFor(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
 ///
-/// @brief Wait for a condition to be signalled or until a specified time,
+/// @brief WaitFor for a condition to be signalled or until a specified time,
 /// whichever comes first.
 ///
 /// @param cond A pointer to the condition to wait on.
@@ -1424,7 +1424,7 @@ int coconditionSignal(Cocondition *cond) {
 /// deadline is reached before the condition is signalled, or coroutineError
 /// if the request could not be honored (a parameter is NULL or timespec_get
 /// fails).
-int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts
 ) {
   if ((cond == NULL) || (mtx == NULL) || (ts == NULL)) {
@@ -1454,7 +1454,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
 
   // Add ourselves to the queue.
-  cond->numWaiters++;
+  cond->numWaitForers++;
   if (cond->tail != NULL) {
     cond->tail->nextToSignal = running;
   }
@@ -1485,7 +1485,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
   if ((returnValue == coroutineSuccess) && (cond->numSignals > 0)) {
     cond->numSignals--;
-    cond->numWaiters--;
+    cond->numWaitForers--;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
     } else {
@@ -1511,7 +1511,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     if (cond->tail == running) {
       cond->tail = running->prevToSignal;
     }
-    cond->numWaiters--;
+    cond->numWaitForers--;
   } else {
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
@@ -1521,9 +1521,9 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   return returnValue;
 }
 
-/// @fn int coconditionWait(Cocondition* cond, Comutex* mtx)
+/// @fn int coconditionWaitFor(Cocondition* cond, Comutex* mtx)
 ///
-/// @brief Wait for the specified condition to be signalled.
+/// @brief WaitFor for the specified condition to be signalled.
 ///
 /// @param cond A pointer to the condition to wait on.
 /// @param mtx A mutex for the condition that must be locked before this call
@@ -1532,7 +1532,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
 ///
 /// @return Returns coroutineSuccess on success or coroutineError if the request
 /// could not be honored (one or more NULL parameters).
-int coconditionWait(Cocondition *cond, Comutex *mtx) {
+int coconditionWaitFor(Cocondition *cond, Comutex *mtx) {
   if ((cond == NULL) || (mtx == NULL)) {
     // Cannot honor the request.
     return coroutineError;
@@ -1560,7 +1560,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   }
 
   // Add ourselves to the queue.
-  cond->numWaiters++;
+  cond->numWaitForers++;
   if (cond->tail != NULL) {
     cond->tail->nextToSignal = running;
   }
@@ -1576,7 +1576,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   }
   if (cond->numSignals > 0) {
     cond->numSignals--;
-    cond->numWaiters--;
+    cond->numWaitForers--;
     cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
@@ -1725,10 +1725,10 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
     }
   }
 
-  // Set these *BEFORE* calling comutexLock.  Setting them afterward was causing
-  // problems for some reason.
+  // Initialize these variables before entering the if to avoid out-of-order
+  // code execution later.
   //
-  // JBC 2024-11-25
+  // JBC 2024-11-26
   Comessage *cur = coroutine->nextMessage;
   Comessage **prev = &coroutine->nextMessage;
   if (comutexLock(&coroutine->lock) == coroutineSuccess) {
@@ -1755,7 +1755,7 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueWait(Coroutine *coroutine)
+/// @fn Comessage* comessageQueueWaitFor(Coroutine *coroutine)
 ///
 /// @brief Block the current coroutine until a message is available in its
 /// message queue.
@@ -1763,7 +1763,7 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
 /// @param coroutine A pointer to the Coroutine to interrogate.
 ///
 /// @return Returns a pointer to the popped message on success, NULL on error.
-Comessage* comessageQueueWait(Coroutine *coroutine) {
+Comessage* comessageQueueWaitFor(Coroutine *coroutine) {
   Comessage *returnValue = NULL;
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
@@ -1773,7 +1773,7 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
     && (comutexLock(&coroutine->lock) == coroutineSuccess)
   ) {
     if (coroutine->nextMessage == NULL) {
-      if (coconditionWait(&coroutine->condition, &coroutine->lock)
+      if (coconditionWaitFor(&coroutine->condition, &coroutine->lock)
         != coroutineSuccess
       ) {
         comutexUnlock(&coroutine->lock);
@@ -1791,7 +1791,7 @@ Comessage* comessageQueueWait(Coroutine *coroutine) {
 
 /// @fn Comessage* comessageQueueWaitForType(Coroutine *coroutine)
 ///
-/// @brief Wait until there is a message of the specified type in the message
+/// @brief WaitFor until there is a message of the specified type in the message
 /// queue and then remove and return it when it becomes available.
 ///
 /// @param coroutine A pointer to the Coroutine to interrogate.
@@ -1828,7 +1828,7 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
         }
       } else {
         // Desired type was not found.  Block until something else is pushed.
-        if (coconditionWait(&coroutine->condition, &coroutine->lock)
+        if (coconditionWaitFor(&coroutine->condition, &coroutine->lock)
           != coroutineSuccess
         ) {
           comutexUnlock(&coroutine->lock);
@@ -1846,9 +1846,9 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueTimedWait(Coroutine *coroutine, const struct timespec *ts)
+/// @fn Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine, const struct timespec *ts)
 ///
-/// @brief Wait for a message to be available in the message queue or until a
+/// @brief WaitFor for a message to be available in the message queue or until a
 /// specified time has elapsed.  Remove the message from the queue and return
 /// it if one is available before the specified time is reached.
 ///
@@ -1859,7 +1859,7 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
 /// @return Returns the head of the queue if a message is available before the
 /// specified time.  Returns NULL if nothing is available within that time
 /// period or if an error occurrs.
-Comessage* comessageQueueTimedWait(Coroutine *coroutine,
+Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
   const struct timespec *ts
 ) {
   Comessage *returnValue = NULL;
@@ -1874,14 +1874,14 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
     // so we'll never reach this point if we've exceeded our timeout.
 
     if (coroutine->nextMessage == NULL) {
-      if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
+      if (coconditionTimedWaitFor(&coroutine->condition, &coroutine->lock, ts)
         != coroutineSuccess
       ) {
         comutexUnlock(&coroutine->lock);
         return returnValue; // NULL
       }
     }
-    // cococonditionTimedWait will return coroutineTimedout if the timeout is
+    // cococonditionTimedWaitFor will return coroutineTimedout if the timeout is
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
     returnValue = comessageQueuePop(coroutine);
@@ -1894,7 +1894,7 @@ Comessage* comessageQueueTimedWait(Coroutine *coroutine,
 
 /// @fn Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type, const struct timespec *ts)
 ///
-/// @brief Wait for a message of a given type to be available in the message
+/// @brief WaitFor for a message of a given type to be available in the message
 /// queue or until a specified time has elapsed.  Remove the message from the
 /// queue and return it if one is available before the specified time is
 /// reached.
@@ -1941,13 +1941,13 @@ Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
         }
       } else {
         // Desired type was not found.  Block until something else is pushed.
-        if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
+        if (coconditionTimedWaitFor(&coroutine->condition, &coroutine->lock, ts)
           != coroutineSuccess
         ) {
           comutexUnlock(&coroutine->lock);
           return returnValue; // NULL
         }
-        // coconditionTimedWait will return thrd_timedout if the timeout is
+        // coconditionTimedWaitFor will return thrd_timedout if the timeout is
         // reached, so we won't continue the loop if we've exceeded our timeout.
       }
 

@@ -228,7 +228,7 @@ typedef struct Comutex {
 ///
 /// @param lastYieldValue The last value returned by a yield call while a
 ///   cocondition wait function was blocked.
-/// @param numWaiters The number of coroutines blocked waiting on this
+/// @param numWaitForers The number of coroutines blocked waiting on this
 ///   condition.
 /// @param numSignal The number of signals emitted for unblocking waiting
 ///   coroutines.
@@ -237,7 +237,7 @@ typedef struct Comutex {
 ///   coroutine will be added).
 typedef struct Cocondition {
   void *lastYieldValue;
-  int numWaiters;
+  int numWaitForers;
   int numSignals;
   Coroutine *head;
   Coroutine *tail;
@@ -390,9 +390,9 @@ int coconditionBroadcast(Cocondition *cond);
 void coconditionDestroy(Cocondition *cond);
 int coconditionInit(Cocondition *cond);
 int coconditionSignal(Cocondition *cond);
-int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts);
-int coconditionWait(Cocondition *cond, Comutex *mtx);
+int coconditionWaitFor(Cocondition *cond, Comutex *mtx);
 void* coconditionLastYieldValue(Cocondition *cond);
 
 
@@ -401,9 +401,9 @@ int comessageQueueDestroy(Coroutine *coroutine);
 Comessage* comessageQueuePeek(Coroutine *coroutine);
 Comessage* comessageQueuePop(Coroutine *coroutine);
 Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
-Comessage* comessageQueueWait(Coroutine *coroutine);
+Comessage* comessageQueueWaitFor(Coroutine *coroutine);
 Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type);
-Comessage* comessageQueueTimedWait(Coroutine *coroutine,
+Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
   const struct timespec *ts);
 Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
   const struct timespec *ts);
@@ -434,7 +434,7 @@ int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts);
 #define comessageDataPointer(comessagePointer) \
   ((void*) comessageDataValue(comessagePointer, intptr_t))
 // No accessor for next member element.
-#define comessageWaiting(comessagePointer) \
+#define comessageWaitForing(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
 #define comessageDone(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->done : true)

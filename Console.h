@@ -52,6 +52,8 @@ extern "C"
 
 // Defines
 #define LED_CYCLE_TIME_MS 1000
+#define CONSOLE_BUFFER_SIZE 96
+#define CONSOLE_NUM_BUFFERS  4
 
 // Custom types
 typedef enum ConsoleCommand {
@@ -74,10 +76,36 @@ typedef enum ConsoleResponse {
   NUM_CONSOLE_RESPONSES
 } ConsleResponse;
 
+typedef struct ConsoleBuffer {
+  char buffer[CONSOLE_BUFFER_SIZE];
+  bool inUse;
+} ConsoleBuffer;
+
+typedef struct ConsoleState {
+  ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
+} ConsoleState;
+
+// Exported support functions.
+void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage);
+void handleConsoleMessages(ConsoleState *consoleState);
+void blink();
+
 // Exported coroutines
 void* runConsole(void *args);
 
 // Exported IO functions
+ConsoleBuffer* consoleGetBufferFromMessage(void);
+int consoleVFPrintf(FILE *stream, const char *format, va_list args);
 int consoleFPrintf(FILE *stream, const char *format, ...);
 #ifdef fprintf
 #undef fprintf
@@ -94,152 +122,15 @@ int consolePrintf(const char *format, ...);
 } // extern "C"
 #endif
 
-static inline int printConsole(char message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(unsigned char message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(long int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(long unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(float message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  ComessageData data = 0;
-  memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(double message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  ComessageData data = 0;
-  memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline int printConsole(const char *message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_STRING, NULL,
-    (intptr_t) message);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-static inline void releaseConsole() {
-  // releaseConsole is sometimes called from within handleCommand, which runs
-  // from within the console coroutine.  That means we can't do blocking prints
-  // from this function.  i.e. We can't use printf here.  Use printConsole
-  // instead.
-  printConsole("> ");
-}
+int printConsole(char message);
+int printConsole(unsigned char message);
+int printConsole(int message);
+int printConsole(unsigned int message);
+int printConsole(long int message);
+int printConsole(long unsigned int message);
+int printConsole(float message);
+int printConsole(double message);
+int printConsole(const char *message);
+void releaseConsole();
 
 #endif // CONSOLE_H
