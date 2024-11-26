@@ -2248,7 +2248,9 @@ int comessageWaitForDone(Comessage *comessage) {
     return returnValue; // coroutineError
   }
 
-  if (comessage->done == false) {
+  if (comessage->done == true) {
+    returnValue = coroutineSuccess;
+  } else {
     if (comutexLock(&comessage->lock) != coroutineSuccess) {
       // We can't do anything like this.  Fail.
       return returnValue; // coroutineError
