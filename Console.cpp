@@ -34,7 +34,7 @@ void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
   char message = comessageDataValue(inputMessage, char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -45,7 +45,7 @@ void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
   unsigned char message = comessageDataValue(inputMessage, unsigned char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -56,7 +56,7 @@ void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
   int message = comessageDataValue(inputMessage, int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -67,7 +67,7 @@ void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
   unsigned int message = comessageDataValue(inputMessage, unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -78,7 +78,7 @@ void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
   long int message = comessageDataValue(inputMessage, long int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -90,7 +90,7 @@ void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
     = comessageDataValue(inputMessage, long unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -103,7 +103,7 @@ void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -116,7 +116,7 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -129,7 +129,7 @@ void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
     Serial.print(message);
   }
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }
@@ -159,12 +159,12 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
-      releaseMessage(returnMessage);
+      comessageRelease(returnMessage);
       returnValue->inUse = false;
     }
   } else {
     // No free buffer.  Nothing we can do.
-    releaseMessage(returnMessage);
+    comessageRelease(returnMessage);
   }
 
   // Whether we were able to grab a buffer or not, we're now done with this
@@ -188,7 +188,7 @@ void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
     consoleBuffer->inUse = false;
   }
   comessageSetDone(inputMessage);
-  releaseMessage(inputMessage);
+  comessageRelease(inputMessage);
 
   return;
 }

@@ -55,7 +55,7 @@ void handleMainCoroutineMessage(void) {
     }
 
     mainCoroutineCommandHandlers[messageType](message);
-    releaseMessage(message);
+    comessageRelease(message);
   }
 
   return;
@@ -103,10 +103,6 @@ Comessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-int releaseMessage(Comessage *comessage) {
-  return comessageDestroy(comessage);
-}
-
 Comessage* sendDataMessageToCoroutine(
   Coroutine *coroutine, int type, void *data, bool waiting
 ) {
@@ -125,7 +121,7 @@ Comessage* sendDataMessageToCoroutine(
   comessageInit(comessage, type, NULL, (intptr_t) data, waiting);
 
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
-    releaseMessage(comessage);
+    comessageRelease(comessage);
     comessage = NULL;
   }
 
@@ -151,12 +147,12 @@ void* waitForDataMessage(Comessage *sent, int type) {
   while (sent->done == false) {
     coroutineYield(NULL);
   }
-  releaseMessage(sent);
+  comessageRelease(sent);
 
   Comessage *incoming = comessageQueueWaitForType(type);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
-    releaseMessage(incoming);
+    comessageRelease(incoming);
   }
 
   return returnValue;

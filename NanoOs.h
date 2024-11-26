@@ -101,7 +101,6 @@ void* dummy(void *args);
 int getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 Comessage* getAvailableMessage(void);
-int releaseMessage(Comessage *comessage);
 Comessage* sendDataMessageToCoroutine(
   Coroutine *coroutine, int type, void *data, bool waiting);
 Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting);
