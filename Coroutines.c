@@ -2350,6 +2350,8 @@ int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts) {
 /// @param releaseAfterDone Whether or not the provided sent message should be
 ///   released (*NOT* destroyed) after the recipient has indicated that they're
 ///   done processing our sent message.
+/// @param type A pointer to an integer type of message that the caller is
+///   waitingFor.  If this parameter is NULL, no type will be considered.
 /// @param ts A pointer to a struct timespec that holds the end time to wait
 ///   until for a reply.  If this parameter is NULL, then an infinite timeout
 ///   will be used.
@@ -2357,8 +2359,9 @@ int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts) {
 /// @return Returns a pointer to the Comessage received from the recipient of
 /// the original message on success, NULL on failure or if the provided timeout
 /// time is reached.
-Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
-  const struct timespec *ts
+Comessage* comessageWaitForReplyWithType_(
+  Comessage *sent, bool releaseAfterDone,
+  int *type, const struct timespec *ts
 ) {
   Comessage *reply = NULL;
 
@@ -2403,9 +2406,19 @@ Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
   // reached, so we'll never reach this point if we've exceeded our timeout.
   Comessage *cur = coroutine->nextMessage;
   Comessage **prev = &coroutine->nextMessage;
+  int searchType = 0;
+  if (type != NULL) {
+    // This saves us from having to dereference the pointer in every iteration
+    // of the loop below.
+    searchType = *type;
+  }
   int waitStatus = coroutineSuccess;
   while (reply == NULL) {
-    while ((cur != NULL) && (cur->from != recipient)) {
+    while ((cur != NULL)
+      && ((cur->from != recipient)
+        || ((type != NULL) && (cur->type != searchType))
+      )
+    ) {
       prev = &cur->next;
       cur = cur->next;
     }
