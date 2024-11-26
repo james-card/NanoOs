@@ -67,16 +67,16 @@ void* dummy(void *args) {
   nanoOsExitProcess(NULL);
 }
 
-int freeRam = INT_MAX;
+int freeRamBytes = INT_MAX;
 int getFreeRamBytes(void) {
   extern int __heap_start,*__brkval;
   int v;
-  int currentFreeRam = (int)&v - (__brkval == 0
+  int currentFreeRamBytes = (int)&v - (__brkval == 0
     ? (int)&__heap_start : (int) __brkval);
-  if (currentFreeRam < freeRam) {
-    freeRam = currentFreeRam;
+  if (currentFreeRamBytes < freeRamBytes) {
+    freeRamBytes = currentFreeRamBytes;
   }
-  return freeRam;
+  return freeRamBytes;
 }
 
 long getElapsedMilliseconds(unsigned long startTime) {
