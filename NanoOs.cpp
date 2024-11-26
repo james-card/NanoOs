@@ -156,16 +156,7 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
 void* waitForDataMessage(Comessage *sent, int type) {
   void *returnValue = NULL;
 
-  if (comessageWaitForDone(sent) != coroutineSuccess) {
-    printString("ERROR!!!  comessageWaitForDone was NOT successful.\n");
-    return returnValue; // NULL
-  }
-  if (comessageRelease(sent) != coroutineSuccess) {
-    printString("ERROR!!!  "
-      "Could not release sent message from handleMainCoroutineMessage\n");
-  }
-
-  Comessage *incoming = comessageQueueWaitForType(type);
+  Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, NULL);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
     if (comessageRelease(incoming) != coroutineSuccess) {
