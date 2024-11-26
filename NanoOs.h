@@ -168,7 +168,7 @@ static inline void* waitForDataMessage(Comessage *sent, int type) {
   }
   releaseMessage(sent);
 
-  Comessage *incoming = comessageQueuePopType(NULL, type);
+  Comessage *incoming = comessageQueueWaitForType(NULL, type);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
     releaseMessage(incoming);
