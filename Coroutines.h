@@ -418,7 +418,7 @@ int comessageInit_(Comessage *comessage, int type,
   comessageInit_(comessage, type, (ComessageData) func, (ComessageData) data)
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
-int comessageWaitDone(Comessage *comessage);
+int comessageWaitForDone(Comessage *comessage);
 int comessageTimedWaitDone(Comessage *comessage, const struct timespec *ts);
 
 
