@@ -95,7 +95,7 @@ Comessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0, NULL, NULL);
+      comessageInit(availableMessage, 0, NULL, NULL, false);
       break;
     }
   }
@@ -108,7 +108,7 @@ int releaseMessage(Comessage *comessage) {
 }
 
 Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data
+  Coroutine *coroutine, int type, void *data, bool waiting
 ) {
   Comessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
@@ -122,7 +122,7 @@ Comessage* sendDataMessageToCoroutine(
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, type, NULL, (intptr_t) data);
+  comessageInit(comessage, type, NULL, (intptr_t) data, waiting);
 
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
     releaseMessage(comessage);
@@ -132,7 +132,7 @@ Comessage* sendDataMessageToCoroutine(
   return comessage;
 }
 
-Comessage* sendDataMessageToPid(int pid, int type, void *data) {
+Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COROUTINES) {
     // Not a valid PID.  Fail.
@@ -141,7 +141,7 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data) {
 
   Coroutine *coroutine = runningCommands[pid].coroutine;
   comessage
-    = sendDataMessageToCoroutine(coroutine, type, data);
+    = sendDataMessageToCoroutine(coroutine, type, data, waiting);
   return comessage;
 }
 

@@ -155,7 +155,7 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
     comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
-      NULL, returnValue);
+      NULL, returnValue, false);
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
@@ -286,7 +286,7 @@ ConsoleBuffer* consoleGetBufferFromMessage(void) {
 
   while (returnValue == NULL) {
     Comessage *comessage = sendDataMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL);
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, true);
     if (comessage == NULL) {
       break; // will return returnValue, which is NULL
     }
@@ -313,7 +313,7 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
 
   Comessage *comessage = sendDataMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer);
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
   if (stream == stderr) {
     while (comessageDone(comessage) == false) {
       coroutineYield(NULL);
@@ -352,7 +352,7 @@ int printConsole(char message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -367,7 +367,7 @@ int printConsole(unsigned char message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -382,7 +382,7 @@ int printConsole(int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -397,7 +397,7 @@ int printConsole(unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -412,7 +412,7 @@ int printConsole(long int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -427,7 +427,7 @@ int printConsole(long unsigned int message) {
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message);
+  comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -444,7 +444,7 @@ int printConsole(float message) {
 
   ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data);
+  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -461,7 +461,7 @@ int printConsole(double message) {
 
   ComessageData data = 0;
   memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data);
+  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);
@@ -477,7 +477,7 @@ int printConsole(const char *message) {
   }
 
   comessageInit(comessage, CONSOLE_WRITE_STRING, NULL,
-    (intptr_t) message);
+    (intptr_t) message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);

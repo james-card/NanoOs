@@ -1988,6 +1988,51 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
   return returnValue;
 }
 
+/// @fn int comessageStartUse(Comessage *comessage)
+///
+/// @brief Initialize a Comessage for use if it's not arleady initialized.
+///
+/// @param comessage A pointer to the Commessage to being using.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageStartUse(Comessage *comessage) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage != NULL) {
+    if (comessage->inUse == false) {
+      comessage->type = 0;
+      comessage->func = 0;
+      comessage->data = 0;
+      comessage->next = NULL;
+      comessage->waiting = false;
+      comessage->done = true;
+      comessage->inUse = true;
+      comessage->from = 0;
+      if (comessage->configured == false) {
+        if (coconditionInit(&comessage->condition) == coroutineSuccess) {
+          if (comutexInit(&comessage->lock, comutexPlain | comutexTimed)
+            == coroutineSuccess
+          ) {
+            comessage->configured = true;
+          } else {
+            coconditionDestroy(&comessage->condition);
+            returnValue = coroutineError;
+            // comessage->configured remains false
+          }
+        } else {
+          returnValue = coroutineError;
+          // comessage->configured remains false
+        }
+      }
+      // Don't touch comessage->dynamically_allocated;
+    } // Else this message is already setup
+  } else {
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
 /// @fn int comessageDestroy(Comessage *comessage)
 ///
 /// @brief Reset all the relevant elements of a Comessage structure back to
@@ -2028,7 +2073,7 @@ int comessageDestroy(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int comessageInit_(Comessage *comessage, int type, CoroutineFunction func, uint64_t data)
+/// @fn int comessageInit_(Comessage *comessage, int type, CoroutineFunction func, uint64_t data, bool waiting)
 ///
 /// @brief Initialize all the member elements of a Comessage structure.
 ///
@@ -2036,24 +2081,32 @@ int comessageDestroy(Comessage *comessage) {
 /// @param type The type integer value to set for the type of the Comessage.
 /// @param func A function pointer to the function of the message.
 /// @param data The data of the message.
+/// @param waiting Whether or not the caller of this function will be waiting on
+///   a response to this message from the destination thread.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int comessageInit_(Comessage *comessage, int type,
-  ComessageData func, ComessageData data
+  ComessageData func, ComessageData data, bool waiting
 ) {
-  int returnValue = coroutineSuccess;
+  int returnValue = coroutineError;
 
-  if (comessage != NULL) {
-    comessage->type = type;
-    comessage->func = func;
-    comessage->data = data;
-    comessage->next = NULL;
-    comessage->done = false;
-    comessage->inUse = true;
-    comessage->from = NULL;
-  } else {
-    returnValue = coroutineError;
+  if (comessage == NULL) {
+    // Nothing we can do.  Fail.
+    return returnValue; // coroutineError
+  } else if (comessageStartUse(comessage) != coroutineSuccess) {
+    // Couldn't configure this message for use for some reason.  Fail.
+    return returnValue; // coroutineError
   }
+
+  comessage->type = type;
+  comessage->func = func;
+  comessage->data = data;
+  comessage->next = NULL;
+  comessage->waiting = waiting;
+  comessage->done = false;
+  // No need to set comessage->inUse since we called comessageStartUse above.
+  comessage->from = getRunningCoroutine();
+  returnValue = coroutineSuccess;
 
   return returnValue;
 }

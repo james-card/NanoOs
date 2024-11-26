@@ -103,8 +103,8 @@ long getElapsedMilliseconds(unsigned long startTime);
 Comessage* getAvailableMessage(void);
 int releaseMessage(Comessage *comessage);
 Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data);
-Comessage* sendDataMessageToPid(int pid, int type, void *data);
+  Coroutine *coroutine, int type, void *data, bool waiting);
+Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type);
 
 #ifdef __cplusplus

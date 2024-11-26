@@ -411,9 +411,10 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 // Comessage functions
 int comessageDestroy(Comessage *comessage);
 int comessageInit_(Comessage *comessage, int type,
-  ComessageData func, ComessageData data);
-#define comessageInit(comessage, type, func, data) \
-  comessageInit_(comessage, type, (ComessageData) func, (ComessageData) data)
+  ComessageData func, ComessageData data, bool waiting);
+#define comessageInit(comessage, type, func, data, waiting) \
+  comessageInit_(comessage, type, \
+    (ComessageData) func, (ComessageData) data, waiting)
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage);
