@@ -2225,3 +2225,50 @@ int comessageSetDone(Comessage *comessage) {
   return returnValue;
 }
 
+/// @fn int comessageWaitForDone(Comessage *comessage)
+///
+/// @brief Wait on a message until another coroutine indicates that it's done.
+/// This is a blocking call with no timeout.
+///
+/// @param comessage A pointer to a previously-allocated Comessage.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageWaitForDone(Comessage *comessage) {
+  int returnValue = coroutineError;
+
+  if (comessage == NULL) {
+    // Invalid.
+    return returnValue; // coroutineError
+  } else if (comessage->configured == false) {
+    // We can't do this.  Waiting for done requires the use of the lock and
+    // condition in the message.  It doesn't make any sense for us to try and
+    // initialize them at this point because whatever made this call is already
+    // in a bad state.  We shouldn't try to fix things because we don't know
+    // what's going on above us.  Just return bad status.
+    return returnValue; // coroutineError
+  }
+
+  if (comessage->done == false) {
+    if (comutexLock(&comessage->lock) != coroutineSuccess) {
+      // We can't do anything like this.  Fail.
+      return returnValue; // coroutineError
+    }
+    comessage->waiting = true;
+
+    while (comessage->done == false) {
+      if (coconditionWait(&comessage->condition, &comessage->lock)
+        != coroutineSuccess
+      ) {
+        // Something is wrong with the conditon.  Fail.
+        break;
+      }
+    }
+    if (comessage->done == true) {
+      returnValue = coroutineSuccess;
+    }
+    comutexUnlock(&comessage->lock);
+  }
+
+  return returnValue;
+}
+
