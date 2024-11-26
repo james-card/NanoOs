@@ -2255,8 +2255,8 @@ int comessageWaitForDone(Comessage *comessage) {
       // We can't do anything like this.  Fail.
       return returnValue; // coroutineError
     }
-    comessage->waiting = true;
 
+    comessage->waiting = true;
     while (comessage->done == false) {
       if (coconditionWait(&comessage->condition, &comessage->lock)
         != coroutineSuccess
@@ -2265,6 +2265,7 @@ int comessageWaitForDone(Comessage *comessage) {
         break;
       }
     }
+    comessage->waiting = false;
     if (comessage->done == true) {
       returnValue = coroutineSuccess;
     }
