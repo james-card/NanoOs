@@ -2181,19 +2181,46 @@ int comessageRelease(Comessage *comessage) {
 
 /// @fn void comessageSetDone(Comessage *comessage)
 ///
-/// @brief Set the done flag on a coroutine message to true.
+/// @brief Set the done flag on a coroutine message to true and signal any
+/// waiters.
 ///
 /// @param comessage A pointer to the Comessage object to set the done flag of.
 ///
 /// @return Returns coroutineSuccess, coroutineError on failure.
 int comessageSetDone(Comessage *comessage) {
-  int returnValue = coroutineSuccess;
+  int returnValue = coroutineError;
 
-  if (comessage != NULL) {
-    comessage->done = true;
-  } else {
-    returnValue = coroutineError;
+  if (comessage == NULL) {
+    // Invalid.
+    return returnValue; // coroutineError
   }
+
+  // Don't touch comessage->type.
+  // Don't touch comessage->func.
+  // Don't touch comessage->data.
+  // Don't touch comessage->next.
+  // Don't touch comessage->waiting.
+  // Don't touch comessage->inUse.
+  if (comessage->configured == true) {
+    comutexLock(&comessage->lock);
+    comessage->done = true;
+
+    if (comessage->waiting == true) {
+      // Something is waiting.  Signal the waiters.  It will be up to them to
+      // destroy this message again later.
+      coconditionBroadcast(&comessage->condition);
+    }
+    comutexUnlock(&comessage->lock);
+  } else {
+    // Nothing we can do but set the done flag.
+    comessage->done = true;
+  }
+  // Don't touch comessage->from.
+  // Don't touch comessage->condition.
+  // Don't touch comessage->lock.
+  // Don't touch comessage->configured.
+  // Don't touch comessage->dynamically_allocated.
+  returnValue = coroutineSuccess;
 
   return returnValue;
 }
