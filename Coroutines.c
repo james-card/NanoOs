@@ -2351,7 +2351,7 @@ int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts) {
 ///   released (*NOT* destroyed) after the recipient has indicated that they're
 ///   done processing our sent message.
 /// @param type A pointer to an integer type of message that the caller is
-///   waitingFor.  If this parameter is NULL, no type will be considered.
+///   waiting for.  If this parameter is NULL, no type will be considered.
 /// @param ts A pointer to a struct timespec that holds the end time to wait
 ///   until for a reply.  If this parameter is NULL, then an infinite timeout
 ///   will be used.
@@ -2456,5 +2456,50 @@ Comessage* comessageWaitForReplyWithType_(
   comutexUnlock(&coroutine->lock);
 
   return reply;
+}
+
+/// @fn Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone, const struct timespec *ts)
+///
+/// @brief Block until a reply has been received from the original recipient of
+/// the provided message or until a specified future time has been reached.
+///
+/// @param sent The message that was originally sent to the recipient.
+/// @param releaseAfterDone Whether or not the provided sent message should be
+///   released (*NOT* destroyed) after the recipient has indicated that they're
+///   done processing our sent message.
+/// @param ts A pointer to a struct timespec that holds the end time to wait
+///   until for a reply.  If this parameter is NULL, then an infinite timeout
+///   will be used.
+///
+/// @return Returns a pointer to the Comessage received from the recipient of
+/// the original message on success, NULL on failure.
+Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
+  const struct timespec *ts
+) {
+  return comessageWaitForReplyWithType_(sent, releaseAfterDone, NULL, ts);
+}
+
+/// @fn Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone, int type, const struct timespec *ts)
+///
+/// @brief Block until a reply of a specified type has been received from the
+/// original recipient of the provided message or until a specified future time
+/// has been reached.
+///
+/// @param sent The message that was originally sent to the recipient.
+/// @param releaseAfterDone Whether or not the provided sent message should be
+///   released (*NOT* destroyed) after the recipient has indicated that they're
+///   done processing our sent message.
+/// @param type An integer type of message that the caller is waiting for.
+/// @param ts A pointer to a struct timespec that holds the end time to wait
+///   until for a reply.  If this parameter is NULL, then an infinite timeout
+///   will be used.
+///
+/// @return Returns a pointer to the Comessage received from the recipient of
+/// the original message of the specified tyep on success, NULL on failure or if
+/// the provided timeout time is reached.
+Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
+  int type, const struct timespec *ts
+) {
+  return comessageWaitForReplyWithType_(sent, releaseAfterDone, &type, ts);
 }
 
