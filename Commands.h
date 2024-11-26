@@ -81,13 +81,6 @@ typedef struct RunningCommand {
 } RunningCommand;
 
 // Exported functions
-void* ps(void *args);
-void* kill(void *args);
-void* echo(void *args);
-void* echoSomething(void *args);
-void* runCounter(void *args);
-void* showInfo(void *args);
-void* ver(void *args);
 void handleCommand(char *consoleInput);
 
 #ifdef __cplusplus

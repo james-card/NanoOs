@@ -59,7 +59,7 @@ void (*mainCoroutineCommandHandlers[])(Comessage*) {
   callFunction,
 };
 
-void handleMainCoroutineMessage(void) {
+static inline void handleMainCoroutineMessage(void) {
   Comessage *message = comessageQueuePop(NULL);
   if (message != NULL) {
     MainCoroutineCommand messageType
@@ -74,11 +74,6 @@ void handleMainCoroutineMessage(void) {
   }
 
   return;
-}
-
-void* dummy(void *args) {
-  (void) args;
-  nanoOsExitProcess(NULL);
 }
 
 // In a normal Arduino sketch, the loop function runs over and over again
@@ -106,17 +101,7 @@ void loop() {
   Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
 
-  Coroutine *coroutine = NULL;
-  for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {
-    if (ii == NANO_OS_CONSOLE_PROCESS_ID) {
-      continue;
-    }
-    coroutine = coroutineCreate(dummy);
-    coroutineSetId(coroutine, ii);
-    runningCommands[ii].coroutine = coroutine;
-  }
-
-  coroutine = coroutineCreate(runConsole);
+  Coroutine *coroutine = coroutineCreate(runConsole);
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "runConsole";
@@ -133,94 +118,3 @@ void loop() {
     coroutineIndex %= NANO_OS_NUM_COROUTINES;
   }
 }
-
-int freeRamBytes(void) {
-  extern int __heap_start,*__brkval;
-  int v;
-  return (int)&v - (__brkval == 0  
-    ? (int)&__heap_start : (int) __brkval);  
-}
-
-long getElapsedMilliseconds(unsigned long startTime) {
-  unsigned long now = millis();
-
-  if (now < startTime) {
-    return ULONG_MAX;
-  }
-
-  return now - startTime;
-}
-
-Comessage* getAvailableMessage(void) {
-  Comessage *availableMessage = NULL;
-
-  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
-    if (messages[ii].inUse == false) {
-      availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0, NULL, NULL);
-      break;
-    }
-  }
-
-  return availableMessage;
-}
-
-int releaseMessage(Comessage *comessage) {
-  return comessageDestroy(comessage);
-}
-
-Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data
-) {
-  Comessage *comessage = NULL;
-  if (!coroutineRunning(coroutine)) {
-    // Can't send to a non-resumable coroutine.
-    return comessage; // NULL
-  }
-
-  comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, type, NULL, (intptr_t) data);
-
-  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
-    releaseMessage(comessage);
-    comessage = NULL;
-  }
-
-  return comessage;
-}
-
-Comessage* sendDataMessageToPid(int pid, int type, void *data) {
-  Comessage *comessage = NULL;
-  if (pid >= NANO_OS_NUM_COROUTINES) {
-    // Not a valid PID.  Fail.
-    return comessage; // NULL
-  }
-
-  Coroutine *coroutine = runningCommands[pid].coroutine;
-  comessage
-    = sendDataMessageToCoroutine(coroutine, type, data);
-  return comessage;
-}
-
-void* waitForDataMessage(Comessage *sent, int type) {
-  void *returnValue = NULL;
-
-  while (sent->done == false) {
-    coroutineYield(NULL);
-  }
-  releaseMessage(sent);
-
-  Comessage *incoming = comessageQueuePopType(NULL, type);
-  if (incoming != NULL)  {
-    returnValue = comessageDataPointer(incoming);
-    releaseMessage(incoming);
-  }
-
-  return returnValue;
-}
-
