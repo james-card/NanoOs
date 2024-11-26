@@ -2285,3 +2285,59 @@ int comessageWaitForDone(Comessage *comessage) {
   return returnValue;
 }
 
+/// @fn int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts)
+///
+/// @brief Wait on a message until another coroutine indicates that it's done
+/// or until the specified time has been reached.
+///
+/// @param comessage A pointer to a previously-allocated Comessage.
+/// @param ts A pointer to a struct timespec that specifies the end of the time
+///   period to wait for.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts) {
+  int returnValue = coroutineError;
+
+  if ((comessage == NULL) || (ts == NULL)) {
+    // Invalid.
+    return returnValue; // coroutineError
+  } else if (comessage->configured == false) {
+    // We can't do this.  Waiting for done requires the use of the lock and
+    // condition in the message.  It doesn't make any sense for us to try and
+    // initialize them at this point because whatever made this call is already
+    // in a bad state.  We shouldn't try to fix things because we don't know
+    // what's going on above us.  Just return bad status.
+    return returnValue; // coroutineError
+  }
+
+  if (comessage->done == true) {
+    returnValue = coroutineSuccess;
+  } else {
+    if (comutexTimedLock(&comessage->lock, ts) != coroutineSuccess) {
+      // Either we timed out or there's a problem with the lock.  Either way, we
+      // don't want to continue and we're going to exit with an error since we
+      // never received the done flag.
+      return returnValue; // coroutineError
+    }
+
+    comessage->waiting = true;
+    while (comessage->done == false) {
+      if (coconditionTimedWait(&comessage->condition, &comessage->lock, ts)
+        != coroutineSuccess
+      ) {
+        // Either we timed out or there's a problem with the condition.  Again,
+        // we don't want to proceed like this.
+        break;
+      }
+    }
+    comessage->waiting = false;
+
+    if (comessage->done == true) {
+      returnValue = coroutineSuccess;
+    }
+    comutexUnlock(&comessage->lock);
+  }
+
+  return returnValue;
+}
+
