@@ -2176,7 +2176,7 @@ int comessageRelease(Comessage *comessage) {
   // Don't touch comessage->lock.
   // Don't touch comessage->configured.
 
-  return returnValue; // coroutineSuccess
+  return returnValue;
 }
 
 /// @fn void comessageSetDone(Comessage *comessage)
