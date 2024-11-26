@@ -1805,13 +1805,12 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
     coroutine = getRunningCoroutine();
   }
 
+  Comessage *cur = coroutine->nextMessage;
+  Comessage **prev = &coroutine->nextMessage;
   if ((coroutine != NULL)
     && (comutexLock(&coroutine->lock) == coroutineSuccess)
   ) {
     while (returnValue == NULL) {
-      Comessage *cur = coroutine->nextMessage;
-      Comessage **prev = &coroutine->nextMessage;
-
       while ((cur != NULL) && (cur->type != type)) {
         prev = &cur->next;
         cur = cur->next;
@@ -1836,6 +1835,9 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
           return returnValue; // NULL
         }
       }
+
+      cur = coroutine->nextMessage;
+      prev = &coroutine->nextMessage;
     }
 
     comutexUnlock(&coroutine->lock);
@@ -1913,6 +1915,8 @@ Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
     coroutine = getRunningCoroutine();
   }
 
+  Comessage *cur = coroutine->nextMessage;
+  Comessage **prev = &coroutine->nextMessage;
   if ((coroutine != NULL)
     && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
   ) {
@@ -1920,9 +1924,6 @@ Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
     // so we'll never reach this point if we've exceeded our timeout.
 
     while (returnValue == NULL) {
-      Comessage *cur = coroutine->nextMessage;
-      Comessage **prev = &coroutine->nextMessage;
-
       while ((cur != NULL) && (cur->type != type)) {
         prev = &cur->next;
         cur = cur->next;
@@ -1949,6 +1950,9 @@ Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
         // coconditionTimedWait will return thrd_timedout if the timeout is
         // reached, so we won't continue the loop if we've exceeded our timeout.
       }
+
+      cur = coroutine->nextMessage;
+      prev = &coroutine->nextMessage;
     }
 
     comutexUnlock(&coroutine->lock);
