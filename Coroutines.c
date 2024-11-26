@@ -2058,6 +2058,7 @@ int comessageDestroy(Comessage *comessage) {
   // Don't touch from.
   if (comessage->configured == true) {
     comutexLock(&comessage->lock);
+    comessage->done = true;
 
     if (comessage->waiting == false) {
       // Nothing is waiting.  Destroy the resources.
@@ -2068,10 +2069,12 @@ int comessageDestroy(Comessage *comessage) {
     } else {
       // Something is waiting.  Signal the waiters.  It will be up to them to
       // destroy this message again later.
-      comessage->done = true;
       coconditionBroadcast(&comessage->condition);
       comutexUnlock(&comessage->lock);
     }
+  } else {
+    // Nothing we can do but set the done flag.
+    comessage->done = true;
   }
 
   return returnValue;
@@ -2137,6 +2140,7 @@ int comessageRelease(Comessage *comessage) {
   // Don't touch comessage->next.
   // Don't touch comessage->waiting.
   comessage->inUse = false;
+  // Don't touch comessage->from.
   if (comessage->configured == true) {
     comutexLock(&comessage->lock);
     comessage->done = true;
@@ -2151,7 +2155,6 @@ int comessageRelease(Comessage *comessage) {
     // Nothing we can do but set the done flag.
     comessage->done = true;
   }
-  // Don't touch comessage->from.
   // Don't touch comessage->condition.
   // Don't touch comessage->lock.
   // Don't touch comessage->configured.
