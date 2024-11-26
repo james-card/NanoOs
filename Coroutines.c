@@ -1409,7 +1409,7 @@ int coconditionSignal(Cocondition *cond) {
   return returnValue;
 }
 
-/// @fn int coconditionTimedWaitFor(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
+/// @fn int coconditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
 ///
 /// @brief WaitFor for a condition to be signalled or until a specified time,
 /// whichever comes first.
@@ -1424,7 +1424,7 @@ int coconditionSignal(Cocondition *cond) {
 /// deadline is reached before the condition is signalled, or coroutineError
 /// if the request could not be honored (a parameter is NULL or timespec_get
 /// fails).
-int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts
 ) {
   if ((cond == NULL) || (mtx == NULL) || (ts == NULL)) {
@@ -1521,7 +1521,7 @@ int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
   return returnValue;
 }
 
-/// @fn int coconditionWaitFor(Cocondition* cond, Comutex* mtx)
+/// @fn int coconditionWait(Cocondition* cond, Comutex* mtx)
 ///
 /// @brief WaitFor for the specified condition to be signalled.
 ///
@@ -1532,7 +1532,7 @@ int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
 ///
 /// @return Returns coroutineSuccess on success or coroutineError if the request
 /// could not be honored (one or more NULL parameters).
-int coconditionWaitFor(Cocondition *cond, Comutex *mtx) {
+int coconditionWait(Cocondition *cond, Comutex *mtx) {
   if ((cond == NULL) || (mtx == NULL)) {
     // Cannot honor the request.
     return coroutineError;
@@ -1647,21 +1647,17 @@ int comessageQueueDestroy(Coroutine *coroutine) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueuePeek(Coroutine *coroutine)
+/// @fn Comessage* comessageQueuePeek(void)
 ///
-/// @brief Get the head of a coroutine's message queue but do not remove it from
-/// the queue.
+/// @brief Get the head of the running coroutine's message queue but do not
+/// remove it from the queue.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
-///
-/// @return Returns the head of the coroutine's message queue on success, NULL
-/// on failure.
-Comessage* comessageQueuePeek(Coroutine *coroutine) {
+/// @return Returns the head of the running coroutine's message queue on
+/// success, NULL on failure.
+Comessage* comessageQueuePeek(void) {
   Comessage *comessage = NULL;
-  if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
-  }
 
+  Coroutine *coroutine = getRunningCoroutine();
   if (coroutine != NULL) {
     comessage = coroutine->nextMessage;
   }
@@ -1669,21 +1665,17 @@ Comessage* comessageQueuePeek(Coroutine *coroutine) {
   return comessage;
 }
 
-/// @fn Comessage* comessageQueuePop(Coroutine *coroutine)
+/// @fn Comessage* comessageQueuePop(void)
 ///
-/// @brief Get the head of a coroutine's message queue and remove it from the
-/// queue.
+/// @brief Get the head of the running coroutine's message queue and remove it
+/// from the queue.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
-///
-/// @return Returns the head of the coroutine's message queue on success, NULL
-/// on failure.
-Comessage* comessageQueuePop(Coroutine *coroutine) {
+/// @return Returns the head of the running coroutine's message queue on
+/// success, NULL on failure.
+Comessage* comessageQueuePop(void) {
   Comessage *head = NULL;
-  if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
-  }
 
+  Coroutine *coroutine = getRunningCoroutine();
   if ((coroutine != NULL)
     && (comutexLock(&coroutine->lock) == coroutineSuccess)
   ) {
@@ -1704,25 +1696,22 @@ Comessage* comessageQueuePop(Coroutine *coroutine) {
   return head;
 }
 
-/// @fn Comessage* comessageQueuePopType(Coroutine *coroutine, int type)
+/// @fn Comessage* comessageQueuePopType(int type)
 ///
-/// @brief Get the first message of the specified type from a coroutine's
-/// message queue and remove it from the queue.
+/// @brief Get the first message of the specified type from the running
+/// coroutine's message queue and remove it from the queue.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
 /// @param type The type of message to get.
 ///
 /// @return Returns the first message of the specified type on success, NULL on
 /// failure.
-Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
+Comessage* comessageQueuePopType(int type) {
   Comessage *returnValue = NULL;
-  if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
 
-    if (coroutine == NULL) {
-      // Coroutines haven't been configured yet.
-      return returnValue;
-    }
+  Coroutine *coroutine = getRunningCoroutine();
+  if (coroutine == NULL) {
+    // Coroutines haven't been configured yet.
+    return returnValue;
   }
 
   // Initialize these variables before entering the if to avoid out-of-order
@@ -1755,25 +1744,21 @@ Comessage* comessageQueuePopType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueWaitFor(Coroutine *coroutine)
+/// @fn Comessage* comessageQueueWait(void)
 ///
 /// @brief Block the current coroutine until a message is available in its
 /// message queue.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
-///
 /// @return Returns a pointer to the popped message on success, NULL on error.
-Comessage* comessageQueueWaitFor(Coroutine *coroutine) {
+Comessage* comessageQueueWait(void) {
   Comessage *returnValue = NULL;
-  if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
-  }
 
+  Coroutine *coroutine = getRunningCoroutine();
   if ((coroutine != NULL)
     && (comutexLock(&coroutine->lock) == coroutineSuccess)
   ) {
     if (coroutine->nextMessage == NULL) {
-      if (coconditionWaitFor(&coroutine->condition, &coroutine->lock)
+      if (coconditionWait(&coroutine->condition, &coroutine->lock)
         != coroutineSuccess
       ) {
         comutexUnlock(&coroutine->lock);
@@ -1781,7 +1766,7 @@ Comessage* comessageQueueWaitFor(Coroutine *coroutine) {
       }
     }
 
-    returnValue = comessageQueuePop(coroutine);
+    returnValue = comessageQueuePop();
 
     comutexUnlock(&coroutine->lock);
   }
@@ -1789,20 +1774,22 @@ Comessage* comessageQueueWaitFor(Coroutine *coroutine) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueWaitForType(Coroutine *coroutine)
+/// @fn Comessage* comessageQueueWaitForType(int type)
 ///
 /// @brief WaitFor until there is a message of the specified type in the message
 /// queue and then remove and return it when it becomes available.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
 /// @param type The message type to look for.
 ///
 /// @return Returns the first message in the queue with the specified type on
 /// success, NULL on failure.
-Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
+Comessage* comessageQueueWaitForType(int type) {
   Comessage *returnValue = NULL;
+
+  Coroutine *coroutine = getRunningCoroutine();
   if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
+    // Coroutines haven't been configured yet.
+    return returnValue;
   }
 
   Comessage *cur = coroutine->nextMessage;
@@ -1828,7 +1815,7 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
         }
       } else {
         // Desired type was not found.  Block until something else is pushed.
-        if (coconditionWaitFor(&coroutine->condition, &coroutine->lock)
+        if (coconditionWait(&coroutine->condition, &coroutine->lock)
           != coroutineSuccess
         ) {
           comutexUnlock(&coroutine->lock);
@@ -1846,26 +1833,21 @@ Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine, const struct timespec *ts)
+/// @fn Comessage* comessageQueueTimedWait(const struct timespec *ts)
 ///
 /// @brief WaitFor for a message to be available in the message queue or until a
 /// specified time has elapsed.  Remove the message from the queue and return
 /// it if one is available before the specified time is reached.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
 /// @param ts A pointer to a struct timespec that specifies the end of the time
 ///   period to wait for.
 ///
 /// @return Returns the head of the queue if a message is available before the
 /// specified time.  Returns NULL if nothing is available within that time
 /// period or if an error occurrs.
-Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
-  const struct timespec *ts
-) {
+Comessage* comessageQueueTimedWait(const struct timespec *ts) {
   Comessage *returnValue = NULL;
-  if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
-  }
+  Coroutine *coroutine = getRunningCoroutine();
 
   if ((coroutine != NULL)
     && (comutexTimedLock(&coroutine->lock, ts) == coroutineSuccess)
@@ -1874,7 +1856,7 @@ Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
     // so we'll never reach this point if we've exceeded our timeout.
 
     if (coroutine->nextMessage == NULL) {
-      if (coconditionTimedWaitFor(&coroutine->condition, &coroutine->lock, ts)
+      if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
         != coroutineSuccess
       ) {
         comutexUnlock(&coroutine->lock);
@@ -1884,7 +1866,7 @@ Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
     // cococonditionTimedWaitFor will return coroutineTimedout if the timeout is
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
-    returnValue = comessageQueuePop(coroutine);
+    returnValue = comessageQueuePop();
 
     comutexUnlock(&coroutine->lock);
   }
@@ -1892,14 +1874,13 @@ Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
   return returnValue;
 }
 
-/// @fn Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type, const struct timespec *ts)
+/// @fn Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts)
 ///
 /// @brief WaitFor for a message of a given type to be available in the message
 /// queue or until a specified time has elapsed.  Remove the message from the
 /// queue and return it if one is available before the specified time is
 /// reached.
 ///
-/// @param coroutine A pointer to the Coroutine to interrogate.
 /// @param type The message type to look for.
 /// @param ts A pointer to a struct timespec that specifies the end of the time
 ///   period to wait for.
@@ -1907,12 +1888,13 @@ Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
-  const struct timespec *ts
-) {
+Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts) {
   Comessage *returnValue = NULL;
+
+  Coroutine *coroutine = getRunningCoroutine();
   if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
+    // Coroutines haven't been configured yet.
+    return returnValue;
   }
 
   Comessage *cur = coroutine->nextMessage;
@@ -1941,7 +1923,7 @@ Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
         }
       } else {
         // Desired type was not found.  Block until something else is pushed.
-        if (coconditionTimedWaitFor(&coroutine->condition, &coroutine->lock, ts)
+        if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
           != coroutineSuccess
         ) {
           comutexUnlock(&coroutine->lock);

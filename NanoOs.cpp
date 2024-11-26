@@ -45,7 +45,7 @@ void (*mainCoroutineCommandHandlers[])(Comessage*) {
 };
 
 void handleMainCoroutineMessage(void) {
-  Comessage *message = comessageQueuePop(NULL);
+  Comessage *message = comessageQueuePop();
   if (message != NULL) {
     MainCoroutineCommand messageType
       = (MainCoroutineCommand) comessageType(message);
@@ -147,7 +147,7 @@ void* waitForDataMessage(Comessage *sent, int type) {
   }
   releaseMessage(sent);
 
-  Comessage *incoming = comessageQueueWaitForType(NULL, type);
+  Comessage *incoming = comessageQueueWaitForType(type);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
     releaseMessage(incoming);

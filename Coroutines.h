@@ -390,23 +390,21 @@ int coconditionBroadcast(Cocondition *cond);
 void coconditionDestroy(Cocondition *cond);
 int coconditionInit(Cocondition *cond);
 int coconditionSignal(Cocondition *cond);
-int coconditionTimedWaitFor(Cocondition *cond, Comutex *mtx,
+int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   const struct timespec *ts);
-int coconditionWaitFor(Cocondition *cond, Comutex *mtx);
+int coconditionWait(Cocondition *cond, Comutex *mtx);
 void* coconditionLastYieldValue(Cocondition *cond);
 
 
 // Comessage queue functions
 int comessageQueueDestroy(Coroutine *coroutine);
-Comessage* comessageQueuePeek(Coroutine *coroutine);
-Comessage* comessageQueuePop(Coroutine *coroutine);
-Comessage* comessageQueuePopType(Coroutine *coroutine, int type);
-Comessage* comessageQueueWaitFor(Coroutine *coroutine);
-Comessage* comessageQueueWaitForType(Coroutine *coroutine, int type);
-Comessage* comessageQueueTimedWaitFor(Coroutine *coroutine,
-  const struct timespec *ts);
-Comessage* comessageQueueTimedWaitForType(Coroutine *coroutine, int type,
-  const struct timespec *ts);
+Comessage* comessageQueuePeek(void);
+Comessage* comessageQueuePop(void);
+Comessage* comessageQueuePopType(int type);
+Comessage* comessageQueueWait(void);
+Comessage* comessageQueueWaitForType(int type);
+Comessage* comessageQueueTimedWait(const struct timespec *ts);
+Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts);
 int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
 

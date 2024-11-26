@@ -208,18 +208,18 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
 };
 
 void handleConsoleMessages(ConsoleState *consoleState) {
-  Comessage *message = comessageQueuePop(NULL);
+  Comessage *message = comessageQueuePop();
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) comessageType(message);
     if (messageType >= NUM_CONSOLE_COMMANDS) {
       // Invalid.
-      message = comessageQueuePop(NULL);
+      message = comessageQueuePop();
       continue;
     }
 
     consoleCommandHandlers[messageType](consoleState, message);
     comessageSetDone(message);
-    message = comessageQueuePop(NULL);
+    message = comessageQueuePop();
   }
 
   return;
