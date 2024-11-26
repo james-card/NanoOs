@@ -403,10 +403,8 @@ int comessageQueueDestroy(Coroutine *coroutine);
 Comessage* comessageQueuePeek(void);
 Comessage* comessageQueuePop(void);
 Comessage* comessageQueuePopType(int type);
-Comessage* comessageQueueWait(void);
-Comessage* comessageQueueWaitForType(int type);
-Comessage* comessageQueueTimedWait(const struct timespec *ts);
-Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts);
+Comessage* comessageQueueWait(const struct timespec *ts);
+Comessage* comessageQueueWaitForType(int type, const struct timespec *ts);
 int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
 

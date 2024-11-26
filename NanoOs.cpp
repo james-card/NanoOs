@@ -51,19 +51,13 @@ void handleMainCoroutineMessage(void) {
       = (MainCoroutineCommand) comessageType(message);
     if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
       // Invalid.
-      if (comessageRelease(message) != coroutineSuccess) {
-        printString("ERROR!!!  "
-          "Could not release message from handleMainCoroutineMessage "
-          "for invalid message type.\n");
-      }
       return;
     }
 
     mainCoroutineCommandHandlers[messageType](message);
     if (comessageRelease(message) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release message from handleMainCoroutineMessage "
-        "after handling message.\n");
+        "Could not release message from handleMainCoroutineMessage\n");
     }
   }
 
@@ -156,7 +150,15 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
 void* waitForDataMessage(Comessage *sent, int type) {
   void *returnValue = NULL;
 
-  Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, NULL);
+  while (sent->done == false) {
+    coroutineYield(NULL);
+  }
+  if (comessageRelease(sent) != coroutineSuccess) {
+    printString("ERROR!!!  "
+      "Could not release sent message from handleMainCoroutineMessage\n");
+  }
+
+  Comessage *incoming = comessageQueueWaitForType(type);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
     if (comessageRelease(incoming) != coroutineSuccess) {
