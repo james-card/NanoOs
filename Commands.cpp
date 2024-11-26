@@ -48,7 +48,7 @@ void* ps(void *args) {
     }
   }
 
-  printf("- SRAM left: %d\n", freeRamBytes());
+  printf("- SRAM left: %d\n", getFreeRamBytes());
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
@@ -134,7 +134,7 @@ void* showInfo(void *args) {
   // We're not processing conosle input, so immediately yield.
   coroutineYield(NULL);
   printf("Current counter value: %u\n", counter);
-  printf("- SRAM left: %d\n", freeRamBytes());
+  printf("- SRAM left: %d\n", getFreeRamBytes());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
   releaseConsole();

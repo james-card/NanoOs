@@ -98,7 +98,7 @@ void handleMainCoroutineMessage(void);
 void* dummy(void *args);
 
 // Support functions
-int freeRamBytes(void);
+int getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 Comessage* getAvailableMessage(void);
 int releaseMessage(Comessage *comessage);
