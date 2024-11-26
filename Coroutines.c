@@ -1818,8 +1818,8 @@ Comessage* comessageQueueWaitForType(int type) {
         if (coconditionWait(&coroutine->condition, &coroutine->lock)
           != coroutineSuccess
         ) {
-          comutexUnlock(&coroutine->lock);
-          return returnValue; // NULL
+          // Something isn't right.  Bail.
+          break;
         }
       }
 
@@ -1864,11 +1864,10 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
       if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
         != coroutineSuccess
       ) {
-        comutexUnlock(&coroutine->lock);
-        return returnValue; // NULL
+        goto exit;
       }
     }
-    // cococonditionTimedWait will return coroutineTimedout if the timeout is
+    // coconditionTimedWait will return coroutineTimedout if the timeout is
     // reached, so we'll never reach this point if we've exceeded our timeout.
 
     returnValue = comessageQueuePop();
@@ -1876,6 +1875,7 @@ Comessage* comessageQueueTimedWait(const struct timespec *ts) {
     comutexUnlock(&coroutine->lock);
   }
 
+exit:
   return returnValue;
 }
 
@@ -1936,8 +1936,7 @@ Comessage* comessageQueueTimedWaitForType(int type, const struct timespec *ts) {
         if (coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts)
           != coroutineSuccess
         ) {
-          comutexUnlock(&coroutine->lock);
-          return returnValue; // NULL
+          break;
         }
         // coconditionTimedWait will return thrd_timedout if the timeout is
         // reached, so we won't continue the loop if we've exceeded our timeout.
