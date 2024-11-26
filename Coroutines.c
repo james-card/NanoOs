@@ -2111,6 +2111,50 @@ int comessageInit_(Comessage *comessage, int type,
   return returnValue;
 }
 
+/// @fn int comessageRelease(Comessage *comessage)
+///
+/// @brief Release a Comessage from use, but don't deconfigure any of its
+/// resources (i.e. its mutex and condition).
+///
+/// @param comessage A pointer to the Comessage to release.
+///
+/// @erturn Returns coroutineSuccess on success, coroutineError on failure.
+int comessageRelease(Comessage *comessage) {
+  int returnValue = coroutineSuccess;
+
+  if (comessage == NULL) {
+    // A NULL message is already released.  Just return.
+    return returnValue; // coroutineSuccess
+  }
+
+  // Don't touch comessage->type.
+  // Don't touch comessage->func.
+  // Don't touch comessage->data.
+  // Don't touch comessage->next.
+  // Don't touch comessage->waiting.
+  comessage->inUse = false;
+  if (comessage->configured == true) {
+    comutexLock(&comessage->lock);
+    comessage->done = true;
+
+    if (comessage->waiting == true) {
+      // Something is waiting.  Signal the waiters.  It will be up to them to
+      // destroy this message again later.
+      coconditionBroadcast(&comessage->condition);
+    }
+    comutexUnlock(&comessage->lock);
+  } else {
+    // Nothing we can do but set the done flag.
+    comessage->done = true;
+  }
+  // Don't touch comessage->from.
+  // Don't touch comessage->condition.
+  // Don't touch comessage->lock.
+  // Don't touch comessage->configured.
+
+  return returnValue; // coroutineSuccess
+}
+
 /// @fn void comessageSetDone(Comessage *comessage)
 ///
 /// @brief Set the done flag on a coroutine message to true.
