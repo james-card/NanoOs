@@ -55,7 +55,10 @@ void handleMainCoroutineMessage(void) {
     }
 
     mainCoroutineCommandHandlers[messageType](message);
-    comessageRelease(message);
+    if (comessageRelease(message) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleMainCoroutineMessage\n");
+    }
   }
 
   return;
@@ -121,7 +124,10 @@ Comessage* sendDataMessageToCoroutine(
   comessageInit(comessage, type, NULL, (intptr_t) data, waiting);
 
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
-    comessageRelease(comessage);
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleMainCoroutineMessage\n");
+    }
     comessage = NULL;
   }
 
@@ -147,12 +153,18 @@ void* waitForDataMessage(Comessage *sent, int type) {
   while (sent->done == false) {
     coroutineYield(NULL);
   }
-  comessageRelease(sent);
+  if (comessageRelease(sent) != coroutineSuccess) {
+    printString("ERROR!!!  "
+      "Could not release sent message from handleMainCoroutineMessage\n");
+  }
 
   Comessage *incoming = comessageQueueWaitForType(type);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
-    comessageRelease(incoming);
+    if (comessageRelease(incoming) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release incoming message from handleMainCoroutineMessage\n");
+    }
   }
 
   return returnValue;
