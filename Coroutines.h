@@ -421,12 +421,10 @@ int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage);
 int comessageTimedWaitForDone(Comessage *comessage, const struct timespec *ts);
-Comessage* comessageWaitForReply(Comessage *sent);
-Comessage* comessageWaitForReplyWithType(Comessage *sent, int type);
-Comessage* comessageTimedWaitForReply(Comessage *sent,
+Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
   const struct timespec *ts);
-Comessage* comessageTimedWaitForReplyWithType(Comessage *sent, int type,
-  const struct timespec *ts);
+Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
+  int type, const struct timespec *ts);
 
 
 // Comessage accessors
