@@ -86,96 +86,26 @@ extern "C"
 // silence the warnings for libraries that include this header.
 #pragma GCC diagnostic ignored "-Wunused-function"
 
+// Arduino functions
+void setup();
+void loop();
+
+// NanoOs command functions
+void callFunction(Comessage *comessage);
+void handleMainCoroutineMessage(void);
+
+// Dummy coroutine
+void* dummy(void *args);
+
 // Support functions
-static inline int freeRamBytes(void) {
-  extern int __heap_start,*__brkval;
-  int v;
-  return (int)&v - (__brkval == 0  
-    ? (int)&__heap_start : (int) __brkval);  
-}
-
-static unsigned long getElapsedMilliseconds(unsigned long startTime) {
-  unsigned long now = millis();
-
-  if (now < startTime) {
-    return ULONG_MAX;
-  }
-
-  return now - startTime;
-}
-
-static inline Comessage* getAvailableMessage(void) {
-  Comessage *availableMessage = NULL;
-
-  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
-    if (messages[ii].inUse == false) {
-      availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0, NULL, NULL);
-      break;
-    }
-  }
-
-  return availableMessage;
-}
-
-static inline int releaseMessage(Comessage *comessage) {
-  return comessageDestroy(comessage);
-}
-
-static inline Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data
-) {
-  Comessage *comessage = NULL;
-  if (!coroutineRunning(coroutine)) {
-    // Can't send to a non-resumable coroutine.
-    return comessage; // NULL
-  }
-
-  comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, type, NULL, (intptr_t) data);
-
-  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
-    releaseMessage(comessage);
-    comessage = NULL;
-  }
-
-  return comessage;
-}
-
-static inline Comessage* sendDataMessageToPid(int pid, int type, void *data) {
-  Comessage *comessage = NULL;
-  if (pid >= NANO_OS_NUM_COROUTINES) {
-    // Not a valid PID.  Fail.
-    return comessage; // NULL
-  }
-
-  Coroutine *coroutine = runningCommands[pid].coroutine;
-  comessage
-    = sendDataMessageToCoroutine(coroutine, type, data);
-  return comessage;
-}
-
-static inline void* waitForDataMessage(Comessage *sent, int type) {
-  void *returnValue = NULL;
-
-  while (sent->done == false) {
-    coroutineYield(NULL);
-  }
-  releaseMessage(sent);
-
-  Comessage *incoming = comessageQueuePopType(NULL, type);
-  if (incoming != NULL)  {
-    returnValue = comessageDataPointer(incoming);
-    releaseMessage(incoming);
-  }
-
-  return returnValue;
-}
+int freeRamBytes(void);
+long getElapsedMilliseconds(unsigned long startTime);
+Comessage* getAvailableMessage(void);
+int releaseMessage(Comessage *comessage);
+Comessage* sendDataMessageToCoroutine(
+  Coroutine *coroutine, int type, void *data);
+Comessage* sendDataMessageToPid(int pid, int type, void *data);
+void* waitForDataMessage(Comessage *sent, int type);
 
 #ifdef __cplusplus
 } // extern "C"
