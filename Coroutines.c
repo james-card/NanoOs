@@ -2044,6 +2044,11 @@ int comessageStartUse(Comessage *comessage) {
 int comessageDestroy(Comessage *comessage) {
   int returnValue = coroutineSuccess;
 
+  if (comessage == NULL) {
+    // A NULL message is already destroyed.  Just return.
+    return returnValue; // coroutineSuccess
+  }
+
   // Don't touch comessage->type.
   // Don't touch comessage->func.
   // Don't touch comessage->data.
