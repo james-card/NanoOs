@@ -1761,13 +1761,13 @@ Comessage* comessageQueueWait(void) {
       if (coconditionWait(&coroutine->condition, &coroutine->lock)
         != coroutineSuccess
       ) {
-        comutexUnlock(&coroutine->lock);
-        return returnValue; // NULL
+        goto exit;
       }
     }
 
     returnValue = comessageQueuePop();
 
+exit:
     comutexUnlock(&coroutine->lock);
   }
 
