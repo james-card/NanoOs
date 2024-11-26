@@ -1146,7 +1146,7 @@ int comutexLock(Comutex *mtx) {
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
 
-  while (comutexTrylock(mtx) != coroutineSuccess) {
+  while (comutexTryLock(mtx) != coroutineSuccess) {
     mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
   }
 
@@ -1239,7 +1239,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     return coroutineError;
   }
 
-  int returnValue = comutexTrylock(mtx);
+  int returnValue = comutexTryLock(mtx);
   while (returnValue != coroutineSuccess) {
     struct timespec now;
     if (timespec_get(&now, TIME_UTC) == 0) {
@@ -1250,7 +1250,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
         break;
       }
       mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
-      returnValue = comutexTrylock(mtx);
+      returnValue = comutexTryLock(mtx);
     } else {
       // timespec_get returned an error.  We have no valid time to wait.  We've
       // already tried to lock once and that's the best we can do.
@@ -1262,7 +1262,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   return returnValue;
 }
 
-/// @fn int comutexTrylock(Comutex* mtx)
+/// @fn int comutexTryLock(Comutex* mtx)
 ///
 /// @brief Make one attempt to lock a coroutine mutex.
 ///
@@ -1272,7 +1272,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 /// coroutine has the lock and the mutex is recursive, coroutineBusy if the
 /// mutex is locked by antoher coroutine, and coroutineError under any other
 /// conditions.
-int comutexTrylock(Comutex *mtx) {
+int comutexTryLock(Comutex *mtx) {
   if (mtx == NULL) {
     // Cannot honor the request.
     return coroutineError;
@@ -2057,20 +2057,29 @@ int comessageDestroy(Comessage *comessage) {
   comessage->inUse = false;
   // Don't touch from.
   if (comessage->configured == true) {
-    comutexLock(&comessage->lock);
-    comessage->done = true;
+    if (comutexTryLock(&comessage->lock) == coroutineSuccess) {
+      comessage->done = true;
 
-    if (comessage->waiting == false) {
-      // Nothing is waiting.  Destroy the resources.
-      comutexUnlock(&comessage->lock);
+      if (comessage->waiting == false) {
+        // Nothing is waiting.  Destroy the resources.
+        comutexUnlock(&comessage->lock);
+        coconditionDestroy(&comessage->condition);
+        comutexDestroy(&comessage->lock);
+        comessage->configured = false;
+      } else {
+        // Something is waiting.  Signal the waiters.  It will be up to them to
+        // destroy this message again later.
+        coconditionBroadcast(&comessage->condition);
+        comutexUnlock(&comessage->lock);
+      }
+    } else {
+      // We can't do any signalling.  Just tear down everything.  Return an
+      // error in this case.
+      comessage->done = true;
       coconditionDestroy(&comessage->condition);
       comutexDestroy(&comessage->lock);
       comessage->configured = false;
-    } else {
-      // Something is waiting.  Signal the waiters.  It will be up to them to
-      // destroy this message again later.
-      coconditionBroadcast(&comessage->condition);
-      comutexUnlock(&comessage->lock);
+      returnValue = coroutineError;
     }
   } else {
     // Nothing we can do but set the done flag.
@@ -2142,15 +2151,22 @@ int comessageRelease(Comessage *comessage) {
   comessage->inUse = false;
   // Don't touch comessage->from.
   if (comessage->configured == true) {
-    comutexLock(&comessage->lock);
-    comessage->done = true;
+    if (comutexTryLock(&comessage->lock) == coroutineSuccess) {
+      comessage->done = true;
 
-    if (comessage->waiting == true) {
-      // Something is waiting.  Signal the waiters.  It will be up to them to
-      // destroy this message again later.
-      coconditionBroadcast(&comessage->condition);
+      if (comessage->waiting == true) {
+        // Something is waiting.  Signal the waiters.  It will be up to them to
+        // destroy this message again later.
+        coconditionBroadcast(&comessage->condition);
+      }
+      comutexUnlock(&comessage->lock);
+    } else {
+      // Something is wrong here.  We're releasing a Comessage that is not owned
+      // by us.  We can't do a broadcast.  Just mark it done and return an
+      // error.
+      comessage->done = true;
+      returnValue = coroutineError;
     }
-    comutexUnlock(&comessage->lock);
   } else {
     // Nothing we can do but set the done flag.
     comessage->done = true;

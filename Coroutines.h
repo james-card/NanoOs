@@ -381,7 +381,7 @@ int comutexLock(Comutex *mtx);
 int comutexUnlock(Comutex *mtx);
 void comutexDestroy(Comutex *mtx);
 int comutexTimedLock(Comutex *mtx, const struct timespec *ts);
-int comutexTrylock(Comutex *mtx);
+int comutexTryLock(Comutex *mtx);
 void* comutexLastYieldValue(Comutex *mtx);
 
 
