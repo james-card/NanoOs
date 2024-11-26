@@ -2076,6 +2076,7 @@ int comessageDestroy(Comessage *comessage) {
       // We can't do any signalling.  Just tear down everything.  Return an
       // error in this case.
       comessage->done = true;
+      comessage->waiting = false;
       coconditionDestroy(&comessage->condition);
       comutexDestroy(&comessage->lock);
       comessage->configured = false;
