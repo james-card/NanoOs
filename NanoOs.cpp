@@ -45,15 +45,17 @@ RunningCommand *runningCommands = NULL;
 /// main loop function's stack.
 Comessage *messages = NULL;
 
-/// @fn void runSystemProcess(Comessage *comessage)
+/// @fn int runSystemProcess(Comessage *comessage)
 ///
 /// @brief Run a process in the slot for system processes.
 ///
 /// @param comessage A pointer to the Comessage that was received that contains
 ///   the information about the process to run and how to run it.
 ///
-/// @return This function returns no value.
-void runSystemProcess(Comessage *comessage) {
+/// @return Returns 0 on success, non-zero error code on failure.
+int runSystemProcess(Comessage *comessage) {
+  int returnValue = 0;
+
   Coroutine *coroutine
     = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
   if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
@@ -68,35 +70,57 @@ void runSystemProcess(Comessage *comessage) {
     coroutineResume(coroutine, comessageDataPointer(comessage));
   } else {
     printConsole("ERROR:  System process already running.\n");
+    returnValue = EBUSY;
   }
 
-  return;
+  return returnValue;
 }
 
-void (*mainCoroutineCommandHandlers[])(Comessage*) {
+/// @var mainCoroutineCommandHandlers
+///
+/// @brief Array of function pointers for commands that are understood by the
+/// message handler for the main loop function.
+int (*mainCoroutineCommandHandlers[])(Comessage*) {
   runSystemProcess,
 };
 
+/// @fn void handleMainCoroutineMessage(void)
+///
+/// @brief Handle one (and only one) message from our message queue.  If
+/// handling the message is unsuccessful, the message will be returned to the
+/// end of our message queue.
+///
+/// @return This function returns no value.
 void handleMainCoroutineMessage(void) {
   Comessage *message = comessageQueuePop();
   if (message != NULL) {
     MainCoroutineCommand messageType
       = (MainCoroutineCommand) comessageType(message);
     if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
-      // Invalid.
+      // Invalid.  Purge the message.
       if (comessageRelease(message) != coroutineSuccess) {
-        printString("ERROR!!!  "
+        printConsole("ERROR!!!  "
           "Could not release message from handleMainCoroutineMessage "
           "for invalid message type.\n");
       }
       return;
     }
 
-    mainCoroutineCommandHandlers[messageType](message);
-    if (comessageRelease(message) != coroutineSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleMainCoroutineMessage "
-        "after handling message.\n");
+    int returnValue = mainCoroutineCommandHandlers[messageType](message);
+    if (returnValue == 0) {
+      // Purge the message.
+      if (comessageRelease(message) != coroutineSuccess) {
+        printConsole("ERROR!!!  "
+          "Could not release message from handleMainCoroutineMessage "
+          "after handling message.\n");
+      }
+    } else {
+      // Processing the message failed.  We can't release it.  Put it on the
+      // back of our own queue again and try again later.
+      printConsole("WARNING!  Message handler returned status ");
+      printConsole(returnValue);
+      printConsole(".  Returning unhandled message to back of queue.\n");
+      comessageQueuePush(NULL, message);
     }
   }
 

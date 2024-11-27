@@ -125,7 +125,7 @@ void setup();
 void loop();
 
 // NanoOs inter-process message handler functions
-void runSystemProcess(Comessage *comessage);
+int runSystemProcess(Comessage *comessage);
 void handleMainCoroutineMessage(void);
 
 // Dummy coroutine
