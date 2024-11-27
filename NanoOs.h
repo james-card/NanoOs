@@ -91,6 +91,11 @@ extern "C"
 /// @brief The process ID (PID) of the first user process.
 #define NANO_OS_FIRST_PROCESS_ID           2
 
+/// @def NANO_OS_VERSION
+///
+/// @brief The version string for NanoOs
+#define NANO_OS_VERSION "0.0.1"
+
 /// @enum MainCoroutineCommand
 ///
 /// @brief Commands understood by the main coroutine inter-process message
