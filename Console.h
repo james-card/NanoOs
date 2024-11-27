@@ -123,19 +123,31 @@ typedef struct ConsoleState {
 } ConsoleState;
 
 // Inter-process command handlers
-void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteCharHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteUCharHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteUIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteLongIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteLongUIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteFloatHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteDoubleHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteStringHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleGetBufferHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
+void consoleWriteBufferHandler(
+  ConsoleState *consoleState, Comessage *inputMessage);
 
 // Support functions
+void consoleMessageCleanup(Comessage *inputMessage);
 void handleConsoleMessages(ConsoleState *consoleState);
 void blink();
 void releaseConsole();
@@ -145,7 +157,7 @@ int printConsoleValue(ConsoleCommand command, void *value, size_t length);
 void* runConsole(void *args);
 
 // Exported IO functions
-ConsoleBuffer* consoleGetBufferFromMessage(void);
+ConsoleBuffer* consoleGetBuffer(void);
 
 int consoleVFPrintf(FILE *stream, const char *format, va_list args);
 #ifdef vfprintf

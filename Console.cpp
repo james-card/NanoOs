@@ -31,98 +31,182 @@
 #include "Console.h"
 #include "Commands.h"
 
-void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage) {
+void consoleMessageCleanup(Comessage *inputMessage) {
+  if (comessageWaiting(inputMessage) == false) {
+    if (comessageRelease(inputMessage) != coroutineSuccess) {
+      Serial.print("ERROR!!!  Could not release inputMessage from ");
+      Serial.print(__func__);
+      Serial.print("\n");
+    }
+  }
+}
+
+/// @fn void consoleWriteCharHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_CHAR command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteCharHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   char message = comessageDataValue(inputMessage, char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteUCharHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_UCHAR command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteUCharHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   unsigned char message = comessageDataValue(inputMessage, unsigned char);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteIntHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_INT command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   int message = comessageDataValue(inputMessage, int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteUIntHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_UINT command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteUIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   unsigned int message = comessageDataValue(inputMessage, unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteLongInt(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteLongIntHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_LONG_INT command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteLongIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   long int message = comessageDataValue(inputMessage, long int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteLongUInt(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteLongUIntHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_LONG_UINT command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteLongUIntHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   long unsigned int message
     = comessageDataValue(inputMessage, long unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteFloatHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_FLOAT command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteFloatHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   ComessageData data = comessageDataValue(inputMessage, ComessageData);
@@ -130,16 +214,26 @@ void consoleWriteFloat(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteDoubleHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_DOUBLE command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteDoubleHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   ComessageData data = comessageDataValue(inputMessage, ComessageData);
@@ -147,16 +241,26 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage) {
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteStringHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_STRING command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteStringHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   const char *message = (const char*) comessageDataPointer(inputMessage);
@@ -164,16 +268,32 @@ void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage) {
     Serial.print(message);
   }
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
-void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleGetBufferHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_GET_BUFFER command.  Gets a free
+/// buffer from the provided ConsoleState and replies to the message sender with
+/// a pointer to the buffer structure.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  The buffers in this state will be searched for
+///   something available to return to the message sender.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+/// Since this is a synchronous call, it also pushes a message onto the message
+/// sender's queue with the free buffer on success.  On failure, the
+/// inputMessage is marked as done but no response is sent.
+void consoleGetBufferHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *returnValue = NULL;
   Comessage *returnMessage = getAvailableMessage();
@@ -224,7 +344,22 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
   return;
 }
 
-void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
+/// @fn void consoleWriteBufferHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_BUFFER command.  Writes the
+/// contents of the sent buffer to the console and then clears its inUse flag.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteBufferHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
   (void) consoleState;
 
   ConsoleBuffer *consoleBuffer
@@ -237,29 +372,36 @@ void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage) {
     consoleBuffer->inUse = false;
   }
   comessageSetDone(inputMessage);
-  if (comessageRelease(inputMessage) != coroutineSuccess) {
-    Serial.print("ERROR!!!  Could not release inputMessage from ");
-    Serial.print(__func__);
-    Serial.print("\n");
-  }
+  consoleMessageCleanup(inputMessage);
 
   return;
 }
 
+/// @var consoleCommandHandlers
+///
+/// @brief Array of handlers for console command messages.
 void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
-  consoleWriteChar,
-  consoleWriteUChar,
-  consoleWriteInt,
-  consoleWriteUInt,
-  consoleWriteLongInt,
-  consoleWriteLongUInt,
-  consoleWriteFloat,
-  consoleWriteDouble,
-  consoleWriteString,
-  consoleGetBuffer,
-  consoleWriteBuffer,
+  consoleWriteCharHandler,
+  consoleWriteUCharHandler,
+  consoleWriteIntHandler,
+  consoleWriteUIntHandler,
+  consoleWriteLongIntHandler,
+  consoleWriteLongUIntHandler,
+  consoleWriteFloatHandler,
+  consoleWriteDoubleHandler,
+  consoleWriteStringHandler,
+  consoleGetBufferHandler,
+  consoleWriteBufferHandler,
 };
 
+/// @fn void handleConsoleMessages(ConsoleState *consoleState)
+///
+/// @brief Handle all messages currently in the console process's message queue.
+///
+/// @param consoleState A pointer to the ConsoleState structure maintained by
+///   the runConsole process.
+///
+/// @return This function returns no value.
 void handleConsoleMessages(ConsoleState *consoleState) {
   Comessage *message = comessageQueuePop();
   while (message != NULL) {
@@ -278,20 +420,51 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-unsigned long startTime = 0;
+/// @var lastToggleTime
+///
+/// @brief Time at which the last LED state toggle occurred.
+unsigned long lastToggleTime = 0;
+
+/// @var ledStates
+///
+/// @brief Array of states to put the LED pin into.  Values are LOW and HIGH
+/// which will turn the LED off and on, respectively.
 int ledStates[2] = {LOW, HIGH};
+
+/// @var ledStateIndex
+///
+/// @brief Index of the value in ledStates that is currently set for the LED.
 int ledStateIndex = 0;
-void blink() {
-  if (getElapsedMilliseconds(startTime) >= (LED_CYCLE_TIME_MS >> 1)) {
+
+/// @fn void ledToggle()
+///
+/// @brief Check the current time and, if it's half the duration of
+/// LED_CYCLE_TIME_MS since the last state change, toggle the state.
+///
+/// @return This function returns no value.
+void ledToggle() {
+  if (getElapsedMilliseconds(lastToggleTime) >= (LED_CYCLE_TIME_MS >> 1)) {
     // toggle the LED state
     digitalWrite(LED_BUILTIN, ledStates[ledStateIndex]);
     ledStateIndex ^= 1;
-    startTime = getElapsedMilliseconds(0);
+    lastToggleTime = getElapsedMilliseconds(0);
   }
 
   return;
 }
 
+/// @fn void* runConsole(void *args)
+///
+/// @brief Main process for managing console input and output.  Runs in an
+/// infinite loop and never exits.  Every iteration, it calls the ledToggle
+/// function, cheks the serial connection for a byte and adds it to the buffer
+/// if there is anything, handles the user command if the incoming byte is a
+/// newline, and handles any messages that were sent to this process.
+///
+/// @param args Any arguments provided by the scheduler.  Ignored by this
+///   process.
+///
+/// @return This function never returns, but would return NULL if it did.
 void* runConsole(void *args) {
   (void) args;
   unsigned char consoleIndex = 0;
@@ -303,7 +476,7 @@ void* runConsole(void *args) {
   (void) getFreeRamBytes();
 
   while (1) {
-    blink();
+    ledToggle();
 
     serialData = Serial.read();
     if (serialData > -1) {
@@ -334,9 +507,20 @@ void* runConsole(void *args) {
   return NULL;
 }
 
-ConsoleBuffer* consoleGetBufferFromMessage(void) {
+/// @fn ConsoleBuffer* consoleGetBuffer(void)
+///
+/// @brief Get a buffer from the runConsole process by sending it a command
+/// message and getting its response.
+///
+/// @return Returns a pointer to a ConsoleBuffer from the runConsole process on
+/// success, NULL on failure.
+ConsoleBuffer* consoleGetBuffer(void) {
   ConsoleBuffer *returnValue = NULL;
+  struct timespec ts = {0, 0};
 
+  // It's possible that all the console buffers are in use at the time this call
+  // is made, so we may have to try multiple times.  Do a while loop until we
+  // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
     Comessage *comessage = sendDataMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, true);
@@ -344,21 +528,48 @@ ConsoleBuffer* consoleGetBufferFromMessage(void) {
       break; // will return returnValue, which is NULL
     }
 
-    coroutineYield(NULL);
+    // We want to make sure the handler is done processing the message before
+    // we wait for a reply.  Do a blocking wait.
+    if (comessageWaitForDone(comessage, NULL) != coroutineSuccess) {
+      // Something is wrong.  Bail.
+      break; // will return returnValue, which is NULL
+    }
 
+    // The handler only marks the message as done if it has successfully sent
+    // us a reply or if there was an error and it could not send a reply.  So,
+    // we don't want an infinite timeout to waitForDataMessage, we want zero
+    // wait.  That's why we need the zeroed timespec above and we want to
+    // manually wait for done above.
     returnValue = (ConsoleBuffer*) waitForDataMessage(
-      comessage, CONSOLE_RETURNING_BUFFER);
+      comessage, CONSOLE_RETURNING_BUFFER, &ts);
+    if (returnValue == NULL) {
+      // Yield control to give the console a chance to get done processing the
+      // buffers that are in use.
+      coroutineYield(NULL);
+    }
   }
 
   return returnValue;
 }
 
+/// @fn int consoleVFPrintf(FILE *stream, const char *format, va_list args)
+///
+/// @brief Print a formatted string to the console.  Gets a string buffer from
+/// the console, writes the formatted string to that buffer, then sends a
+/// command to the console to print the buffer.  If the stream being printed to
+/// is stderr, blocks until the buffer is printed to the console.
+///
+/// @param stream A pointer to the FILE stream to print to (stdout or stderr).
+/// @param format The format string for the printf message.
+/// @param args The va_list of arguments that were passed into one of the
+///   higher-level printf functions.
+///
+/// @return Returns the number of bytes printed on success, -1 on error.
 int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
-  int returnValue = 0;
-  ConsoleBuffer *consoleBuffer = consoleGetBufferFromMessage();
+  int returnValue = -1;
+  ConsoleBuffer *consoleBuffer = consoleGetBuffer();
   if (consoleBuffer == NULL) {
     // Nothing we can do.
-    returnValue = -1;
     return returnValue;
   }
 
@@ -369,11 +580,22 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
   if (stream == stderr) {
     comessageWaitForDone(comessage, NULL);
+    comessageRelease(comessage);
   }
 
   return returnValue;
 }
 
+/// @fn int consoleFPrintf(FILE *stream, const char *format, ...)
+///
+/// @brief Print a formatted string to the console.  Constructs a va_list from
+/// the arguments provided and then calls consoleVFPrintf.
+///
+/// @param stream A pointer to the FILE stream to print to (stdout or stderr).
+/// @param format The format string for the printf message.
+/// @param ... Any additional arguments needed by the format string.
+///
+/// @return Returns the number of bytes printed on success, -1 on error.
 int consoleFPrintf(FILE *stream, const char *format, ...) {
   int returnValue = 0;
   va_list args;
@@ -385,6 +607,16 @@ int consoleFPrintf(FILE *stream, const char *format, ...) {
   return returnValue;
 }
 
+/// @fn int consoleFPrintf(FILE *stream, const char *format, ...)
+///
+/// @brief Print a formatted string to stdout.  Constructs a va_list from the
+/// arguments provided and then calls consoleVFPrintf with stdout as the first
+/// parameter.
+///
+/// @param format The format string for the printf message.
+/// @param ... Any additional arguments needed by the format string.
+///
+/// @return Returns the number of bytes printed on success, -1 on error.
 int consolePrintf(const char *format, ...) {
   int returnValue = 0;
   va_list args;
@@ -396,6 +628,20 @@ int consolePrintf(const char *format, ...) {
   return returnValue;
 }
 
+/// @fn int printConsoleValue(
+///   ConsoleCommand command, void *value, size_t length)
+///
+/// @brief Send a command to print a value to the console.
+///
+/// @param command The ConsoleCommand of the message to send, which will
+///   determine the handler to use and therefore the type of the value that is
+///   displayed.
+/// @param value A pointer to the value to send as data.
+/// @param length The length of the data at the address provided by the value
+///   pointer.  Will be truncated to the size of ComessageData if needed.
+///
+/// @return This function is non-blocking, always succeeds, and always returns
+/// 0.
 int printConsoleValue(ConsoleCommand command, void *value, size_t length) {
   ComessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
@@ -415,6 +661,11 @@ int printConsoleValue(ConsoleCommand command, void *value, size_t length) {
   return 0;
 }
 
+/// @fn void releaseConsole()
+///
+/// @brief Release the console and display the command prompt to the user again.
+///
+/// @return This function returns no value.
 void releaseConsole() {
   // releaseConsole is sometimes called from within handleCommand, which runs
   // from within the console coroutine.  That means we can't do blocking prints
