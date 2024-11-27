@@ -33,9 +33,6 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef COMMANDS_H
-#define COMMANDS_H
-
 // Standard C includes
 #include <limits.h>
 #include <string.h>
@@ -44,12 +41,14 @@
 #include "NanoOs.h"
 #include "Coroutines.h"
 
+// #ifndef has to come after includes for this file.
+#ifndef COMMANDS_H
+#define COMMANDS_H
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-// Custom types
 
 /// @struct CommandEntry
 ///
@@ -57,7 +56,7 @@ extern "C"
 /// handleCommand function.
 ///
 /// @param name The textual name of the command.
-/// @param function A function pointer to the coroutine that will be spawned to
+/// @param function A function pointer to the process that will be spawned to
 ///   execute the command.
 /// @param userProcess Whether this is a user process that should be run in one
 ///   of the general-purpose process slots (true) or it should be run in the
@@ -83,7 +82,7 @@ typedef struct RunningCommand {
 // Exported functions
 void handleCommand(char *consoleInput);
 
-// Command coroutines
+// Command handlers
 void* ps(void *args);
 void* kill(void *args);
 void* echo(void *args);
