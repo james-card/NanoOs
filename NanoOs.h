@@ -78,14 +78,6 @@ extern "C"
 {
 #endif
 
-// Stacks in NanoO processes are incredibly small (see the value of
-// NANO_OS_STACK_SIZE above).  Because of that, as much of the kernel
-// functionality as possible needs to be implemented as inline functions.
-// However, doing that causes a lot of "unused function" warnings in the
-// libraries when all warnings are turned on.  We don't care about that, so
-// silence the warnings for libraries that include this header.
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 // Arduino functions
 void setup();
 void loop();
