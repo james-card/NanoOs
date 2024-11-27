@@ -49,14 +49,52 @@
 #include "Coroutines.h"
 #include "Commands.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+/// @def NANO_OS_NUM_COROUTINES
+///
+/// @brief The total number of concurrent processes that can be run by the OS.
 #define NANO_OS_NUM_COROUTINES             7
+
+/// @def NANO_OS_STACK_SIZE
+///
+/// @brief The minimum size for an individual process's stack.  Actual size will
+/// be slightly larger than this.  This value needs to be a multiple of 
+/// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
 #define NANO_OS_STACK_SIZE               512
+#if ((NANO_OS_STACK_SIZE % COROUTINE_STACK_CHUNK_SIZE) != 0)
+#error "NANO_OS_STACK_SIZE must be a multiple of COROUTINE_STACK_CHUNK_SIZE."
+#endif
+
+/// @def NANO_OS_NUM_MESSAGES
+///
+/// @brief The total number of inter-process messages that will be available
+/// for use by processes.
 #define NANO_OS_NUM_MESSAGES               8
+
+/// @def NANO_OS_RESERVED_PROCESS_ID
+///
+/// @brief The process ID (PID) of the process that is reserved for system
+/// processes.
 #define NANO_OS_RESERVED_PROCESS_ID        0
+
+/// @def NANO_OS_CONSOLE_PROCESS_ID
+///
+/// @brief The process ID (PID) of the process that will run the console.
 #define NANO_OS_CONSOLE_PROCESS_ID         1
+
+/// @def NANO_OS_FIRST_PROCESS_ID
+///
+/// @brief The process ID (PID) of the first user process.
 #define NANO_OS_FIRST_PROCESS_ID           2
 
-// Custom types
+/// @enum MainCoroutineCommand
+///
+/// @brief Commands understood by the main coroutine inter-process message
+/// handler.
 typedef enum MainCoroutineCommand {
   CALL_FUNCTION,
   NUM_MAIN_COROUTINE_COMMANDS
@@ -66,23 +104,22 @@ typedef enum MainCoroutineCommand {
 extern RunningCommand *runningCommands;
 extern Comessage *messages;
 
-// Function defines
+/// @def nanoOsExitProcess
+///
+/// @brief Macro to clean up the process's global state and then exit cleanly.
+///
+/// @param returnValue The value to return back to the scheduler.
 #define nanoOsExitProcess(returnValue) \
   /* We need to clear the coroutine pointer. */ \
   runningCommands[coroutineId(NULL)].coroutine = NULL; \
   \
   return returnValue /* Deliberately omitting semicolon. */
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 // Arduino functions
 void setup();
 void loop();
 
-// NanoOs command functions
+// NanoOs inter-process message handler functions
 void callFunction(Comessage *comessage);
 void handleMainCoroutineMessage(void);
 
@@ -102,7 +139,7 @@ void* waitForDataMessage(Comessage *sent, int type);
 } // extern "C"
 #endif
 
-// Console.h has to be included separately (and last).
+// Console.h has to be included separately and last.
 #include "Console.h"
 
 #endif // NANO_OS_H
