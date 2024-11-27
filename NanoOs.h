@@ -138,7 +138,8 @@ Comessage* getAvailableMessage(void);
 Comessage* sendDataMessageToCoroutine(
   Coroutine *coroutine, int type, void *data, bool waiting);
 Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting);
-void* waitForDataMessage(Comessage *sent, int type);
+void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
+void timespecFromDelay(struct timespec *ts, long int delayMs);
 
 #ifdef __cplusplus
 } // extern "C"

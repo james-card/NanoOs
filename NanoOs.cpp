@@ -153,10 +153,10 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
   return comessage;
 }
 
-void* waitForDataMessage(Comessage *sent, int type) {
+void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
   void *returnValue = NULL;
 
-  Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, NULL);
+  Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = comessageDataPointer(incoming);
     if (comessageRelease(incoming) != coroutineSuccess) {
@@ -166,5 +166,18 @@ void* waitForDataMessage(Comessage *sent, int type) {
   }
 
   return returnValue;
+}
+
+void timespecFromDelay(struct timespec *ts, long int delayMs) {
+  if (ts == NULL) {
+    // Bad data.  Do nothing.
+    return;
+  }
+
+  timespec_get(ts, TIME_UTC);
+  ts->tv_sec += (delayMs / 1000);
+  ts->tv_nsec += (delayMs * 1000000);
+
+  return;
 }
 
