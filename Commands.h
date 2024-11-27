@@ -33,6 +33,9 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef COMMANDS_H
+#define COMMANDS_H
+
 // Standard C includes
 #include <limits.h>
 #include <string.h>
@@ -40,9 +43,6 @@
 // Custom includes
 #include "NanoOs.h"
 #include "Coroutines.h"
-
-#ifndef COMMANDS_H
-#define COMMANDS_H
 
 #ifdef __cplusplus
 extern "C"
