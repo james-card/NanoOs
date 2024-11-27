@@ -72,6 +72,13 @@ struct timespec {
 #define TIME_UTC 1
 int timespec_get(struct timespec* spec, int base);
 
+
+// The errors defined by the compiler's version of errno.h are not helpful
+// because most things are defined to be ENOERR.  So, we need to define some of
+// our own.
+#define EBUSY            1      /* Device or resource busy */
+
+
 // Debug functions
 int printString(const char *string);
 int printInt(int integer);
