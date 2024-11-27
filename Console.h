@@ -99,6 +99,7 @@ void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage);
 void handleConsoleMessages(ConsoleState *consoleState);
 void blink();
+void releaseConsole();
 
 // Exported coroutines
 void* runConsole(void *args);
@@ -122,6 +123,7 @@ int consolePrintf(const char *format, ...);
 } // extern "C"
 #endif
 
+// C++ functions
 int printConsole(char message);
 int printConsole(unsigned char message);
 int printConsole(int message);
@@ -131,6 +133,5 @@ int printConsole(long unsigned int message);
 int printConsole(float message);
 int printConsole(double message);
 int printConsole(const char *message);
-void releaseConsole();
 
 #endif // CONSOLE_H
