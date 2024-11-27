@@ -29,19 +29,49 @@
 #include "NanoOs.h"
 
 // Coroutines support
+
+/// @var runningCommands
+///
+/// @brief Pointer to the array of running commands that will be stored in the
+/// main loop function's stack.
 RunningCommand *runningCommands = NULL;
+
+/// @var messages
+///
+/// @brief pointer to the array of coroutine messages that will be stored in the
+/// main loop function's stack.
 Comessage *messages = NULL;
 
-void callFunction(Comessage *comessage) {
-  CoroutineFunction func = comessageFunc(comessage, CoroutineFunction);
-  Coroutine *coroutine = coroutineCreate(func);
-  coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
-  runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
-  coroutineResume(coroutine, comessageDataPointer(comessage));
+/// @fn void runSystemProcess(Comessage *comessage)
+///
+/// @brief Run a process in the slot for system processes.
+///
+/// @param comessage A pointer to the Comessage that was received that contains
+///   the information about the process to run and how to run it.
+///
+/// @return This function returns no value.
+void runSystemProcess(Comessage *comessage) {
+  Coroutine *coroutine
+    = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
+  if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
+    CommandEntry *commandEntry = comessageFunc(comessage, CommandEntry*);
+    CoroutineFunction func = commandEntry->func;
+    coroutine = coroutineCreate(func);
+    coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
+
+    runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
+    runningCommands[NANO_OS_SYSTEM_PROCESS_ID].name = commandEntry->name;
+
+    coroutineResume(coroutine, comessageDataPointer(comessage));
+  } else {
+    printConsole("ERROR:  System process already running.\n");
+  }
+
+  return;
 }
 
 void (*mainCoroutineCommandHandlers[])(Comessage*) {
-  callFunction,
+  runSystemProcess,
 };
 
 void handleMainCoroutineMessage(void) {

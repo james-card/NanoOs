@@ -101,7 +101,7 @@ extern "C"
 /// @brief Commands understood by the main coroutine inter-process message
 /// handler.
 typedef enum MainCoroutineCommand {
-  CALL_FUNCTION,
+  RUN_SYSTEM_PROCESS,
   NUM_MAIN_COROUTINE_COMMANDS
 } MainCoroutineCommand;
 
@@ -125,7 +125,7 @@ void setup();
 void loop();
 
 // NanoOs inter-process message handler functions
-void callFunction(Comessage *comessage);
+void runSystemProcess(Comessage *comessage);
 void handleMainCoroutineMessage(void);
 
 // Dummy coroutine
