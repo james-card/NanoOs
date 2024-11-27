@@ -34,6 +34,12 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+/*
+ * This file is included by Coroutines.h to provide functionality missing from
+ * the Arduino C implementation and to provide some debugging tools when
+ * debugging the Corutines library from NanoOs.
+ */
+
 #ifndef NANO_OS_LIB_C
 #define NANO_OS_LIB_C
 
@@ -44,8 +50,18 @@ extern "C"
 {
 #endif
 
-// For Coroutines library
+/// @def SINGLE_CORE_COROUTINES
+///
+/// @brief This define causes the Coroutines library to omit multi-thread
+/// support.
 #define SINGLE_CORE_COROUTINES
+
+/// @def COROUTINE_ID_TYPE
+///
+/// @brief The integer type to use of coroutine IDs.  This must be a signed
+/// type.  We will have fewer than 128 coroutines in NanoOs, so an int8_t will
+/// work just fine for us.  This will save us some memory in the definition of
+/// the Coroutine data structure, of course.
 #define COROUTINE_ID_TYPE int8_t
 
 // Missing from Arduino
@@ -54,8 +70,9 @@ struct timespec {
   long   tv_nsec;
 };
 #define TIME_UTC 1
-
 int timespec_get(struct timespec* spec, int base);
+
+// Debug functions
 int printString(const char *string);
 int printInt(int integer);
 
