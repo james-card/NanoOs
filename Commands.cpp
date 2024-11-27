@@ -25,6 +25,9 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+// Doxygen marker
+/// @file
+
 #include "Commands.h"
 
 // Defined at the bottom of this file:
@@ -224,6 +227,8 @@ void* ver(void *args) {
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
+
+// Exported functions
 
 /// @fn void handleCommand(char *consoleInput)
 ///
