@@ -422,3 +422,43 @@ void releaseConsole() {
   printConsole("> ");
 }
 
+/// @fn printConsole(<type> message)
+///
+/// @brief Print a message of an arbitrary type to the console.
+///
+/// @details
+/// This is basically just a switch statement where the type is the switch
+/// value.  They all call printConsole with the appropriate console command, a
+/// pointer to the provided message, and the size of the message.
+///
+/// @param message The message to send to the console.
+///
+/// @return Returns the value returned by printConsoleValue.
+int printConsole(char message) {
+  return printConsoleValue(CONSOLE_WRITE_CHAR, &message, sizeof(message));
+}
+int printConsole(unsigned char message) {
+  return printConsoleValue(CONSOLE_WRITE_UCHAR, &message, sizeof(message));
+}
+int printConsole(int message) {
+  return printConsoleValue(CONSOLE_WRITE_INT, &message, sizeof(message));
+}
+int printConsole(unsigned int message) {
+  return printConsoleValue(CONSOLE_WRITE_UINT, &message, sizeof(message));
+}
+int printConsole(long int message) {
+  return printConsoleValue(CONSOLE_WRITE_LONG_INT, &message, sizeof(message));
+}
+int printConsole(long unsigned int message) {
+  return printConsoleValue(CONSOLE_WRITE_LONG_UINT, &message, sizeof(message));
+}
+int printConsole(float message) {
+  return printConsoleValue(CONSOLE_WRITE_FLOAT, &message, sizeof(message));
+}
+int printConsole(double message) {
+  return printConsoleValue(CONSOLE_WRITE_DOUBLE, &message, sizeof(message));
+}
+int printConsole(const char *message) {
+  return printConsoleValue(CONSOLE_WRITE_STRING, &message, sizeof(message));
+}
+
