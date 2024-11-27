@@ -75,11 +75,11 @@ extern "C"
 /// for use by processes.
 #define NANO_OS_NUM_MESSAGES               8
 
-/// @def NANO_OS_RESERVED_PROCESS_ID
+/// @def NANO_OS_SYSTEM_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that is reserved for system
 /// processes.
-#define NANO_OS_RESERVED_PROCESS_ID        0
+#define NANO_OS_SYSTEM_PROCESS_ID        0
 
 /// @def NANO_OS_CONSOLE_PROCESS_ID
 ///

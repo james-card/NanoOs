@@ -213,13 +213,13 @@ void handleCommand(char *consoleInput) {
     } else {
       // We need to run this command from the reserved coroutine.
       Coroutine *coroutine
-        = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
+        = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
       if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
         coroutine = coroutineCreate(commandEntry->function);
-        coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
+        coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
 
-        runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-        runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
+        runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
+        runningCommands[NANO_OS_SYSTEM_PROCESS_ID].name = commandEntry->name;
 
         coroutineResume(coroutine, consoleInput);
       } else {
