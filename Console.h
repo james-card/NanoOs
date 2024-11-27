@@ -50,12 +50,28 @@ extern "C"
 {
 #endif
 
-// Defines
+/// @def LED_CYCLE_TIME_MS
+///
+/// @brief The amount of time, in milliseconds of a full cycle of the LED.  The
+/// console process is also responsible for blinking the LED so that the user
+/// has external confirmation that the system is still running.
 #define LED_CYCLE_TIME_MS 1000
+
+/// @def CONSOLE_BUFFER_SIZE
+///
+/// @brief The size, in bytes, of a single console buffer.  This is the number
+/// of bytes that printf calls will have to work with.
 #define CONSOLE_BUFFER_SIZE 96
+
+/// @def CONSOLE_NUM_BUFFERS
+///
+/// @brief The number of console buffers that will be allocated within the main
+/// console process's stack.
 #define CONSOLE_NUM_BUFFERS  4
 
-// Custom types
+/// @enum ConsoleCommand
+///
+/// @brief The commands that the console understands via inter-process messages.
 typedef enum ConsoleCommand {
   CONSOLE_WRITE_CHAR,
   CONSOLE_WRITE_UCHAR,
@@ -71,21 +87,42 @@ typedef enum ConsoleCommand {
   NUM_CONSOLE_COMMANDS
 } ConsoleCommand;
 
+/// @enum ConsoleResponse
+///
+/// @brief The responses that the console may send as a response to a command
+/// from an inter-process message.  One of these will be sent back to the sender
+/// of the command for synchronous commands.  Note that not all commands are
+/// synchronous, so only responses for synchronous commands are defined.
 typedef enum ConsoleResponse {
   CONSOLE_RETURNING_BUFFER,
   NUM_CONSOLE_RESPONSES
 } ConsleResponse;
 
+/// @struct ConsoleBuffer
+///
+/// @brief Definition of a single console buffer that may be returned to a
+/// sender of a CONSOLE_GET_BUFFER command via a CONSOLE_RETURNING_BUFFER
+/// response.
+///
+/// @param inUse Whether or not this buffer is in use by a process.  Set by the
+///   consoleGetBuffer function when getting a buffer for a caller and cleared
+///   by the caller when no longer being used.
+/// @param buffer The array of CONSOLE_BUFFER_SIZE characters that the calling
+///   process can use.
 typedef struct ConsoleBuffer {
-  char buffer[CONSOLE_BUFFER_SIZE];
   bool inUse;
+  char buffer[CONSOLE_BUFFER_SIZE];
 } ConsoleBuffer;
 
+/// @struct ConsoleState
+///
+/// @brief State maintained by the main console process and passed to the inter-
+/// process command handlers.
 typedef struct ConsoleState {
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
 
-// Exported support functions.
+// Inter-process command handlers
 void consoleWriteChar(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleWriteUChar(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleWriteInt(ConsoleState *consoleState, Comessage *inputMessage);
@@ -97,16 +134,24 @@ void consoleWriteDouble(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleWriteString(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleGetBuffer(ConsoleState *consoleState, Comessage *inputMessage);
 void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage);
+
+// Support functions
 void handleConsoleMessages(ConsoleState *consoleState);
 void blink();
 void releaseConsole();
 
-// Exported coroutines
+// Exported processes
 void* runConsole(void *args);
 
 // Exported IO functions
 ConsoleBuffer* consoleGetBufferFromMessage(void);
+
 int consoleVFPrintf(FILE *stream, const char *format, va_list args);
+#ifdef vfprintf
+#undef vfprintf
+#endif
+#define vfprintf consoleVFPrintf
+
 int consoleFPrintf(FILE *stream, const char *format, ...);
 #ifdef fprintf
 #undef fprintf
