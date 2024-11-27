@@ -365,9 +365,7 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
   Comessage *comessage = sendDataMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
   if (stream == stderr) {
-    while (comessageDone(comessage) == false) {
-      coroutineYield(NULL);
-    }
+    comessageWaitForDone(comessage, NULL);
   }
 
   return returnValue;
