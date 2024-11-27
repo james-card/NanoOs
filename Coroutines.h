@@ -228,7 +228,7 @@ typedef struct Comutex {
 ///
 /// @param lastYieldValue The last value returned by a yield call while a
 ///   cocondition wait function was blocked.
-/// @param numWaitForers The number of coroutines blocked waiting on this
+/// @param numWaiters The number of coroutines blocked waiting on this
 ///   condition.
 /// @param numSignal The number of signals emitted for unblocking waiting
 ///   coroutines.
@@ -237,7 +237,7 @@ typedef struct Comutex {
 ///   coroutine will be added).
 typedef struct Cocondition {
   void *lastYieldValue;
-  int numWaitForers;
+  int numWaiters;
   int numSignals;
   Coroutine *head;
   Coroutine *tail;

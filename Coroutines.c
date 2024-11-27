@@ -1342,7 +1342,7 @@ int coconditionBroadcast(Cocondition *cond) {
   int returnValue = coroutineSuccess;
 
   if (cond != NULL) {
-    cond->numSignals = cond->numWaitForers;
+    cond->numSignals = cond->numWaiters;
   } else {
     returnValue = coroutineError;
   }
@@ -1360,7 +1360,7 @@ int coconditionBroadcast(Cocondition *cond) {
 void coconditionDestroy(Cocondition *cond) {
   if (cond != NULL) {
     cond->lastYieldValue = NULL;
-    cond->numWaitForers = 0;
+    cond->numWaiters = 0;
     cond->numSignals = -1;
   }
 }
@@ -1378,7 +1378,7 @@ int coconditionInit(Cocondition* cond) {
 
   if (cond != NULL) {
     cond->lastYieldValue = NULL;
-    cond->numWaitForers = 0;
+    cond->numWaiters = 0;
     cond->numSignals = 0;
     cond->head = NULL;
     cond->tail = NULL;
@@ -1400,7 +1400,7 @@ int coconditionInit(Cocondition* cond) {
 int coconditionSignal(Cocondition *cond) {
   int returnValue = coroutineSuccess;
 
-  if ((cond != NULL) && (cond->numWaitForers > 0)) {
+  if ((cond != NULL) && (cond->numWaiters > 0)) {
     cond->numSignals++;
   } else {
     returnValue = coroutineError;
@@ -1454,7 +1454,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
 
   // Add ourselves to the queue.
-  cond->numWaitForers++;
+  cond->numWaiters++;
   if (cond->tail != NULL) {
     cond->tail->nextToSignal = running;
   }
@@ -1485,7 +1485,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
   if ((returnValue == coroutineSuccess) && (cond->numSignals > 0)) {
     cond->numSignals--;
-    cond->numWaitForers--;
+    cond->numWaiters--;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
     } else {
@@ -1511,7 +1511,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     if (cond->tail == running) {
       cond->tail = running->prevToSignal;
     }
-    cond->numWaitForers--;
+    cond->numWaiters--;
   } else {
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
@@ -1560,7 +1560,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   }
 
   // Add ourselves to the queue.
-  cond->numWaitForers++;
+  cond->numWaiters++;
   if (cond->tail != NULL) {
     cond->tail->nextToSignal = running;
   }
@@ -1576,7 +1576,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   }
   if (cond->numSignals > 0) {
     cond->numSignals--;
-    cond->numWaitForers--;
+    cond->numWaiters--;
     cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
