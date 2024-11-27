@@ -395,139 +395,18 @@ int consolePrintf(const char *format, ...) {
   return returnValue;
 }
 
-int printConsole(char message) {
+int printConsoleValue(ConsoleCommand command, void *value, size_t length) {
+  ComessageData message = 0;
+  length = (length <= sizeof(message)) ? length : sizeof(message);
+  memcpy(&message, value, length);
+
   Comessage *comessage = getAvailableMessage();
   while (comessage == NULL) {
     coroutineYield(NULL);
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, CONSOLE_WRITE_CHAR, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(unsigned char message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_UCHAR, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_INT, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_UINT, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(long int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_LONG_INT, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(long unsigned int message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_LONG_UINT, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(float message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  ComessageData data = 0;
-  memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_FLOAT, NULL, data, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(double message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  ComessageData data = 0;
-  memcpy(&data, &message, sizeof(message));
-  comessageInit(comessage, CONSOLE_WRITE_DOUBLE, NULL, data, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
-
-  return 0;
-}
-
-int printConsole(const char *message) {
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, CONSOLE_WRITE_STRING, NULL,
-    (intptr_t) message, false);
+  comessageInit(comessage, command, NULL, message, false);
   comessageQueuePush(
     runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
     comessage);

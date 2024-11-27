@@ -139,6 +139,7 @@ void consoleWriteBuffer(ConsoleState *consoleState, Comessage *inputMessage);
 void handleConsoleMessages(ConsoleState *consoleState);
 void blink();
 void releaseConsole();
+int printConsoleValue(ConsoleCommand command, void *value, size_t length);
 
 // Exported processes
 void* runConsole(void *args);
@@ -168,15 +169,46 @@ int consolePrintf(const char *format, ...);
 } // extern "C"
 #endif
 
-// C++ functions
-int printConsole(char message);
-int printConsole(unsigned char message);
-int printConsole(int message);
-int printConsole(unsigned int message);
-int printConsole(long int message);
-int printConsole(long unsigned int message);
-int printConsole(float message);
-int printConsole(double message);
-int printConsole(const char *message);
+/// @fn printConsole
+///
+/// @brief Print a message of an arbitrary type to the console.
+///
+/// @details
+/// This is basically just a switch statement where the type is the switch
+/// value, so no point in writing formal function definitions for each one of
+/// these.  Just making them static inline functions here.  They all call
+/// printConsole with the appropriate console command, a pointer to the provided
+/// message, and the size of the message.
+///
+/// @param message The message to send to the console.
+///
+/// @return Returns the value returned by printConsoleValue.
+static inline int printConsole(char message) {
+  return printConsoleValue(CONSOLE_WRITE_CHAR, &message, sizeof(message));
+}
+static inline int printConsole(unsigned char message) {
+  return printConsoleValue(CONSOLE_WRITE_UCHAR, &message, sizeof(message));
+}
+static inline int printConsole(int message) {
+  return printConsoleValue(CONSOLE_WRITE_INT, &message, sizeof(message));
+}
+static inline int printConsole(unsigned int message) {
+  return printConsoleValue(CONSOLE_WRITE_UINT, &message, sizeof(message));
+}
+static inline int printConsole(long int message) {
+  return printConsoleValue(CONSOLE_WRITE_LONG_INT, &message, sizeof(message));
+}
+static inline int printConsole(long unsigned int message) {
+  return printConsoleValue(CONSOLE_WRITE_LONG_UINT, &message, sizeof(message));
+}
+static inline int printConsole(float message) {
+  return printConsoleValue(CONSOLE_WRITE_FLOAT, &message, sizeof(message));
+}
+static inline int printConsole(double message) {
+  return printConsoleValue(CONSOLE_WRITE_DOUBLE, &message, sizeof(message));
+}
+static inline int printConsole(const char *message) {
+  return printConsoleValue(CONSOLE_WRITE_STRING, &message, sizeof(message));
+}
 
 #endif // CONSOLE_H
