@@ -436,7 +436,7 @@ Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
 #define comessageDataPointer(comessagePointer) \
   ((void*) comessageDataValue(comessagePointer, intptr_t))
 // No accessor for next member element.
-#define comessageWaitForing(comessagePointer) \
+#define comessageWaiting(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
 #define comessageDone(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->done : true)
