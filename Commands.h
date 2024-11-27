@@ -56,14 +56,14 @@ extern "C"
 /// handleCommand function.
 ///
 /// @param name The textual name of the command.
-/// @param function A function pointer to the process that will be spawned to
+/// @param func A function pointer to the process that will be spawned to
 ///   execute the command.
 /// @param userProcess Whether this is a user process that should be run in one
 ///   of the general-purpose process slots (true) or it should be run in the
 ///   slot reserved for system processes (false).
 typedef struct CommandEntry {
   const char        *name;
-  CoroutineFunction  function;
+  CoroutineFunction  func;
   bool               userProcess;
 } CommandEntry;
 

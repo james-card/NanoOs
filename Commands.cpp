@@ -280,7 +280,7 @@ void handleCommand(char *consoleInput) {
       for (; jj < NANO_OS_NUM_COROUTINES; jj++) {
         Coroutine *coroutine = runningCommands[jj].coroutine;
         if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-          coroutine = coroutineCreate(commandEntry->function);
+          coroutine = coroutineCreate(commandEntry->func);
           coroutineSetId(coroutine, jj);
 
           runningCommands[jj].coroutine = coroutine;
@@ -303,7 +303,7 @@ void handleCommand(char *consoleInput) {
       Coroutine *coroutine
         = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
       if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-        coroutine = coroutineCreate(commandEntry->function);
+        coroutine = coroutineCreate(commandEntry->func);
         coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
 
         runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
@@ -311,7 +311,7 @@ void handleCommand(char *consoleInput) {
 
         coroutineResume(coroutine, consoleInput);
       } else {
-        printConsole("ERROR:  System busy.\n");
+        printConsole("ERROR:  System process already running.\n");
         releaseConsole();
       }
     }
@@ -338,37 +338,37 @@ void handleCommand(char *consoleInput) {
 CommandEntry commands[] = {
   {
     .name = "echo",
-    .function = echo,
+    .func = echo,
     .userProcess = true
   },
   {
     .name = "echoSomething",
-    .function = echoSomething,
+    .func = echoSomething,
     .userProcess = true
   },
   {
     .name = "kill",
-    .function = kill,
+    .func = kill,
     .userProcess = false
   },
   {
     .name = "ps",
-    .function = ps,
+    .func = ps,
     .userProcess = false
   },
   {
     .name = "runCounter",
-    .function = runCounter,
+    .func = runCounter,
     .userProcess = true
   },
   {
     .name = "showInfo",
-    .function = showInfo,
+    .func = showInfo,
     .userProcess = true
   },
   {
     .name = "ver",
-    .function = ver,
+    .func = ver,
     .userProcess = true
   },
 };
