@@ -127,24 +127,58 @@ void handleMainCoroutineMessage(void) {
   return;
 }
 
-void* dummy(void *args) {
+/// @fn void* dummyProcess(void *args)
+///
+/// @brief Dummy process that's loaded at startup to prepopulate the process
+/// array with coroutines.  Apart from that, the other purpose is to call
+/// getFreeRamBytes so that we compute the actual amount of RAM left instead
+/// of getting what each coroutine thinks it has.
+///
+/// @param args Any arguments passed to this function.  Ignored.
+///
+/// @return This function always returns NULL.
+void* dummyProcess(void *args) {
   (void) args;
   (void) getFreeRamBytes();
   nanoOsExitProcess(NULL);
 }
 
+/// @var freeRamBytes
+///
+/// @brief The number of free bytes of RAM in the system.  Initialized to
+/// INT_MAX and re-set every time a smaller value is computed.  The value of
+/// this variable will be the value ultimately returned by getFreeRamBytes.
 int freeRamBytes = INT_MAX;
+
+/// @fn int getFreeRamBytes(void)
+///
+/// @brief Calculate the number of bytes that are available from the level of
+/// the current function call.  If that value is smaller than the current value
+/// of the freeRamBytes global variable, set freeRamBytes to the computed value.
+///
+/// @return Returns the value of freeRamBytes after any updates have been made.
 int getFreeRamBytes(void) {
   extern int __heap_start,*__brkval;
   int v;
+
   int currentFreeRamBytes = (int)&v - (__brkval == 0
     ? (int)&__heap_start : (int) __brkval);
   if (currentFreeRamBytes < freeRamBytes) {
     freeRamBytes = currentFreeRamBytes;
   }
+
   return freeRamBytes;
 }
 
+/// @fn long getElapsedMilliseconds(unsigned long startTime)
+///
+/// @brief Get the number of milliseconds that have elapsed since a specified
+/// time in the past.
+///
+/// @param startTime The time in the past to calcualte the elapsed time from.
+///
+/// @return Returns the number of milliseconds that have elapsed since the
+/// provided start time.
 long getElapsedMilliseconds(unsigned long startTime) {
   unsigned long now = millis();
 
@@ -155,6 +189,12 @@ long getElapsedMilliseconds(unsigned long startTime) {
   return now - startTime;
 }
 
+/// Comessage* getAvailableMessage(void)
+///
+/// @brief Get a message from the messages array that is not in use.
+///
+/// @return Returns a pointer to the available message on success, NULL if there
+/// was no available message in the array.
 Comessage* getAvailableMessage(void) {
   Comessage *availableMessage = NULL;
 
@@ -169,6 +209,19 @@ Comessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
+/// @fn Comessage* sendDataMessageToCoroutine(
+///   Coroutine *coroutine, int type, void *data, bool waiting)
+///
+/// @brief Send a data message to another coroutine.
+///
+/// @param coroutine A pointer to the Coroutine object of the destination
+///   coroutine.
+/// @param type The type of the message to send to the destination coroutine.
+/// @param data The data to send to the destination coroutine.
+/// @param waiting Whether or not the sender is waiting on a response from the
+///   destination coroutine.
+///
+/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
 Comessage* sendDataMessageToCoroutine(
   Coroutine *coroutine, int type, void *data, bool waiting
 ) {
@@ -197,6 +250,19 @@ Comessage* sendDataMessageToCoroutine(
   return comessage;
 }
 
+/// @fn Comessage* sendDataMessageToCoroutine(
+///   Coroutine *coroutine, int type, void *data, bool waiting)
+///
+/// @brief Send a data message to another coroutine.  Looks up the Coroutine
+/// instance by process ID and then calls sendDataMessageToCoroutine.
+///
+/// @param pid The process ID of the destination coroutine.
+/// @param type The type of the message to send to the destination coroutine.
+/// @param data The data to send to the destination coroutine.
+/// @param waiting Whether or not the sender is waiting on a response from the
+///   destination coroutine.
+///
+/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
 Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COROUTINES) {
@@ -210,6 +276,21 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
   return comessage;
 }
 
+/// @fn void* waitForDataMessage(
+///   Comessage *sent, int type, const struct timespec *ts)
+///
+/// @brief Wait for a reply to a previously-sent message and get the data from
+/// it.  The provided message will be released when the reply is received.
+///
+/// @param sent A pointer to a previously-sent Comessage the calling function is
+///   waiting on a reply to.
+/// @param type The type of message expected to be sent as a response.
+/// @param ts A pointer to a struct timespec with the future time at which to
+///   timeout if nothing is received by then.  If this parameter is NULL, an
+///   infinite timeout will be used.
+///
+/// @return Returns a pointer to the data member of the received message on
+/// success, NULL on failure.
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
   void *returnValue = NULL;
 
@@ -225,6 +306,17 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
   return returnValue;
 }
 
+/// @fn void timespecFromDelay(struct timespec *ts, long int delayMs)
+///
+/// @brief Initialize the value of a struct timespec with a time in the future
+/// based upon the current time and a specified delay period.  The timespec
+/// will hold the value of the current time plus the delay.
+///
+/// @param ts A pointer to a struct timespec to initialize.
+/// @param delayMs The number of milliseconds in the future the timespec is to
+///   be initialized with.
+///
+/// @return This function returns no value.
 void timespecFromDelay(struct timespec *ts, long int delayMs) {
   if (ts == NULL) {
     // Bad data.  Do nothing.

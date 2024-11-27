@@ -128,8 +128,8 @@ void loop();
 int runSystemProcess(Comessage *comessage);
 void handleMainCoroutineMessage(void);
 
-// Dummy coroutine
-void* dummy(void *args);
+// Dummy process
+void* dummyProcess(void *args);
 
 // Support functions
 int getFreeRamBytes(void);

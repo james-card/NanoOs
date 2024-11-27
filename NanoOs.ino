@@ -73,7 +73,7 @@ void loop() {
     if (ii == NANO_OS_CONSOLE_PROCESS_ID) {
       continue;
     }
-    coroutine = coroutineCreate(dummy);
+    coroutine = coroutineCreate(dummyProcess);
     coroutineSetId(coroutine, ii);
     runningCommands[ii].coroutine = coroutine;
   }
