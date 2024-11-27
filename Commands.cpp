@@ -33,6 +33,14 @@ extern const int NUM_COMMANDS;
 
 // Commands
 
+/// @fn void* ps(void *args)
+///
+/// @brief Display a list of running processes and their process IDs.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  Unused by this function.
+///
+/// @return This function always returns NULL.
 void* ps(void *args) {
   (void) args;
   // At this point, we were called by coroutineResume from handleCommand, so
@@ -53,6 +61,15 @@ void* ps(void *args) {
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void* kill(void *args)
+///
+/// @brief Kill a running process identified by its process ID.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  The process ID of the command to kill is parsed
+///   from this before returning execution back to the console.
+///
+/// @return This function always returns NULL.
 void* kill(void *args) {
   const char *processIdString = (const char*) args;
   int processId = (int) strtol(processIdString, NULL, 10);
@@ -75,6 +92,15 @@ void* kill(void *args) {
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void* echo(void *args)
+///
+/// @brief Echo a string from the user back to the console output.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  This is taken as the string to echo back to the
+///   console output.
+///
+/// @return This function always returns NULL.
 void* echo(void *args) {
   // The consoleBuffer is 256 characters.  Stacks are 512, so we can declare our
   // own buffer and still be safe.
@@ -105,6 +131,16 @@ void* echo(void *args) {
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void* echoSomething(void *args)
+///
+/// @brief Echo the word "Something" to the console output.  This function
+/// exists to make sure that the binary search used for command lookup works
+/// correctly.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  Ignored by this process.
+///
+/// @return This function always returns NULL.
 void* echoSomething(void *args) {
   (void) args;
   // We're not processing conosle input, so immediately yield.
@@ -114,7 +150,24 @@ void* echoSomething(void *args) {
   nanoOsExitProcess(NULL);
 }
 
-unsigned int counter = 0;
+/// @var counter
+///
+/// @brief Value that is continually incremented by the runCounter command and
+/// shown via the showInfo command.
+static unsigned int counter = 0;
+
+/// @fn void* runCounter(void *args)
+///
+/// @brief Continually increment the global counter variable by one and then
+/// yield control back to the scheduler.  This process exists as an example of
+/// a multi-tasking command that runs in the background.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  Ignored by this process.
+///
+/// @return This function would always return NULL if it returned, however it
+/// runs in an infinite loop and only stops when it is killed by the kill
+/// command.
 void* runCounter(void *args) {
   (void) args;
   // We're not processing conosle input, so immediately yield.
@@ -122,36 +175,66 @@ void* runCounter(void *args) {
 
   // This is a background process, so go ahead and release the console.
   releaseConsole();
+
   while (1) {
     counter++;
     coroutineYield(NULL);
   }
-  return NULL;
+
+  nanoOsExitProcess(NULL);
 }
 
+/// @fn void* showInfo(void *args)
+///
+/// @brief Show various information about the state of the system.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  Ignored by this process.
+///
+/// @return This function always returns NULL.
 void* showInfo(void *args) {
   (void) args;
   // We're not processing conosle input, so immediately yield.
   coroutineYield(NULL);
+
   printf("Current counter value: %u\n", counter);
   printf("- SRAM left: %d\n", getFreeRamBytes());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
+
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void* ver(void *args)
+///
+/// @brief Display the version of the OS on the console.
+///
+/// @param args The rest of the console command line after the name of the
+///   command, cast to a void*.  Ignored by this process.
+///
+/// @return This function always returns NULL.
 void* ver(void *args) {
   (void) args;
   // We're not processing conosle input, so immediately yield.
   coroutineYield(NULL);
 
-  printf("NanoOs version 0.0.1\n");
+  printf("NanoOs version " NANO_OS_VERSION "\n");
 
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void handleCommand(char *consoleInput)
+///
+/// @brief Parse the command name out of the console input and run the command
+/// using the rest of the input as an argument to the command.  The command will
+/// be launched as a separate process, not run inline.
+///
+/// @param consoleInput A pointer to the beginning of the console buffer that
+///   contains user input.
+///
+/// @return This function returns no value.
 void handleCommand(char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   int searchIndex = NUM_COMMANDS >> 1;
@@ -238,8 +321,15 @@ void handleCommand(char *consoleInput) {
   return;
 }
 
-// REMINDER:  These commands have to be in alphabetical order so that the binary
-//            search will work!!!
+/// @var commands
+///
+/// @brief Array of CommandEntry values that contain the names of the commands,
+/// a pointer to the command handler functions, and information about whether
+/// the command is a user process or a system process.
+///
+/// @details
+/// REMINDER:  These commands have to be in alphabetical order so that the
+///            binarysearch will work!!!
 CommandEntry commands[] = {
   {
     .name = "echo",
@@ -277,5 +367,11 @@ CommandEntry commands[] = {
     .userProcess = true
   },
 };
+
+/// @var NUM_COMMANDS
+///
+/// @brief Integer constant value that holds the number of commands in the
+/// commands array above.  Used in the binary search that looks up commands by
+/// their names.
 const int NUM_COMMANDS = sizeof(commands) / sizeof(commands[0]);
 
