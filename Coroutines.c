@@ -2211,7 +2211,7 @@ int comessageWaitForDone(Comessage *comessage, const struct timespec *ts) {
   return returnValue;
 }
 
-/// @fn Comessage* comessageWaitForReplyWithType_( Comessage *sent, bool releaseAfterDone, int *type, const struct timespec *ts)
+/// @fn Comessage* comessageWaitForReplyWithType_(Comessage *sent, bool releaseAfterDone, int *type, const struct timespec *ts)
 ///
 /// @brief Wait for a reply from the recipient of a message.
 ///
