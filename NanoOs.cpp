@@ -242,7 +242,7 @@ Comessage* sendDataMessageToCoroutine(
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release message from handleMainCoroutineMessage\n");
+        "Could not release message from sendDataMessageToCoroutine.\n");
     }
     comessage = NULL;
   }
@@ -299,7 +299,7 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
     returnValue = comessageDataPointer(incoming);
     if (comessageRelease(incoming) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release incoming message from handleMainCoroutineMessage\n");
+        "Could not release incoming message from waitForDataMessage.\n");
     }
   }
 
