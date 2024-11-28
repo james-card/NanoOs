@@ -380,7 +380,7 @@ void consoleWriteBufferHandler(
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
-void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) {
+void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteCharHandler,
   consoleWriteUCharHandler,
   consoleWriteIntHandler,

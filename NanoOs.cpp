@@ -80,7 +80,7 @@ int runSystemProcess(Comessage *comessage) {
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
-int (*mainCoroutineCommandHandlers[])(Comessage*) {
+int (*mainCoroutineCommandHandlers[])(Comessage*) = {
   runSystemProcess,
 };
 
