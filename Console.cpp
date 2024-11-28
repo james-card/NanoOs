@@ -470,6 +470,7 @@ void* runConsole(void *args) {
   unsigned char consoleIndex = 0;
   int serialData = -1;
   ConsoleState consoleState;
+  memset(&consoleState, 0, sizeof(ConsoleState));
   // Use the first console buffer as the buffer for console input.
   consoleState.consoleBuffers[0].inUse = true;
   char *consoleBuffer = consoleState.consoleBuffers[0].buffer;
@@ -576,9 +577,12 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
   returnValue
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
 
-  Comessage *comessage = sendDataMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
-  if (stream == stderr) {
+  if (stream == stdout) {
+    sendDataMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, false);
+  } else if (stream == stderr) {
+    Comessage *comessage = sendDataMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
     comessageWaitForDone(comessage, NULL);
     comessageRelease(comessage);
   }
