@@ -43,6 +43,7 @@
 // Standard C includes
 #include <limits.h>
 #include <string.h>
+#include <stdlib.h>
 
 // Custom includes
 #include "NanoOsLibC.h"
