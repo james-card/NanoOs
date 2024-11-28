@@ -250,7 +250,7 @@ Comessage* sendDataMessageToCoroutine(
   return comessage;
 }
 
-/// @fn Comessage* sendDataMessageToCoroutine(
+/// @fn Comessage* sendDataMessageToPid(
 ///   Coroutine *coroutine, int type, void *data, bool waiting)
 ///
 /// @brief Send a data message to another coroutine.  Looks up the Coroutine
