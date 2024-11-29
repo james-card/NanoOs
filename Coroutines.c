@@ -1920,6 +1920,8 @@ int comessageStartUse(Comessage *comessage) {
   if (comessage != NULL) {
     if (comessage->inUse == false) {
       comessage->type = 0;
+      comessage->data = NULL;
+      comessage->size = 0;
       comessage->next = NULL;
       comessage->waiting = false;
       comessage->done = true;
@@ -1968,6 +1970,7 @@ int comessageDestroy(Comessage *comessage) {
 
   // Don't touch comessage->type.
   // Don't touch comessage->data.
+  // Don't touch comessage->size.
   // Don't touch comessage->next.
   // Don't touch comessage->waiting.
   comessage->inUse = false;
@@ -2006,18 +2009,21 @@ int comessageDestroy(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int comessageInit(Comessage *comessage, int type, void *data, bool waiting)
+/// @fn int comessageInit(Comessage *comessage, int type, void *data, size_t size, bool waiting)
 ///
 /// @brief Initialize all the member elements of a Comessage structure.
 ///
 /// @param comessage A pointer to the Comessage structure to initialize.
 /// @param type The type integer value to set for the type of the Comessage.
 /// @param data A pointer to the data of the message.
+/// @param size The number of bytes pointed to by the data pointer.
 /// @param waiting Whether or not the caller of this function will be waiting on
 ///   a response to this message from the destination thread.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int comessageInit(Comessage *comessage, int type, void *data, bool waiting) {
+int comessageInit(
+  Comessage *comessage, int type, void *data, size_t size, bool waiting
+) {
   int returnValue = coroutineError;
 
   if (comessage == NULL) {
@@ -2030,6 +2036,7 @@ int comessageInit(Comessage *comessage, int type, void *data, bool waiting) {
 
   comessage->type = type;
   comessage->data = data;
+  comessage->size = size;
   comessage->next = NULL;
   comessage->waiting = waiting;
   comessage->done = false;
@@ -2058,6 +2065,7 @@ int comessageRelease(Comessage *comessage) {
 
   // Don't touch comessage->type.
   // Don't touch comessage->data.
+  // Don't touch comessage->size.
   // Don't touch comessage->next.
   // Don't touch comessage->waiting.
   comessage->inUse = false;
@@ -2108,6 +2116,7 @@ int comessageSetDone(Comessage *comessage) {
 
   // Don't touch comessage->type.
   // Don't touch comessage->data.
+  // Don't touch comessage->size.
   // Don't touch comessage->next.
   // Don't touch comessage->waiting.
   // Don't touch comessage->inUse.

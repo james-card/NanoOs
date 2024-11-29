@@ -290,6 +290,7 @@ typedef struct Coroutine {
 /// @param type Integer value designating the type of message for the receiving
 ///   coroutine.
 /// @param data A pointer to the data of the message, if any.
+/// @param size The number of bytes pointed to by the data pointer.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
 /// @param waiting A Boolean flag to indicate whether or not the sender is
 ///   waiting on a response message from the recipient of the message.
@@ -307,6 +308,7 @@ typedef struct Coroutine {
 typedef struct Comessage {
   int type;
   void *data;
+  size_t size;
   struct Comessage *next;
   bool waiting;
   bool done;
@@ -403,7 +405,8 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
 // Comessage functions
 int comessageDestroy(Comessage *comessage);
-int comessageInit(Comessage *comessage, int type, void *data, bool waiting);
+int comessageInit(
+  Comessage *comessage, int type, void *data, size_t size, bool waiting);
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage, const struct timespec *ts);
