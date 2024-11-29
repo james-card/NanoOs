@@ -1641,8 +1641,8 @@ int comessageQueueDestroy(Coroutine *coroutine) {
   coroutine->lastMessage = NULL;
 
   // Re-initialize the member elements that require initialization.
-  comutexInit(&coroutine->lock, comutexPlain | comutexTimed);
-  coconditionInit(&coroutine->condition);
+  comutexInit(&coroutine->messageLock, comutexPlain | comutexTimed);
+  coconditionInit(&coroutine->messageCondition);
 
   return returnValue;
 }
@@ -1677,7 +1677,7 @@ Comessage* comessageQueuePop(void) {
 
   Coroutine *coroutine = getRunningCoroutine();
   if ((coroutine != NULL)
-    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+    && (comutexLock(&coroutine->messageLock) == coroutineSuccess)
   ) {
     head = coroutine->nextMessage;
     if (head != NULL) {
@@ -1690,7 +1690,7 @@ Comessage* comessageQueuePop(void) {
       coroutine->lastMessage = NULL;
     }
 
-    comutexUnlock(&coroutine->lock);
+    comutexUnlock(&coroutine->messageLock);
   }
 
   return head;
@@ -1720,7 +1720,7 @@ Comessage* comessageQueuePopType(int type) {
   // JBC 2024-11-26
   Comessage *cur = coroutine->nextMessage;
   Comessage **prev = &coroutine->nextMessage;
-  if (comutexLock(&coroutine->lock) == coroutineSuccess) {
+  if (comutexLock(&coroutine->messageLock) == coroutineSuccess) {
     while ((cur != NULL) && (cur->type != type)) {
       prev = &cur->next;
       cur = cur->next;
@@ -1738,7 +1738,7 @@ Comessage* comessageQueuePopType(int type) {
       }
     }
 
-    comutexUnlock(&coroutine->lock);
+    comutexUnlock(&coroutine->messageLock);
   }
 
   return returnValue;
@@ -1781,9 +1781,9 @@ Comessage* comessageWaitQueueForType_(
   }
   int lockStatus = coroutineSuccess;
   if (ts == NULL) {
-    lockStatus = comutexLock(&coroutine->lock);
+    lockStatus = comutexLock(&coroutine->messageLock);
   } else {
-    lockStatus = comutexTimedLock(&coroutine->lock, ts);
+    lockStatus = comutexTimedLock(&coroutine->messageLock, ts);
   }
   int waitStatus = coroutineSuccess;
   if (lockStatus == coroutineSuccess) {
@@ -1806,10 +1806,10 @@ Comessage* comessageWaitQueueForType_(
       } else {
         // Desired type was not found.  Block until something else is pushed.
         if (ts == NULL) {
-          waitStatus = coconditionWait(&coroutine->condition, &coroutine->lock);
+          waitStatus = coconditionWait(&coroutine->messageCondition, &coroutine->messageLock);
         } else {
           waitStatus
-            = coconditionTimedWait(&coroutine->condition, &coroutine->lock, ts);
+            = coconditionTimedWait(&coroutine->messageCondition, &coroutine->messageLock, ts);
         }
         if (waitStatus != coroutineSuccess) {
           // Either something is wrong or we've reached our timeout.  Bail.
@@ -1821,7 +1821,7 @@ Comessage* comessageWaitQueueForType_(
       prev = &coroutine->nextMessage;
     }
 
-    comutexUnlock(&coroutine->lock);
+    comutexUnlock(&coroutine->messageLock);
   } // else We've reached our timeout or something is wrong.
 
   return returnValue;
@@ -1882,7 +1882,7 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
   }
 
   if ((coroutine != NULL)
-    && (comutexLock(&coroutine->lock) == coroutineSuccess)
+    && (comutexLock(&coroutine->messageLock) == coroutineSuccess)
   ){
     comessage->from = getRunningCoroutine();
     comessage->to = coroutine;
@@ -1898,9 +1898,9 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage) {
     }
 
     // Let all the waiters know that there's something new in the queue now.
-    returnValue = coconditionBroadcast(&coroutine->condition);
+    returnValue = coconditionBroadcast(&coroutine->messageCondition);
 
-    comutexUnlock(&coroutine->lock);
+    comutexUnlock(&coroutine->messageLock);
   }
 
   return returnValue;
@@ -2252,9 +2252,9 @@ Comessage* comessageWaitForReplyWithType_(
   // Enter our main wait loop.
   int lockStatus = coroutineSuccess;
   if (ts == NULL) {
-    lockStatus = comutexLock(&coroutine->lock);
+    lockStatus = comutexLock(&coroutine->messageLock);
   } else {
-    lockStatus = comutexTimedLock(&coroutine->lock, ts);
+    lockStatus = comutexTimedLock(&coroutine->messageLock, ts);
   }
   if (lockStatus != coroutineSuccess) {
     // Either we've timed out or there's a problem with the lock.  Either way,
@@ -2296,10 +2296,10 @@ Comessage* comessageWaitForReplyWithType_(
     } else {
       // Desired reply was not found.  Block until something else is pushed.
       if (ts == NULL) {
-        waitStatus = coconditionWait(&coroutine->condition, &coroutine->lock);
+        waitStatus = coconditionWait(&coroutine->messageCondition, &coroutine->messageLock);
       } else {
         waitStatus = coconditionTimedWait(
-          &coroutine->condition, &coroutine->lock, ts);
+          &coroutine->messageCondition, &coroutine->messageLock, ts);
       }
       if (waitStatus != coroutineSuccess) {
         // Something isn't as expected.  Bail.
@@ -2313,7 +2313,7 @@ Comessage* comessageWaitForReplyWithType_(
     prev = &coroutine->nextMessage;
   }
 
-  comutexUnlock(&coroutine->lock);
+  comutexUnlock(&coroutine->messageLock);
 
   return reply;
 }

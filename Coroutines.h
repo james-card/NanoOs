@@ -260,9 +260,9 @@ typedef struct Cocondition {
 ///   coroutine to process.
 /// @param lastMessage A pointer to the last message that is waiting for the
 ///   coroutine to process.
-/// @param condition A condition (Cocondition) that will allow for signalling
-///   between coroutines when adding a message to the queue.
-/// @param lock A mutex (Comutex) to guard the condition.
+/// @param messageCondition A condition (Cocondition) that will allow for
+///   signalling between coroutines when adding a message to the queue.
+/// @param messageLock A mutex (Comutex) to guard the message condition.
 typedef struct Coroutine {
   struct Coroutine *next;
   jmp_buf context;
@@ -274,8 +274,8 @@ typedef struct Coroutine {
   CoroutineFuncData passed;
   Comessage *nextMessage;
   Comessage *lastMessage;
-  Cocondition condition;
-  Comutex lock;
+  Cocondition messageCondition;
+  Comutex messageLock;
 } Coroutine;
 
 // Coroutine message support.
