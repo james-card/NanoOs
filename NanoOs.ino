@@ -65,8 +65,14 @@ void loop() {
 
   RunningCommand runningCommandsStorage[NANO_OS_NUM_COROUTINES] = {};
   runningCommands = runningCommandsStorage;
+
   Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
+  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
+    messages[ii].data = &nanoOsMessagesStorage[ii];
+  }
 
   Coroutine *coroutine = NULL;
   for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {

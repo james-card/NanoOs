@@ -58,7 +58,7 @@ void consoleWriteCharHandler(
 ) {
   (void) consoleState;
 
-  char message = comessageDataValue(inputMessage, char);
+  char message = nanoOsMessageDataValue(inputMessage, char);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -83,7 +83,7 @@ void consoleWriteUCharHandler(
 ) {
   (void) consoleState;
 
-  unsigned char message = comessageDataValue(inputMessage, unsigned char);
+  unsigned char message = nanoOsMessageDataValue(inputMessage, unsigned char);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -108,7 +108,7 @@ void consoleWriteIntHandler(
 ) {
   (void) consoleState;
 
-  int message = comessageDataValue(inputMessage, int);
+  int message = nanoOsMessageDataValue(inputMessage, int);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -133,7 +133,7 @@ void consoleWriteUIntHandler(
 ) {
   (void) consoleState;
 
-  unsigned int message = comessageDataValue(inputMessage, unsigned int);
+  unsigned int message = nanoOsMessageDataValue(inputMessage, unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -158,7 +158,7 @@ void consoleWriteLongIntHandler(
 ) {
   (void) consoleState;
 
-  long int message = comessageDataValue(inputMessage, long int);
+  long int message = nanoOsMessageDataValue(inputMessage, long int);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -184,7 +184,7 @@ void consoleWriteLongUIntHandler(
   (void) consoleState;
 
   long unsigned int message
-    = comessageDataValue(inputMessage, long unsigned int);
+    = nanoOsMessageDataValue(inputMessage, long unsigned int);
   Serial.print(message);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -209,7 +209,7 @@ void consoleWriteFloatHandler(
 ) {
   (void) consoleState;
 
-  ComessageData data = comessageDataValue(inputMessage, ComessageData);
+  ComessageData data = nanoOsMessageDataValue(inputMessage, ComessageData);
   float message = 0.0;
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
@@ -236,7 +236,7 @@ void consoleWriteDoubleHandler(
 ) {
   (void) consoleState;
 
-  ComessageData data = comessageDataValue(inputMessage, ComessageData);
+  ComessageData data = nanoOsMessageDataValue(inputMessage, ComessageData);
   double message = 0.0;
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
@@ -263,7 +263,7 @@ void consoleWriteStringHandler(
 ) {
   (void) consoleState;
 
-  const char *message = (const char*) comessageDataPointer(inputMessage);
+  const char *message = nanoOsMessageDataPointer(inputMessage, const char*);
   if (message != NULL) {
     Serial.print(message);
   }
@@ -363,7 +363,7 @@ void consoleWriteBufferHandler(
   (void) consoleState;
 
   ConsoleBuffer *consoleBuffer
-    = (ConsoleBuffer*) comessageDataPointer(inputMessage);
+    = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
   if (consoleBuffer != NULL) {
     const char *message = consoleBuffer->buffer;
     if (message != NULL) {

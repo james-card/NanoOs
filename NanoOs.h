@@ -106,9 +106,51 @@ typedef enum MainCoroutineCommand {
   NUM_MAIN_COROUTINE_COMMANDS
 } MainCoroutineCommand;
 
+/// @struct NanoOsMessage
+///
+/// @brief A generic message that can be exchanged between processes.
+///
+/// @param func Information about the function to run, cast to an unsigned long
+///   long int.
+/// @param data Information about the data to use, cast to an unsigned long
+///   long int.
+typedef struct NanoOsMessage {
+  unsigned long long int func;
+  unsigned long long int data;
+} NanoOsMessage;
+
+/// @def nanoOsMessageFuncValue
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the specified type.
+#define nanoOsMessageFuncValue(msg, type) \
+  ((type) ((NanoOsMessage*) msg->data)->func)
+
+/// @def nanoOsMessageFuncPointer
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the provided function pointer.
+#define nanoOsMessageFuncPointer(msg, type) \
+  ((type) nanoOsMessageFuncValue(msg, intptr_t))
+
+/// @def nanoOsMessageDataValue
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the specified type.
+#define nanoOsMessageDataValue(msg, type) \
+  ((type) ((NanoOsMessage*) msg->data)->data)
+
+/// @def nanoOsMessageDataPointer
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the provided function pointer.
+#define nanoOsMessageDataPointer(msg, type) \
+  ((type) nanoOsMessageDataValue(msg, intptr_t))
+
 // Exported variables
 extern RunningCommand *runningCommands;
 extern Comessage *messages;
+extern NanoOsMessage *nanoOsMessages;
 
 /// @def nanoOsExitProcess
 ///

@@ -45,6 +45,12 @@ RunningCommand *runningCommands = NULL;
 /// main loop function's stack.
 Comessage *messages = NULL;
 
+/// @var threadOsMessages
+///
+/// @brief Pointer to the array of ThreadOsMessages that will be stored in the
+/// main loop function's stack.
+ThreadOsMessage *threadOsMessages = NULL;
+
 /// @fn int runSystemProcess(Comessage *comessage)
 ///
 /// @brief Run a process in the slot for system processes.
@@ -59,7 +65,8 @@ int runSystemProcess(Comessage *comessage) {
   Coroutine *coroutine
     = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
   if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-    CommandEntry *commandEntry = comessageFuncPointer(comessage, CommandEntry*);
+    CommandEntry *commandEntry
+      = nanoOsMessageFuncPointer(comessage, CommandEntry*);
     CoroutineFunction func = commandEntry->func;
     coroutine = coroutineCreate(func);
     coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
@@ -67,7 +74,7 @@ int runSystemProcess(Comessage *comessage) {
     runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
     runningCommands[NANO_OS_SYSTEM_PROCESS_ID].name = commandEntry->name;
 
-    coroutineResume(coroutine, comessageDataPointer(comessage));
+    coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
   } else {
     printConsole("ERROR:  System process already running.\n");
     returnValue = EBUSY;
@@ -296,7 +303,7 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
 
   Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
-    returnValue = comessageDataPointer(incoming);
+    returnValue = nanoOsMessageDataPointer(incoming, void*);
     if (comessageRelease(incoming) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release incoming message from waitForDataMessage.\n");
