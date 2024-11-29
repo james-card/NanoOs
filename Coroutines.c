@@ -1641,7 +1641,7 @@ int comessageQueueDestroy(Coroutine *coroutine) {
   coroutine->lastMessage = NULL;
 
   // Re-initialize the member elements that require initialization.
-  comutexInit(&coroutine->lock, comutexPlain | comutexTimed | comutexRecursive);
+  comutexInit(&coroutine->lock, comutexPlain | comutexTimed);
   coconditionInit(&coroutine->condition);
 
   return returnValue;
