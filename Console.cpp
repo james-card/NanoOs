@@ -209,7 +209,7 @@ void consoleWriteFloatHandler(
 ) {
   (void) consoleState;
 
-  ComessageData data = nanoOsMessageDataValue(inputMessage, ComessageData);
+  NanoOsMessageData data = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
   float message = 0.0;
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
@@ -236,7 +236,7 @@ void consoleWriteDoubleHandler(
 ) {
   (void) consoleState;
 
-  ComessageData data = nanoOsMessageDataValue(inputMessage, ComessageData);
+  NanoOsMessageData data = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
   double message = 0.0;
   memcpy(&message, &data, sizeof(message));
   Serial.print(message);
@@ -313,8 +313,12 @@ void consoleGetBufferHandler(
 
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
+    NanoOsMessage *nanoOsMessage
+      = (NanoOsMessage*) comessageData(returnMessage);
+    nanoOsMessage->func = 0;
+    nanoOsMessage->data = (intptr_t) returnValue;
     comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
-      NULL, returnValue, false);
+      nanoOsMessage, false);
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
@@ -523,8 +527,8 @@ ConsoleBuffer* consoleGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
-    Comessage *comessage = sendDataMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, NULL, true);
+    Comessage *comessage = sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
     if (comessage == NULL) {
       break; // will return returnValue, which is NULL
     }
@@ -578,11 +582,13 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
 
   if (stream == stdout) {
-    sendDataMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, false);
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      0, (intptr_t) consoleBuffer, false);
   } else if (stream == stderr) {
-    Comessage *comessage = sendDataMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER, consoleBuffer, true);
+    Comessage *comessage = sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      0, (intptr_t) consoleBuffer, true);
     comessageWaitForDone(comessage, NULL);
     comessageRelease(comessage);
   }
@@ -642,25 +648,17 @@ int consolePrintf(const char *format, ...) {
 ///   displayed.
 /// @param value A pointer to the value to send as data.
 /// @param length The length of the data at the address provided by the value
-///   pointer.  Will be truncated to the size of ComessageData if needed.
+///   pointer.  Will be truncated to the size of NanoOsMessageData if needed.
 ///
 /// @return This function is non-blocking, always succeeds, and always returns
 /// 0.
 int printConsoleValue(ConsoleCommand command, void *value, size_t length) {
-  ComessageData message = 0;
+  NanoOsMessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
   memcpy(&message, value, length);
 
-  Comessage *comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
-
-  comessageInit(comessage, command, NULL, message, false);
-  comessageQueuePush(
-    runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine,
-    comessage);
+  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, command,
+    0, message, false);
 
   return 0;
 }

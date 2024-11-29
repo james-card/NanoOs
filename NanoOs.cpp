@@ -45,11 +45,11 @@ RunningCommand *runningCommands = NULL;
 /// main loop function's stack.
 Comessage *messages = NULL;
 
-/// @var threadOsMessages
+/// @var nanoOsMessages
 ///
-/// @brief Pointer to the array of ThreadOsMessages that will be stored in the
+/// @brief Pointer to the array of NanoOsMessages that will be stored in the
 /// main loop function's stack.
-ThreadOsMessage *threadOsMessages = NULL;
+NanoOsMessage *nanoOsMessages = NULL;
 
 /// @fn int runSystemProcess(Comessage *comessage)
 ///
@@ -208,7 +208,7 @@ Comessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0, NULL, NULL, false);
+      comessageInit(availableMessage, 0, &nanoOsMessages[ii], false);
       break;
     }
   }
@@ -216,21 +216,23 @@ Comessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-/// @fn Comessage* sendDataMessageToCoroutine(
-///   Coroutine *coroutine, int type, void *data, bool waiting)
+/// @fn Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a data message to another coroutine.
+/// @brief Send a NanoOsMessage to another process identified by its Coroutine.
 ///
-/// @param coroutine A pointer to the Coroutine object of the destination
-///   coroutine.
-/// @param type The type of the message to send to the destination coroutine.
-/// @param data The data to send to the destination coroutine.
+/// @param pid The process ID of the destination process.
+/// @param type The type of the message to send to the destination process.
+/// @param func The function information to send to the destination process,
+///   cast to a NanoOsMessageData.
+/// @param data The data to send to the destination process, cast to a
+///   NanoOsMessageData.
 /// @param waiting Whether or not the sender is waiting on a response from the
-///   destination coroutine.
+///   destination process.
 ///
 /// @return Returns a pointer to the sent Comessage on success, NULL on failure.
-Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data, bool waiting
+Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   Comessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
@@ -244,12 +246,16 @@ Comessage* sendDataMessageToCoroutine(
     comessage = getAvailableMessage();
   }
 
-  comessageInit(comessage, type, NULL, (intptr_t) data, waiting);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  nanoOsMessage->func = func;
+  nanoOsMessage->data = data;
+
+  comessageInit(comessage, type, nanoOsMessage, waiting);
 
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release message from sendDataMessageToCoroutine.\n");
+        "Could not release message from sendNanoOsMessageToCoroutine.\n");
     }
     comessage = NULL;
   }
@@ -257,20 +263,26 @@ Comessage* sendDataMessageToCoroutine(
   return comessage;
 }
 
-/// @fn Comessage* sendDataMessageToPid(
-///   Coroutine *coroutine, int type, void *data, bool waiting)
+/// @fn Comessage* sendNanoOsMessageToPid(int pid, int type,
+///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a data message to another coroutine.  Looks up the Coroutine
-/// instance by process ID and then calls sendDataMessageToCoroutine.
+/// @brief Send a NanoOsMessage to another process identified by its PID. Looks
+/// up the process's Coroutine by its PID and then calls
+/// sendNanoOsMessageToCoroutine.
 ///
-/// @param pid The process ID of the destination coroutine.
-/// @param type The type of the message to send to the destination coroutine.
-/// @param data The data to send to the destination coroutine.
+/// @param pid The process ID of the destination process.
+/// @param type The type of the message to send to the destination process.
+/// @param func The function information to send to the destination process,
+///   cast to a NanoOsMessageData.
+/// @param data The data to send to the destination process, cast to a
+///   NanoOsMessageData.
 /// @param waiting Whether or not the sender is waiting on a response from the
-///   destination coroutine.
+///   destination process.
 ///
 /// @return Returns a pointer to the sent Comessage on success, NULL on failure.
-Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
+Comessage* sendNanoOsMessageToPid(int pid, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting
+) {
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COROUTINES) {
     // Not a valid PID.  Fail.
@@ -279,7 +291,7 @@ Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting) {
 
   Coroutine *coroutine = runningCommands[pid].coroutine;
   comessage
-    = sendDataMessageToCoroutine(coroutine, type, data, waiting);
+    = sendNanoOsMessageToCoroutine(coroutine, type, func, data, waiting);
   return comessage;
 }
 

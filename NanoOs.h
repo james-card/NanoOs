@@ -106,6 +106,11 @@ typedef enum MainCoroutineCommand {
   NUM_MAIN_COROUTINE_COMMANDS
 } MainCoroutineCommand;
 
+/// @typedef NanoOsMessageData
+///
+/// @brief Data type used in a NanoOsMessage.
+typedef unsigned long long int NanoOsMessageData;
+
 /// @struct NanoOsMessage
 ///
 /// @brief A generic message that can be exchanged between processes.
@@ -114,9 +119,12 @@ typedef enum MainCoroutineCommand {
 ///   long int.
 /// @param data Information about the data to use, cast to an unsigned long
 ///   long int.
+/// @param comessage A pointer to the comessage that points to this
+///   NanoOsMessage.
 typedef struct NanoOsMessage {
-  unsigned long long int func;
-  unsigned long long int data;
+  NanoOsMessageData  func;
+  NanoOsMessageData  data;
+  Comessage         *comessage;
 } NanoOsMessage;
 
 /// @def nanoOsMessageFuncValue
@@ -178,9 +186,10 @@ void* dummyProcess(void *args);
 int getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 Comessage* getAvailableMessage(void);
-Comessage* sendDataMessageToCoroutine(
-  Coroutine *coroutine, int type, void *data, bool waiting);
-Comessage* sendDataMessageToPid(int pid, int type, void *data, bool waiting);
+Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting);
+Comessage* sendNanoOsMessageToPid(int pid, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 
