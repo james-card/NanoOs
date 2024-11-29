@@ -1806,10 +1806,11 @@ Comessage* comessageWaitQueueForType_(
       } else {
         // Desired type was not found.  Block until something else is pushed.
         if (ts == NULL) {
-          waitStatus = coconditionWait(&coroutine->messageCondition, &coroutine->messageLock);
+          waitStatus= coconditionWait(
+            &coroutine->messageCondition, &coroutine->messageLock);
         } else {
-          waitStatus
-            = coconditionTimedWait(&coroutine->messageCondition, &coroutine->messageLock, ts);
+          waitStatus = coconditionTimedWait(
+            &coroutine->messageCondition, &coroutine->messageLock, ts);
         }
         if (waitStatus != coroutineSuccess) {
           // Either something is wrong or we've reached our timeout.  Bail.
@@ -2296,7 +2297,8 @@ Comessage* comessageWaitForReplyWithType_(
     } else {
       // Desired reply was not found.  Block until something else is pushed.
       if (ts == NULL) {
-        waitStatus = coconditionWait(&coroutine->messageCondition, &coroutine->messageLock);
+        waitStatus = coconditionWait(
+          &coroutine->messageCondition, &coroutine->messageLock);
       } else {
         waitStatus = coconditionTimedWait(
           &coroutine->messageCondition, &coroutine->messageLock, ts);
