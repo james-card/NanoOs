@@ -160,7 +160,7 @@ extern "C"
 ///
 /// Type that defines an integer of the same width as a function pointer.
 #ifndef intfuncptr_t
-#define intfuncptr_t intptr_t 
+#define intfuncptr_t intptr_t
 #endif // intfuncptr_t
 
 /// @def uintfuncptr_t
@@ -168,7 +168,7 @@ extern "C"
 /// Type that defines an unsigned integer of the same width as a function
 /// pointer.
 #ifndef uintfuncptr_t
-#define uintfuncptr_t uintptr_t 
+#define uintfuncptr_t uintptr_t
 #endif // uintfuncptr_t
 
 /// @enum CoroutineState
