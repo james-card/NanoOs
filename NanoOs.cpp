@@ -208,7 +208,8 @@ Comessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0, &nanoOsMessages[ii], false);
+      comessageInit(availableMessage, 0,
+        &nanoOsMessages[ii], sizeof(nanoOsMessages[ii]), false);
       break;
     }
   }
@@ -250,7 +251,8 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   nanoOsMessage->func = func;
   nanoOsMessage->data = data;
 
-  comessageInit(comessage, type, nanoOsMessage, waiting);
+  comessageInit(comessage, type,
+    nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
   if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {

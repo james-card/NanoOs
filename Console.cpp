@@ -318,7 +318,7 @@ void consoleGetBufferHandler(
     nanoOsMessage->func = 0;
     nanoOsMessage->data = (intptr_t) returnValue;
     comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
-      nanoOsMessage, false);
+      nanoOsMessage, sizeof(*nanoOsMessage), false);
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
