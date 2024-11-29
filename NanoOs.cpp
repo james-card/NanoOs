@@ -59,7 +59,7 @@ int runSystemProcess(Comessage *comessage) {
   Coroutine *coroutine
     = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
   if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-    CommandEntry *commandEntry = comessageFunc(comessage, CommandEntry*);
+    CommandEntry *commandEntry = comessageFuncPointer(comessage, CommandEntry*);
     CoroutineFunction func = commandEntry->func;
     coroutine = coroutineCreate(func);
     coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);

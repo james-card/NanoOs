@@ -156,6 +156,21 @@ extern "C"
 #error "Invalid COROUTINE_ID_TYPE."
 #endif
 
+/// @def intfuncptr_t
+///
+/// Type that defines an integer of the same width as a function pointer.
+#ifndef intfuncptr_t
+#define intfuncptr_t intptr_t 
+#endif // intfuncptr_t
+
+/// @def uintfuncptr_t
+///
+/// Type that defines an unsigned integer of the same width as a function
+/// pointer.
+#ifndef uintfuncptr_t
+#define uintfuncptr_t uintptr_t 
+#endif // uintfuncptr_t
+
 /// @enum CoroutineState
 ///
 /// @brief States that a Coroutine can be in.
@@ -427,14 +442,16 @@ Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
 // Comessage accessors
 #define comessageType(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
-#define comessageFunc(comessagePointer, funcType) \
+#define comessageFuncValue(comessagePointer, funcType) \
   ((funcType) (((comessagePointer) != NULL) ? (comessagePointer)->func : 0))
+#define comessageFuncPointer(comessagePointer, funcPointer) \
+  ((funcPointer) comessageFuncValue(comessagePointer, uintfuncptr_t))
 #define comessageDataValue(comessagePointer, dataType) \
   ((dataType) (((comessagePointer) != NULL) \
     ? (comessagePointer)->data \
     : ((ComessageData) 0)))
 #define comessageDataPointer(comessagePointer) \
-  ((void*) comessageDataValue(comessagePointer, intptr_t))
+  ((void*) comessageDataValue(comessagePointer, uintptr_t))
 // No accessor for next member element.
 #define comessageWaiting(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
