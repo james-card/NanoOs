@@ -243,6 +243,8 @@ typedef struct Cocondition {
   Coroutine *tail;
 } Cocondition;
 
+// Coroutine base support.
+
 /// @struct Coroutine
 ///
 /// @brief Data structure to manage an individual coroutine.
