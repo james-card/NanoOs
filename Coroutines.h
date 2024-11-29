@@ -156,21 +156,6 @@ extern "C"
 #error "Invalid COROUTINE_ID_TYPE."
 #endif
 
-/// @def intfuncptr_t
-///
-/// Type that defines an integer of the same width as a function pointer.
-#ifndef intfuncptr_t
-#define intfuncptr_t intptr_t
-#endif // intfuncptr_t
-
-/// @def uintfuncptr_t
-///
-/// Type that defines an unsigned integer of the same width as a function
-/// pointer.
-#ifndef uintfuncptr_t
-#define uintfuncptr_t uintptr_t
-#endif // uintfuncptr_t
-
 /// @enum CoroutineState
 ///
 /// @brief States that a Coroutine can be in.
@@ -295,13 +280,6 @@ typedef struct Coroutine {
 
 // Coroutine message support.
 
-/// @typedef ComessageData
-///
-/// @brief Data type to use to store function or data components of a Comessage.
-/// This type must be an unsigned version of the largest integer value supported
-/// by the platform.
-typedef long long unsigned int ComessageData;
-
 /// @struct Comessage
 ///
 /// @brief Definition for a coroutine message that can be pushed onto a
@@ -309,8 +287,7 @@ typedef long long unsigned int ComessageData;
 ///
 /// @param type Integer value designating the type of message for the receiving
 ///   coroutine.
-/// @param func A function pointer to the function of the message, if any.
-/// @param data The data of the message, if any.
+/// @param data A pointer to the data of the message, if any.
 /// @param next A pointer to the next Comessage in a coroutine's message queue.
 /// @param waiting A Boolean flag to indicate whether or not the sender is
 ///   waiting on a response message from the recipient of the message.
@@ -327,8 +304,7 @@ typedef long long unsigned int ComessageData;
 ///   initializatoin have been configured yet.
 typedef struct Comessage {
   int type;
-  ComessageData func;
-  ComessageData data;
+  void *data;
   struct Comessage *next;
   bool waiting;
   bool done;
@@ -425,11 +401,7 @@ int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
 
 // Comessage functions
 int comessageDestroy(Comessage *comessage);
-int comessageInit_(Comessage *comessage, int type,
-  ComessageData func, ComessageData data, bool waiting);
-#define comessageInit(comessage, type, func, data, waiting) \
-  comessageInit_(comessage, type, \
-    (ComessageData) func, (ComessageData) data, waiting)
+int comessageInit(Comessage *comessage, int type, void *data, bool waiting);
 int comessageRelease(Comessage *comessage);
 int comessageSetDone(Comessage *comessage);
 int comessageWaitForDone(Comessage *comessage, const struct timespec *ts);
@@ -442,16 +414,8 @@ Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
 // Comessage accessors
 #define comessageType(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
-#define comessageFuncValue(comessagePointer, funcType) \
-  ((funcType) (((comessagePointer) != NULL) ? (comessagePointer)->func : 0))
-#define comessageFuncPointer(comessagePointer, funcPointer) \
-  ((funcPointer) comessageFuncValue(comessagePointer, uintfuncptr_t))
-#define comessageDataValue(comessagePointer, dataType) \
-  ((dataType) (((comessagePointer) != NULL) \
-    ? (comessagePointer)->data \
-    : ((ComessageData) 0)))
-#define comessageDataPointer(comessagePointer) \
-  ((void*) comessageDataValue(comessagePointer, uintptr_t))
+#define comessageData(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->data : NULL)
 // No accessor for next member element.
 #define comessageWaiting(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
