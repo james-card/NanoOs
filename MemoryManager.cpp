@@ -28,22 +28,8 @@
 // Doxygen marker
 /// @file
 
-// Standard C includes
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <setjmp.h>
-
 // NanoOs includes
-#include "NanoOs.h"
-
-/// @def MAIN_PROCESS_STACK_SIZE
-///
-/// @brief The stack size, in bytes, of the main memory manager process that
-/// will handle messages.  This needs to be as small as possible.  The actual
-/// stack size allocated will be slightly larger than this due to other things
-/// being pushed onto the stack before initializeGlobals is called.
-#define MAIN_PROCESS_STACK_SIZE 32
+#include "MemoryManager.h"
 
 /****************** Begin Custom Memory Management Functions ******************/
 
