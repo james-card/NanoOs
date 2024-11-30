@@ -51,7 +51,7 @@ void* ps(void *args) {
   // input), so we need to go ahead and yield now.
   coroutineYield(NULL);
 
-  for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {
+  for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
     if (coroutineResumable(runningCommands[ii].coroutine)) {
       printf("%d  %s\n",
         coroutineId(runningCommands[ii].coroutine),
@@ -80,7 +80,7 @@ void* kill(void *args) {
   coroutineYield(NULL);
 
   if ((processId != NANO_OS_CONSOLE_PROCESS_ID)
-    && (processId < NANO_OS_NUM_COROUTINES)
+    && (processId < NANO_OS_NUM_COMMANDS)
     && (coroutineResumable(runningCommands[processId].coroutine))
   ) {
     coroutineTerminate(runningCommands[processId].coroutine, NULL);
@@ -277,7 +277,7 @@ void handleCommand(char *consoleInput) {
   if (commandEntry != NULL) {
     if (commandEntry->userProcess == true) {
       int jj = NANO_OS_FIRST_PROCESS_ID;
-      for (; jj < NANO_OS_NUM_COROUTINES; jj++) {
+      for (; jj < NANO_OS_NUM_COMMANDS; jj++) {
         Coroutine *coroutine = runningCommands[jj].coroutine;
         if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
           coroutine = coroutineCreate(commandEntry->func);
@@ -291,7 +291,7 @@ void handleCommand(char *consoleInput) {
         }
       }
 
-      if (jj == NANO_OS_NUM_COROUTINES) {
+      if (jj == NANO_OS_NUM_COMMANDS) {
         // printf is blocking.  handleCommand is called from runConsole itself,
         // so we can't use a blocking call here.  Use the non-blocking
         // printConsole instead.

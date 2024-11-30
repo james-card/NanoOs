@@ -49,16 +49,18 @@
 #include "NanoOsLibC.h"
 #include "Coroutines.h"
 #include "Commands.h"
+#include "MemoryManager.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/// @def NANO_OS_NUM_COROUTINES
+/// @def NANO_OS_NUM_COMMANDS
 ///
-/// @brief The total number of concurrent processes that can be run by the OS.
-#define NANO_OS_NUM_COROUTINES             7
+/// @brief The total number of concurrent processes that can be run by the OS,
+/// including the scheduler.
+#define NANO_OS_NUM_COMMANDS             8
 
 /// @def NANO_OS_STACK_SIZE
 ///
@@ -76,21 +78,35 @@ extern "C"
 /// for use by processes.
 #define NANO_OS_NUM_MESSAGES               8
 
-/// @def NANO_OS_SYSTEM_PROCESS_ID
+/// @def NANO_OS_SCHEDULER_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the process that is reserved for system
-/// processes.
-#define NANO_OS_SYSTEM_PROCESS_ID        0
+/// @brief The process ID (PID) of the process that is reserved for the
+/// scheduler.
+#define NANO_OS_SCHEDULER_PROCESS_ID       0
 
 /// @def NANO_OS_CONSOLE_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the process that will run the console.
+/// @brief The process ID (PID) of the process that will run the console.  This
+/// must be the lowest value after the scheduler process (i.e. 1).
 #define NANO_OS_CONSOLE_PROCESS_ID         1
+
+/// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
+///
+/// @brief The process ID (PID) of the first user process.
+#define NANO_OS_MEMORY_MANAGER_PROCESS_ID  2
+
+/// @def NANO_OS_SYSTEM_PROCESS_ID
+///
+/// @brief The process ID (PID) of the process that is reserved for system
+/// processes.  This needs to be the last of the system processes because of
+/// how this value is used in the scheduler's initialization.
+#define NANO_OS_SYSTEM_PROCESS_ID          3
 
 /// @def NANO_OS_FIRST_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the first user process.
-#define NANO_OS_FIRST_PROCESS_ID           2
+/// @brief The process ID (PID) of the first user process, i.e. the first ID
+/// after the last system process ID.
+#define NANO_OS_FIRST_PROCESS_ID           4
 
 /// @def NANO_OS_VERSION
 ///

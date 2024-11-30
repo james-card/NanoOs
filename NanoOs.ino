@@ -50,7 +50,7 @@ void setup() {
 // metadata storage as we can within the stack of the main loop.  Every stack,
 // including the stack for the main loop, is NANO_OS_STACK_SIZE bytes in size.
 // Because we need a stack for the main loop, there are effectively
-// NANO_OS_NUM_COROUTINES + 1 stacks.  If we do nothing with this stack, we're
+// NANO_OS_NUM_COMMANDS + 1 stacks.  If we do nothing with this stack, we're
 // just wasting space.  Also, making the storage for these things global
 // consumes precious memory.  It's much more efficient to just store the
 // pointers in the global address space and put the real storage in the main
@@ -63,8 +63,10 @@ void loop() {
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
 
-  RunningCommand runningCommandsStorage[NANO_OS_NUM_COROUTINES] = {};
+  RunningCommand runningCommandsStorage[NANO_OS_NUM_COMMANDS] = {};
   runningCommands = runningCommandsStorage;
+  runningCommands[0].coroutine = &mainCoroutine;
+  runningCommands[0].name = "scheduler";
 
   Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
@@ -75,20 +77,38 @@ void loop() {
     nanoOsMessages[ii].comessage = &messages[ii];
   }
 
+  // Create the console process.
   Coroutine *coroutine = NULL;
-  for (int ii = 0; ii < NANO_OS_NUM_COROUTINES; ii++) {
-    if (ii == NANO_OS_CONSOLE_PROCESS_ID) {
-      continue;
-    }
+  coroutine = coroutineCreate(runConsole);
+  coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
+  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
+  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
+
+  // We need to do an initial population of all the commands because we need to
+  // get to the end of memory to run the memory manager in whatever is left
+  // over.
+  for (int ii = NANO_OS_SYSTEM_PROCESS_ID; ii < NANO_OS_NUM_COMMANDS; ii++) {
     coroutine = coroutineCreate(dummyProcess);
     coroutineSetId(coroutine, ii);
     runningCommands[ii].coroutine = coroutine;
   }
 
-  coroutine = coroutineCreate(runConsole);
-  coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
-  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
-  runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "runConsole";
+  // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
+  // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
+  coroutine = coroutineCreate(memoryManager);
+  coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  runningCommands[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine = coroutine;
+  runningCommands[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
+
+  // We're going to do a round-robin scheduler.  We don't want to use the array
+  // of runningCommands because the scheduler process itself is in that list.
+  // Instead, create an array of double-pointers to the coroutines that we'll
+  // want to run in that array.
+  Coroutine **scheduledCoroutines[NANO_OS_NUM_COMMANDS - 1];
+  const int numScheduledCoroutines = NANO_OS_NUM_COMMANDS - 1;
+  for (int ii = 0; ii < numScheduledCoroutines; ii++) {
+    scheduledCoroutines[ii] = &runningCommands[ii + 1].coroutine;
+  }
 
   printConsole("\n");
   printConsole("Setup complete.\n");
@@ -96,10 +116,10 @@ void loop() {
 
   int coroutineIndex = 0;
   while (1) {
-    coroutineResume(runningCommands[coroutineIndex].coroutine, NULL);
+    coroutineResume(*scheduledCoroutines[coroutineIndex], NULL);
     handleMainCoroutineMessage();
     coroutineIndex++;
-    coroutineIndex %= NANO_OS_NUM_COROUTINES;
+    coroutineIndex %= numScheduledCoroutines;
   }
 }
 

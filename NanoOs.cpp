@@ -286,7 +286,7 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   Comessage *comessage = NULL;
-  if (pid >= NANO_OS_NUM_COROUTINES) {
+  if (pid >= NANO_OS_NUM_COMMANDS) {
     // Not a valid PID.  Fail.
     return comessage; // NULL
   }
