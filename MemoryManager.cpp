@@ -28,9 +28,22 @@
 // Doxygen marker
 /// @file
 
+// Standard C includes
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <setjmp.h>
+
+// NanoOs includes
+#include "NanoOs.h"
+
+/// @def MAIN_PROCESS_STACK_SIZE
+///
+/// @brief The stack size, in bytes, of the main memory manager process that
+/// will handle messages.  This needs to be as small as possible.  The actual
+/// stack size allocated will be slightly larger than this due to other things
+/// being pushed onto the stack before initializeGlobals is called.
+#define MAIN_PROCESS_STACK_SIZE 32
 
 /****************** Begin Custom Memory Management Functions ******************/
 
@@ -87,12 +100,12 @@ static char *_mallocNext = NULL;
 /// @var _mallocStart
 ///
 /// @brief Numerical address of the start of the static malloc buffer.
-static const uintptr_t _mallocStart = 0;
+static uintptr_t _mallocStart = 0;
 
 /// @var _mallocEnd
 ///
 /// @brief Numerical address of the end of the static malloc buffer.
-static const uintptr_t _mallocEnd = 0;
+static uintptr_t _mallocEnd = 0;
 
 #ifdef __cplusplus
 extern "C"
@@ -247,4 +260,69 @@ void* localCalloc(size_t nmemb, size_t size) {
 #endif
 
 /******************* End Custom Memory Management Functions *******************/
+
+/// @fn void initializeGlobals(jmp_buf returnBuffer)
+///
+/// @brief Initialize the global variables that will be needed by the memory
+/// management functions and then resume execution in the main process function.
+///
+/// @param returnBuffer The jmp_buf that will be used to resume execution in the
+///   main process function.
+/// @param stack A pointer to the stack in allocateStack.  Passed just so that
+///   the compiler doesn't optimize it out.
+///
+/// @return This function returns no value and, indeed, never actually returns.
+void initializeGlobals(jmp_buf returnBuffer, char *stack) {
+  char a = '\0';
+  _mallocBuffer = &a;
+  _mallocNext = _mallocBuffer + sizeof(MemNode);
+  _mallocStart = (uintptr_t) _mallocNext;
+  _mallocEnd = _mallocStart + (uintptr_t) getFreeRamBytes();
+  
+  Serial.print("Using ");
+  Serial.print(_mallocEnd - _mallocStart + 1);
+  Serial.print(" bytes of dynamic memory.\n");
+  
+  longjmp(returnBuffer, (int) stack);
+}
+
+/// @fn void allocateStack(jmp_buf returnBuffer)
+///
+/// @brief Allocate space on the stack for the main process and then call
+/// initializeGlobals to finish the initialization process.
+///
+/// @param returnBuffer The jmp_buf that will be used to resume execution in the
+///   main process function.
+///
+/// @return This function returns no value and, indeed, never actually returns.
+void allocateStack(jmp_buf returnBuffer) {
+  char stack[MAIN_PROCESS_STACK_SIZE];
+  initializeGlobals(returnBuffer, stack);
+}
+
+/// @fn void* memoryManager(void *args)
+///
+/// @brief Main process for the memory manager that will configure all the
+/// variables and be responsible for handling the messages.
+///
+/// @param args Any arguments passed by the scheduler.  Ignored by this
+///   function.
+///
+/// @return This function never exits its main loop, so never returns, however
+/// it would return NULL if it returned anything.
+void* memoryManager(void *args) {
+  (void) args;
+  
+  jmp_buf returnBuffer;
+  if (setjmp(returnBuffer) == 0) {
+    allocateStack(returnBuffer);
+  }
+  Serial.print("Stack allocated.\n");
+  
+  while (1) {
+    coroutineYield(NULL);
+  }
+  
+  return NULL;
+}
 
