@@ -2040,7 +2040,7 @@ int comessageInit(
   comessage->waiting = waiting;
   comessage->done = false;
   // No need to set comessage->inUse since we called comessageStartUse above.
-  comessage->from = getRunningCoroutine();
+  // Don't touch comessage->from in case this message is being reused.
   returnValue = coroutineSuccess;
 
   return returnValue;
