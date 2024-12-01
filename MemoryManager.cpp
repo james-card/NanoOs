@@ -295,14 +295,15 @@ void handleMemoryManagerMessages(void) {
 ///
 /// @return This function returns no value and, indeed, never actually returns.
 void initializeGlobals(jmp_buf returnBuffer, char *stack) {
-  char a = '\0';
+  char a;
   _mallocBuffer = &a;
   _mallocNext = _mallocBuffer + sizeof(MemNode);
+  memNode(_mallocNext)->prev = NULL;
+  memNode(_mallocNext)->size = 0;
+  *_mallocNext = '\0';
   _mallocStart = (uintptr_t) _mallocNext;
   _mallocEnd = _mallocStart + (uintptr_t) getFreeRamBytes();
   
-  printConsole("\n");
-  printf("Using %u bytes of dynamic memory.\n", _mallocEnd - _mallocStart + 1);
   // Serial.print("Using ");
   // Serial.print(_mallocEnd - _mallocStart + 1);
   // Serial.print(" bytes of dynamic memory.\n");
@@ -341,6 +342,9 @@ void* memoryManager(void *args) {
   if (setjmp(returnBuffer) == 0) {
     allocateStack(returnBuffer);
   }
+  
+  printConsole("\n");
+  printf("Using %u bytes of dynamic memory.\n", _mallocEnd - _mallocStart + 1);
   releaseConsole();
   
   while (1) {
