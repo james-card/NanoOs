@@ -304,10 +304,6 @@ void initializeGlobals(jmp_buf returnBuffer, char *stack) {
   _mallocStart = (uintptr_t) _mallocNext;
   _mallocEnd = _mallocStart + (uintptr_t) getFreeRamBytes();
   
-  // Serial.print("Using ");
-  // Serial.print(_mallocEnd - _mallocStart + 1);
-  // Serial.print(" bytes of dynamic memory.\n");
-  
   longjmp(returnBuffer, (int) stack);
 }
 
