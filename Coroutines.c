@@ -1943,7 +1943,6 @@ int comessageStartUse(Comessage *comessage) {
           // comessage->configured remains false
         }
       }
-      // Don't touch comessage->dynamically_allocated;
     } // Else this message is already setup
   } else {
     returnValue = coroutineError;
@@ -2127,19 +2126,22 @@ int comessageSetDone(Comessage *comessage) {
     if (comessage->waiting == true) {
       // Something is waiting.  Signal the waiters.  It will be up to them to
       // destroy this message again later.
-      coconditionBroadcast(&comessage->condition);
+      if (coconditionBroadcast(&comessage->condition) == coroutineSuccess) {
+        returnValue = coroutineSuccess;
+      } // else, returnValue remains coroutineError.
+    } else {
+      returnValue = coroutineSuccess;
     }
     comutexUnlock(&comessage->lock);
   } else {
     // Nothing we can do but set the done flag.
     comessage->done = true;
+    returnValue = coroutineSuccess;
   }
   // Don't touch comessage->from.
   // Don't touch comessage->condition.
   // Don't touch comessage->lock.
   // Don't touch comessage->configured.
-  // Don't touch comessage->dynamically_allocated.
-  returnValue = coroutineSuccess;
 
   return returnValue;
 }
@@ -2244,22 +2246,25 @@ Comessage* comessageWaitForReplyWithType_(
   if (sent == NULL) {
     // Invalid.
     return reply; // NULL
-  } else if (comessageWaitForDone(sent, ts) != coroutineSuccess) {
+  }
+
+  // We need to grab the original recipient of the message that was sent before
+  // we wait for done in case the recipient reuses this message as the reply.
+  // message.
+  Coroutine *recipient = sent->to;
+
+  if (comessageWaitForDone(sent, ts) != coroutineSuccess) {
     // Invalid state of the message.  Fail.
     return reply; // NULL
   }
 
-  // Recipient has processed the message.  We now need to wait for their reply.
-  // Any message is valid as long as its from the recipient of the original
-  // message.
-  Coroutine *recipient = sent->to;
   if (releaseAfterDone == true) {
     // We're done with the message that was originally sent and the caller has
     // indicated that it is to be released now.
     comessageRelease(sent);
   }
 
-  // Enter our main wait loop.
+  // Recipient has processed the message.  We now need to wait for their reply.
   int lockStatus = coroutineSuccess;
   if (ts == NULL) {
     lockStatus = comutexLock(&coroutine->messageLock);
@@ -2282,6 +2287,8 @@ Comessage* comessageWaitForReplyWithType_(
     // of the loop below.
     searchType = *type;
   }
+
+  // Enter our main wait loop.
   int waitStatus = coroutineSuccess;
   while (reply == NULL) {
     while ((cur != NULL)
