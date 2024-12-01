@@ -79,7 +79,7 @@ void* kill(void *args) {
   // We're done processing input from the console, so yield now.
   coroutineYield(NULL);
 
-  if ((processId != NANO_OS_CONSOLE_PROCESS_ID)
+  if ((processId > NANO_OS_SYSTEM_PROCESS_ID)
     && (processId < NANO_OS_NUM_COMMANDS)
     && (coroutineResumable(runningCommands[processId].coroutine))
   ) {
@@ -204,6 +204,10 @@ void* showInfo(void *args) {
   printf("- SRAM left: %d\n", getFreeRamBytes());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
+
+  char *myString = (char*) malloc(10);
+  printf("- myString: %p\n", myString);
+  free(myString); myString = NULL;
 
   releaseConsole();
   nanoOsExitProcess(NULL);
