@@ -196,6 +196,88 @@ long getElapsedMilliseconds(unsigned long startTime) {
   return now - startTime;
 }
 
+/// @fn Coroutine* getCoroutineByPid(unsigned int pid)
+///
+/// @brief Look up a croutine for a running command given its process ID.
+///
+/// @param pid The integer ID for the process.
+///
+/// @return Returns the found coroutine pointer on success, NULL on failure.
+Coroutine* getCoroutineByPid(unsigned int pid) {
+  if (pid >= NANO_OS_NUM_COMMANDS) {
+    // Not a valid PID.  Fail.
+    return NULL;
+  }
+
+  return runningCommands[pid].coroutine;
+}
+
+/// @fn Comessage* sendComessageToCoroutine(Coroutine *coroutine,
+///   int type, void *data, size_t dataSize, bool waiting)
+///
+/// @brief Get an available Comessage, populate it with the specified data, and
+/// push it onto a destination coroutine's queue.
+///
+/// @param coroutine A pointer to the destination coroutine to send the message
+///   to.
+/// @param type The integer type of the message.
+/// @param data A pointer to the data contined in the message.
+/// @param dataSize The number of bytes at the data pointer.
+/// @param waiting Whether or not the caller is waiting on a reply to this
+///   message.
+///
+/// @return Returns a pointer to the Comessage sent on success, NULL on failure.
+Comessage* sendComessageToCoroutine(Coroutine *coroutine,
+  int type, void *data, size_t dataSize, bool waiting
+) {
+  Comessage *comessage = NULL;
+  if (!coroutineRunning(coroutine)) {
+    // Can't send to a non-running coroutine.
+    return comessage; // NULL
+  }
+
+  comessage = getAvailableMessage();
+  while (comessage == NULL) {
+    coroutineYield(NULL);
+    comessage = getAvailableMessage();
+  }
+
+  comessageInit(comessage, type, data, dataSize, waiting);
+
+  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from sendNanoOsMessageToCoroutine.\n");
+    }
+    comessage = NULL;
+  }
+
+  return comessage;
+}
+
+/// @fn Comessage* sendComessageToPid(unsigned int pid,
+///   int type, void *data, size_t dataSize, bool waiting)
+///
+/// @brief Look up a coroutine by its PID and send a message to it.
+///
+/// @param pid The ID of the process to send the message to.
+/// @param type The integer type of the message.
+/// @param data A pointer to the data contined in the message.
+/// @param dataSize The number of bytes at the data pointer.
+/// @param waiting Whether or not the caller is waiting on a reply to this
+///   message.
+///
+/// @return Returns a pointer to the Comessage sent on success, NULL on failure.
+Comessage* sendComessageToPid(unsigned int pid,
+  int type, void *data, size_t dataSize, bool waiting
+) {
+  Coroutine *coroutine = getCoroutineByPid(pid);
+  // If coroutine is NULL, it will be detected as not running by
+  // sendComessageToCoroutine, so there's no real point in checking for NULL
+  // here.
+  return sendComessageToCoroutine(coroutine, type, data, dataSize, waiting);
+}
+
 /// Comessage* getAvailableMessage(void)
 ///
 /// @brief Get a message from the messages array that is not in use.
