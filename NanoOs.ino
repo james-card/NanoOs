@@ -62,6 +62,7 @@ void setup() {
 void loop() {
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
+  coroutineSetId(&mainCoroutine, 0);
 
   RunningCommand runningCommandsStorage[NANO_OS_NUM_COMMANDS] = {};
   runningCommands = runningCommandsStorage;
