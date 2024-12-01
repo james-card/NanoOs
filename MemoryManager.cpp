@@ -221,9 +221,8 @@ void* localRealloc(void *ptr, size_t size) {
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleFree(Comessage *incoming) {
   localFree(comessageData(incoming));
-  // The client is *NOT* waiting on a reply and expects us to release the
-  // message.  Don't disappoint them.
-  comessageRelease(incoming);
+  // Tell the client we're done.
+  comessageSetDone(incoming);
   return 0;
 }
 
@@ -234,11 +233,8 @@ int memoryManagerHandleFree(Comessage *incoming) {
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleRealloc(Comessage *incoming) {
-  Comessage *response = getAvailableMessage();
-  while (response == NULL) {
-    coroutineYield(NULL);
-    response = getAvailableMessage();
-  }
+  // We're going to reuse the incoming message as the outgoing message.
+  Comessage *response = incoming;
 
   int returnValue = 0;
   ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
@@ -274,6 +270,26 @@ int (*memoryManagerCommand[])(Comessage *incoming) = {
   memoryManagerHandleFree,
   memoryManagerHandleRealloc,
 };
+
+void handleMemoryManagerMessages(void) {
+  Comessage *comessage = comessageQueuePop();
+  while (comessage != NULL) {
+    MemoryManagerCommand messageType
+      = (MemoryManagerCommand) comessageType(comessage);
+    if (messageType >= NUM_MEMORY_MANAGER_COMMANDS) {
+      printf("ERROR!!!  Received invalid memory manager message type %d.\n",
+        messageType);
+      comessage = comessageQueuePop();
+      continue;
+    }
+    
+    memoryManagerCommand[messageType](comessage);
+    
+    comessage = comessageQueuePop();
+  }
+  
+  return;
+}
 
 /// @fn void initializeGlobals(jmp_buf returnBuffer)
 ///
@@ -337,6 +353,7 @@ void* memoryManager(void *args) {
   
   while (1) {
     coroutineYield(NULL);
+    handleMemoryManagerMessages();
   }
   
   return NULL;
@@ -352,11 +369,15 @@ void* memoryManager(void *args) {
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(void *ptr) {
-  sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_FREE, ptr, 0, false);
+  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  Comessage sent;
+  comessageInit(&sent, MEMORY_MANAGER_FREE, ptr, 0, false);
+  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+    // Nothing more we can do.
+    return;
+  }
   
-  // We're not interested in a reply for this.  The handler will actually
-  // release the message when its done with it.  Just return now.
+  comessageWaitForDone(&sent, NULL);
   
   return;
 }
@@ -378,17 +399,18 @@ void* memoryManagerRealloc(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
-  if (sent == NULL) {
-    // Failed to send the message.  Nothing we can do.
+  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  Comessage sent;
+  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
+    &reallocMessage, sizeof(reallocMessage), true);
+  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+    // Nothing more we can do.
     return returnValue;
   }
   
-  Comessage *response = comessageWaitForReplyWithType(sent, true,
+  Comessage *response = comessageWaitForReplyWithType(&sent, true,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
   returnValue = comessageData(response);
-  comessageRelease(response);
   
   return returnValue;
 }
@@ -407,17 +429,18 @@ void* memoryManagerMalloc(size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = NULL;
   reallocMessage.size = size;
-  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
-  if (sent == NULL) {
-    // Failed to send the message.  Nothing we can do.
+  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  Comessage sent;
+  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
+    &reallocMessage, sizeof(reallocMessage), true);
+  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+    // Nothing more we can do.
     return returnValue;
   }
   
-  Comessage *response = comessageWaitForReplyWithType(sent, true,
+  Comessage *response = comessageWaitForReplyWithType(&sent, true,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
   returnValue = comessageData(response);
-  comessageRelease(response);
   
   return returnValue;
 }
@@ -438,17 +461,18 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = NULL;
   reallocMessage.size = totalSize;
-  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
-  if (sent == NULL) {
-    // Failed to send the message.  Nothing we can do.
+  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  Comessage sent;
+  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
+    &reallocMessage, sizeof(reallocMessage), true);
+  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+    // Nothing more we can do.
     return returnValue;
   }
   
-  Comessage *response = comessageWaitForReplyWithType(sent, true,
+  Comessage *response = comessageWaitForReplyWithType(&sent, true,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
   returnValue = comessageData(response);
-  comessageRelease(response);
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
