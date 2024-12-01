@@ -266,6 +266,15 @@ int memoryManagerHandleRealloc(Comessage *incoming) {
   return returnValue;
 }
 
+/// @var memoryManagerCommand
+///
+/// @brief Array of function pointers for handlers for commands that are
+/// understood by this library.
+int (*memoryManagerCommand[])(Comessage *incoming) = {
+  memoryManagerHandleFree,
+  memoryManagerHandleRealloc,
+};
+
 /// @fn void initializeGlobals(jmp_buf returnBuffer)
 ///
 /// @brief Initialize the global variables that will be needed by the memory
