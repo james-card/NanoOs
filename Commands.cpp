@@ -207,6 +207,21 @@ void* showInfo(void *args) {
 
   char *myString = (char*) malloc(10);
   printf("- myString: %p\n", myString);
+  printf("- *myString: '%c'", *myString);
+  printf("\n");
+  printf("- *myString: 0x%02x\n", *myString);
+  printf("- strlen(myString): %u\n", strlen(myString));
+  free(myString);
+  printf("- *myString after free: '%c'", *myString);
+  printf("\n");
+  printf("- *myString after free: 0x%02x\n", *myString);
+  printf("- strlen(myString) after free: %u\n", strlen(myString));
+  myString = (char*) malloc(10);
+  printf("- Second myString: %p\n", myString);
+  printf("- Second *myString: '%c'", *myString);
+  printf("\n");
+  printf("- Second *myString: 0x%02x\n", *myString);
+  printf("- Sescond strlen(myString): %u\n", strlen(myString));
   free(myString); myString = NULL;
 
   releaseConsole();
