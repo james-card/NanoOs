@@ -89,10 +89,30 @@ typedef struct ReallocMessage {
 
 // Function prototypes
 void* memoryManager(void *args);
+
 void memoryManagerFree(void *ptr);
+#ifdef free
+#undef free
+#endif // free
+#define free memoryManagerFree
+
 void* memoryManagerRealloc(void *ptr, size_t size);
+#ifdef realloc
+#undef realloc
+#endif // realloc
+#define realloc memoryManagerRealloc
+
 void* memoryManagerMalloc(size_t size);
+#ifdef malloc
+#undef malloc
+#endif // malloc
+#define malloc memoryManagerMalloc
+
 void* memoryManagerCalloc(size_t nmemb, size_t size);
+#ifdef calloc
+#undef calloc
+#endif // calloc
+#define calloc memoryManagerCalloc
 
 
 #ifdef __cplusplus
