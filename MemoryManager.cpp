@@ -129,7 +129,7 @@ void localFree(void *ptr) {
       // Clear out the size.
       memNode(charPointer)->size = 0;
     }
-  }
+  } // else this is not something we can free.  Ignore it.
   
   return;
 }
@@ -212,6 +212,59 @@ void* localRealloc(void *ptr, size_t size) {
 #endif
 
 /******************* End Custom Memory Management Functions *******************/
+
+/// @fn int memoryManagerHandleFree(Comessage *incoming)
+///
+/// @brief Command handler for a MEMORY_MANAGER_FREE command.  Parses the
+/// pointer out of the message and passes it to localFree.
+///
+/// @return Returns 0 on success, error code on failure.
+int memoryManagerHandleFree(Comessage *incoming) {
+  localFree(comessageData(incoming));
+  // The client is *NOT* waiting on a reply and expects us to release the
+  // message.  Don't disappoint them.
+  comessageRelease(incoming);
+  return 0;
+}
+
+/// @fn int memoryManagerHandleRealloc(Comessage *incoming)
+///
+/// @brief Command handler for a MEMORY_MANAGER_REALLOC command.  Extracts the
+/// ReallocMessage from the message and passes the parameters to localRealloc.
+///
+/// @return Returns 0 on success, error code on failure.
+int memoryManagerHandleRealloc(Comessage *incoming) {
+  Comessage *response = getAvailableMessage();
+  while (response == NULL) {
+    coroutineYield(NULL);
+    response = getAvailableMessage();
+  }
+
+  int returnValue = 0;
+  ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
+  void *clientReturnValue
+    = localRealloc(reallocMessage->ptr, reallocMessage->size);
+  size_t clientReturnSize
+    = (clientReturnValue != NULL) ? reallocMessage->size : 0;
+  
+  comessageInit(response, MEMORY_MANAGER_RETURNING_POINTER,
+    clientReturnValue, clientReturnSize, false);
+  if (comessageQueuePush(comessageFrom(incoming), response)
+    != coroutineSuccess
+  ) {
+    returnValue = -1;
+    if (comessageRelease(response) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from sendNanoOsMessageToCoroutine.\n");
+    }
+  }
+  
+  // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
+  // release it since the client is still using it.
+  comessageSetDone(incoming);
+  
+  return returnValue;
+}
 
 /// @fn void initializeGlobals(jmp_buf returnBuffer)
 ///
