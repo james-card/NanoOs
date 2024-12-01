@@ -110,10 +110,6 @@ void loop() {
     scheduledCoroutines[ii] = &runningCommands[ii + 1].coroutine;
   }
 
-  printConsole("\n");
-  printConsole("Setup complete.\n");
-  printConsole("> ");
-
   int coroutineIndex = 0;
   while (1) {
     coroutineResume(*scheduledCoroutines[coroutineIndex], NULL);
