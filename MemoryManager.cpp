@@ -213,19 +213,6 @@ void* localRealloc(void *ptr, size_t size) {
 
 /******************* End Custom Memory Management Functions *******************/
 
-/// @fn int memoryManagerHandleFree(Comessage *incoming)
-///
-/// @brief Command handler for a MEMORY_MANAGER_FREE command.  Parses the
-/// pointer out of the message and passes it to localFree.
-///
-/// @return Returns 0 on success, error code on failure.
-int memoryManagerHandleFree(Comessage *incoming) {
-  localFree(comessageData(incoming));
-  // Tell the client we're done.
-  comessageSetDone(incoming);
-  return 0;
-}
-
 /// @fn int memoryManagerHandleRealloc(Comessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_REALLOC command.  Extracts the
@@ -243,21 +230,21 @@ int memoryManagerHandleRealloc(Comessage *incoming) {
   size_t clientReturnSize
     = (clientReturnValue != NULL) ? reallocMessage->size : 0;
   
+  Coroutine *from = comessageFrom(incoming);
+  
+  // We need to mark waiting as true here so that comessageWaitForDone works
+  // correctly on the client side.
   comessageInit(response, MEMORY_MANAGER_RETURNING_POINTER,
-    clientReturnValue, clientReturnSize, false);
-  if (comessageQueuePush(comessageFrom(incoming), response)
-    != coroutineSuccess
-  ) {
+    clientReturnValue, clientReturnSize, true);
+  if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
-    if (comessageRelease(response) != coroutineSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from sendNanoOsMessageToCoroutine.\n");
-    }
   }
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
-  comessageSetDone(incoming);
+  if (comessageSetDone(incoming) != coroutineSuccess) {
+    returnValue = -1;
+  }
   
   return returnValue;
 }
@@ -267,10 +254,15 @@ int memoryManagerHandleRealloc(Comessage *incoming) {
 /// @brief Array of function pointers for handlers for commands that are
 /// understood by this library.
 int (*memoryManagerCommand[])(Comessage *incoming) = {
-  memoryManagerHandleFree,
   memoryManagerHandleRealloc,
 };
 
+/// @fn void handleMemoryManagerMessages(void)
+///
+/// @brief Handle memory manager messages from the process's queue until there
+/// are no more waiting.
+///
+/// @return This function returns no value.
 void handleMemoryManagerMessages(void) {
   Comessage *comessage = comessageQueuePop();
   while (comessage != NULL) {
@@ -359,6 +351,38 @@ void* memoryManager(void *args) {
   return NULL;
 }
 
+/// @fn void *memoryManagerSendReallocMessage(void *ptr, size_t size)
+///
+/// @brief Send a MEMORY_MANAGER_REALLOC command to the memory manager process
+/// and wait for a reply.
+///
+/// @param ptr The pointer to send to the process.
+/// @param size The size to send to the process.
+///
+/// @return Returns the data pointer returned in the reply.
+void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
+  void *returnValue = NULL;
+  
+  ReallocMessage reallocMessage;
+  reallocMessage.ptr = ptr;
+  reallocMessage.size = size;
+  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  Comessage sent;
+  memset(&sent, 0, sizeof(sent));
+  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
+    &reallocMessage, sizeof(reallocMessage), true);
+  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+    // Nothing more we can do.
+    return returnValue;
+  }
+  
+  Comessage *response = comessageWaitForReplyWithType(&sent, false,
+    MEMORY_MANAGER_RETURNING_POINTER, NULL);
+  returnValue = comessageData(response);
+  
+  return returnValue;
+}
+
 /// @fn void memoryManagerFree(void *ptr)
 ///
 /// @brief Free previously-allocated memory.  The provided pointer may have
@@ -369,16 +393,7 @@ void* memoryManager(void *args) {
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(void *ptr) {
-  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  Comessage sent;
-  comessageInit(&sent, MEMORY_MANAGER_FREE, ptr, 0, false);
-  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
-    // Nothing more we can do.
-    return;
-  }
-  
-  comessageWaitForDone(&sent, NULL);
-  
+  memoryManagerSendReallocMessage(ptr, 0);
   return;
 }
 
@@ -394,25 +409,7 @@ void memoryManagerFree(void *ptr) {
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or free.
 void* memoryManagerRealloc(void *ptr, size_t size) {
-  void *returnValue = NULL;
-  
-  ReallocMessage reallocMessage;
-  reallocMessage.ptr = ptr;
-  reallocMessage.size = size;
-  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  Comessage sent;
-  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
-    &reallocMessage, sizeof(reallocMessage), true);
-  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
-    // Nothing more we can do.
-    return returnValue;
-  }
-  
-  Comessage *response = comessageWaitForReplyWithType(&sent, true,
-    MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  returnValue = comessageData(response);
-  
-  return returnValue;
+  return memoryManagerSendReallocMessage(ptr, size);
 }
 
 /// @fn void* memoryManagerMalloc(size_t size)
@@ -424,25 +421,7 @@ void* memoryManagerRealloc(void *ptr, size_t size) {
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
 void* memoryManagerMalloc(size_t size) {
-  void *returnValue = NULL;
-  
-  ReallocMessage reallocMessage;
-  reallocMessage.ptr = NULL;
-  reallocMessage.size = size;
-  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  Comessage sent;
-  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
-    &reallocMessage, sizeof(reallocMessage), true);
-  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
-    // Nothing more we can do.
-    return returnValue;
-  }
-  
-  Comessage *response = comessageWaitForReplyWithType(&sent, true,
-    MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  returnValue = comessageData(response);
-  
-  return returnValue;
+  return memoryManagerSendReallocMessage(NULL, size);
 }
 
 /// @fn void* memoryManagerCalloc(size_t nmemb, size_t size)
@@ -455,24 +434,8 @@ void* memoryManagerMalloc(size_t size) {
 /// @return Returns a pointer to zeroed newly-allocated memory of the specified
 /// size on success, NULL on failure.
 void* memoryManagerCalloc(size_t nmemb, size_t size) {
-  void *returnValue = NULL;
   size_t totalSize = nmemb * size;
-  
-  ReallocMessage reallocMessage;
-  reallocMessage.ptr = NULL;
-  reallocMessage.size = totalSize;
-  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  Comessage sent;
-  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
-    &reallocMessage, sizeof(reallocMessage), true);
-  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
-    // Nothing more we can do.
-    return returnValue;
-  }
-  
-  Comessage *response = comessageWaitForReplyWithType(&sent, true,
-    MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  returnValue = comessageData(response);
+  void *returnValue = memoryManagerSendReallocMessage(NULL, totalSize);
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);

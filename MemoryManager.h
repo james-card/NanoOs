@@ -64,7 +64,6 @@ extern "C"
 ///
 /// @brief Commands recognized by the memory manager.
 typedef enum MemoryManagerCommand {
-  MEMORY_MANAGER_FREE,
   MEMORY_MANAGER_REALLOC,
   NUM_MEMORY_MANAGER_COMMANDS
 } MemoryManagerCommand;
