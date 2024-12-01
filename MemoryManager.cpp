@@ -320,7 +320,7 @@ void initializeGlobals(jmp_buf returnBuffer, char *stack) {
 ///
 /// @return This function returns no value and, indeed, never actually returns.
 void allocateStack(jmp_buf returnBuffer) {
-  char stack[MAIN_PROCESS_STACK_SIZE];
+  char stack[MEMORY_MANAGER_PROCESS_STACK_SIZE];
   initializeGlobals(returnBuffer, stack);
 }
 
