@@ -290,7 +290,13 @@ void* memoryManager(void *args) {
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(void *ptr) {
-  localFree(ptr);
+  sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_FREE, ptr, 0, false);
+  
+  // We're not interested in a reply for this.  The handler will actually
+  // release the message when its done with it.  Just return now.
+  
+  return;
 }
 
 /// @fn void* memoryManagerRealloc(void *ptr, size_t size)
@@ -334,7 +340,22 @@ void* memoryManagerRealloc(void *ptr, size_t size) {
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
 void* memoryManagerMalloc(size_t size) {
-  void *returnValue = localRealloc(NULL, size);
+  void *returnValue = NULL;
+  
+  ReallocMessage reallocMessage;
+  reallocMessage.ptr = NULL;
+  reallocMessage.size = size;
+  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
+  if (sent == NULL) {
+    // Failed to send the message.  Nothing we can do.
+    return returnValue;
+  }
+  
+  Comessage *response = comessageWaitForReplyWithType(sent, true,
+    MEMORY_MANAGER_RETURNING_POINTER, NULL);
+  returnValue = comessageData(response);
+  comessageRelease(response);
   
   return returnValue;
 }
@@ -349,10 +370,24 @@ void* memoryManagerMalloc(size_t size) {
 /// @return Returns a pointer to zeroed newly-allocated memory of the specified
 /// size on success, NULL on failure.
 void* memoryManagerCalloc(size_t nmemb, size_t size) {
-  char *returnValue = NULL;
+  void *returnValue = NULL;
   size_t totalSize = nmemb * size;
   
-  returnValue = (char*) localRealloc(NULL, totalSize);
+  ReallocMessage reallocMessage;
+  reallocMessage.ptr = NULL;
+  reallocMessage.size = totalSize;
+  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
+  if (sent == NULL) {
+    // Failed to send the message.  Nothing we can do.
+    return returnValue;
+  }
+  
+  Comessage *response = comessageWaitForReplyWithType(sent, true,
+    MEMORY_MANAGER_RETURNING_POINTER, NULL);
+  returnValue = comessageData(response);
+  comessageRelease(response);
+  
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
   }
