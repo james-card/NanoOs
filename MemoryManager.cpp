@@ -207,40 +207,6 @@ void* localRealloc(void *ptr, size_t size) {
   return returnValue;
 }
 
-/// @fn void* localMalloc(size_t size)
-///
-/// @brief Allocate but do not clear memory.
-///
-/// @param size The size of the block of memory to allocate in bytes.
-///
-/// @return Returns a pointer to newly-allocated memory of the specified size
-/// on success, NULL on failure.
-void* localMalloc(size_t size) {
-  void *returnValue = localRealloc(NULL, size);
-  
-  return returnValue;
-}
-
-/// @fn void* localCalloc(size_t nmemb, size_t size)
-///
-/// @brief Allocate memory and clear all the bytes to 0.
-///
-/// @param nmemb The number of elements to allocate in the memory block.
-/// @param size The size of each element to allocate in the memory block.
-///
-/// @return Returns a pointer to zeroed newly-allocated memory of the specified
-/// size on success, NULL on failure.
-void* localCalloc(size_t nmemb, size_t size) {
-  char *returnValue = NULL;
-  size_t totalSize = nmemb * size;
-  
-  returnValue = (char*) localRealloc(NULL, totalSize);
-  if (returnValue != NULL) {
-    memset(returnValue, 0, totalSize);
-  }
-  return returnValue;
-}
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
@@ -265,9 +231,11 @@ void initializeGlobals(jmp_buf returnBuffer, char *stack) {
   _mallocStart = (uintptr_t) _mallocNext;
   _mallocEnd = _mallocStart + (uintptr_t) getFreeRamBytes();
   
-  Serial.print("Using ");
-  Serial.print(_mallocEnd - _mallocStart + 1);
-  Serial.print(" bytes of dynamic memory.\n");
+  printConsole("\n");
+  printf("Using %u bytes of dynamic memory.\n", _mallocEnd - _mallocStart + 1);
+  // Serial.print("Using ");
+  // Serial.print(_mallocEnd - _mallocStart + 1);
+  // Serial.print(" bytes of dynamic memory.\n");
   
   longjmp(returnBuffer, (int) stack);
 }
@@ -303,12 +271,91 @@ void* memoryManager(void *args) {
   if (setjmp(returnBuffer) == 0) {
     allocateStack(returnBuffer);
   }
-  Serial.print("Stack allocated.\n");
+  releaseConsole();
   
   while (1) {
     coroutineYield(NULL);
   }
   
   return NULL;
+}
+
+/// @fn void memoryManagerFree(void *ptr)
+///
+/// @brief Free previously-allocated memory.  The provided pointer may have
+/// been allocated either by the system memory functions or from our static
+/// memory pool.
+///
+/// @param ptr A pointer to the block of memory to free.
+///
+/// @return This function always succeeds and returns no value.
+void memoryManagerFree(void *ptr) {
+  localFree(ptr);
+}
+
+/// @fn void* memoryManagerRealloc(void *ptr, size_t size)
+///
+/// @brief Reallocate a provided pointer to a new size.
+///
+/// @param ptr A pointer to the original block of dynamic memory.  If this value
+///   is NULL, new memory will be allocated.
+/// @param size The new size desired for the memory block at ptr.  If this value
+///   is 0, the provided pointer will be freed.
+///
+/// @return Returns a pointer to size-adjusted memory on success, NULL on
+/// failure or free.
+void* memoryManagerRealloc(void *ptr, size_t size) {
+  void *returnValue = NULL;
+  
+  ReallocMessage reallocMessage;
+  reallocMessage.ptr = ptr;
+  reallocMessage.size = size;
+  Comessage *sent = sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_REALLOC, &reallocMessage, sizeof(reallocMessage), true);
+  if (sent == NULL) {
+    // Failed to send the message.  Nothing we can do.
+    return returnValue;
+  }
+  
+  Comessage *response = comessageWaitForReplyWithType(sent, true,
+    MEMORY_MANAGER_RETURNING_POINTER, NULL);
+  returnValue = comessageData(response);
+  comessageRelease(response);
+  
+  return returnValue;
+}
+
+/// @fn void* memoryManagerMalloc(size_t size)
+///
+/// @brief Allocate but do not clear memory.
+///
+/// @param size The size of the block of memory to allocate in bytes.
+///
+/// @return Returns a pointer to newly-allocated memory of the specified size
+/// on success, NULL on failure.
+void* memoryManagerMalloc(size_t size) {
+  void *returnValue = localRealloc(NULL, size);
+  
+  return returnValue;
+}
+
+/// @fn void* memoryManagerCalloc(size_t nmemb, size_t size)
+///
+/// @brief Allocate memory and clear all the bytes to 0.
+///
+/// @param nmemb The number of elements to allocate in the memory block.
+/// @param size The size of each element to allocate in the memory block.
+///
+/// @return Returns a pointer to zeroed newly-allocated memory of the specified
+/// size on success, NULL on failure.
+void* memoryManagerCalloc(size_t nmemb, size_t size) {
+  char *returnValue = NULL;
+  size_t totalSize = nmemb * size;
+  
+  returnValue = (char*) localRealloc(NULL, totalSize);
+  if (returnValue != NULL) {
+    memset(returnValue, 0, totalSize);
+  }
+  return returnValue;
 }
 

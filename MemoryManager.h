@@ -60,8 +60,39 @@ extern "C"
 #define MAIN_PROCESS_STACK_SIZE 32
 
 
+/// @enum MemoryManagerCommand
+///
+/// @brief Commands recognized by the memory manager.
+typedef enum MemoryManagerCommand {
+  MEMORY_MANAGER_FREE,
+  MEMORY_MANAGER_REALLOC,
+  NUM_MEMORY_MANAGER_COMMANDS
+} MemoryManagerCommand;
+
+/// @enum MemoryManagerResponse
+///
+/// @brief Possible responses from synchronous memory manager commands.
+typedef enum MemoryManagerResponse {
+  MEMORY_MANAGER_RETURNING_POINTER,
+  NUM_MEMORY_MANAGER_RESPONSES
+} MemoryManagerResponse;
+
+/// @struct ReallocMessage
+///
+/// @brief Structure that holds the data needed to make a request to reallocate
+/// an existing pointer.
+typedef struct ReallocMessage {
+  void *ptr;
+  size_t size;
+} ReallocMessage;
+
+
 // Function prototypes
 void* memoryManager(void *args);
+void memoryManagerFree(void *ptr);
+void* memoryManagerRealloc(void *ptr, size_t size);
+void* memoryManagerMalloc(size_t size);
+void* memoryManagerCalloc(size_t nmemb, size_t size);
 
 
 #ifdef __cplusplus
