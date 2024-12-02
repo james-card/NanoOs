@@ -90,6 +90,12 @@ typedef struct ReallocMessage {
   size_t size;
 } ReallocMessage;
 
+typedef struct MemoryManagerMetadata {
+  char *mallocBuffer;
+  char *mallocNext;
+  uintptr_t mallocStart;
+  uintptr_t mallocEnd;
+} MemoryManagerMetadata;
 
 // Function prototypes
 void* memoryManager(void *args);
