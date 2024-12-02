@@ -1,5 +1,7 @@
 # NanoOs
 
+A nanokernel for an Arduino Nano.
+
 ## Goals
 
 This work started out as an experiment to see if I could implement an operating system similar to an early version of UNIX in a similar environment.  Early versions of UNIX ran on a PDP-11 with 16 KB of memory and an approximately 1 MHz processor.  Arduinos are the closest modern devices to that kind of environment, so that's where I started.  This code was written for an Arduino Nano Every, which has a 20 MHz processor and 6 KB of RAM.  Quite a bit faster, and a little less than half the RAM.  Definitely a challenging environment.
@@ -18,19 +20,26 @@ NanoOs is a nanokernel architecture.  Specifically, what this means is that ther
 
 Another implication of this arhitecture is that there basically is no kernel.  The system is really a collection of processes that communicate with each other in order to accomplish their work.  Each process has a specific task it is responsible for.  When a process needs something from another process, it sends a message to the designated process.  If it needs a response, it blocks waiting for a reply before continuing.
 
-## Special-Purpose Processes
+## System Processes
 
 Currently, the following processes are always present and running:
 
 1. The Scheduler - A round-robin scheduler
 2. The Console - Polls for user input and displays process output
+3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
-In addition, there is a "reserved" process slot in which system processes (i.e. not general-purpose user processes) run.  Note that only one system process may be running at a time.  System processes are intended to be very short-lived so that they do not consume the slot for an extended period of time.
-
-### Future Processes
-
-A future process for managing dynamically-allocated memory is planned.  To be continued...
+In addition, there is a "reserved" process slot in which non-user processes run.  Note that only one non-user process may be running at a time.  These processes are intended to be very short-lived so that they do not consume the slot for an extended period of time.
 
 ## Message Passing
 
-NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.
+NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All system processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
+
+When a user process needs something from one of the system processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the system process.  All system operations are handled this way.
+
+## Dynamic Memory
+
+NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last coroutine and makes use of all of the remaining memory at that time.  As of today, that amount is a little less than 1 KB.
+
+The memory manager is a modified bump allocator that supports automatic memory compaction.  Any time the last pointer in the allocation list is freed, the next pointer is moved back to the earliest allocation that has already been freed.  The number of outstanding memory allocations is not tracked because it's unnecessary.  This allows partial reclamation of memory space without having to free all outstanding allocations.
+
+The memory manager also tracks the size of each allocation.  This allows for realloc to function correctly.  If the size of the reallocation is less than or equal to the size already allocated, no action is taken.  If the size of the reallocation is greater than the size already allocated, the old memory can be copied to the new location before returning the new pointer to the user (as is supposed to happen for realloc).
