@@ -135,6 +135,11 @@ void* dummyProcess(void *args) {
   nanoOsExitProcess(NULL);
 }
 
+/// @fn void runScheduler(void)
+///
+/// @brief Initialize and run the round-robin scheduler.
+///
+/// @return This function returns no value and, in fact, never returns at all.
 void runScheduler(void) {
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
