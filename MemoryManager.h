@@ -51,13 +51,18 @@ extern "C"
 #endif
 
 
+/// @def MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE
+///
+/// @brief The size, in bytes, of one chunk of the main memory process's stack.
+#define MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE 32
+
 /// @def MEMORY_MANAGER_PROCESS_STACK_SIZE
 ///
 /// @brief The stack size, in bytes, of the main memory manager process that
 /// will handle messages.  This needs to be as small as possible.  The actual
 /// stack size allocated will be slightly larger than this due to other things
 /// being pushed onto the stack before initializeGlobals is called.
-#define MEMORY_MANAGER_PROCESS_STACK_SIZE 32
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 64
 
 
 /// @enum MemoryManagerCommand
