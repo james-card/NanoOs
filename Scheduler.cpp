@@ -155,16 +155,13 @@ void handleSchedulerMessage(void) {
 /// @fn void* dummyProcess(void *args)
 ///
 /// @brief Dummy process that's loaded at startup to prepopulate the process
-/// array with coroutines.  Apart from that, the other purpose is to call
-/// getFreeRamBytes so that we compute the actual amount of RAM left instead
-/// of getting what each coroutine thinks it has.
+/// array with coroutines.
 ///
 /// @param args Any arguments passed to this function.  Ignored.
 ///
 /// @return This function always returns NULL.
 void* dummyProcess(void *args) {
   (void) args;
-  (void) getFreeRamBytes();
   nanoOsExitProcess(NULL);
 }
 

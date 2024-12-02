@@ -59,7 +59,7 @@ void* ps(void *args) {
     }
   }
 
-  printf("- SRAM left: %d\n", getFreeRamBytes());
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
   releaseConsole();
   nanoOsExitProcess(NULL);
 }
@@ -201,7 +201,7 @@ void* showInfo(void *args) {
   coroutineYield(NULL);
 
   printf("Current counter value: %u\n", counter);
-  printf("- SRAM left: %d\n", getFreeRamBytes());
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
 
@@ -211,15 +211,18 @@ void* showInfo(void *args) {
   printf("- myString: '%s'", myString);
   printf("\n");
   printf("- strlen(myString): %u\n", strlen(myString));
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
   free(myString);
   printf("- myString after free: '%s'", myString);
   printf("\n");
   printf("- strlen(myString) after free: %u\n", strlen(myString));
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
   myString = (char*) malloc(16);
   printf("- Second myString: %p\n", myString);
   printf("- Second myString: '%s'", myString);
   printf("\n");
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
   free(myString); myString = NULL;
 
   releaseConsole();

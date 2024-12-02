@@ -261,6 +261,35 @@ int memoryManagerHandleRealloc(
   return returnValue;
 }
 
+int memoryManagerHandleGetFreeMemory(
+  MemoryManagerState *memoryManagerState, Comessage *incoming
+) {
+  // We're going to reuse the incoming message as the outgoing message.
+  Comessage *response = incoming;
+
+  int returnValue = 0;
+  
+  Coroutine *from = comessageFrom(incoming);
+  uintptr_t dynamicMemorySize = (uintptr_t) memoryManagerState->mallocNext
+    - memoryManagerState->mallocEnd + 1;
+  
+  // We need to mark waiting as true here so that comessageSetDone signals the
+  // client side correctly.
+  comessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
+    NULL, dynamicMemorySize, true);
+  if (comessageQueuePush(from, response) != coroutineSuccess) {
+    returnValue = -1;
+  }
+  
+  // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
+  // release it since the client is still using it.
+  if (comessageSetDone(incoming) != coroutineSuccess) {
+    returnValue = -1;
+  }
+  
+  return returnValue;
+}
+
 /// @var memoryManagerCommand
 ///
 /// @brief Array of function pointers for handlers for commands that are
@@ -269,6 +298,7 @@ int (*memoryManagerCommand[])(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) = {
   memoryManagerHandleRealloc,
+  memoryManagerHandleGetFreeMemory,
 };
 
 /// @fn void handleMemoryManagerMessages(
@@ -330,11 +360,8 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memoryManagerState->mallocStart
     = (uintptr_t) memoryManagerState->mallocNext;
   
-  // We want to grab as much memory as possible for the memory manager.  If we
-  // call getFreeRamBytes() from here, we will get the amount available minus
-  // the amount used on the stack to call the function, which will be less than
-  // the total amount available.  Rather than doing that, directly reimplement
-  // the logic here so that we get the maximum value.
+  // We want to grab as much memory as possible for the memory manager.  Get the
+  // delta between the address of mallocBufferStart and the end of memory.
   memoryManagerState->mallocEnd
     = ((uintptr_t) memoryManagerState->mallocBuffer)
     - ((uintptr_t) (((uintptr_t) &mallocBufferStart)
@@ -392,6 +419,14 @@ void allocateStack(MemoryManagerState *memoryManagerState,
   initializeGlobals(memoryManagerState, returnBuffer, topOfStack);
 }
 
+/// @fn void printMemoryManagerState(MemoryManagerState *memoryManagerState)
+///
+/// @brief Debugging function to print all the values of the MemoryManagerState.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState maintained by
+///   the process.
+///
+/// @return This function returns no value.
 void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
   extern int __heap_start;
   printf("memoryManagerState.mallocBuffer = %p\n",
@@ -441,6 +476,34 @@ void* memoryManager(void *args) {
   }
   
   return NULL;
+}
+
+/// @fn size_t getFreeMemory(void)
+///
+/// @brief Send a MEMORY_MANAGER_GET_FREE_MEMORY command to the memory manager
+/// process and wait for a reply.
+///
+/// @return Returns the size, in bytes, of available dynamic memory on success,
+/// 0 on failure.
+size_t getFreeMemory(void) {
+  size_t returnValue = 0;
+  
+  Comessage sent;
+  memset(&sent, 0, sizeof(sent));
+  comessageInit(&sent, MEMORY_MANAGER_GET_FREE_MEMORY, NULL, 0, true);
+  
+  if (sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
+    != coroutineSuccess
+  ) {
+    // Nothing more we can do.
+    return returnValue;
+  }
+  
+  Comessage *response = comessageWaitForReplyWithType(&sent, false,
+    MEMORY_MANAGER_RETURNING_FREE_MEMORY, NULL);
+  returnValue = comessageSize(response);
+  
+  return returnValue;
 }
 
 /// @fn void *memoryManagerSendReallocMessage(void *ptr, size_t size)

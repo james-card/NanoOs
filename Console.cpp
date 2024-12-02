@@ -478,7 +478,6 @@ void* runConsole(void *args) {
   // Use the first console buffer as the buffer for console input.
   consoleState.consoleBuffers[0].inUse = true;
   char *consoleBuffer = consoleState.consoleBuffers[0].buffer;
-  (void) getFreeRamBytes();
 
   while (1) {
     ledToggle();

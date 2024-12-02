@@ -45,37 +45,6 @@ Comessage *messages = NULL;
 /// main loop function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
-/// @var freeRamBytes
-///
-/// @brief The number of free bytes of RAM in the system.  Initialized to
-/// INT_MAX and re-set every time a smaller value is computed.  The value of
-/// this variable will be the value ultimately returned by getFreeRamBytes.
-uintptr_t freeRamBytes = INT_MAX;
-
-/// @fn uintptr_t getFreeRamBytes(void)
-///
-/// @brief Calculate the number of bytes that are available from the level of
-/// the current function call.  If that value is smaller than the current value
-/// of the freeRamBytes global variable, set freeRamBytes to the computed value.
-///
-/// @return Returns the value of freeRamBytes after any updates have been made.
-uintptr_t getFreeRamBytes(void) {
-  extern int __heap_start, *__brkval;
-  int var;
-
-  uintptr_t currentFreeRamBytes = (uintptr_t) (((uintptr_t) &var)
-    - ((__brkval == NULL)
-      ? (uintptr_t) &__heap_start
-      : (uintptr_t) __brkval
-    )
-  );
-  if (currentFreeRamBytes < freeRamBytes) {
-    freeRamBytes = currentFreeRamBytes;
-  }
-
-  return freeRamBytes;
-}
-
 /// @fn long getElapsedMilliseconds(unsigned long startTime)
 ///
 /// @brief Get the number of milliseconds that have elapsed since a specified

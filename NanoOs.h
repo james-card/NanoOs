@@ -172,7 +172,6 @@ void setup();
 void loop();
 
 // Support functions
-uintptr_t getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
 Comessage* getAvailableMessage(void);

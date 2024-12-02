@@ -70,6 +70,7 @@ extern "C"
 /// @brief Commands recognized by the memory manager.
 typedef enum MemoryManagerCommand {
   MEMORY_MANAGER_REALLOC,
+  MEMORY_MANAGER_GET_FREE_MEMORY,
   NUM_MEMORY_MANAGER_COMMANDS
 } MemoryManagerCommand;
 
@@ -78,6 +79,7 @@ typedef enum MemoryManagerCommand {
 /// @brief Possible responses from synchronous memory manager commands.
 typedef enum MemoryManagerResponse {
   MEMORY_MANAGER_RETURNING_POINTER,
+  MEMORY_MANAGER_RETURNING_FREE_MEMORY,
   NUM_MEMORY_MANAGER_RESPONSES
 } MemoryManagerResponse;
 
@@ -135,6 +137,8 @@ void* memoryManagerCalloc(size_t nmemb, size_t size);
 #undef calloc
 #endif // calloc
 #define calloc memoryManagerCalloc
+
+size_t getFreeMemory(void);
 
 
 #ifdef __cplusplus
