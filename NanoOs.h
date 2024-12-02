@@ -95,12 +95,12 @@ extern "C"
 /// @brief The process ID (PID) of the first user process.
 #define NANO_OS_MEMORY_MANAGER_PROCESS_ID  2
 
-/// @def NANO_OS_SYSTEM_PROCESS_ID
+/// @def NANO_OS_RESERVED_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that is reserved for system
 /// processes.  This needs to be the last of the system processes because of
 /// how this value is used in the scheduler's initialization.
-#define NANO_OS_SYSTEM_PROCESS_ID          3
+#define NANO_OS_RESERVED_PROCESS_ID          3
 
 /// @def NANO_OS_FIRST_PROCESS_ID
 ///
@@ -112,15 +112,6 @@ extern "C"
 ///
 /// @brief The version string for NanoOs
 #define NANO_OS_VERSION "0.0.1"
-
-/// @enum MainCoroutineCommand
-///
-/// @brief Commands understood by the main coroutine inter-process message
-/// handler.
-typedef enum MainCoroutineCommand {
-  RUN_SYSTEM_PROCESS,
-  NUM_MAIN_COROUTINE_COMMANDS
-} MainCoroutineCommand;
 
 /// @typedef NanoOsMessageData
 ///
@@ -172,31 +163,12 @@ typedef struct NanoOsMessage {
   ((type) nanoOsMessageDataValue(msg, intptr_t))
 
 // Exported variables
-extern RunningCommand *runningCommands;
 extern Comessage *messages;
 extern NanoOsMessage *nanoOsMessages;
-
-/// @def nanoOsExitProcess
-///
-/// @brief Macro to clean up the process's global state and then exit cleanly.
-///
-/// @param returnValue The value to return back to the scheduler.
-#define nanoOsExitProcess(returnValue) \
-  /* We need to clear the coroutine pointer. */ \
-  runningCommands[coroutineId(NULL)].coroutine = NULL; \
-  \
-  return returnValue /* Deliberately omitting semicolon. */
 
 // Arduino functions
 void setup();
 void loop();
-
-// NanoOs inter-process message handler functions
-int runSystemProcess(Comessage *comessage);
-void handleMainCoroutineMessage(void);
-
-// Dummy process
-void* dummyProcess(void *args);
 
 // Support functions
 uintptr_t getFreeRamBytes(void);
@@ -218,7 +190,8 @@ void timespecFromDelay(struct timespec *ts, long int delayMs);
 } // extern "C"
 #endif
 
-// Console.h has to be included separately and last.
+// These have to be included separately and last.
+#include "Scheduler.h"
 #include "Console.h"
 
 #endif // NANO_OS_H

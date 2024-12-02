@@ -33,12 +33,6 @@
 
 // Coroutines support
 
-/// @var runningCommands
-///
-/// @brief Pointer to the array of running commands that will be stored in the
-/// main loop function's stack.
-RunningCommand *runningCommands = NULL;
-
 /// @var messages
 ///
 /// @brief pointer to the array of coroutine messages that will be stored in the
@@ -50,105 +44,6 @@ Comessage *messages = NULL;
 /// @brief Pointer to the array of NanoOsMessages that will be stored in the
 /// main loop function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
-
-/// @fn int runSystemProcess(Comessage *comessage)
-///
-/// @brief Run a process in the slot for system processes.
-///
-/// @param comessage A pointer to the Comessage that was received that contains
-///   the information about the process to run and how to run it.
-///
-/// @return Returns 0 on success, non-zero error code on failure.
-int runSystemProcess(Comessage *comessage) {
-  int returnValue = 0;
-
-  Coroutine *coroutine
-    = runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine;
-  if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-    CommandEntry *commandEntry
-      = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-    CoroutineFunction func = commandEntry->func;
-    coroutine = coroutineCreate(func);
-    coroutineSetId(coroutine, NANO_OS_SYSTEM_PROCESS_ID);
-
-    runningCommands[NANO_OS_SYSTEM_PROCESS_ID].coroutine = coroutine;
-    runningCommands[NANO_OS_SYSTEM_PROCESS_ID].name = commandEntry->name;
-
-    coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
-  } else {
-    printConsole("ERROR:  System process already running.\n");
-    returnValue = EBUSY;
-  }
-
-  return returnValue;
-}
-
-/// @var mainCoroutineCommandHandlers
-///
-/// @brief Array of function pointers for commands that are understood by the
-/// message handler for the main loop function.
-int (*mainCoroutineCommandHandlers[])(Comessage*) = {
-  runSystemProcess,
-};
-
-/// @fn void handleMainCoroutineMessage(void)
-///
-/// @brief Handle one (and only one) message from our message queue.  If
-/// handling the message is unsuccessful, the message will be returned to the
-/// end of our message queue.
-///
-/// @return This function returns no value.
-void handleMainCoroutineMessage(void) {
-  Comessage *message = comessageQueuePop();
-  if (message != NULL) {
-    MainCoroutineCommand messageType
-      = (MainCoroutineCommand) comessageType(message);
-    if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
-      // Invalid.  Purge the message.
-      if (comessageRelease(message) != coroutineSuccess) {
-        printConsole("ERROR!!!  "
-          "Could not release message from handleMainCoroutineMessage "
-          "for invalid message type.\n");
-      }
-      return;
-    }
-
-    int returnValue = mainCoroutineCommandHandlers[messageType](message);
-    if (returnValue == 0) {
-      // Purge the message.
-      if (comessageRelease(message) != coroutineSuccess) {
-        printConsole("ERROR!!!  "
-          "Could not release message from handleMainCoroutineMessage "
-          "after handling message.\n");
-      }
-    } else {
-      // Processing the message failed.  We can't release it.  Put it on the
-      // back of our own queue again and try again later.
-      printConsole("WARNING!  Message handler returned status ");
-      printConsole(returnValue);
-      printConsole(".  Returning unhandled message to back of queue.\n");
-      comessageQueuePush(NULL, message);
-    }
-  }
-
-  return;
-}
-
-/// @fn void* dummyProcess(void *args)
-///
-/// @brief Dummy process that's loaded at startup to prepopulate the process
-/// array with coroutines.  Apart from that, the other purpose is to call
-/// getFreeRamBytes so that we compute the actual amount of RAM left instead
-/// of getting what each coroutine thinks it has.
-///
-/// @param args Any arguments passed to this function.  Ignored.
-///
-/// @return This function always returns NULL.
-void* dummyProcess(void *args) {
-  (void) args;
-  (void) getFreeRamBytes();
-  nanoOsExitProcess(NULL);
-}
 
 /// @var freeRamBytes
 ///
