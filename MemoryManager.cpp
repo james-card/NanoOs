@@ -114,9 +114,6 @@ void localFree(void *ptr) {
     // Check the size of the memory in case someone tries to free the same
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
-      printf("Freeing pointer %p.\n", ptr);
-      printf("Freeing %u bytes.\n", memNode(ptr)->size);
-      printf("Current value of _mallocNext = %p\n", _mallocNext);
       if (charPointer == _mallocNext) {
         // Special case.  The value being freed is the last one that was
         // allocated.  Do memory compaction.
@@ -128,7 +125,6 @@ void localFree(void *ptr) {
           _mallocNext = (char*) &cur[1];
         }
       }
-      printf("Updated value of _mallocNext = %p\n", _mallocNext);
       
       // Clear out the size.
       memNode(charPointer)->size = 0;
@@ -204,14 +200,10 @@ void* localRealloc(void *ptr, size_t size) {
   
   // We're allocating new memory.
   if ((((uintptr_t) (_mallocNext - size - sizeof(MemNode))) >= _mallocEnd)) {
-    printf("_mallocNext = %p before allocation.\n", _mallocNext);
-    printf("Allocating %u bytes.\n", size);
     returnValue = _mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
-    printf("memNode(returnValue)->size = %u\n", memNode(returnValue)->size);
     memNode(returnValue)->prev = memNode(_mallocNext);
     _mallocNext -= size + sizeof(MemNode);
-    printf("_mallocNext = %p after allocation.\n", _mallocNext);
   } // else we don't have enough memory left to satisfy the request.
   
   if ((returnValue != NULL) && (ptr != NULL)) {
@@ -314,15 +306,8 @@ void handleMemoryManagerMessages(void) {
 ///
 /// @return This function returns no value and, indeed, never actually returns.
 void initializeGlobals(jmp_buf returnBuffer, char *stack) {
-  extern int __heap_start, *__brkval; 
+  extern int __heap_start;
   char a = '\0';
-  printf("%s:  getFreeRamBytes() = %d\n", __func__, getFreeRamBytes());
-  printf("&__heap_start = %p\n", &__heap_start);
-  printf("__brkval = %p\n", __brkval);
-  printf("a = %c", a);
-  printf("\n");
-  printf("&a = %p\n", &a);
-  printf("sizeof(MemNode) = %u\n", sizeof(MemNode));
   
   _mallocBuffer = &a;
   _mallocNext = _mallocBuffer;
@@ -374,7 +359,6 @@ void allocateStack(jmp_buf returnBuffer, int stackSize, char *topOfStack) {
 void* memoryManager(void *args) {
   (void) args;
   
-  printf("%s:  getFreeRamBytes() = %d\n", __func__, getFreeRamBytes());
   jmp_buf returnBuffer;
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
@@ -384,12 +368,6 @@ void* memoryManager(void *args) {
   
   printConsole("\n");
   printf("Using %u bytes of dynamic memory.\n", dynamicMemorySize);
-  printf("returnBuffer = %p\n", returnBuffer);
-  printf("_mallocBuffer = %p\n", _mallocBuffer);
-  printf("_mallocNext = %p\n", _mallocNext);
-  printf("_mallocEnd = %p\n", _mallocEnd);
-  
-  printf("Finished initializing memory.\n");
   releaseConsole();
   
   while (1) {
