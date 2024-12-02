@@ -243,8 +243,8 @@ int memoryManagerHandleRealloc(Comessage *incoming) {
   
   Coroutine *from = comessageFrom(incoming);
   
-  // We need to mark waiting as true here so that comessageWaitForDone works
-  // correctly on the client side.
+  // We need to mark waiting as true here so that comessageSetDone signals the
+  // client side correctly.
   comessageInit(response, MEMORY_MANAGER_RETURNING_POINTER,
     clientReturnValue, clientReturnSize, true);
   if (comessageQueuePush(from, response) != coroutineSuccess) {
@@ -319,13 +319,23 @@ void initializeGlobals(jmp_buf returnBuffer, char *stack) {
   longjmp(returnBuffer, (int) stack);
 }
 
-/// @fn void allocateStack(jmp_buf returnBuffer)
+/// @fn void allocateStack(
+///   jmp_buf returnBuffer, int stackSize, char *topOfStack)
 ///
 /// @brief Allocate space on the stack for the main process and then call
 /// initializeGlobals to finish the initialization process.
 ///
+/// @details
+/// This function is way more involved than it should be.  It really should just
+/// declare a single buffer and then call initializeGlobals.  The problem was
+/// that the compiler kept optimizing the stack out when it was that simple.
+/// I guess it could detect that it was never used.  That won't work for our
+/// purposes, so I had to make it more complicated.
+///
 /// @param returnBuffer The jmp_buf that will be used to resume execution in the
 ///   main process function.
+/// @param stackSize The desired stack size to allocate.
+/// @param topOfStack A pointer to the first stack pointer that gets created.
 ///
 /// @return This function returns no value and, indeed, never actually returns.
 void allocateStack(jmp_buf returnBuffer, int stackSize, char *topOfStack) {
