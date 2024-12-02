@@ -37,7 +37,7 @@
 /// main loop function's stack.
 RunningCommand *runningCommands = NULL;
 
-/// @fn int runSystemProcess(Comessage *comessage)
+/// @fn int runProcess(Comessage *comessage)
 ///
 /// @brief Run a process in the slot for system processes.
 ///
@@ -45,25 +45,61 @@ RunningCommand *runningCommands = NULL;
 ///   the information about the process to run and how to run it.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int runSystemProcess(Comessage *comessage) {
+int runProcess(Comessage *comessage) {
   int returnValue = 0;
+  if (comessage == NULL) {
+    // This should be impossible, but there's nothing to do.  Return good
+    // status.
+    return returnValue; // 0
+  }
 
-  Coroutine *coroutine
-    = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
-  if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-    CommandEntry *commandEntry
-      = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-    CoroutineFunction func = commandEntry->func;
-    coroutine = coroutineCreate(func);
-    coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
+  CommandEntry *commandEntry
+    = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+  if (commandEntry->userProcess == false) {
+    // This is not the expected case, but it's the priority case, so list it
+    // first.
+    Coroutine *coroutine
+      = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
+    if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
+      CoroutineFunction func = commandEntry->func;
+      coroutine = coroutineCreate(func);
+      coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
 
-    runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-    runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
+      runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
+      runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
 
-    coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
+      coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
+    } else {
+      returnValue = EBUSY;
+      releaseConsole();
+    }
   } else {
-    printConsole("ERROR:  System process already running.\n");
-    returnValue = EBUSY;
+    // Find an open non-reserved slot.
+    int jj = NANO_OS_FIRST_PROCESS_ID;
+    for (; jj < NANO_OS_NUM_COMMANDS; jj++) {
+      Coroutine *coroutine = runningCommands[jj].coroutine;
+      if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
+        coroutine = coroutineCreate(commandEntry->func);
+        coroutineSetId(coroutine, jj);
+
+        runningCommands[jj].coroutine = coroutine;
+        runningCommands[jj].name = commandEntry->name;
+
+        coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
+        break;
+      }
+    }
+
+    if (jj == NANO_OS_NUM_COMMANDS) {
+      // printf is blocking.  handleCommand is called from runConsole itself,
+      // so we can't use a blocking call here.  Use the non-blocking
+      // printString instead.
+      printString("Out of memory to launch process.\n");
+      // This is a user process, not a system process, so the user is just out
+      // of luck.  *DO NOT* set returnValue to a non-zero value here as that
+      // would result in an infinite loop.
+      releaseConsole();
+    }
   }
 
   return returnValue;
@@ -74,7 +110,7 @@ int runSystemProcess(Comessage *comessage) {
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 int (*schedulerCommandHandlers[])(Comessage*) = {
-  runSystemProcess,
+  runProcess,
 };
 
 /// @fn void handleSchedulerMessage(void)
@@ -91,7 +127,7 @@ void handleSchedulerMessage(void) {
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
       if (comessageRelease(message) != coroutineSuccess) {
-        printConsole("ERROR!!!  "
+        printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
       }
@@ -102,16 +138,13 @@ void handleSchedulerMessage(void) {
     if (returnValue == 0) {
       // Purge the message.
       if (comessageRelease(message) != coroutineSuccess) {
-        printConsole("ERROR!!!  "
+        printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "after handling message.\n");
       }
     } else {
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
-      printConsole("WARNING!  Message handler returned status ");
-      printConsole(returnValue);
-      printConsole(".  Returning unhandled message to back of queue.\n");
       comessageQueuePush(NULL, message);
     }
   }

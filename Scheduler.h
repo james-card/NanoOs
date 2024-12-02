@@ -48,7 +48,7 @@ extern "C"
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.
 typedef enum SchedulerCommand {
-  RUN_SYSTEM_PROCESS,
+  RUN_PROCESS,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 

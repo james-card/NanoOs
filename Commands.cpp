@@ -294,45 +294,13 @@ void handleCommand(char *consoleInput) {
   }
 
   if (commandEntry != NULL) {
-    if (commandEntry->userProcess == true) {
-      int jj = NANO_OS_FIRST_PROCESS_ID;
-      for (; jj < NANO_OS_NUM_COMMANDS; jj++) {
-        Coroutine *coroutine = runningCommands[jj].coroutine;
-        if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-          coroutine = coroutineCreate(commandEntry->func);
-          coroutineSetId(coroutine, jj);
-
-          runningCommands[jj].coroutine = coroutine;
-          runningCommands[jj].name = commandEntry->name;
-
-          coroutineResume(coroutine, consoleInput);
-          break;
-        }
-      }
-
-      if (jj == NANO_OS_NUM_COMMANDS) {
-        // printf is blocking.  handleCommand is called from runConsole itself,
-        // so we can't use a blocking call here.  Use the non-blocking
-        // printConsole instead.
-        printConsole("Out of memory to launch process.\n");
-        releaseConsole();
-      }
-    } else {
-      // We need to run this command from the reserved coroutine.
-      Coroutine *coroutine
-        = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
-      if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-        coroutine = coroutineCreate(commandEntry->func);
-        coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
-
-        runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-        runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
-
-        coroutineResume(coroutine, consoleInput);
-      } else {
-        printConsole("ERROR:  System process already running.\n");
-        releaseConsole();
-      }
+    // Send the found entry over to the scheduler.
+    if (sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, RUN_PROCESS,
+      (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
+      false) == NULL
+    ) {
+      printConsole("ERROR!!!  Could not communicate with scheduler.\n");
+      releaseConsole();
     }
   } else {
     // printf is blocking.  handleCommand is called from runConsole itself, so
