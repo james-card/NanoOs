@@ -1089,6 +1089,10 @@ int coroutineConfig(Coroutine *first, int stackSize) {
 #endif // THREAD_SAFE_COROUTINES
   if (first != NULL) {
     memset(first, 0, sizeof(Coroutine));
+    // This function is called from what will become the main coroutine (pointed
+    // to by the first pointer), so by definition, it's running.  Mark it as
+    // such.
+    first->state = COROUTINE_STATE_RUNNING;
     _globalFirst = first;
     _globalRunning = first;
   } else if (_globalFirst == NULL) {
