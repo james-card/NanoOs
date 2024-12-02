@@ -69,42 +69,41 @@ int runSystemProcess(Comessage *comessage) {
   return returnValue;
 }
 
-/// @var mainCoroutineCommandHandlers
+/// @var schedulerCommandHandlers
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
-int (*mainCoroutineCommandHandlers[])(Comessage*) = {
+int (*schedulerCommandHandlers[])(Comessage*) = {
   runSystemProcess,
 };
 
-/// @fn void handleMainCoroutineMessage(void)
+/// @fn void handleSchedulerMessage(void)
 ///
 /// @brief Handle one (and only one) message from our message queue.  If
 /// handling the message is unsuccessful, the message will be returned to the
 /// end of our message queue.
 ///
 /// @return This function returns no value.
-void handleMainCoroutineMessage(void) {
+void handleSchedulerMessage(void) {
   Comessage *message = comessageQueuePop();
   if (message != NULL) {
-    MainCoroutineCommand messageType
-      = (MainCoroutineCommand) comessageType(message);
-    if (messageType >= NUM_MAIN_COROUTINE_COMMANDS) {
+    SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
+    if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
       if (comessageRelease(message) != coroutineSuccess) {
         printConsole("ERROR!!!  "
-          "Could not release message from handleMainCoroutineMessage "
+          "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
       }
       return;
     }
 
-    int returnValue = mainCoroutineCommandHandlers[messageType](message);
+    int returnValue = schedulerCommandHandlers[messageType](message);
     if (returnValue == 0) {
       // Purge the message.
       if (comessageRelease(message) != coroutineSuccess) {
         printConsole("ERROR!!!  "
-          "Could not release message from handleMainCoroutineMessage "
+          "Could not release message from handleSchedulerMessage "
           "after handling message.\n");
       }
     } else {
@@ -182,7 +181,7 @@ void runScheduler(void) {
   int coroutineIndex = 0;
   while (1) {
     coroutineResume(*scheduledCoroutines[coroutineIndex], NULL);
-    handleMainCoroutineMessage();
+    handleSchedulerMessage();
     coroutineIndex++;
     coroutineIndex %= numScheduledCoroutines;
   }

@@ -44,14 +44,13 @@ extern "C"
 {
 #endif
 
-/// @enum MainCoroutineCommand
+/// @enum SchedulerCommand
 ///
-/// @brief Commands understood by the main coroutine inter-process message
-/// handler.
-typedef enum MainCoroutineCommand {
+/// @brief Commands understood by the scheduler inter-process message handler.
+typedef enum SchedulerCommand {
   RUN_SYSTEM_PROCESS,
-  NUM_MAIN_COROUTINE_COMMANDS
-} MainCoroutineCommand;
+  NUM_SCHEDULER_COMMANDS
+} SchedulerCommand;
 
 
 // Exported variables
