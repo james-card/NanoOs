@@ -70,25 +70,25 @@ typedef struct MemNode {
 /// @brief Determine whether or not a pointer was allocated from the allocators
 /// in this library.
 #define isDynamicPointer(ptr) \
-  ((((uintptr_t) (ptr)) <= memoryManagerMetadata->mallocStart) \
-    && (((uintptr_t) (ptr)) >= memoryManagerMetadata->mallocEnd))
+  ((((uintptr_t) (ptr)) <= memoryManagerState->mallocStart) \
+    && (((uintptr_t) (ptr)) >= memoryManagerState->mallocEnd))
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/// @fn void localFree(MemoryManagerMetadata *memoryManagerMetadata, void *ptr)
+/// @fn void localFree(MemoryManagerState *memoryManagerState, void *ptr)
 ///
 /// @brief Free a previously-allocated block of memory.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param ptr A pointer to the block of memory to free.
 ///
 /// @return This function always succeeds and returns no value.
-void localFree(MemoryManagerMetadata *memoryManagerMetadata, void *ptr) {
+void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
   char *charPointer = (char*) ptr;
   
   if (isDynamicPointer(ptr)) {
@@ -97,16 +97,16 @@ void localFree(MemoryManagerMetadata *memoryManagerMetadata, void *ptr) {
     // Check the size of the memory in case someone tries to free the same
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
-      if (charPointer == memoryManagerMetadata->mallocNext) {
+      if (charPointer == memoryManagerState->mallocNext) {
         // Special case.  The value being freed is the last one that was
         // allocated.  Do memory compaction.
-        memoryManagerMetadata->mallocNext
+        memoryManagerState->mallocNext
           += sizeOfMemory(ptr) + sizeof(MemNode);
         for (MemNode *cur = memNode(ptr)->prev;
           (cur != NULL) && (cur->size == 0);
           cur = cur->prev
         ) {
-          memoryManagerMetadata->mallocNext = (char*) &cur[1];
+          memoryManagerState->mallocNext = (char*) &cur[1];
         }
       }
       
@@ -118,12 +118,12 @@ void localFree(MemoryManagerMetadata *memoryManagerMetadata, void *ptr) {
   return;
 }
 
-/// @fn void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
+/// @fn void* localRealloc(MemoryManagerState *memoryManagerState,
 ///   void *ptr, size_t size)
 ///
 /// @brief Reallocate a provided pointer to a new size.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param ptr A pointer to the original block of dynamic memory.  If this value
@@ -133,7 +133,7 @@ void localFree(MemoryManagerMetadata *memoryManagerMetadata, void *ptr) {
 ///
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or on free.
-void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
+void* localRealloc(MemoryManagerState *memoryManagerState,
   void *ptr, size_t size
 ) {
   char *charPointer = (char*) ptr;
@@ -142,7 +142,7 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
   if (size == 0) {
     // In this case, there's no point in going through any path below.  Just
     // free it, return NULL, and be done with it.
-    localFree(memoryManagerMetadata, ptr);
+    localFree(memoryManagerState, ptr);
     return NULL;
   }
   
@@ -153,13 +153,13 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
       // being requested.  *DO NOT* update the size in this case.  Just
       // return the current pointer.
       return ptr;
-    } else if (charPointer == memoryManagerMetadata->mallocNext) {
+    } else if (charPointer == memoryManagerState->mallocNext) {
       // The pointer we're reallocating is the last one allocated.  We have
       // an opportunity to just extend the existing block of memory instead
       // of allocating an entirely new block.
       if ((uintptr_t) (charPointer - size - sizeof(MemNode)
           + memNode(charPointer)->size)
-        >= memoryManagerMetadata->mallocEnd
+        >= memoryManagerState->mallocEnd
       ) {
         size_t oldSize = memNode(ptr)->size;
         returnValue = charPointer - size + memNode(charPointer)->size;
@@ -174,8 +174,8 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
           *newPointer = *oldPointer;
           ii++;
         }
-        // Update memoryManagerMetadata->mallocNext with the new last pointer.
-        memoryManagerMetadata->mallocNext = returnValue;
+        // Update memoryManagerState->mallocNext with the new last pointer.
+        memoryManagerState->mallocNext = returnValue;
         return returnValue;
       } else {
         // Out of memory.  Fail the request.
@@ -190,13 +190,13 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
   
   // We're allocating new memory.
   if ((((uintptr_t) (
-      memoryManagerMetadata->mallocNext - size - sizeof(MemNode))
-    ) >= memoryManagerMetadata->mallocEnd)
+      memoryManagerState->mallocNext - size - sizeof(MemNode))
+    ) >= memoryManagerState->mallocEnd)
   ) {
-    returnValue = memoryManagerMetadata->mallocNext - size - sizeof(MemNode);
+    returnValue = memoryManagerState->mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
-    memNode(returnValue)->prev = memNode(memoryManagerMetadata->mallocNext);
-    memoryManagerMetadata->mallocNext -= size + sizeof(MemNode);
+    memNode(returnValue)->prev = memNode(memoryManagerState->mallocNext);
+    memoryManagerState->mallocNext -= size + sizeof(MemNode);
   } // else we don't have enough memory left to satisfy the request.
   
   if ((returnValue != NULL) && (ptr != NULL)) {
@@ -205,7 +205,7 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
     // the data from the old memory to the new memory and free the old
     // memory.
     memcpy(returnValue, ptr, sizeOfMemory(ptr));
-    localFree(memoryManagerMetadata, ptr);
+    localFree(memoryManagerState, ptr);
   }
   
   return returnValue;
@@ -218,18 +218,18 @@ void* localRealloc(MemoryManagerMetadata *memoryManagerMetadata,
 /******************* End Custom Memory Management Functions *******************/
 
 /// @fn int memoryManagerHandleRealloc(
-///   MemoryManagerMetadata *memoryManagerMetadata, Comessage *incoming)
+///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_REALLOC command.  Extracts the
 /// ReallocMessage from the message and passes the parameters to localRealloc.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleRealloc(
-  MemoryManagerMetadata *memoryManagerMetadata, Comessage *incoming
+  MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   // We're going to reuse the incoming message as the outgoing message.
   Comessage *response = incoming;
@@ -237,7 +237,7 @@ int memoryManagerHandleRealloc(
   int returnValue = 0;
   ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
   void *clientReturnValue
-    = localRealloc(memoryManagerMetadata,
+    = localRealloc(memoryManagerState,
       reallocMessage->ptr, reallocMessage->size);
   size_t clientReturnSize
     = (clientReturnValue != NULL) ? reallocMessage->size : 0;
@@ -266,23 +266,23 @@ int memoryManagerHandleRealloc(
 /// @brief Array of function pointers for handlers for commands that are
 /// understood by this library.
 int (*memoryManagerCommand[])(
-  MemoryManagerMetadata *memoryManagerMetadata, Comessage *incoming
+  MemoryManagerState *memoryManagerState, Comessage *incoming
 ) = {
   memoryManagerHandleRealloc,
 };
 
 /// @fn void handleMemoryManagerMessages(
-///   MemoryManagerMetadata *memoryManagerMetadata)
+///   MemoryManagerState *memoryManagerState)
 ///
 /// @brief Handle memory manager messages from the process's queue until there
 /// are no more waiting.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 ///
 /// @return This function returns no value.
-void handleMemoryManagerMessages(MemoryManagerMetadata *memoryManagerMetadata) {
+void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
   Comessage *comessage = comessageQueuePop();
   while (comessage != NULL) {
     MemoryManagerCommand messageType
@@ -294,7 +294,7 @@ void handleMemoryManagerMessages(MemoryManagerMetadata *memoryManagerMetadata) {
       continue;
     }
     
-    memoryManagerCommand[messageType](memoryManagerMetadata, comessage);
+    memoryManagerCommand[messageType](memoryManagerState, comessage);
     
     comessage = comessageQueuePop();
   }
@@ -302,13 +302,13 @@ void handleMemoryManagerMessages(MemoryManagerMetadata *memoryManagerMetadata) {
   return;
 }
 
-/// @fn void initializeGlobals(MemoryManagerMetadata *memoryManagerMetadata,
+/// @fn void initializeGlobals(MemoryManagerState *memoryManagerState,
 ///   jmp_buf returnBuffer, char *stack)
 ///
 /// @brief Initialize the global variables that will be needed by the memory
 /// management functions and then resume execution in the main process function.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param returnBuffer The jmp_buf that will be used to resume execution in the
@@ -317,26 +317,26 @@ void handleMemoryManagerMessages(MemoryManagerMetadata *memoryManagerMetadata) {
 ///   the compiler doesn't optimize it out.
 ///
 /// @return This function returns no value and, indeed, never actually returns.
-void initializeGlobals(MemoryManagerMetadata *memoryManagerMetadata,
+void initializeGlobals(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, char *stack
 ) {
   extern int __heap_start, *__brkval;
   char mallocBufferStart = '\0';
   
-  memoryManagerMetadata->mallocBuffer = &mallocBufferStart;
-  memoryManagerMetadata->mallocNext = memoryManagerMetadata->mallocBuffer;
-  memNode(memoryManagerMetadata->mallocNext)->size = 0;
-  memNode(memoryManagerMetadata->mallocNext)->prev = NULL;
-  memoryManagerMetadata->mallocStart
-    = (uintptr_t) memoryManagerMetadata->mallocNext;
+  memoryManagerState->mallocBuffer = &mallocBufferStart;
+  memoryManagerState->mallocNext = memoryManagerState->mallocBuffer;
+  memNode(memoryManagerState->mallocNext)->size = 0;
+  memNode(memoryManagerState->mallocNext)->prev = NULL;
+  memoryManagerState->mallocStart
+    = (uintptr_t) memoryManagerState->mallocNext;
   
   // We want to grab as much memory as possible for the memory manager.  If we
   // call getFreeRamBytes() from here, we will get the amount available minus
   // the amount used on the stack to call the function, which will be less than
   // the total amount available.  Rather than doing that, directly reimplement
   // the logic here so that we get the maximum value.
-  memoryManagerMetadata->mallocEnd
-    = ((uintptr_t) memoryManagerMetadata->mallocBuffer)
+  memoryManagerState->mallocEnd
+    = ((uintptr_t) memoryManagerState->mallocBuffer)
     - ((uintptr_t) (((uintptr_t) &mallocBufferStart)
         - ((__brkval == NULL)
           ? (uintptr_t) &__heap_start
@@ -349,7 +349,7 @@ void initializeGlobals(MemoryManagerMetadata *memoryManagerMetadata,
   longjmp(returnBuffer, (int) stack);
 }
 
-/// @fn void allocateStack(MemoryManagerMetadata *memoryManagerMetadata,
+/// @fn void allocateStack(MemoryManagerState *memoryManagerState,
 ///   jmp_buf returnBuffer, int stackSize, char *topOfStack)
 ///
 /// @brief Allocate space on the stack for the main process and then call
@@ -362,7 +362,7 @@ void initializeGlobals(MemoryManagerMetadata *memoryManagerMetadata,
 /// I guess it could detect that it was never used.  That won't work for our
 /// purposes, so I had to make it more complicated.
 ///
-/// @param memoryManagerMetadata A pointer to the MemoryManagerMetadata
+/// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param returnBuffer The jmp_buf that will be used to resume execution in the
@@ -371,7 +371,7 @@ void initializeGlobals(MemoryManagerMetadata *memoryManagerMetadata,
 /// @param topOfStack A pointer to the first stack pointer that gets created.
 ///
 /// @return This function returns no value and, indeed, never actually returns.
-void allocateStack(MemoryManagerMetadata *memoryManagerMetadata,
+void allocateStack(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, int stackSize, char *topOfStack
 ) {
   char stack[MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE];
@@ -383,25 +383,25 @@ void allocateStack(MemoryManagerMetadata *memoryManagerMetadata,
   
   if (stackSize > MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE) {
     allocateStack(
-      memoryManagerMetadata,
+      memoryManagerState,
       returnBuffer,
       stackSize - MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE,
       topOfStack);
   }
   
-  initializeGlobals(memoryManagerMetadata, returnBuffer, topOfStack);
+  initializeGlobals(memoryManagerState, returnBuffer, topOfStack);
 }
 
-void printMemoryManagerMetadata(MemoryManagerMetadata *memoryManagerMetadata) {
+void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
   extern int __heap_start;
-  printf("memoryManagerMetadata.mallocBuffer = %p\n",
-    memoryManagerMetadata->mallocBuffer);
-  printf("memoryManagerMetadata.mallocNext = %p\n",
-    memoryManagerMetadata->mallocNext);
-  printf("memoryManagerMetadata.mallocStart = 0x%04x\n",
-    memoryManagerMetadata->mallocStart);
-  printf("memoryManagerMetadata.mallocEnd = 0x%04x\n",
-    memoryManagerMetadata->mallocEnd);
+  printf("memoryManagerState.mallocBuffer = %p\n",
+    memoryManagerState->mallocBuffer);
+  printf("memoryManagerState.mallocNext = %p\n",
+    memoryManagerState->mallocNext);
+  printf("memoryManagerState.mallocStart = 0x%04x\n",
+    memoryManagerState->mallocStart);
+  printf("memoryManagerState.mallocEnd = 0x%04x\n",
+    memoryManagerState->mallocEnd);
   printf("&__heap_start = %p\n", &__heap_start);
   
   return;
@@ -421,23 +421,23 @@ void* memoryManager(void *args) {
   (void) args;
   printConsole("\n");
   
-  MemoryManagerMetadata memoryManagerMetadata;
+  MemoryManagerState memoryManagerState;
   jmp_buf returnBuffer;
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
-    allocateStack(&memoryManagerMetadata, returnBuffer,
+    allocateStack(&memoryManagerState, returnBuffer,
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
   
-  printMemoryManagerMetadata(&memoryManagerMetadata);
+  printMemoryManagerState(&memoryManagerState);
   dynamicMemorySize
-    = memoryManagerMetadata.mallocStart - memoryManagerMetadata.mallocEnd + 1;
+    = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
   printf("Using %u bytes of dynamic memory.\n", dynamicMemorySize);
   releaseConsole();
   
   while (1) {
     coroutineYield(NULL);
-    handleMemoryManagerMessages(&memoryManagerMetadata);
+    handleMemoryManagerMessages(&memoryManagerState);
   }
   
   return NULL;

@@ -90,7 +90,7 @@ typedef struct ReallocMessage {
   size_t size;
 } ReallocMessage;
 
-/// @struct MemoryManagerMetadata
+/// @struct MemoryManagerState
 ///
 /// @brief State metadata the memory manager process uses for allocations and
 /// deallocations.
@@ -102,12 +102,12 @@ typedef struct ReallocMessage {
 ///   allocate memory from.
 /// @param mallocEnd The numeric value of the last address available to allocate
 ///   memory from.
-typedef struct MemoryManagerMetadata {
+typedef struct MemoryManagerState {
   char *mallocBuffer;
   char *mallocNext;
   uintptr_t mallocStart;
   uintptr_t mallocEnd;
-} MemoryManagerMetadata;
+} MemoryManagerState;
 
 // Function prototypes
 void* memoryManager(void *args);
