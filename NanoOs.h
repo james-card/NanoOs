@@ -199,7 +199,7 @@ void handleMainCoroutineMessage(void);
 void* dummyProcess(void *args);
 
 // Support functions
-int getFreeRamBytes(void);
+uintptr_t getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 Coroutine* getCoroutineByPid(unsigned int pid);
 Comessage* sendComessageToCoroutine(Coroutine *coroutine,

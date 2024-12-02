@@ -155,21 +155,25 @@ void* dummyProcess(void *args) {
 /// @brief The number of free bytes of RAM in the system.  Initialized to
 /// INT_MAX and re-set every time a smaller value is computed.  The value of
 /// this variable will be the value ultimately returned by getFreeRamBytes.
-int freeRamBytes = INT_MAX;
+uintptr_t freeRamBytes = INT_MAX;
 
-/// @fn int getFreeRamBytes(void)
+/// @fn uintptr_t getFreeRamBytes(void)
 ///
 /// @brief Calculate the number of bytes that are available from the level of
 /// the current function call.  If that value is smaller than the current value
 /// of the freeRamBytes global variable, set freeRamBytes to the computed value.
 ///
 /// @return Returns the value of freeRamBytes after any updates have been made.
-int getFreeRamBytes(void) {
-  extern int __heap_start,*__brkval;
-  int v;
+uintptr_t getFreeRamBytes(void) {
+  extern int __heap_start, *__brkval;
+  int var;
 
-  int currentFreeRamBytes = (int)&v - (__brkval == 0
-    ? (int)&__heap_start : (int) __brkval);
+  uintptr_t currentFreeRamBytes = (uintptr_t) (((uintptr_t) &var)
+    - ((__brkval == NULL)
+      ? (uintptr_t) &__heap_start
+      : (uintptr_t) __brkval
+    )
+  );
   if (currentFreeRamBytes < freeRamBytes) {
     freeRamBytes = currentFreeRamBytes;
   }
