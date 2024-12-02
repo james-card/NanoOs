@@ -109,13 +109,6 @@ void* echo(void *args) {
   // own buffer and still be safe.
   char consoleCopy[256];
   char *argsBegin = (char*) args;
-  char *newlineAt = strchr(argsBegin, '\r');
-  if (newlineAt == NULL) {
-    newlineAt = strchr(argsBegin, '\n');
-  }
-  // One of the two must have succeeded, otherwise this command wouldn't have
-  // been called.  So, we can safely dereference the pointer here.
-  *newlineAt = '\0';
   strcpy(consoleCopy, argsBegin);
   // We're done with the console input, so yield now.
   coroutineYield(NULL);
@@ -212,7 +205,7 @@ void* showInfo(void *args) {
   printf("\n");
   printf("- strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
-  free(myString);
+  free(myString); // We don't want to set it to NULL in this case.
   printf("- myString after free: '%s'", myString);
   printf("\n");
   printf("- strlen(myString) after free: %u\n", strlen(myString));
@@ -223,7 +216,7 @@ void* showInfo(void *args) {
   printf("\n");
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
-  free(myString); myString = NULL;
+  myString = stringDestroy(myString);
 
   releaseConsole();
   nanoOsExitProcess(NULL);
@@ -261,6 +254,10 @@ void* ver(void *args) {
 ///
 /// @return This function returns no value.
 void handleCommand(char *consoleInput) {
+  printString("Parsing consoleInput: ");
+  printString(consoleInput);
+  printString("\n");
+
   CommandEntry *commandEntry = NULL;
   int searchIndex = NUM_COMMANDS >> 1;
   size_t commandNameLength = strcspn(consoleInput, " \t\r\n");
@@ -283,7 +280,6 @@ void handleCommand(char *consoleInput) {
 
     if (comparisonValue == 0) {
       commandEntry = &commands[searchIndex];
-      consoleInput += commandNameLength + 1;
       break;
     } else if (comparisonValue < 0) {
       ii = searchIndex + 1;
@@ -301,6 +297,7 @@ void handleCommand(char *consoleInput) {
       false) == NULL
     ) {
       printConsole("ERROR!!!  Could not communicate with scheduler.\n");
+      consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
   } else {
@@ -308,6 +305,7 @@ void handleCommand(char *consoleInput) {
     // we can't use a blocking call here.  Use the non-blocking printConsole
     // instead.
     printConsole("Unknown command.\n");
+    consoleInput = stringDestroy(consoleInput);
     releaseConsole();
   }
 

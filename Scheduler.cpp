@@ -55,6 +55,7 @@ int runProcess(Comessage *comessage) {
 
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
   if (commandEntry->userProcess == false) {
     // This is not the expected case, but it's the priority case, so list it
     // first.
@@ -68,9 +69,11 @@ int runProcess(Comessage *comessage) {
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
 
-      coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
+      coroutineResume(coroutine, consoleInput);
     } else {
       returnValue = EBUSY;
+      // Don't call stringDestroy with consoleInput because we're going to try
+      // this command in a bit.
       releaseConsole();
     }
   } else {
@@ -85,7 +88,7 @@ int runProcess(Comessage *comessage) {
         runningCommands[jj].coroutine = coroutine;
         runningCommands[jj].name = commandEntry->name;
 
-        coroutineResume(coroutine, nanoOsMessageDataPointer(comessage, void*));
+        coroutineResume(coroutine, consoleInput);
         break;
       }
     }
@@ -98,6 +101,7 @@ int runProcess(Comessage *comessage) {
       // This is a user process, not a system process, so the user is just out
       // of luck.  *DO NOT* set returnValue to a non-zero value here as that
       // would result in an infinite loop.
+      consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
   }

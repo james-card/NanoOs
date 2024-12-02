@@ -492,11 +492,26 @@ void* runConsole(void *args) {
 
     if ((serialData == ((int) '\n')) || (serialData == ((int) '\r'))) {
       // NULL-terminate the buffer.
+      consoleIndex--;
       consoleBuffer[consoleIndex] = '\0';
       if (serialData == ((int) '\r')) {
         Serial.println("");
       }
-      handleCommand(consoleBuffer);
+
+      // Use consoleIndex as the size to create a buffer and make a copy.
+      printString("consoleBuffer:  ");
+      printString(consoleBuffer);
+      printString("\n");
+      printString("consoleIndex:  ");
+      printInt(consoleIndex);
+      printString("\n");
+      char *bufferCopy = (char*) malloc(consoleIndex + 1);
+      memcpy(bufferCopy, consoleBuffer, consoleIndex);
+      bufferCopy[consoleIndex] = '\0';
+      printString("bufferCopy:  ");
+      printString(bufferCopy);
+      printString("\n");
+      handleCommand(bufferCopy);
       // If the command has already returned or wrote to the console before its
       // first yield, we may need to display its output.  Handle the next
       // next message in our queue just in case.
