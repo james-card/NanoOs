@@ -176,8 +176,6 @@ uintptr_t getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
 Comessage* getAvailableMessage(void);
-Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
-  NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 Comessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
