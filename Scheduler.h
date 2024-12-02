@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
 /// @author            James Card
-/// @date              11.21.2024
+/// @date              12.02.2024
 ///
-/// @file              NanoOs.h
+/// @file              Scheduler.h
 ///
-/// @brief             Core nanokernel functionality for NanoOs.
+/// @brief             Process scheduler functionality for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2024 James Card
@@ -37,7 +37,6 @@
 #define SCHEDULER_H
 
 // Custom includes
-#include "Commands.h"
 #include "NanoOs.h"
 
 #ifdef __cplusplus
