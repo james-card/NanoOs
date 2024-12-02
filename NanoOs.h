@@ -50,6 +50,7 @@
 #include "Coroutines.h"
 #include "Commands.h"
 #include "MemoryManager.h"
+#include "Scheduler.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -190,8 +191,7 @@ void timespecFromDelay(struct timespec *ts, long int delayMs);
 } // extern "C"
 #endif
 
-// These have to be included separately and last.
-#include "Scheduler.h"
+// This has to be included separately and last.
 #include "Console.h"
 
 #endif // NANO_OS_H
