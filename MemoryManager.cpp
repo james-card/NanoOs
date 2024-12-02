@@ -314,7 +314,7 @@ void initializeGlobals(jmp_buf returnBuffer, char *stack) {
   memNode(_mallocNext)->size = 0;
   memNode(_mallocNext)->prev = NULL;
   _mallocStart = (uintptr_t) _mallocNext;
-  _mallocEnd = (uintptr_t) (((char*) &__heap_start) - 1);
+  _mallocEnd = ((uintptr_t) _mallocBuffer) - ((uintptr_t) getFreeRamBytes());
   
   longjmp(returnBuffer, (int) stack);
 }
