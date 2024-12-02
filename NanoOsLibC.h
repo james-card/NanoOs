@@ -77,6 +77,7 @@ int timespec_get(struct timespec* spec, int base);
 // because most things are defined to be ENOERR.  So, we need to define some of
 // our own.
 #define EBUSY            1      /* Device or resource busy */
+#define ENOMEM           2      /* Out of memory */
 
 
 // Debug functions
