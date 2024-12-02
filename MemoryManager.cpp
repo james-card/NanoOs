@@ -458,12 +458,15 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  Coroutine *coroutine = getCoroutineByPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  
   Comessage sent;
   memset(&sent, 0, sizeof(sent));
   comessageInit(&sent, MEMORY_MANAGER_REALLOC,
     &reallocMessage, sizeof(reallocMessage), true);
-  if (comessageQueuePush(coroutine, &sent) != coroutineSuccess) {
+  
+  if (sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
+    != coroutineSuccess
+  ) {
     // Nothing more we can do.
     return returnValue;
   }

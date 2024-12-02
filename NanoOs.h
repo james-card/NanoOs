@@ -174,11 +174,7 @@ void loop();
 // Support functions
 uintptr_t getFreeRamBytes(void);
 long getElapsedMilliseconds(unsigned long startTime);
-Coroutine* getCoroutineByPid(unsigned int pid);
-Comessage* sendComessageToCoroutine(Coroutine *coroutine,
-  int type, void *data, size_t dataSize, bool waiting);
-Comessage* sendComessageToPid(unsigned int pid,
-  int type, void *data, size_t dataSize, bool waiting);
+int sendComessageToPid(unsigned int pid, Comessage *comessage);
 Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);

@@ -111,70 +111,48 @@ Coroutine* getCoroutineByPid(unsigned int pid) {
   return runningCommands[pid].coroutine;
 }
 
-/// @fn Comessage* sendComessageToCoroutine(Coroutine *coroutine,
-///   int type, void *data, size_t dataSize, bool waiting)
+/// @fn int sendComessageToCoroutine(
+///   Coroutine *coroutine, Comessage *comessage)
 ///
 /// @brief Get an available Comessage, populate it with the specified data, and
 /// push it onto a destination coroutine's queue.
 ///
 /// @param coroutine A pointer to the destination coroutine to send the message
 ///   to.
-/// @param type The integer type of the message.
-/// @param data A pointer to the data contined in the message.
-/// @param dataSize The number of bytes at the data pointer.
-/// @param waiting Whether or not the caller is waiting on a reply to this
-///   message.
+/// @param comessage A pointer to the message to send to the destination
+///   coroutine.
 ///
-/// @return Returns a pointer to the Comessage sent on success, NULL on failure.
-Comessage* sendComessageToCoroutine(Coroutine *coroutine,
-  int type, void *data, size_t dataSize, bool waiting
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int sendComessageToCoroutine(
+  Coroutine *coroutine, Comessage *comessage
 ) {
-  Comessage *comessage = NULL;
-  if (!coroutineRunning(coroutine)) {
-    // Can't send to a non-running coroutine.
-    return comessage; // NULL
+  int returnValue = coroutineSuccess;
+  if ((coroutine == NULL) || (comessage == NULL)) {
+    // Invalid.
+    returnValue = coroutineError;
+    return returnValue;
   }
 
-  comessage = getAvailableMessage();
-  while (comessage == NULL) {
-    coroutineYield(NULL);
-    comessage = getAvailableMessage();
-  }
+  returnValue = comessageQueuePush(coroutine, comessage) != coroutineSuccess;
 
-  comessageInit(comessage, type, data, dataSize, waiting);
-
-  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
-    if (comessageRelease(comessage) != coroutineSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from sendNanoOsMessageToCoroutine.\n");
-    }
-    comessage = NULL;
-  }
-
-  return comessage;
+  return returnValue;
 }
 
-/// @fn Comessage* sendComessageToPid(unsigned int pid,
-///   int type, void *data, size_t dataSize, bool waiting)
+/// @fn int sendComessageToPid(unsigned int pid, Comessage *comessage)
 ///
 /// @brief Look up a coroutine by its PID and send a message to it.
 ///
 /// @param pid The ID of the process to send the message to.
-/// @param type The integer type of the message.
-/// @param data A pointer to the data contined in the message.
-/// @param dataSize The number of bytes at the data pointer.
-/// @param waiting Whether or not the caller is waiting on a reply to this
-///   message.
+/// @param comessage A pointer to the message to send to the destination
+///   process.
 ///
-/// @return Returns a pointer to the Comessage sent on success, NULL on failure.
-Comessage* sendComessageToPid(unsigned int pid,
-  int type, void *data, size_t dataSize, bool waiting
-) {
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int sendComessageToPid(unsigned int pid, Comessage *comessage) {
   Coroutine *coroutine = getCoroutineByPid(pid);
   // If coroutine is NULL, it will be detected as not running by
   // sendComessageToCoroutine, so there's no real point in checking for NULL
   // here.
-  return sendComessageToCoroutine(coroutine, type, data, dataSize, waiting);
+  return sendComessageToCoroutine(coroutine, comessage);
 }
 
 /// Comessage* getAvailableMessage(void)
