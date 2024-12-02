@@ -197,6 +197,16 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   Comessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
     // Can't send to a non-resumable coroutine.
+    printString("ERROR!!!  Coroutine ");
+    printInt(coroutineId(coroutine));
+    printString(" is not running.\n");
+    if (coroutine == NULL) {
+      printString("coroutine is NULL\n");
+    } else {
+      printString("coroutine is in state ");
+      printInt(coroutine->state);
+      printString("\n");
+    }
     return comessage; // NULL
   }
 
@@ -247,6 +257,9 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
   Comessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_COMMANDS) {
     // Not a valid PID.  Fail.
+    printString("ERROR!!!  ");
+    printInt(pid);
+    printString(" is not a valid PID.\n");
     return comessage; // NULL
   }
 
