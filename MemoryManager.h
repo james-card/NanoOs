@@ -62,7 +62,7 @@ extern "C"
 /// will handle messages.  This needs to be as small as possible.  The actual
 /// stack size allocated will be slightly larger than this due to other things
 /// being pushed onto the stack before initializeGlobals is called.
-#define MEMORY_MANAGER_PROCESS_STACK_SIZE 64
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 128
 
 
 /// @enum MemoryManagerCommand
