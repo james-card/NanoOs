@@ -421,6 +421,8 @@ Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
   (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
 #define comessageData(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->data : NULL)
+#define comessageSize(comessagePointer) \
+  (((comessagePointer) != NULL) ? (comessagePointer)->size : 0)
 // No accessor for next member element.
 #define comessageWaiting(comessagePointer) \
   (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
