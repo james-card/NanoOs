@@ -205,22 +205,20 @@ void* showInfo(void *args) {
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
 
-  char *myString = (char*) malloc(10);
+  char *myString = (char*) malloc(16);
+  strcpy(myString, "Hello, world!!!");
   printf("- myString: %p\n", myString);
-  printf("- *myString: '%c'", *myString);
+  printf("- myString: '%s'", myString);
   printf("\n");
-  printf("- *myString: 0x%02x\n", *myString);
   printf("- strlen(myString): %u\n", strlen(myString));
   free(myString);
-  printf("- *myString after free: '%c'", *myString);
+  printf("- myString after free: '%s'", myString);
   printf("\n");
-  printf("- *myString after free: 0x%02x\n", *myString);
   printf("- strlen(myString) after free: %u\n", strlen(myString));
-  myString = (char*) malloc(10);
+  myString = (char*) malloc(16);
   printf("- Second myString: %p\n", myString);
-  printf("- Second *myString: '%c'", *myString);
+  printf("- Second myString: '%s'", myString);
   printf("\n");
-  printf("- Second *myString: 0x%02x\n", *myString);
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   free(myString); myString = NULL;
 
