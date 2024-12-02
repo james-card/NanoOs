@@ -163,6 +163,11 @@ typedef struct NanoOsMessage {
 #define nanoOsMessageDataPointer(msg, type) \
   ((type) nanoOsMessageDataValue(msg, intptr_t))
 
+/// @def stringDestroy
+///
+/// @brief Convenience macro for the common operation of destroying a string.
+#define stringDestroy(string) ((char*) (free((void*) string), NULL))
+
 // Exported variables
 extern Comessage *messages;
 extern NanoOsMessage *nanoOsMessages;
