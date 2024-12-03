@@ -332,6 +332,8 @@ void consoleGetBufferHandler(
     }
   } else {
     // No free buffer.  Nothing we can do.
+    printString(
+      "ERROR!!!  No free console buffer in consoleGetBufferHandler.\n");
     comessageRelease(returnMessage);
     if (comessageRelease(inputMessage) != coroutineSuccess) {
       Serial.print("ERROR!!!  Could not release returnMessage from ");

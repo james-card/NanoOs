@@ -177,12 +177,10 @@ RunningCommand *runningCommands = NULL;
 /// @return If the comamnd is run, returns the result of the command cast to a
 /// void*.  If the command is not run, returns -1 cast to a void*.
 void* startCommand(void *args) {
-  printString("startCommand starting.\n");
   // The scheduler is suspended because of the coroutineResume at the start
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
   coroutineYield(NULL);
-  printString("startCommand returned from yield.\n");
   Comessage *comessage = (Comessage*) args;
   if (comessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
@@ -195,9 +193,6 @@ void* startCommand(void *args) {
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
   char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
 
-  printString("Parsing: ");
-  printString(consoleInput);
-  printString("\n");
   argv = parseArgs(consoleInput, &argc);
   if (argv == NULL) {
     // Fail.
@@ -210,18 +205,18 @@ void* startCommand(void *args) {
     }
     return (void*) ((intptr_t) -1);
   }
-  printString("Found ");
-  printInt(argc);
-  printString(" arguments.\n");
 
   int returnValue = commandEntry->func(argc, argv);
-  consoleInput = stringDestroy(consoleInput);
+  free(consoleInput); consoleInput = NULL;
   free(argv); argv = NULL;
   if (comessageRelease(comessage) != coroutineSuccess) {
     printString("ERROR!!!  "
       "Could not release message from handleSchedulerMessage "
       "for invalid message type.\n");
   }
+
+  // We need to clear the coroutine pointer.
+  runningCommands[coroutineId(NULL)].coroutine = NULL;
 
   return (void*) ((intptr_t) returnValue);
 }

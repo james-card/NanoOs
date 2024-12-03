@@ -262,35 +262,39 @@ void handleCommand(char *consoleInput) {
   printString("\n");
 
   CommandEntry *commandEntry = NULL;
-  int searchIndex = NUM_COMMANDS >> 1;
-  size_t commandNameLength = strcspn(consoleInput, " \t\r\n");
-  for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
-    const char *commandName = commands[searchIndex].name;
-    int comparisonValue = strncmp(commandName, consoleInput, commandNameLength);
-    if (comparisonValue == 0) {
-      // We need an exact match.  So, the character at index commandNameLength
-      // of commandName needs to be zero.  If it's anything else, we don't have
-      // an exact match and we need to continue our search.  Since the order
-      // we're comparing is commandName - consoleInput, what we're asserting
-      // is that consoleInput[commandNameLength] is a NULL byte (0).  However,
-      // it isn't really because of the whitespace inherent to commands.  So, we
-      // can't do a literal subtration here.  However, since it's assumed to be
-      // 0, this is the same as commandName[commandNameLength] - 0, or simply
-      // commandName[commandNameLength].  So, just use that value as the final
-      // comparison value here.
-      comparisonValue = ((int) commandName[commandNameLength]);
-    }
+  if (*consoleInput != '\0') {
+    int searchIndex = NUM_COMMANDS >> 1;
+    size_t commandNameLength = strcspn(consoleInput, " \t\r\n");
+    for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
+      const char *commandName = commands[searchIndex].name;
+      int comparisonValue
+        = strncmp(commandName, consoleInput, commandNameLength);
+      if (comparisonValue == 0) {
+        // We need an exact match.  So, the character at index commandNameLength
+        // of commandName needs to be zero.  If it's anything else, we don't
+        // have an exact match and we need to continue our search.  Since the
+        // order we're comparing is commandName - consoleInput, what we're
+        // asserting is that consoleInput[commandNameLength] is a NULL byte (0).
+        // However, it isn't really because of the whitespace inherent to
+        // commands.  So, we can't do a literal subtration here.  However, since
+        // it's assumed to be 0, this is the same as
+        // commandName[commandNameLength] - 0, or simply
+        // commandName[commandNameLength].  So, just use that value as the final
+        // comparison value here.
+        comparisonValue = ((int) commandName[commandNameLength]);
+      }
 
-    if (comparisonValue == 0) {
-      commandEntry = &commands[searchIndex];
-      break;
-    } else if (comparisonValue < 0) {
-      ii = searchIndex + 1;
-    } else { // comparisonValue > 0
-      jj = searchIndex - 1;
-    }
+      if (comparisonValue == 0) {
+        commandEntry = &commands[searchIndex];
+        break;
+      } else if (comparisonValue < 0) {
+        ii = searchIndex + 1;
+      } else { // comparisonValue > 0
+        jj = searchIndex - 1;
+      }
 
-    searchIndex = (ii + jj) >> 1;
+      searchIndex = (ii + jj) >> 1;
+    }
   }
 
   if (commandEntry != NULL) {
@@ -299,7 +303,7 @@ void handleCommand(char *consoleInput) {
       (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
       false) == NULL
     ) {
-      printConsole("ERROR!!!  Could not communicate with scheduler.\n");
+      printString("ERROR!!!  Could not communicate with scheduler.\n");
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     } else {
@@ -309,9 +313,11 @@ void handleCommand(char *consoleInput) {
     // printf is blocking.  handleCommand is called from runConsole itself, so
     // we can't use a blocking call here.  Use the non-blocking printConsole
     // instead.
-    printConsole("Unknown command.\n");
-    consoleInput = stringDestroy(consoleInput);
+    printString("Unknown command.\n");
+    free(consoleInput); consoleInput = NULL;
+    printString("Returned from free.\n");
     releaseConsole();
+    printString("Console released.\n");
   }
 
   return;

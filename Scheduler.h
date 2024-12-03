@@ -61,9 +61,6 @@ extern RunningCommand *runningCommands;
 ///
 /// @param returnValue The value to return back to the scheduler.
 #define nanoOsExitProcess(returnValue) \
-  /* We need to clear the coroutine pointer. */ \
-  runningCommands[coroutineId(NULL)].coroutine = NULL; \
-  \
   return returnValue /* Deliberately omitting semicolon. */
 
 // Exported functionality
