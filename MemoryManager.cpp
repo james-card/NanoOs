@@ -728,11 +728,14 @@ void freeProcessMemory(COROUTINE_ID_TYPE pid) {
 int assignMemory(void *ptr, COROUTINE_ID_TYPE pid) {
   int returnValue = 0;
   
-  if (coroutineId(NULL) == NANO_OS_SCHEDULER_PROCESS_ID) {
+  if ((ptr != NULL) && (coroutineId(NULL) == NANO_OS_SCHEDULER_PROCESS_ID)) {
     memNode(ptr)->pid = pid;
-  } else {
+  } else if (ptr != NULL) {
     printString(
       "ERROR:  Only the scheduler may assign memory to another process.\n");
+    returnValue = -1;
+  } else {
+    printString("ERROR:  NULL pointer passed to assignMemory.\n");
     returnValue = -1;
   }
   
