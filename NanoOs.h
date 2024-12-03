@@ -114,75 +114,8 @@ extern "C"
 /// @brief The version string for NanoOs
 #define NANO_OS_VERSION "0.0.1"
 
-/// @typedef NanoOsMessageData
-///
-/// @brief Data type used in a NanoOsMessage.
-typedef unsigned long long int NanoOsMessageData;
-
-/// @struct NanoOsMessage
-///
-/// @brief A generic message that can be exchanged between processes.
-///
-/// @param func Information about the function to run, cast to an unsigned long
-///   long int.
-/// @param data Information about the data to use, cast to an unsigned long
-///   long int.
-/// @param comessage A pointer to the comessage that points to this
-///   NanoOsMessage.
-typedef struct NanoOsMessage {
-  NanoOsMessageData  func;
-  NanoOsMessageData  data;
-  Comessage         *comessage;
-} NanoOsMessage;
-
-/// @def nanoOsMessageFuncValue
-///
-/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
-/// value and cast it to the specified type.
-#define nanoOsMessageFuncValue(msg, type) \
-  ((type) ((NanoOsMessage*) msg->data)->func)
-
-/// @def nanoOsMessageFuncPointer
-///
-/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
-/// value and cast it to the provided function pointer.
-#define nanoOsMessageFuncPointer(msg, type) \
-  ((type) nanoOsMessageFuncValue(msg, intptr_t))
-
-/// @def nanoOsMessageDataValue
-///
-/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
-/// value and cast it to the specified type.
-#define nanoOsMessageDataValue(msg, type) \
-  ((type) ((NanoOsMessage*) msg->data)->data)
-
-/// @def nanoOsMessageDataPointer
-///
-/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
-/// value and cast it to the provided function pointer.
-#define nanoOsMessageDataPointer(msg, type) \
-  ((type) nanoOsMessageDataValue(msg, intptr_t))
-
-/// @def stringDestroy
-///
-/// @brief Convenience macro for the common operation of destroying a string.
-#define stringDestroy(string) ((char*) (free((void*) string), NULL))
-
-// Exported variables
-extern Comessage *messages;
-extern NanoOsMessage *nanoOsMessages;
-
-// Arduino functions
-void setup();
-void loop();
-
 // Support functions
 long getElapsedMilliseconds(unsigned long startTime);
-int sendComessageToPid(unsigned int pid, Comessage *comessage);
-Comessage* getAvailableMessage(void);
-Comessage* sendNanoOsMessageToPid(int pid, int type,
-  NanoOsMessageData func, NanoOsMessageData data, bool waiting);
-void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 
 #ifdef __cplusplus

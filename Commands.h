@@ -73,18 +73,6 @@ typedef struct CommandEntry {
   bool             userProcess;
 } CommandEntry;
 
-/// @struct RunningCommand
-///
-/// @brief Descriptor for a running instance of a command.
-///
-/// @param name The name of the command as stored in its CommandEntry.
-/// @param coroutine A pointer to the Coroutine instance that manages the
-///   running command's execution state.
-typedef struct RunningCommand {
-  const char *name;
-  Coroutine  *coroutine;
-} RunningCommand;
-
 // Exported functions
 void handleCommand(char *consoleInput);
 

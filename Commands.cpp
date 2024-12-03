@@ -50,17 +50,51 @@ int ps(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
-    if (coroutineResumable(runningCommands[ii].coroutine)) {
-      printf("%d  %s\n",
-        coroutineId(runningCommands[ii].coroutine),
-        runningCommands[ii].name);
-    }
+  //// for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
+  ////   if (coroutineResumable(runningCommands[ii].coroutine)) {
+  ////     printf("%d  %s\n",
+  ////       coroutineId(runningCommands[ii].coroutine),
+  ////       runningCommands[ii].name);
+  ////   }
+  //// }
+
+  Comessage *comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
+    (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    releaseConsole();
+    nanoOsExitProcess(1);
   }
 
+  // We don't know where our message to the scheduler will be in its queue, so
+  // we can't assume it will be processed immediately, but we can't wait forever
+  // either.  Set a 100 ms timeout.
+  struct timespec ts = { 0, 100000000 };
+  int waitStatus = comessageWaitForDone(comessage, &ts);
+  int returnValue = 0;
+  if (waitStatus != coroutineSuccess) {
+    returnValue = 1;
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get the number of running commands timed out.\n");
+    } else {
+      printf("Command to get the number of running commands failed.\n");
+    }
+
+    // Without knowing how many processes there are, we can't continue.  Bail.
+    goto exit;
+  }
+
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    returnValue = 1;
+    printf("ERROR!!!  Could not release message sent to scheduler for "
+      "getting the number of running processes.\n");
+  }
+
+exit:
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   releaseConsole();
-  nanoOsExitProcess(0);
+  nanoOsExitProcess(returnValue);
 }
 
 /// @fn int kill(int argc, char **argv);
@@ -88,7 +122,7 @@ int kill(int argc, char **argv) {
 
   Comessage *comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
-    0, (NanoOsMessageData) processId, false);
+    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
   if (comessage == NULL) {
     printf("ERROR!!!  Could not communicate with scheduler.\n");
     releaseConsole();
@@ -108,6 +142,12 @@ int kill(int argc, char **argv) {
     } else {
       printf("Command to kill PID %d failed.\n", processId);
     }
+  }
+
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    returnValue = 1;
+    printf("ERROR!!!  "
+      "Could not release message sent to scheduler for kill command.\n");
   }
 
   releaseConsole();

@@ -44,17 +44,81 @@ extern "C"
 {
 #endif
 
+/// @struct RunningCommand
+///
+/// @brief Descriptor for a running instance of a command.
+///
+/// @param name The name of the command as stored in its CommandEntry.
+/// @param coroutine A pointer to the Coroutine instance that manages the
+///   running command's execution state.
+typedef struct RunningCommand {
+  const char *name;
+  Coroutine  *coroutine;
+} RunningCommand;
+
 /// @enum SchedulerCommand
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.
 typedef enum SchedulerCommand {
   SCHEDULER_RUN_PROCESS,
   SCHEDULER_KILL_PROCESS,
+  SCHEDULER_GET_NUM_RUNNING_PROCESSES,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
-// Exported variables
-extern RunningCommand *runningCommands;
+/// @typedef NanoOsMessageData
+///
+/// @brief Data type used in a NanoOsMessage.
+typedef unsigned long long int NanoOsMessageData;
+
+/// @struct NanoOsMessage
+///
+/// @brief A generic message that can be exchanged between processes.
+///
+/// @param func Information about the function to run, cast to an unsigned long
+///   long int.
+/// @param data Information about the data to use, cast to an unsigned long
+///   long int.
+/// @param comessage A pointer to the comessage that points to this
+///   NanoOsMessage.
+typedef struct NanoOsMessage {
+  NanoOsMessageData  func;
+  NanoOsMessageData  data;
+  Comessage         *comessage;
+} NanoOsMessage;
+
+/// @def nanoOsMessageFuncValue
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the specified type.
+#define nanoOsMessageFuncValue(msg, type) \
+  ((type) ((NanoOsMessage*) msg->data)->func)
+
+/// @def nanoOsMessageFuncPointer
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the provided function pointer.
+#define nanoOsMessageFuncPointer(msg, type) \
+  ((type) nanoOsMessageFuncValue(msg, intptr_t))
+
+/// @def nanoOsMessageDataValue
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the specified type.
+#define nanoOsMessageDataValue(msg, type) \
+  ((type) ((NanoOsMessage*) msg->data)->data)
+
+/// @def nanoOsMessageDataPointer
+///
+/// @brief Given a pointer to a thrd_msg_t, extract the underlying function
+/// value and cast it to the provided function pointer.
+#define nanoOsMessageDataPointer(msg, type) \
+  ((type) nanoOsMessageDataValue(msg, intptr_t))
+
+/// @def stringDestroy
+///
+/// @brief Convenience macro for the common operation of destroying a string.
+#define stringDestroy(string) ((char*) (free((void*) string), NULL))
 
 /// @def nanoOsExitProcess
 ///
@@ -66,6 +130,11 @@ extern RunningCommand *runningCommands;
 
 // Exported functionality
 void runScheduler(void);
+int sendComessageToPid(unsigned int pid, Comessage *comessage);
+Comessage* getAvailableMessage(void);
+Comessage* sendNanoOsMessageToPid(int pid, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting);
+void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 
 #ifdef __cplusplus
 } // extern "C"
