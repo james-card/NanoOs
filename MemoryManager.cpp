@@ -88,12 +88,14 @@ extern "C"
 void localFreeProcessMemory(
   MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid
 ) {
+  printList("Freeing memory for process ", typeInt, pid, typeString, "\n");
   void *ptr = memoryManagerState->mallocNext;
   
   // We have to do two passes.  First pass:  Set the size of all the pointers
   // allocated by the process to zero and the pid to COROUTINE_ID_NOT_SET.
   for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
     if (cur->pid == pid) {
+      printList("Freeing ", typeInt, cur->size, typeString, " bytes.\n");
       cur->size = 0;
       cur->pid = COROUTINE_ID_NOT_SET;
     }
@@ -105,6 +107,8 @@ void localFreeProcessMemory(
     if (cur->size != 0) {
       break;
     }
+    printList("Moving mallocNext to ", typeInt, (intptr_t) &cur[1],
+      typeString, "\n");
     memoryManagerState->mallocNext = (char*) &cur[1];
   }
   
@@ -153,7 +157,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 }
 
 /// @fn void* localRealloc(MemoryManagerState *memoryManagerState,
-///   void *ptr, size_t size)
+///   void *ptr, size_t size, COROUTINE_ID_TYPE pid)
 ///
 /// @brief Reallocate a provided pointer to a new size.
 ///
@@ -164,11 +168,12 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 ///   is NULL, new memory will be allocated.
 /// @param size The new size desired for the memory block at ptr.  If this value
 ///   is 0, the provided pointer will be freed.
+/// @param pid The ID of the process making the request.
 ///
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or on free.
 void* localRealloc(MemoryManagerState *memoryManagerState,
-  void *ptr, size_t size
+  void *ptr, size_t size, COROUTINE_ID_TYPE pid
 ) {
   char *charPointer = (char*) ptr;
   char *returnValue = NULL;
@@ -228,9 +233,10 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
       memoryManagerState->mallocNext - size - sizeof(MemNode))
     ) >= memoryManagerState->mallocEnd)
   ) {
+    printList("Allocating memory for process ", typeInt, pid, typeString, "\n");
     returnValue = memoryManagerState->mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
-    memNode(returnValue)->pid = coroutineId(NULL);
+    memNode(returnValue)->pid = pid;
     memNode(returnValue)->prev = memNode(memoryManagerState->mallocNext);
     memoryManagerState->mallocNext -= size + sizeof(MemNode);
   } // else we don't have enough memory left to satisfy the request.
@@ -276,7 +282,7 @@ int memoryManagerHandleRealloc(
   ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
   void *clientReturnValue
     = localRealloc(memoryManagerState,
-      reallocMessage->ptr, reallocMessage->size);
+      reallocMessage->ptr, reallocMessage->size, reallocMessage->pid);
   size_t clientReturnSize
     = (clientReturnValue != NULL) ? reallocMessage->size : 0;
   
@@ -611,6 +617,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
+  reallocMessage.pid = coroutineId(NULL);
   
   Comessage sent;
   memset(&sent, 0, sizeof(sent));
