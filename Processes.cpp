@@ -590,7 +590,7 @@ int getNumRunningProcesses(Comessage *comessage) {
 
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
 
-  NanoOsMessageData numRunningProcesses = 0;
+  uint8_t numRunningProcesses = 0;
   for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
     if (coroutineRunning(runningCommands[ii].coroutine)) {
       numRunningProcesses++;
