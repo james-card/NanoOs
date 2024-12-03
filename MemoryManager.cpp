@@ -714,3 +714,28 @@ void freeProcessMemory(COROUTINE_ID_TYPE pid) {
   return;
 }
 
+/// @fn int assignMemory(void *ptr, COROUTINE_ID_TYPE pid)
+///
+/// @brief Assign ownership of a piece of memory to a specified process.
+///
+/// @note Only the scheduler may execute this function.  Requests from any other
+/// process will fail.
+///
+/// @param ptr A pointer to the memory to assign.
+/// @param pid The ID of the process to assign the memory to.
+///
+/// @return Returns 0 on success, -1 on failure.
+int assignMemory(void *ptr, COROUTINE_ID_TYPE pid) {
+  int returnValue = 0;
+  
+  if (coroutineId(NULL) == NANO_OS_SCHEDULER_PROCESS_ID) {
+    memNode(ptr)->pid = pid;
+  } else {
+    printString(
+      "ERROR:  Only the scheduler may assign memory to another process.\n");
+    returnValue = -1;
+  }
+  
+  return returnValue;
+}
+
