@@ -364,7 +364,7 @@ void handleSchedulerMessage(void) {
 /// @return This function always returns NULL.
 void* dummyProcess(void *args) {
   (void) args;
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
 /// @fn void runScheduler(void)
