@@ -61,8 +61,13 @@ extern "C"
 /// @brief The stack size, in bytes, of the main memory manager process that
 /// will handle messages.  This needs to be as small as possible.  The actual
 /// stack size allocated will be slightly larger than this due to other things
-/// being pushed onto the stack before initializeGlobals is called.
+/// being pushed onto the stack before initializeGlobals is called.  Note that
+/// we need a larger stack when debugging to accommodate the logging calls.
+#ifdef MEMORY_MANAGER_DEBUG
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
+#else
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 128
+#endif // MEMORY_MANAGER_DEBUG
 
 
 /// @enum MemoryManagerCommand
