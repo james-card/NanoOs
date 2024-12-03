@@ -73,23 +73,30 @@ int printInt(int integer) {
   return 0;
 }
 
-/// @fn int printList_(TypeDescriptor *type, ...)
+/// @fn int printList_(const char *firstString, ...)
 ///
 /// @brief Print a list of values.  Values are in (type, value) pairs until the
 /// STOP type is reached.
 ///
-/// @param typeDescriptor A pointer to a TypeDescriptor that identifies the type
-///   of the parameter that follows.
-/// @param ... All following parameters are the value described by the type
-///   followed by the type of the parameter after that.
+/// @param firstString The first string value to print.
+/// @param ... All following parameters are in (type, value) format.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int printList_(TypeDescriptor *type, ...) {
+int printList_(const char *firstString, ...) {
   int returnValue = 0;
+  TypeDescriptor *type = NULL;
   va_list args;
 
-  va_start(args, type);
+  if (firstString == NULL) {
+    // Invalid.
+    returnValue = -1;
+    return returnValue;
+  }
+  printString(firstString);
 
+  va_start(args, firstString);
+
+  type = va_arg(args, TypeDescriptor*);
   while (type != STOP) {
     if (type == typeInt) {
       int value = va_arg(args, int);

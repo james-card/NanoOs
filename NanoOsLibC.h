@@ -81,16 +81,16 @@ int timespec_get(struct timespec* spec, int base);
 
 typedef void TypeDescriptor;
 
-#define typeString ((TypeDescriptor*) ((intptr_t)  0))
-#define typeInt    ((TypeDescriptor*) ((intptr_t)  1))
+#define typeString ((TypeDescriptor*) ((intptr_t)  1))
+#define typeInt    ((TypeDescriptor*) ((intptr_t)  2))
 
 #define STOP       ((void*) ((intptr_t) -1))
 
 // Debug functions
 int printString(const char *string);
 int printInt(int integer);
-int printList_(TypeDescriptor *type, ...);
-#define printList(type, ...) printList_(type, ##__VA_ARGS__, STOP)
+int printList_(const char *firstString, ...);
+#define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 
 #ifdef __cplusplus
 } // extern "C"
