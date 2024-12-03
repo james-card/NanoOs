@@ -50,31 +50,14 @@ void setup() {
 // metadata storage as we can within the stack of the main loop.  Every stack,
 // including the stack for the main loop, is NANO_OS_STACK_SIZE bytes in size.
 // If we declare no variables in this stack, we're just wasting space.  Also,
-// making the storage for these things global consumes precious memory.  It's
+// making the storage for the metadata global consumes precious memory.  It's
 // much more efficient to just store the pointers in the global address space
 // and put the real storage in the main loop's stack.  However, that means that
-// we have to do all the one-time setup from within the main loop.  That, in
-// turn, means that we can never exit this function.  So, we will do all the
-// one-time setup and then enter the scheduler's infinite loop from within this
-// function.
+// we have to do all the one-time setup from within the main function.  That, in
+// turn, means that we can never exit this function.  So, we will enter the
+// scheduler, which will do all the one-time setup and then enter its infinite
+// round-robin loop.
 void loop() {
-  // Create the storage for the array of running commands and initialize the
-  // array global pointer.
-  RunningCommand runningCommandsStorage[NANO_OS_NUM_COMMANDS] = {};
-  runningCommands = runningCommandsStorage;
-
-  // Create the storage for the array of Comessages and NanoOsMessages and
-  // initialize the global array pointers and the back-pointers for the
-  // NanoOsMessges.
-  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  messages = messagesStorage;
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
-  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
-    // messages[ii].data will be initialized by getAvailableMessage.
-    nanoOsMessages[ii].comessage = &messages[ii];
-  }
-
   // Enter the scheduler.  This never returns.
   runScheduler();
 }

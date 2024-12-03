@@ -420,6 +420,23 @@ void* dummyProcess(void *args) {
 ///
 /// @return This function returns no value and, in fact, never returns at all.
 void runScheduler(void) {
+  // Create the storage for the array of running commands and initialize the
+  // array global pointer.
+  RunningCommand runningCommandsStorage[NANO_OS_NUM_COMMANDS] = {};
+  runningCommands = runningCommandsStorage;
+
+  // Create the storage for the array of Comessages and NanoOsMessages and
+  // initialize the global array pointers and the back-pointers for the
+  // NanoOsMessges.
+  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  messages = messagesStorage;
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
+  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
+    // messages[ii].data will be initialized by getAvailableMessage.
+    nanoOsMessages[ii].comessage = &messages[ii];
+  }
+
   Coroutine mainCoroutine;
   coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
   coroutineSetId(&mainCoroutine, 0);
