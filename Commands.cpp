@@ -257,10 +257,6 @@ int ver(int argc, char **argv) {
 ///
 /// @return This function returns no value.
 void handleCommand(char *consoleInput) {
-  printString("Parsing consoleInput: ");
-  printString(consoleInput);
-  printString("\n");
-
   CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
@@ -306,18 +302,14 @@ void handleCommand(char *consoleInput) {
       printString("ERROR!!!  Could not communicate with scheduler.\n");
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
-    } else {
-      printString("Sent consoleInput to scheduler.\n");
     }
   } else {
     // printf is blocking.  handleCommand is called from runConsole itself, so
-    // we can't use a blocking call here.  Use the non-blocking printConsole
+    // we can't use a blocking call here.  Use the non-blocking printString
     // instead.
     printString("Unknown command.\n");
     free(consoleInput); consoleInput = NULL;
-    printString("Returned from free.\n");
     releaseConsole();
-    printString("Console released.\n");
   }
 
   return;

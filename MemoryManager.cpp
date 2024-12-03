@@ -86,15 +86,11 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
   char *charPointer = (char*) ptr;
   
   if (isDynamicPointer(ptr)) {
-    printString("Memory is dynamic.  Continuing.\n");
     // This is memory that was previously allocated from one of our allocators.
     
     // Check the size of the memory in case someone tries to free the same
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
-      printString("Freeing ");
-      printInt(sizeOfMemory(ptr));
-      printString(" bytes.\n");
       if (charPointer == memoryManagerState->mallocNext) {
         // Special case.  The value being freed is the last one that was
         // allocated.  Do memory compaction.
@@ -106,9 +102,6 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
         ) {
           memoryManagerState->mallocNext = (char*) &cur[1];
         }
-        printString("Backing up memoryManagerState->mallocNext to ");
-        printInt((uintptr_t) memoryManagerState->mallocNext);
-        printString("\n");
       }
       
       // Clear out the size.
@@ -143,10 +136,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
   if (size == 0) {
     // In this case, there's no point in going through any path below.  Just
     // free it, return NULL, and be done with it.
-    printString(
-      "Request is to resize pointer to zero bytes.  Calling localFree.\n");
     localFree(memoryManagerState, ptr);
-    printString("Memory successfully freed.\n");
     return NULL;
   }
   
@@ -239,7 +229,6 @@ int memoryManagerHandleRealloc(
 ) {
   // We're going to reuse the incoming message as the outgoing message.
   Comessage *response = incoming;
-  printString("Processing realloc message.\n");
 
   int returnValue = 0;
   ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
@@ -338,9 +327,6 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
     MemoryManagerCommand messageType
       = (MemoryManagerCommand) comessageType(comessage);
     if (messageType >= NUM_MEMORY_MANAGER_COMMANDS) {
-      printString("ERROR!!!  Received invalid memory manager message type ");
-      printInt(messageType);
-      printString("\n");
       comessage = comessageQueuePop();
       continue;
     }
@@ -481,7 +467,7 @@ void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
 /// it would return NULL if it returned anything.
 void* memoryManager(void *args) {
   (void) args;
-  printString("\n");
+  printConsole("\n");
   
   MemoryManagerState memoryManagerState;
   jmp_buf returnBuffer;
@@ -494,9 +480,9 @@ void* memoryManager(void *args) {
   printMemoryManagerState(&memoryManagerState);
   dynamicMemorySize
     = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
-  printString("Using ");
-  printInt(dynamicMemorySize);
-  printString(" bytes of dynamic memory.\n");
+  printConsole("Using ");
+  printConsole(dynamicMemorySize);
+  printConsole(" bytes of dynamic memory.\n");
   releaseConsole();
   
   while (1) {
@@ -562,12 +548,9 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
     // Nothing more we can do.
     return returnValue;
   }
-  printString("Sent MEMORY_MANAGER_REALLOC to memory manager process.\n");
   
-  printString("Waiting for reply.\n");
   Comessage *response = comessageWaitForReplyWithType(&sent, false,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  printString("Returned from waiting for MEMORY_MANAGER_RETURNING_POINTER.\n");
   returnValue = comessageData(response);
   
   return returnValue;

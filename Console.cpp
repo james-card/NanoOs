@@ -501,18 +501,9 @@ void* runConsole(void *args) {
       }
 
       // Use consoleIndex as the size to create a buffer and make a copy.
-      printString("consoleBuffer:  ");
-      printString(consoleBuffer);
-      printString("\n");
-      printString("consoleIndex:  ");
-      printInt(consoleIndex);
-      printString("\n");
       char *bufferCopy = (char*) malloc(consoleIndex + 1);
       memcpy(bufferCopy, consoleBuffer, consoleIndex);
       bufferCopy[consoleIndex] = '\0';
-      printString("bufferCopy:  ");
-      printString(bufferCopy);
-      printString("\n");
       handleCommand(bufferCopy);
       // If the command has already returned or wrote to the console before its
       // first yield, we may need to display its output.  Handle the next

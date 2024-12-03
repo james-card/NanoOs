@@ -196,7 +196,7 @@ void* startCommand(void *args) {
   argv = parseArgs(consoleInput, &argc);
   if (argv == NULL) {
     // Fail.
-    printString("Could not parse input into argc and argv.\n");
+    printString("ERROR:  Could not parse input into argc and argv.\n");
     consoleInput = stringDestroy(consoleInput);
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
@@ -230,7 +230,6 @@ void* startCommand(void *args) {
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int runProcess(Comessage *comessage) {
-  printString("In runProcess handler.\n");
   static int returnValue = 0;
   if (comessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
@@ -253,9 +252,6 @@ int runProcess(Comessage *comessage) {
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
 
-      printString("Launching ");
-      printString(commandEntry->name);
-      printString("\n");
       coroutineResume(coroutine, comessage);
       returnValue = 0;
     } else {
@@ -278,9 +274,6 @@ int runProcess(Comessage *comessage) {
         runningCommands[jj].coroutine = coroutine;
         runningCommands[jj].name = commandEntry->name;
 
-        printString("Launching ");
-        printString(commandEntry->name);
-        printString("\n");
         coroutineResume(coroutine, comessage);
         returnValue = 0;
         break;
