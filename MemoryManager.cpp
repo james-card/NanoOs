@@ -31,6 +31,12 @@
 // NanoOs includes
 #include "MemoryManager.h"
 
+#ifdef MEMORY_MANAGER_DEBUG
+#define printDebug printList
+#else
+#define printDebug(string, ...) {}
+#endif // MEMORY_MANAGER_DEBUG
+
 /****************** Begin Custom Memory Management Functions ******************/
 
 /// @struct MemNode
@@ -89,14 +95,14 @@ extern "C"
 void localFreeProcessMemory(
   MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid
 ) {
-  printList("Freeing memory for process ", typeInt, pid, typeString, "\n");
+  printDebug("Freeing memory for process ", typeInt, pid, typeString, "\n");
   void *ptr = memoryManagerState->mallocNext;
   
   // We have to do two passes.  First pass:  Set the size of all the pointers
   // allocated by the process to zero and the pid to COROUTINE_ID_NOT_SET.
   for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
     if (cur->owner == pid) {
-      printList("Freeing ", typeInt, cur->size, typeString, " bytes.\n");
+      printDebug("Freeing ", typeInt, cur->size, typeString, " bytes.\n");
       cur->size = 0;
       cur->owner = COROUTINE_ID_NOT_SET;
     }
@@ -108,9 +114,10 @@ void localFreeProcessMemory(
     if (cur->size != 0) {
       break;
     }
-    printList("Moving mallocNext to ", typeInt, (intptr_t) &cur[1],
+    memoryManagerState->mallocNext = (char*) &cur->prev[1];
+    printDebug("Moving mallocNext to ",
+      typeInt, memoryManagerState->mallocNext,
       typeString, "\n");
-    memoryManagerState->mallocNext = (char*) &cur[1];
   }
   
   return;
@@ -136,9 +143,11 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
       // Clear out the size.
-      printList("Freeing ",
+      printDebug("Freeing ",
         typeInt, memNode(charPointer)->size,
-        typeString, " bytes.\n");
+        typeString, " bytes for process ",
+        typeInt, memNode(charPointer)->owner,
+        typeString, "\n");
       memNode(charPointer)->size = 0;
       memNode(charPointer)->owner = COROUTINE_ID_NOT_SET;
       
@@ -149,8 +158,8 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
           (cur != NULL) && (cur->size == 0);
           cur = cur->prev
         ) {
-          memoryManagerState->mallocNext = (char*) &cur[1];
-          printList("Moving mallocNext to ",
+          memoryManagerState->mallocNext = (char*) &cur->prev[1];
+          printDebug("Moving mallocNext to ",
             typeInt, memoryManagerState->mallocNext,
             typeString, "\n");
         }
@@ -201,6 +210,9 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
       // The pointer we're reallocating is the last one allocated.  We have
       // an opportunity to just extend the existing block of memory instead
       // of allocating an entirely new block.
+      printDebug("Re-allocating ", typeInt, size,
+        typeString, " bytes for process ",
+        typeInt, pid, typeString, "\n");
       if ((uintptr_t) (charPointer - size - sizeof(MemNode)
           + memNode(charPointer)->size)
         >= memoryManagerState->mallocEnd
@@ -221,6 +233,9 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
         }
         // Update memoryManagerState->mallocNext with the new last pointer.
         memoryManagerState->mallocNext = returnValue;
+        printDebug("Moving mallocNext to ",
+          typeInt, memoryManagerState->mallocNext,
+          typeString, "\n");
         return returnValue;
       } else {
         // Out of memory.  Fail the request.
@@ -238,12 +253,16 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
       memoryManagerState->mallocNext - size - sizeof(MemNode))
     ) >= memoryManagerState->mallocEnd)
   ) {
-    printList("Allocating memory for process ", typeInt, pid, typeString, "\n");
+    printDebug("Allocating ", typeInt, size, typeString, " bytes for process ",
+      typeInt, pid, typeString, "\n");
     returnValue = memoryManagerState->mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
     memNode(returnValue)->owner = pid;
     memNode(returnValue)->prev = memNode(memoryManagerState->mallocNext);
     memoryManagerState->mallocNext -= size + sizeof(MemNode);
+    printDebug("Moving mallocNext to ",
+      typeInt, memoryManagerState->mallocNext,
+      typeString, "\n");
   } // else we don't have enough memory left to satisfy the request.
   
   if ((returnValue != NULL) && (ptr != NULL)) {
@@ -352,7 +371,6 @@ int memoryManagerHandleGetFreeMemory(
   return returnValue;
 }
 
-
 /// @fn int memoryManagerHandleFreeProcessMemory(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
@@ -448,7 +466,6 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   
   memoryManagerState->mallocBuffer = &mallocBufferStart;
   memoryManagerState->mallocNext = memoryManagerState->mallocBuffer;
-  memNode(memoryManagerState->mallocNext)->size = 0;
   memNode(memoryManagerState->mallocNext)->prev = NULL;
   memoryManagerState->mallocStart
     = (uintptr_t) memoryManagerState->mallocNext;
@@ -465,6 +482,13 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
       )
     )
     + 1;
+  
+  // The value at memNode(memoryManagerState->mallocNext)->size needs to be
+  // non-zero in order for the memory compaction algorithm in localFree to work
+  // properly.
+  memNode(memoryManagerState->mallocNext)->size
+    = (uintptr_t) memoryManagerState->mallocNext
+      - memoryManagerState->mallocEnd + 1;
   
   longjmp(returnBuffer, (int) stack);
 }
