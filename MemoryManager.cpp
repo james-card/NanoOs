@@ -41,11 +41,12 @@
 ///
 /// @param prev A pointer to the previous MemNode.
 /// @param size The number of bytes allocated for this node.
-/// @param pid The ID of the process that allocated the memory.
+/// @param owner The PID of the process that owns the memory (which is not
+///   necessarily the process that allocated it).
 typedef struct MemNode {
   struct MemNode    *prev;
   size_t             size;
-  COROUTINE_ID_TYPE  pid;
+  COROUTINE_ID_TYPE  owner;
 } MemNode;
 
 /// @def memNode
@@ -94,10 +95,10 @@ void localFreeProcessMemory(
   // We have to do two passes.  First pass:  Set the size of all the pointers
   // allocated by the process to zero and the pid to COROUTINE_ID_NOT_SET.
   for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
-    if (cur->pid == pid) {
+    if (cur->owner == pid) {
       printList("Freeing ", typeInt, cur->size, typeString, " bytes.\n");
       cur->size = 0;
-      cur->pid = COROUTINE_ID_NOT_SET;
+      cur->owner = COROUTINE_ID_NOT_SET;
     }
   }
   
@@ -139,7 +140,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
         typeInt, memNode(charPointer)->size,
         typeString, " bytes.\n");
       memNode(charPointer)->size = 0;
-      memNode(charPointer)->pid = COROUTINE_ID_NOT_SET;
+      memNode(charPointer)->owner = COROUTINE_ID_NOT_SET;
       
       if (charPointer == memoryManagerState->mallocNext) {
         // Special case.  The value being freed is the last one that was
@@ -208,7 +209,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
         returnValue = charPointer - size + memNode(charPointer)->size;
         memNode(returnValue)->size = size;
         memNode(returnValue)->prev = memNode(charPointer)->prev;
-        memNode(returnValue)->pid = memNode(charPointer)->pid;
+        memNode(returnValue)->owner = memNode(charPointer)->owner;
         // Copy the contents of the old block to the new one.
         size_t ii = 0;
         for (char *newPointer = returnValue, *oldPointer = charPointer;
@@ -240,7 +241,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
     printList("Allocating memory for process ", typeInt, pid, typeString, "\n");
     returnValue = memoryManagerState->mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
-    memNode(returnValue)->pid = pid;
+    memNode(returnValue)->owner = pid;
     memNode(returnValue)->prev = memNode(memoryManagerState->mallocNext);
     memoryManagerState->mallocNext -= size + sizeof(MemNode);
   } // else we don't have enough memory left to satisfy the request.
@@ -733,7 +734,7 @@ int assignMemory(void *ptr, COROUTINE_ID_TYPE pid) {
   int returnValue = 0;
   
   if ((ptr != NULL) && (coroutineId(NULL) == NANO_OS_SCHEDULER_PROCESS_ID)) {
-    memNode(ptr)->pid = pid;
+    memNode(ptr)->owner = pid;
   } else if (ptr != NULL) {
     printString(
       "ERROR:  Only the scheduler may assign memory to another process.\n");
