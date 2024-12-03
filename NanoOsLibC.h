@@ -79,10 +79,18 @@ int timespec_get(struct timespec* spec, int base);
 #define EBUSY            1      /* Device or resource busy */
 #define ENOMEM           2      /* Out of memory */
 
+typedef void TypeDescriptor;
+
+#define typeString ((TypeDescriptor*) ((intptr_t)  0))
+#define typeInt    ((TypeDescriptor*) ((intptr_t)  1))
+
+#define STOP       ((void*) ((intptr_t) -1))
 
 // Debug functions
 int printString(const char *string);
 int printInt(int integer);
+int printList_(TypeDescriptor *type, ...);
+#define printList(type, ...) printList_(type, ##__VA_ARGS__, STOP)
 
 #ifdef __cplusplus
 } // extern "C"

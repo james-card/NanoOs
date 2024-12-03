@@ -73,3 +73,43 @@ int printInt(int integer) {
   return 0;
 }
 
+/// @fn int printList_(TypeDescriptor *type, ...)
+///
+/// @brief Print a list of values.  Values are in (type, value) pairs until the
+/// STOP type is reached.
+///
+/// @param typeDescriptor A pointer to a TypeDescriptor that identifies the type
+///   of the parameter that follows.
+/// @param ... All following parameters are the value described by the type
+///   followed by the type of the parameter after that.
+///
+/// @return Returns 0 on success, -1 on failure.
+int printList_(TypeDescriptor *type, ...) {
+  int returnValue = 0;
+  va_list args;
+
+  va_start(args, type);
+
+  while (type != STOP) {
+    if (type == typeInt) {
+      int value = va_arg(args, int);
+      printInt(value);
+    } else if (type == typeString) {
+      char *value = va_arg(args, char*);
+      printString(value);
+    } else {
+      printString("Invalid type ");
+      printInt((intptr_t) type);
+      printString(".  Exiting parsing.\n");
+      returnValue = -1;
+      break;
+    }
+
+    type = va_arg(args, TypeDescriptor*);
+  }
+
+  va_end(args);
+
+  return returnValue;
+}
+
