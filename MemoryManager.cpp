@@ -74,6 +74,43 @@ extern "C"
 {
 #endif
 
+/// @fn void localFreeProcessMemory(
+///   MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid)
+///
+/// @brief Free *ALL* the memory owned by a process given its process ID.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param pid The ID of the process to free the memory of.
+///
+/// @return This function always succeeds and returns no value.
+void localFreeProcessMemory(
+  MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid
+) {
+  void *ptr = memoryManagerState->mallocNext;
+  
+  // We have to do two passes.  First pass:  Set the size of all the pointers
+  // allocated by the process to zero and the pid to COROUTINE_ID_NOT_SET.
+  for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
+    if (cur->pid == pid) {
+      cur->size = 0;
+      cur->pid = COROUTINE_ID_NOT_SET;
+    }
+  }
+  
+  // Second pass, move memoryManagerState->mallocNext back until we hit
+  // something that's allocated.
+  for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
+    if (cur->size != 0) {
+      break;
+    }
+    memoryManagerState->mallocNext = (char*) &cur[1];
+  }
+  
+  return;
+}
+
 /// @fn void localFree(MemoryManagerState *memoryManagerState, void *ptr)
 ///
 /// @brief Free a previously-allocated block of memory.
