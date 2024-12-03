@@ -89,6 +89,7 @@ int kill(int argc, char **argv) {
     && (processId < NANO_OS_NUM_COMMANDS)
     && (coroutineResumable(runningCommands[processId].coroutine))
   ) {
+    freeProcessMemory(coroutineId(runningCommands[processId].coroutine));
     coroutineTerminate(runningCommands[processId].coroutine, NULL);
     runningCommands[processId].coroutine = NULL;
     runningCommands[processId].name = NULL;
