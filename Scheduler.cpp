@@ -352,6 +352,7 @@ void handleSchedulerMessage(void) {
 /// @return This function always returns NULL.
 void* dummyProcess(void *args) {
   (void) args;
+  runningCommands[coroutineId(NULL)].coroutine = NULL;
   nanoOsExitProcess(0);
 }
 
