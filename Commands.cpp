@@ -49,6 +49,16 @@ extern const int NUM_COMMANDS;
 int ps(int argc, char **argv) {
   (void) argc;
   (void) argv;
+  int returnValue = 0;
+  Comessage *comessage = NULL;
+  int waitStatus = coroutineSuccess;
+  uint8_t numRunningProcesses = 0;
+  void ***processInfo = NULL;
+
+  // We don't know where our messages to the scheduler will be in its queue, so
+  // we can't assume they will be processed immediately, but we can't wait
+  // forever either.  Set a 100 ms timeout.
+  struct timespec timeout = { 0, 100000000 };
 
   //// for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
   ////   if (coroutineResumable(runningCommands[ii].coroutine)) {
@@ -58,23 +68,18 @@ int ps(int argc, char **argv) {
   ////   }
   //// }
 
-  Comessage *comessage = sendNanoOsMessageToPid(
+  comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
     (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
   if (comessage == NULL) {
     printf("ERROR!!!  Could not communicate with scheduler.\n");
     releaseConsole();
-    nanoOsExitProcess(1);
+    returnValue = 1;
+    goto exit;
   }
 
-  // We don't know where our message to the scheduler will be in its queue, so
-  // we can't assume it will be processed immediately, but we can't wait forever
-  // either.  Set a 100 ms timeout.
-  struct timespec ts = { 0, 100000000 };
-  int waitStatus = comessageWaitForDone(comessage, &ts);
-  int returnValue = 0;
+  waitStatus = comessageWaitForDone(comessage, &timeout);
   if (waitStatus != coroutineSuccess) {
-    returnValue = 1;
     if (waitStatus == coroutineTimedout) {
       printf("Command to get the number of running commands timed out.\n");
     } else {
@@ -82,13 +87,36 @@ int ps(int argc, char **argv) {
     }
 
     // Without knowing how many processes there are, we can't continue.  Bail.
-    goto exit;
+    returnValue = 1;
+    goto releaseMessage;
   }
 
-  if (comessageRelease(comessage) != coroutineSuccess) {
+  numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  if (numRunningProcesses == 0) {
+    printf("ERROR:  Number of running processes returned from the "
+      "scheduler is 0.\n");
     returnValue = 1;
+    goto releaseMessage;
+  }
+
+  // We need a table with numRunningProcesses rows and NUM_PROCESS_INFO_COLUMNS
+  // columns.
+  processInfo = (void***) malloc(numRunningProcesses * sizeof(void**));
+  for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
+    processInfo[ii] = (void**) malloc(NUM_PROCESS_INFO_COLUMNS * sizeof(void*));
+  }
+
+freeMemory:
+  for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
+    free(processInfo[ii]); processInfo[ii] = NULL;
+  }
+  free(processInfo); processInfo = NULL;
+
+releaseMessage:
+  if (comessageRelease(comessage) != coroutineSuccess) {
     printf("ERROR!!!  Could not release message sent to scheduler for "
       "getting the number of running processes.\n");
+    returnValue = 1;
   }
 
 exit:
