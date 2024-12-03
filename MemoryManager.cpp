@@ -226,6 +226,8 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 /// @param memoryManagerState A pointer to the MemoryManagerState
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
+/// @param incoming A pointer to the message received from the requesting
+///   process
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleRealloc(
@@ -261,6 +263,19 @@ int memoryManagerHandleRealloc(
   return returnValue;
 }
 
+/// @fn int memoryManagerHandleGetFreeMemory(
+///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///
+/// @brief Command handler for MEMORY_MANAGER_GET_FREE_MEMORY.  Gets the amount
+/// of free dynamic memory left in the system.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param incoming A pointer to the message received from the requesting
+///   process
+///
+/// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleGetFreeMemory(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
