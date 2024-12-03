@@ -88,9 +88,16 @@ typedef enum MemoryManagerResponse {
 ///
 /// @brief Structure that holds the data needed to make a request to reallocate
 /// an existing pointer.
+///
+/// @param ptr The pointer to be reallocated.  If this value is NULL, new
+///   memory will be allocated.
+/// @param size The number of bytes to allocate.  If this value is 0, the memory
+///   at ptr will be freed.
+/// @param pid The ID of the process making the request.
 typedef struct ReallocMessage {
   void *ptr;
   size_t size;
+  COROUTINE_ID_TYPE pid;
 } ReallocMessage;
 
 /// @struct MemoryManagerState
