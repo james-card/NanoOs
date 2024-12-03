@@ -223,7 +223,7 @@ void* startCommand(void *args) {
 
 /// @fn int runProcess(Comessage *comessage)
 ///
-/// @brief Run a process in the slot for system processes.
+/// @brief Run a process in an appropriate process slot.
 ///
 /// @param comessage A pointer to the Comessage that was received that contains
 ///   the information about the process to run and how to run it.
@@ -260,6 +260,11 @@ int runProcess(Comessage *comessage) {
 
       coroutineResume(coroutine, comessage);
       returnValue = 0;
+      if (comessageRelease(comessage) != coroutineSuccess) {
+        printString("ERROR!!!  "
+          "Could not release message from handleSchedulerMessage "
+          "for invalid message type.\n");
+      }
     } else {
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command again in a bit.
@@ -287,6 +292,11 @@ int runProcess(Comessage *comessage) {
 
         coroutineResume(coroutine, comessage);
         returnValue = 0;
+        if (comessageRelease(comessage) != coroutineSuccess) {
+          printString("ERROR!!!  "
+            "Could not release message from handleSchedulerMessage "
+            "for invalid message type.\n");
+        }
         break;
       }
     }
@@ -312,12 +322,50 @@ int runProcess(Comessage *comessage) {
   return returnValue;
 }
 
+/// @fn int killProcess(Comessage *comessage)
+///
+/// @brief Kill a process identified by its process ID.
+///
+/// @param comessage A pointer to the Comessage that was received that contains
+///   the information about the process to kill.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int killProcess(Comessage *comessage) {
+  int returnValue = 0;
+
+  COROUTINE_ID_TYPE processId
+    = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  if ((processId > NANO_OS_RESERVED_PROCESS_ID)
+    && (processId < NANO_OS_NUM_COMMANDS)
+    && (coroutineResumable(runningCommands[processId].coroutine))
+  ) {
+    // Forward the message on to the memory manager to have it clean up the
+    // process's memory.
+    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+    comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+      nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+    sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, comessage);
+
+    coroutineTerminate(runningCommands[processId].coroutine, NULL);
+    runningCommands[processId].coroutine = NULL;
+    runningCommands[processId].name = NULL;
+    printString("Process terminated.\n");
+  } else {
+    printString("ERROR:  Invalid process ID.\n");
+  }
+
+  // DO NOT release the message since that's done by the memory manager handler.
+
+  return returnValue;
+}
+
 /// @var schedulerCommandHandlers
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 int (*schedulerCommandHandlers[])(Comessage*) = {
   runProcess,
+  killProcess,
 };
 
 /// @fn void handleSchedulerMessage(void)

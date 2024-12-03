@@ -81,25 +81,37 @@ int kill(int argc, char **argv) {
     printf("Usage:\n");
     printf("  kill <process ID>\n");
     printf("\n");
-    return 1;
+    releaseConsole();
+    nanoOsExitProcess(1);
   }
-  int processId = (int) strtol(argv[1], NULL, 10);
+  COROUTINE_ID_TYPE processId = (COROUTINE_ID_TYPE) strtol(argv[1], NULL, 10);
 
-  if ((processId > NANO_OS_RESERVED_PROCESS_ID)
-    && (processId < NANO_OS_NUM_COMMANDS)
-    && (coroutineResumable(runningCommands[processId].coroutine))
-  ) {
-    freeProcessMemory(coroutineId(runningCommands[processId].coroutine));
-    coroutineTerminate(runningCommands[processId].coroutine, NULL);
-    runningCommands[processId].coroutine = NULL;
-    runningCommands[processId].name = NULL;
-    printf("Process terminated.\n");
-  } else {
-    printf("ERROR:  Invalid process ID.\n");
+  Comessage *comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
+    0, (NanoOsMessageData) processId, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    releaseConsole();
+    nanoOsExitProcess(1);
+  }
+
+  // We don't know where our message to the scheduler will be in its queue, so
+  // we can't assume it will be processed immediately, but we can't wait forever
+  // either.  Set a 100 ms timeout.
+  struct timespec ts = { 0, 100000000 };
+  int waitStatus = comessageWaitForDone(comessage, &ts);
+  int returnValue = 0;
+  if (waitStatus != coroutineSuccess) {
+    returnValue = 1;
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to kill PID %d timed out.\n", processId);
+    } else {
+      printf("Command to kill PID %d failed.\n", processId);
+    }
   }
 
   releaseConsole();
-  nanoOsExitProcess(0);
+  nanoOsExitProcess(returnValue);
 }
 
 /// @fn int echo(int argc, char **argv);
@@ -296,7 +308,8 @@ void handleCommand(char *consoleInput) {
 
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, RUN_PROCESS,
+    if (sendNanoOsMessageToPid(
+      NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
       (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
       false) == NULL
     ) {

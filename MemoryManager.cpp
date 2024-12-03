@@ -389,13 +389,19 @@ int memoryManagerHandleFreeProcessMemory(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   int returnValue = 0;
-  COROUTINE_ID_TYPE pid = nanoOsMessageDataValue(incoming, COROUTINE_ID_TYPE);
-  localFreeProcessMemory(memoryManagerState, pid);
+  if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
+    COROUTINE_ID_TYPE pid = nanoOsMessageDataValue(incoming, COROUTINE_ID_TYPE);
+    localFreeProcessMemory(memoryManagerState, pid);
+  } else {
+    printString(
+      "ERROR:  Only the scheduler may free another process's memory.\n");
+    returnValue = -1;
+  }
   
-  // The client is *NOT* waiting on us.  Release the message.
-  if (comessageRelease(incoming) != coroutineSuccess) {
+  // The client is waiting on us.  Mark the message as done.
+  if (comessageSetDone(incoming) != coroutineSuccess) {
     printString("ERROR!!!  "
-      "Could not release message in memoryManagerHandleFreeProcessMemory.\n");
+      "Could not mark message done memoryManagerHandleFreeProcessMemory.\n");
     returnValue = -1;
   }
   
@@ -725,22 +731,6 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
     memset(returnValue, 0, totalSize);
   }
   return returnValue;
-}
-
-/// @fn void freeProcessMemory(COROUTINE_ID_TYPE pid)
-///
-/// @brief Free all the memory that a process was (hopefully not "is") using.
-///
-/// @param pid The ID of the process to free the memory of.
-///
-/// @return This function does not wait for a reply from the memory manager
-/// process and returns immediately.  It returns no value.
-void freeProcessMemory(COROUTINE_ID_TYPE pid) {
-  sendNanoOsMessageToPid(
-    NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-    /* func= */ 0, pid, /* waiting= */ false);
-  
-  return;
 }
 
 /// @fn int assignMemory(void *ptr, COROUTINE_ID_TYPE pid)
