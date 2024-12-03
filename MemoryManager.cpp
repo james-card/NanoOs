@@ -33,12 +33,6 @@
 
 /****************** Begin Custom Memory Management Functions ******************/
 
-// We need to wrap memory management functions for printStackTrace.  The reason
-// is that this function may be called when the system is in a degraded state
-// (i.e. there's something that is preventing memory management from working
-// correctly).  While printStackTrace is running, we need to avoid calling the
-// real functions.  Other than that, we need to pass through to the real calls.
-
 /// @struct MemNode
 ///
 /// @brief Metadata that's placed right before the memory pointer that's
