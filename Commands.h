@@ -50,6 +50,12 @@ extern "C"
 {
 #endif
 
+/// @typedef CommandFunction
+///
+/// @brief Type definition for the function signature that NanoOs commands must
+/// have.
+typedef int (*CommandFunction)(int argc, char **argv);
+
 /// @struct CommandEntry
 ///
 /// @brief Descriptor for a command that can be looked up and run by the
@@ -62,9 +68,9 @@ extern "C"
 ///   of the general-purpose process slots (true) or it should be run in the
 ///   slot reserved for system processes (false).
 typedef struct CommandEntry {
-  const char        *name;
-  CoroutineFunction  func;
-  bool               userProcess;
+  const char      *name;
+  CommandFunction  func;
+  bool             userProcess;
 } CommandEntry;
 
 /// @struct RunningCommand
@@ -81,15 +87,6 @@ typedef struct RunningCommand {
 
 // Exported functions
 void handleCommand(char *consoleInput);
-
-// Command handlers
-void* ps(void *args);
-void* kill(void *args);
-void* echo(void *args);
-void* echoSomething(void *args);
-void* runCounter(void *args);
-void* showInfo(void *args);
-void* ver(void *args);
 
 #ifdef __cplusplus
 } // extern "C"

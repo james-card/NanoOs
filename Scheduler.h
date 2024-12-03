@@ -52,7 +52,6 @@ typedef enum SchedulerCommand {
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
-
 // Exported variables
 extern RunningCommand *runningCommands;
 

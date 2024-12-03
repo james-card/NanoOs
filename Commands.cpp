@@ -36,20 +36,19 @@ extern const int NUM_COMMANDS;
 
 // Commands
 
-/// @fn void* ps(void *args)
+/// @fn int ps(int argc, char **argv);
 ///
 /// @brief Display a list of running processes and their process IDs.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  Unused by this function.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function always returns NULL.
-void* ps(void *args) {
-  (void) args;
-  // At this point, we were called by coroutineResume from handleCommand, so
-  // it's still suspended.  We're not processing any arguments (the console
-  // input), so we need to go ahead and yield now.
-  coroutineYield(NULL);
+/// @return This function always returns 0.
+int ps(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
 
   for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
     if (coroutineResumable(runningCommands[ii].coroutine)) {
@@ -61,23 +60,30 @@ void* ps(void *args) {
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
-/// @fn void* kill(void *args)
+/// @fn int kill(int argc, char **argv);
 ///
 /// @brief Kill a running process identified by its process ID.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  The process ID of the command to kill is parsed
-///   from this before returning execution back to the console.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function always returns NULL.
-void* kill(void *args) {
-  const char *processIdString = (const char*) args;
-  int processId = (int) strtol(processIdString, NULL, 10);
-  // We're done processing input from the console, so yield now.
-  coroutineYield(NULL);
+/// @return Returns 0 on success, 1 on failure.
+int kill(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  if (argc < 2) {
+    printf("Usage:\n");
+    printf("  kill <process ID>\n");
+    printf("\n");
+    return 1;
+  }
+  int processId = (int) strtol(argv[1], NULL, 10);
 
   if ((processId > NANO_OS_RESERVED_PROCESS_ID)
     && (processId < NANO_OS_NUM_COMMANDS)
@@ -92,58 +98,52 @@ void* kill(void *args) {
   }
 
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
-/// @fn void* echo(void *args)
+/// @fn int echo(int argc, char **argv);
 ///
 /// @brief Echo a string from the user back to the console output.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  This is taken as the string to echo back to the
-///   console output.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  They will be echoed back to the console
+///   output separated by a space.
 ///
-/// @return This function always returns NULL.
-void* echo(void *args) {
-  // The consoleBuffer is 256 characters.  Stacks are 512, so we can declare our
-  // own buffer and still be safe.
-  char consoleCopy[256];
-  char *argsBegin = (char*) args;
-  strcpy(consoleCopy, argsBegin);
-  // We're done with the console input, so yield now.
-  coroutineYield(NULL);
-
-  size_t argsLength = strlen(argsBegin);
-  if (argsLength < 255) {
-    argsBegin[argsLength] = '\n';
-    argsBegin[argsLength + 1] = '\0';
-  } else {
-    argsBegin[254] = '\n';
-    argsBegin[255] = '\0';
+/// @return This function always returns 0.
+int echo(int argc, char **argv) {
+  for (int ii = 1; ii < argc; ii++) {
+    printConsole(argv[ii]);
+    if (ii < (argc - 1)) {
+      printConsole(" ");
+    }
   }
+  printConsole("\n");
 
-  printf(argsBegin);
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
-/// @fn void* echoSomething(void *args)
+/// @fn int echoSomething(int argc, char **argv);
 ///
 /// @brief Echo the word "Something" to the console output.  This function
 /// exists to make sure that the binary search used for command lookup works
 /// correctly.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  Ignored by this process.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function always returns NULL.
-void* echoSomething(void *args) {
-  (void) args;
-  // We're not processing conosle input, so immediately yield.
-  coroutineYield(NULL);
+/// @return This function always returns 0.
+int echoSomething(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
   printf("Something\n");
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
 /// @var counter
@@ -152,22 +152,23 @@ void* echoSomething(void *args) {
 /// shown via the showInfo command.
 static unsigned int counter = 0;
 
-/// @fn void* runCounter(void *args)
+/// @fn int runCounter(int argc, char **argv);
 ///
 /// @brief Continually increment the global counter variable by one and then
 /// yield control back to the scheduler.  This process exists as an example of
 /// a multi-tasking command that runs in the background.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  Ignored by this process.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function would always return NULL if it returned, however it
+/// @return This function would always return 0 if it returned, however it
 /// runs in an infinite loop and only stops when it is killed by the kill
 /// command.
-void* runCounter(void *args) {
-  (void) args;
-  // We're not processing conosle input, so immediately yield.
-  coroutineYield(NULL);
+int runCounter(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
 
   // This is a background process, so go ahead and release the console.
   releaseConsole();
@@ -177,21 +178,22 @@ void* runCounter(void *args) {
     coroutineYield(NULL);
   }
 
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
-/// @fn void* showInfo(void *args)
+/// @fn int showInfo(int argc, char **argv);
 ///
 /// @brief Show various information about the state of the system.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  Ignored by this process.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function always returns NULL.
-void* showInfo(void *args) {
-  (void) args;
-  // We're not processing conosle input, so immediately yield.
-  coroutineYield(NULL);
+/// @return This function always returns 0.
+int showInfo(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
 
   printf("Current counter value: %u\n", counter);
   printf("- Dynamic memory left: %d\n", getFreeMemory());
@@ -219,26 +221,27 @@ void* showInfo(void *args) {
   myString = stringDestroy(myString);
 
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
-/// @fn void* ver(void *args)
+/// @fn int ver(int argc, char **argv);
 ///
 /// @brief Display the version of the OS on the console.
 ///
-/// @param args The rest of the console command line after the name of the
-///   command, cast to a void*.  Ignored by this process.
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
 ///
-/// @return This function always returns NULL.
-void* ver(void *args) {
-  (void) args;
-  // We're not processing conosle input, so immediately yield.
-  coroutineYield(NULL);
+/// @return This function always returns 0.
+int ver(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
 
   printf("NanoOs version " NANO_OS_VERSION "\n");
 
   releaseConsole();
-  nanoOsExitProcess(NULL);
+  nanoOsExitProcess(0);
 }
 
 // Exported functions
@@ -299,6 +302,8 @@ void handleCommand(char *consoleInput) {
       printConsole("ERROR!!!  Could not communicate with scheduler.\n");
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
+    } else {
+      printString("Sent consoleInput to scheduler.\n");
     }
   } else {
     // printf is blocking.  handleCommand is called from runConsole itself, so

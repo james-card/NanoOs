@@ -31,11 +31,200 @@
 // Custom includes
 #include "Scheduler.h"
 
+/// @fn int getNumTokens(const char *input)
+///
+/// @brief Get the number of whitespace-delimited tokens in a string.
+///
+/// @param input A pointer to the input string to consider.
+///
+/// @return Returns the number of tokens discovered.
+int getNumTokens(const char *input) {
+  int numTokens = 0;
+  if (input == NULL) {
+    return numTokens;
+  }
+
+  while (*input != '\0') {
+    numTokens++;
+    input = &input[strcspn(input, " \t\r\n")];
+    input = &input[strspn(input, " \t\r\n")];
+  }
+
+  return numTokens;
+}
+
+/// @fn int getNumLeadingBackslashes(char *strStart, char *strPos)
+///
+/// @brief Get the number of backslashes that precede a character.
+///
+/// @param strStart A pointer to the start of the string the character is in.
+/// @param strPos A pointer to the character to look before.
+int getNumLeadingBackslashes(char *strStart, char *strPos) {
+  int numLeadingBackslashes = 0;
+
+  strPos--;
+  while ((((uintptr_t) strPos) >= ((uintptr_t) strStart))
+    && (*strPos == '\\')
+  ) {
+    numLeadingBackslashes++;
+    strPos--;
+  }
+
+  return numLeadingBackslashes;
+}
+
+/// @fn char *findEndQuote(char *input, char quote)
+///
+/// @brief Find the first double quote that is not escaped.
+///
+/// @brief input A pointer to the beginning of the string to search.
+///
+/// @return Returns a pointer to the end quote on success, NULL on failure.
+char *findEndQuote(char *input, char quote) {
+  char *quoteAt = strchr(input, quote);
+  while ((quoteAt != NULL)
+    && (getNumLeadingBackslashes(input, quoteAt) & 1)
+  ) {
+    input = quoteAt + 1;
+    quoteAt = strchr(input, quote);
+  }
+
+  return quoteAt;
+}
+
+/// @fn char** parseArgs(char *consoleInput, int *argc)
+///
+/// @brief Parse a raw input string from the console into an array of individual
+/// strings to pass as the argv array to a command function.
+///
+/// @param consoleInput The raw string of data read from the user's input by the
+///   console.
+/// @param argc A pointer to the integer where the number of parsed arguments
+///   will be stored.
+///
+/// @return Returns a pointer to an array of strings on success, NULL on
+/// failure.
+char** parseArgs(char *consoleInput, int *argc) {
+  char **argv = NULL;
+
+  if ((consoleInput == NULL) || (argc == NULL)) {
+    // Failure.
+    return argv; // NULL
+  }
+  *argc = 0;
+  char *endOfInput = &consoleInput[strlen(consoleInput)];
+
+  // First, we need to declare an array that will hold all our arguments.  In
+  // order to do this, we need to know the maximum number of arguments we'll be
+  // working with.  That will be the number of tokens separated by whitespace.
+  int maxNumArgs = getNumTokens(consoleInput);
+  argv = (char**) malloc(maxNumArgs * sizeof(char*));
+  if (argv == NULL) {
+    // Nothing we can do.  Fail.
+    return argv; // NULL
+  }
+
+  // Next, go through the input and fill in the elements of the argv array with
+  // the addresses first letter of each argument and put a NULL byte at the end
+  // of each argument.
+  int numArgs = 0;
+  char *endOfArg = NULL;
+  while ((consoleInput != endOfInput) && (*consoleInput != '\0')) {
+    if (*consoleInput == '"') {
+      consoleInput++;
+      endOfArg = findEndQuote(consoleInput, '"');
+    } else if (*consoleInput == '\'') {
+      consoleInput++;
+      endOfArg = findEndQuote(consoleInput, '\'');
+    } else {
+      endOfArg = &consoleInput[strcspn(consoleInput, " \t\r\n")];
+    }
+
+    argv[numArgs] = consoleInput;
+    numArgs++;
+
+    if (endOfArg != NULL) {
+      *endOfArg = '\0';
+      if (endOfArg != endOfInput) {
+        consoleInput = endOfArg + 1;
+      } else {
+        consoleInput = endOfInput;
+      }
+    } else {
+      consoleInput += strlen(consoleInput);
+    }
+
+    consoleInput = &consoleInput[strspn(consoleInput, " \t\r\n")];
+  }
+
+  *argc = numArgs;
+  return argv;
+}
+
 /// @var runningCommands
 ///
 /// @brief Pointer to the array of running commands that will be stored in the
 /// main loop function's stack.
 RunningCommand *runningCommands = NULL;
+
+/// @fn void* startCommand(void *args)
+///
+/// @brief Wrapper coroutine that calls a command function.
+///
+/// @param args The message received from the console process that describes
+///   the command to run, cast to a void*.
+///
+/// @return If the comamnd is run, returns the result of the command cast to a
+/// void*.  If the command is not run, returns -1 cast to a void*.
+void* startCommand(void *args) {
+  printString("startCommand starting.\n");
+  // The scheduler is suspended because of the coroutineResume at the start
+  // of this call.  So, we need to immediately yield and put ourselves back in
+  // the round-robin array.
+  coroutineYield(NULL);
+  printString("startCommand returned from yield.\n");
+  Comessage *comessage = (Comessage*) args;
+  if (comessage == NULL) {
+    printString("ERROR:  No arguments message provided to startCommand.\n");
+    return (void*) ((intptr_t) -1);
+  }
+
+  int argc = 0;
+  char **argv = NULL;
+  CommandEntry *commandEntry
+    = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
+
+  printString("Parsing: ");
+  printString(consoleInput);
+  printString("\n");
+  argv = parseArgs(consoleInput, &argc);
+  if (argv == NULL) {
+    // Fail.
+    printString("Could not parse input into argc and argv.\n");
+    consoleInput = stringDestroy(consoleInput);
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleSchedulerMessage "
+        "for invalid message type.\n");
+    }
+    return (void*) ((intptr_t) -1);
+  }
+  printString("Found ");
+  printInt(argc);
+  printString(" arguments.\n");
+
+  int returnValue = commandEntry->func(argc, argv);
+  consoleInput = stringDestroy(consoleInput);
+  free(argv); argv = NULL;
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    printString("ERROR!!!  "
+      "Could not release message from handleSchedulerMessage "
+      "for invalid message type.\n");
+  }
+
+  return (void*) ((intptr_t) returnValue);
+}
 
 /// @fn int runProcess(Comessage *comessage)
 ///
@@ -46,7 +235,8 @@ RunningCommand *runningCommands = NULL;
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int runProcess(Comessage *comessage) {
-  int returnValue = 0;
+  printString("In runProcess handler.\n");
+  static int returnValue = 0;
   if (comessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
     // status.
@@ -55,26 +245,31 @@ int runProcess(Comessage *comessage) {
 
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
+  
   if (commandEntry->userProcess == false) {
     // This is not the expected case, but it's the priority case, so list it
     // first.
     Coroutine *coroutine
       = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
     if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-      CoroutineFunction func = commandEntry->func;
-      coroutine = coroutineCreate(func);
+      coroutine = coroutineCreate(startCommand);
       coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
 
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
 
-      coroutineResume(coroutine, consoleInput);
+      printString("Launching ");
+      printString(commandEntry->name);
+      printString("\n");
+      coroutineResume(coroutine, comessage);
+      returnValue = 0;
     } else {
-      returnValue = EBUSY;
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command in a bit.
-      releaseConsole();
+      if (returnValue == 0) {
+        releaseConsole();
+      }
+      returnValue = EBUSY;
     }
   } else {
     // Find an open non-reserved slot.
@@ -82,13 +277,17 @@ int runProcess(Comessage *comessage) {
     for (; jj < NANO_OS_NUM_COMMANDS; jj++) {
       Coroutine *coroutine = runningCommands[jj].coroutine;
       if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-        coroutine = coroutineCreate(commandEntry->func);
+        coroutine = coroutineCreate(startCommand);
         coroutineSetId(coroutine, jj);
 
         runningCommands[jj].coroutine = coroutine;
         runningCommands[jj].name = commandEntry->name;
 
-        coroutineResume(coroutine, consoleInput);
+        printString("Launching ");
+        printString(commandEntry->name);
+        printString("\n");
+        coroutineResume(coroutine, comessage);
+        returnValue = 0;
         break;
       }
     }
@@ -101,7 +300,13 @@ int runProcess(Comessage *comessage) {
       // This is a user process, not a system process, so the user is just out
       // of luck.  *DO NOT* set returnValue to a non-zero value here as that
       // would result in an infinite loop.
+      char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
       consoleInput = stringDestroy(consoleInput);
+      if (comessageRelease(comessage) != coroutineSuccess) {
+        printString("ERROR!!!  "
+          "Could not release message from handleSchedulerMessage "
+          "for invalid message type.\n");
+      }
       releaseConsole();
     }
   }
@@ -139,14 +344,7 @@ void handleSchedulerMessage(void) {
     }
 
     int returnValue = schedulerCommandHandlers[messageType](message);
-    if (returnValue == 0) {
-      // Purge the message.
-      if (comessageRelease(message) != coroutineSuccess) {
-        printString("ERROR!!!  "
-          "Could not release message from handleSchedulerMessage "
-          "after handling message.\n");
-      }
-    } else {
+    if (returnValue != 0) {
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
       comessageQueuePush(NULL, message);
