@@ -41,9 +41,11 @@
 ///
 /// @param prev A pointer to the previous MemNode.
 /// @param size The number of bytes allocated for this node.
+/// @param pid The ID of the process that allocated the memory.
 typedef struct MemNode {
-  struct MemNode *prev;
-  size_t          size;
+  struct MemNode    *prev;
+  size_t             size;
+  COROUTINE_ID_TYPE  pid;
 } MemNode;
 
 /// @def memNode
@@ -106,6 +108,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
       
       // Clear out the size.
       memNode(charPointer)->size = 0;
+      memNode(charPointer)->pid = COROUTINE_ID_NOT_SET;
     }
   } // else this is not something we can free.  Ignore it.
   
@@ -159,6 +162,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
         returnValue = charPointer - size + memNode(charPointer)->size;
         memNode(returnValue)->size = size;
         memNode(returnValue)->prev = memNode(charPointer)->prev;
+        memNode(returnValue)->pid = memNode(charPointer)->pid;
         // Copy the contents of the old block to the new one.
         size_t ii = 0;
         for (char *newPointer = returnValue, *oldPointer = charPointer;
@@ -189,6 +193,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
   ) {
     returnValue = memoryManagerState->mallocNext - size - sizeof(MemNode);
     memNode(returnValue)->size = size;
+    memNode(returnValue)->pid = coroutineId(NULL);
     memNode(returnValue)->prev = memNode(memoryManagerState->mallocNext);
     memoryManagerState->mallocNext -= size + sizeof(MemNode);
   } // else we don't have enough memory left to satisfy the request.
