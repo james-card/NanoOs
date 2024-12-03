@@ -134,22 +134,26 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
     // Check the size of the memory in case someone tries to free the same
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
+      // Clear out the size.
+      printList("Freeing ",
+        typeInt, memNode(charPointer)->size,
+        typeString, " bytes.\n");
+      memNode(charPointer)->size = 0;
+      memNode(charPointer)->pid = COROUTINE_ID_NOT_SET;
+      
       if (charPointer == memoryManagerState->mallocNext) {
         // Special case.  The value being freed is the last one that was
         // allocated.  Do memory compaction.
-        memoryManagerState->mallocNext
-          += sizeOfMemory(ptr) + sizeof(MemNode);
-        for (MemNode *cur = memNode(ptr)->prev;
+        for (MemNode *cur = memNode(ptr);
           (cur != NULL) && (cur->size == 0);
           cur = cur->prev
         ) {
           memoryManagerState->mallocNext = (char*) &cur[1];
+          printList("Moving mallocNext to ",
+            typeInt, memoryManagerState->mallocNext,
+            typeString, "\n");
         }
       }
-      
-      // Clear out the size.
-      memNode(charPointer)->size = 0;
-      memNode(charPointer)->pid = COROUTINE_ID_NOT_SET;
     }
   } // else this is not something we can free.  Ignore it.
   
