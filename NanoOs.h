@@ -50,7 +50,7 @@
 #include "Coroutines.h"
 #include "Commands.h"
 #include "MemoryManager.h"
-#include "Scheduler.h"
+#include "Processes.h"
 
 #ifdef __cplusplus
 extern "C"

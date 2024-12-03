@@ -3,7 +3,7 @@
 /// @author            James Card
 /// @date              12.02.2024
 ///
-/// @file              Scheduler.h
+/// @file              Processes.h
 ///
 /// @brief             Process scheduler functionality for NanoOs.
 ///
