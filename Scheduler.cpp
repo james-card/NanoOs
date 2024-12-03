@@ -299,7 +299,6 @@ int runProcess(Comessage *comessage) {
       // This is a user process, not a system process, so the user is just out
       // of luck.  *DO NOT* set returnValue to a non-zero value here as that
       // would result in an infinite loop.
-      char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
       consoleInput = stringDestroy(consoleInput);
       if (comessageRelease(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
