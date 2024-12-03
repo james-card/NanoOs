@@ -140,6 +140,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size);
 #define calloc memoryManagerCalloc
 
 size_t getFreeMemory(void);
+void freeProcessMemory(COROUTINE_ID_TYPE pid);
 
 
 #ifdef __cplusplus
