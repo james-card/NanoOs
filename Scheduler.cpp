@@ -239,6 +239,7 @@ int runProcess(Comessage *comessage) {
 
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
   
   if (commandEntry->userProcess == false) {
     // This is not the expected case, but it's the priority case, so list it
@@ -248,6 +249,11 @@ int runProcess(Comessage *comessage) {
     if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
       coroutine = coroutineCreate(startCommand);
       coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
+      if (assignMemory(consoleInput, NANO_OS_RESERVED_PROCESS_ID) != 0) {
+        printString(
+          "WARNING:  Could not assign console input to new process.\n");
+        printString("Memory leak.\n");
+      }
 
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
       runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
@@ -270,6 +276,11 @@ int runProcess(Comessage *comessage) {
       if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
         coroutine = coroutineCreate(startCommand);
         coroutineSetId(coroutine, jj);
+        if (assignMemory(consoleInput, jj) != 0) {
+          printString(
+            "WARNING:  Could not assign console input to new process.\n");
+          printString("Memory leak.\n");
+        }
 
         runningCommands[jj].coroutine = coroutine;
         runningCommands[jj].name = commandEntry->name;
