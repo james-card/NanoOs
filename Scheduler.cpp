@@ -265,7 +265,7 @@ int runProcess(Comessage *comessage) {
       returnValue = 0;
     } else {
       // Don't call stringDestroy with consoleInput because we're going to try
-      // this command in a bit.
+      // this command again in a bit.
       if (returnValue == 0) {
         releaseConsole();
       }
