@@ -263,7 +263,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param incoming A pointer to the message received from the requesting
-///   process
+///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleRealloc(
@@ -309,7 +309,7 @@ int memoryManagerHandleRealloc(
 ///   structure that holds the values used for memory allocation and
 ///   deallocation.
 /// @param incoming A pointer to the message received from the requesting
-///   process
+///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerHandleGetFreeMemory(
@@ -331,6 +331,37 @@ int memoryManagerHandleGetFreeMemory(
   if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
   }
+  
+  // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
+  // release it since the client is still using it.
+  if (comessageSetDone(incoming) != coroutineSuccess) {
+    returnValue = -1;
+  }
+  
+  return returnValue;
+}
+
+
+/// @fn int memoryManagerHandleFreeProcessMemory(
+///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///
+/// @brief Command handler for a MEMORY_MANAGER_FREE_PROCESS_MEMORY command.
+/// Extracts the process ID from the message and then calls
+/// localFreeProcessMemory.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param incoming A pointer to the message received from the requesting
+///   process.
+///
+/// @return Returns 0 on success, error code on failure.
+int memoryManagerHandleFreeProcessMemory(
+  MemoryManagerState *memoryManagerState, Comessage *incoming
+) {
+  int returnValue = 0;
+  COROUTINE_ID_TYPE *pid = (COROUTINE_ID_TYPE*) comessageData(incoming);
+  localFreeProcessMemory(memoryManagerState, *pid);
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
