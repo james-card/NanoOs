@@ -252,8 +252,8 @@ int ver(int argc, char **argv) {
 /// using the rest of the input as an argument to the command.  The command will
 /// be launched as a separate process, not run inline.
 ///
-/// @param consoleInput A pointer to the beginning of the console buffer that
-///   contains user input.
+/// @param consoleInput A pointer to the beginning of the buffer that contains
+/// user input.
 ///
 /// @return This function returns no value.
 void handleCommand(char *consoleInput) {
