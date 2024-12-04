@@ -153,6 +153,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size);
 
 size_t getFreeMemory(void);
 int assignMemory(void *ptr, COROUTINE_ID_TYPE pid);
+void memoryManagerCast(Comessage *comessage);
 
 
 #ifdef __cplusplus
