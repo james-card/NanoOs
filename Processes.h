@@ -156,6 +156,7 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses);
 int killProcess(COROUTINE_ID_TYPE processId);
+int runProcess(CommandEntry *commandEntry, char *consoleInput);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -292,12 +292,7 @@ void handleCommand(char *consoleInput) {
 
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (sendNanoOsMessageToPid(
-      NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-      (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
-      false) == NULL
-    ) {
-      printString("ERROR!!!  Could not communicate with scheduler.\n");
+    if (runProcess(commandEntry, consoleInput) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }

@@ -940,3 +940,29 @@ int killProcess(COROUTINE_ID_TYPE processId) {
   return returnValue;
 }
 
+/// @fn int runProcess(CommandEntry *commandEntry, char *consoleInput)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to start a process.
+///
+/// @param commandEntry A pointer to the CommandEntry that describes the command
+///   to run.
+/// @param consoleInput The raw consoleInput that was captured for the command
+///   line.
+///
+/// @return Returns 0 on success, 1 on failure.
+int runProcess(CommandEntry *commandEntry, char *consoleInput) {
+  int returnValue = 0;
+
+  if (sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
+    (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
+    false) == NULL
+  ) {
+    printString("ERROR!!!  Could not communicate with scheduler.\n");
+    returnValue = 1;
+  }
+
+  return returnValue;
+}
+
