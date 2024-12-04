@@ -807,6 +807,13 @@ ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses) {
   // Initialize numRunningProcesses to 0 if it's not already.
   *numRunningProcesses = 0;
 
+  // Because the scheduler runs on the main coroutine, it doesn't have the
+  // ability to yield.  That means it can't do anything that requires a
+  // synchronus message exchange, i.e. allocating memory.  So, we need to
+  // allocate memory from the current process and then pass that back to the
+  // scheduler to populate.  That means we first need to know how many processes
+  // are running so that we know how much space to allocate.  So, get that
+  // first.
   comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
     (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
