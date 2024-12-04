@@ -439,7 +439,7 @@ void* startCommand(void *args) {
   return (void*) ((intptr_t) returnValue);
 }
 
-/// @fn int runProcess(Comessage *comessage)
+/// @fn int handleRunProcess(Comessage *comessage)
 ///
 /// @brief Run a process in an appropriate process slot.
 ///
@@ -447,7 +447,7 @@ void* startCommand(void *args) {
 ///   the information about the process to run and how to run it.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int runProcess(Comessage *comessage) {
+int handleRunProcess(Comessage *comessage) {
   static int returnValue = 0;
   if (comessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
@@ -540,7 +540,7 @@ int runProcess(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int killProcess(Comessage *comessage)
+/// @fn int handleKillProcess(Comessage *comessage)
 ///
 /// @brief Kill a process identified by its process ID.
 ///
@@ -548,7 +548,7 @@ int runProcess(Comessage *comessage) {
 ///   the information about the process to kill.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int killProcess(Comessage *comessage) {
+int handleKillProcess(Comessage *comessage) {
   int returnValue = 0;
 
   COROUTINE_ID_TYPE processId
@@ -577,7 +577,7 @@ int killProcess(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int getNumRunningProcesses(Comessage *comessage)
+/// @fn int handleGetNumRunningProcesses(Comessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
@@ -585,7 +585,7 @@ int killProcess(Comessage *comessage) {
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int getNumRunningProcesses(Comessage *comessage) {
+int handleGetNumRunningProcesses(Comessage *comessage) {
   int returnValue = 0;
 
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -597,8 +597,47 @@ int getNumRunningProcesses(Comessage *comessage) {
     }
   }
   nanoOsMessage->data = numRunningProcesses;
+  printString("Found ");
+  printInt(numRunningProcesses);
+  printString(" running processes.\n");
+  printString("Sending reponse to process ");
+  printInt(coroutineId(comessageFrom(comessage)));
+  printString(".\n");
 
   sendComessageToCoroutine(comessageFrom(comessage), comessage);
+  printString("Setting getNumRunningProcesses message to done.\n");
+  comessageSetDone(comessage);
+
+  // DO NOT release the message since the caller is waiting on the response.
+
+  printString("Returning from getNumRunningProcesses message handler.\n");
+  return returnValue;
+}
+
+/// @fn int handleGetProcessInfo(Comessage *comessage)
+///
+/// @brief Fill in a provided array with information about the currently-running
+/// processes.
+///
+/// @param comessage A pointer to the Comessage that was received.  This will be
+///   reused for the reply.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int handleGetProcessInfo(Comessage *comessage) {
+  int returnValue = 0;
+
+  ProcessInfo *processInfo
+    = nanoOsMessageDataPointer(comessage, ProcessInfo*);
+  int idx = 0;
+  for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
+    if (coroutineResumable(runningCommands[ii].coroutine)) {
+      processInfo[idx].pid
+        = (intptr_t) coroutineId(runningCommands[ii].coroutine);
+      processInfo[idx].name = runningCommands[ii].name;
+      idx++;
+    }
+  }
+
   comessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
@@ -611,9 +650,10 @@ int getNumRunningProcesses(Comessage *comessage) {
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 int (*schedulerCommandHandlers[])(Comessage*) = {
-  runProcess,
-  killProcess,
-  getNumRunningProcesses,
+  handleRunProcess,
+  handleKillProcess,
+  handleGetNumRunningProcesses,
+  handleGetProcessInfo,
 };
 
 /// @fn void handleSchedulerMessage(void)
@@ -639,10 +679,13 @@ void handleSchedulerMessage(void) {
 
     int returnValue = schedulerCommandHandlers[messageType](message);
     if (returnValue != 0) {
+      printString("Scheduler command handler failed.\n");
+      printString("Pushing message back onto our own queue.\n");
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
       comessageQueuePush(NULL, message);
     }
+    printString("Returning from handleSchedulerMessage.\n");
   }
 
   return;

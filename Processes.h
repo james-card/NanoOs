@@ -56,6 +56,18 @@ typedef struct RunningCommand {
   Coroutine  *coroutine;
 } RunningCommand;
 
+/// @struct ProcessInfo
+///
+/// @brief Information about a running process that is exportable to a user
+/// process.
+///
+/// @param pid The numerical ID of the process.
+/// @param name The name of the process.
+typedef struct ProcessInfo {
+  int pid;
+  const char *name;
+} ProcessInfo;
+
 /// @enum SchedulerCommand
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.
@@ -63,6 +75,7 @@ typedef enum SchedulerCommand {
   SCHEDULER_RUN_PROCESS,
   SCHEDULER_KILL_PROCESS,
   SCHEDULER_GET_NUM_RUNNING_PROCESSES,
+  SCHEDULER_GET_PROCESS_INFO,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
