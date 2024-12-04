@@ -557,19 +557,28 @@ int handleKillProcess(Comessage *comessage) {
     && (processId < NANO_OS_NUM_COMMANDS)
     && (coroutineResumable(runningCommands[processId].coroutine))
   ) {
-    // Forward the message on to the memory manager to have it clean up the
-    // process's memory.
-    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-    comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-      nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-    sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, comessage);
+    if (coroutineTerminate(runningCommands[processId].coroutine, NULL)
+      == coroutineSuccess
+    ) {
+      runningCommands[processId].coroutine = NULL;
+      runningCommands[processId].name = NULL;
 
-    coroutineTerminate(runningCommands[processId].coroutine, NULL);
-    runningCommands[processId].coroutine = NULL;
-    runningCommands[processId].name = NULL;
-    printString("Process terminated.\n");
-  } else {
-    printString("ERROR:  Invalid process ID.\n");
+      // Forward the message on to the memory manager to have it clean up the
+      // process's memory.  *DO NOT* mark the message as done.  The memory
+      // manager will do that.
+      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+      comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+      sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, comessage);
+    } else {
+      // Tell the caller that we've failed.
+      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+      nanoOsMessage->data = 1;
+      if (comessageSetDone(comessage) != coroutineSuccess) {
+        printString("ERROR!!!  "
+          "Could not mark message done in handleKillProcess.\n");
+      }
+    }
   }
 
   // DO NOT release the message since that's done by the memory manager handler.
@@ -871,5 +880,63 @@ releaseMessage:
 
 exit:
   return processInfo;
+}
+
+/// @fn int killProcess(COROUTINE_ID_TYPE processId)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to kill a running process.
+///
+/// @param processId The ID of the process to kill.
+///
+/// @return Returns 0 on success, 1 on failure.
+int killProcess(COROUTINE_ID_TYPE processId) {
+  if ((processId <= NANO_OS_RESERVED_PROCESS_ID)
+    || (processId >= NANO_OS_NUM_COMMANDS)
+    || (coroutineResumable(runningCommands[processId].coroutine) == false)
+  ) {
+    printString("ERROR:  Invalid process ID.\n");
+    return 1;
+  }
+
+  Comessage *comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
+    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    releaseConsole();
+    return 1;
+  }
+
+  // We don't know where our message to the scheduler will be in its queue, so
+  // we can't assume it will be processed immediately, but we can't wait forever
+  // either.  Set a 100 ms timeout.
+  struct timespec ts = { 0, 100000000 };
+  int waitStatus = comessageWaitForDone(comessage, &ts);
+  int returnValue = 0;
+  if (waitStatus == coroutineSuccess) {
+    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+    returnValue = nanoOsMessage->data;
+    if (returnValue == 0) {
+      printf("Process terminated.\n");
+    } else {
+      printf("Process termination returned status %d.\n", returnValue);
+    }
+  } else {
+    returnValue = 1;
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to kill PID %d timed out.\n", processId);
+    } else {
+      printf("Command to kill PID %d failed.\n", processId);
+    }
+  }
+
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    returnValue = 1;
+    printf("ERROR!!!  "
+      "Could not release message sent to scheduler for kill command.\n");
+  }
+
+  return returnValue;
 }
 

@@ -389,19 +389,22 @@ int memoryManagerHandleFreeProcessMemory(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   int returnValue = 0;
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
     COROUTINE_ID_TYPE pid = nanoOsMessageDataValue(incoming, COROUTINE_ID_TYPE);
     localFreeProcessMemory(memoryManagerState, pid);
+    nanoOsMessage->data = 0;
   } else {
     printString(
       "ERROR:  Only the scheduler may free another process's memory.\n");
+    nanoOsMessage->data = 1;
     returnValue = -1;
   }
   
   // The client is waiting on us.  Mark the message as done.
   if (comessageSetDone(incoming) != coroutineSuccess) {
     printString("ERROR!!!  "
-      "Could not mark message done memoryManagerHandleFreeProcessMemory.\n");
+      "Could not mark message done in memoryManagerHandleFreeProcessMemory.\n");
     returnValue = -1;
   }
   
