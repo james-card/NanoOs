@@ -597,20 +597,11 @@ int handleGetNumRunningProcesses(Comessage *comessage) {
     }
   }
   nanoOsMessage->data = numRunningProcesses;
-  printString("Found ");
-  printInt(numRunningProcesses);
-  printString(" running processes.\n");
-  printString("Sending reponse to process ");
-  printInt(coroutineId(comessageFrom(comessage)));
-  printString(".\n");
 
-  sendComessageToCoroutine(comessageFrom(comessage), comessage);
-  printString("Setting getNumRunningProcesses message to done.\n");
   comessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
-  printString("Returning from getNumRunningProcesses message handler.\n");
   return returnValue;
 }
 
@@ -685,7 +676,6 @@ void handleSchedulerMessage(void) {
       // back of our own queue again and try again later.
       comessageQueuePush(NULL, message);
     }
-    printString("Returning from handleSchedulerMessage.\n");
   }
 
   return;
