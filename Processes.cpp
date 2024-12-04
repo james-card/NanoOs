@@ -628,15 +628,21 @@ int handleGetProcessInfo(Comessage *comessage) {
 
   ProcessInfo *processInfo
     = nanoOsMessageDataPointer(comessage, ProcessInfo*);
+  int maxProcesses = processInfo->numProcesses;
+  ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
-  for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
+  for (int ii = 0; (ii < NANO_OS_NUM_COMMANDS) && (idx < maxProcesses); ii++) {
     if (coroutineResumable(runningCommands[ii].coroutine)) {
-      processInfo[idx].pid
-        = (intptr_t) coroutineId(runningCommands[ii].coroutine);
-      processInfo[idx].name = runningCommands[ii].name;
+      processes[idx].pid = (int) coroutineId(runningCommands[ii].coroutine);
+      processes[idx].name = runningCommands[ii].name;
       idx++;
     }
   }
+
+  // It's possible that a process completed between the time that processInfo
+  // was allocated and now, so set the value of numProcesses to the value of
+  // idx.
+  processInfo->numProcesses = idx;
 
   comessageSetDone(comessage);
 
@@ -778,34 +784,24 @@ void runScheduler(void) {
   }
 }
 
-/// @fn ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses)
+/// @fn ProcessInfo* getProcessInfo(void)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
 /// to get information about the running processes.
 ///
-/// @param numRunningProcesses A pointer to the storage for number of running
-///   processes.
-///
-/// @return Returns a pointer to the dynamically-allocated ProcessInfo array
+/// @return Returns a pointer to the dynamically-allocated ProcessInfo object
 /// on success, NULL on failure.
-ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses) {
+ProcessInfo* getProcessInfo(void) {
   Comessage *comessage = NULL;
   int waitStatus = coroutineSuccess;
   ProcessInfo *processInfo = NULL;
   NanoOsMessage *nanoOsMessage = NULL;
+  uint8_t numRunningProcesses = 0;
 
   // We don't know where our messages to the scheduler will be in its queue, so
   // we can't assume they will be processed immediately, but we can't wait
   // forever either.  Set a 100 ms timeout.
   struct timespec timeout = { 0, 100000000 };
-
-  if (numRunningProcesses == NULL) {
-    printf("ERROR:  numRunningProcesses cannot be NULL in getProcessInfo.\n");
-    goto exit;
-  }
-
-  // Initialize numRunningProcesses to 0 if it's not already.
-  *numRunningProcesses = 0;
 
   // Because the scheduler runs on the main coroutine, it doesn't have the
   // ability to yield.  That means it can't do anything that requires a
@@ -834,16 +830,29 @@ ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses) {
     goto releaseMessage;
   }
 
-  *numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
-  if (*numRunningProcesses == 0) {
+  numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  if (numRunningProcesses == 0) {
     printf("ERROR:  Number of running processes returned from the "
       "scheduler is 0.\n");
     goto releaseMessage;
   }
 
   // We need numRunningProcesses rows.
-  processInfo
-    = (ProcessInfo*) malloc(*numRunningProcesses * sizeof(ProcessInfo));
+  processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
+    + ((numRunningProcesses - 1) * sizeof(ProcessInfoElement)));
+  if (processInfo == NULL) {
+    printf(
+      "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
+  }
+
+  // It is possible, although unlikely, that an additional process is started
+  // between the time we made the call above and the time that our message gets
+  // handled below.  We allocated our return value based upon the size that was
+  // returned above and, if we're not careful, it will be possible to overflow
+  // the array.  Initialize processInfo->numProcesses so that
+  // handleGetProcessInfo knows the maximum number of ProcessInfoElements it can
+  // populated.
+  processInfo->numProcesses = numRunningProcesses;
   nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
   if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,

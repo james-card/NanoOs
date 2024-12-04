@@ -56,16 +56,26 @@ typedef struct RunningCommand {
   Coroutine  *coroutine;
 } RunningCommand;
 
-/// @struct ProcessInfo
+/// @struct ProcessInfoElement
 ///
 /// @brief Information about a running process that is exportable to a user
 /// process.
 ///
 /// @param pid The numerical ID of the process.
 /// @param name The name of the process.
-typedef struct ProcessInfo {
+typedef struct ProcessInfoElement {
   int pid;
   const char *name;
+} ProcessInfoElement;
+
+/// @struct ProcessInfo
+///
+/// @param numProcesses The number of elements in the processes array.
+/// @param processes The array of ProcessInfoElements that describe the
+///   processes.
+typedef struct ProcessInfo {
+  uint8_t numProcesses;
+  ProcessInfoElement processes[1];
 } ProcessInfo;
 
 /// @enum SchedulerCommand
@@ -154,7 +164,7 @@ Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
-ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses);
+ProcessInfo* getProcessInfo(void);
 int killProcess(COROUTINE_ID_TYPE processId);
 int runProcess(CommandEntry *commandEntry, char *consoleInput);
 

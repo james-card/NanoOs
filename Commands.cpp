@@ -50,14 +50,15 @@ int ps(int argc, char **argv) {
   (void) argc;
   (void) argv;
   int returnValue = 0;
-  uint8_t numRunningProcesses = 0;
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
 
-  ProcessInfo *processInfo = getProcessInfo(&numRunningProcesses);
+  ProcessInfo *processInfo = getProcessInfo();
   if (processInfo != NULL) {
+    uint8_t numRunningProcesses = processInfo->numProcesses;
+    ProcessInfoElement *processes = processInfo->processes;
     for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
-      printf("%d  %s\n", processInfo[ii].pid, processInfo[ii].name);
+      printf("%d  %s\n", processes[ii].pid, processes[ii].name);
     }
     free(processInfo); processInfo = NULL;
   } else {
