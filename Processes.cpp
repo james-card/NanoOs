@@ -670,6 +670,7 @@ int (*schedulerCommandHandlers[])(Comessage*) = {
 ///
 /// @return This function returns no value.
 void handleSchedulerMessage(void) {
+  static int lastReturnValue = 0;
   Comessage *message = comessageQueuePop();
   if (message != NULL) {
     SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
@@ -685,12 +686,16 @@ void handleSchedulerMessage(void) {
 
     int returnValue = schedulerCommandHandlers[messageType](message);
     if (returnValue != 0) {
-      printString("Scheduler command handler failed.\n");
-      printString("Pushing message back onto our own queue.\n");
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
+      if (lastReturnValue == 0) {
+        // Only print out a message if this is the first time we've failed.
+        printString("Scheduler command handler failed.\n");
+        printString("Pushing message back onto our own queue.\n");
+      }
       comessageQueuePush(NULL, message);
     }
+    lastReturnValue = returnValue;
   }
 
   return;
