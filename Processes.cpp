@@ -51,6 +51,408 @@ Comessage *messages = NULL;
 /// main loop function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
+/// @fn int getNumTokens(const char *input)
+///
+/// @brief Get the number of whitespace-delimited tokens in a string.
+///
+/// @param input A pointer to the input string to consider.
+///
+/// @return Returns the number of tokens discovered.
+int getNumTokens(const char *input) {
+  int numTokens = 0;
+  if (input == NULL) {
+    return numTokens;
+  }
+
+  while (*input != '\0') {
+    numTokens++;
+    input = &input[strcspn(input, " \t\r\n")];
+    input = &input[strspn(input, " \t\r\n")];
+  }
+
+  return numTokens;
+}
+
+/// @fn int getNumLeadingBackslashes(char *strStart, char *strPos)
+///
+/// @brief Get the number of backslashes that precede a character.
+///
+/// @param strStart A pointer to the start of the string the character is in.
+/// @param strPos A pointer to the character to look before.
+int getNumLeadingBackslashes(char *strStart, char *strPos) {
+  int numLeadingBackslashes = 0;
+
+  strPos--;
+  while ((((uintptr_t) strPos) >= ((uintptr_t) strStart))
+    && (*strPos == '\\')
+  ) {
+    numLeadingBackslashes++;
+    strPos--;
+  }
+
+  return numLeadingBackslashes;
+}
+
+/// @fn char *findEndQuote(char *input, char quote)
+///
+/// @brief Find the first double quote that is not escaped.
+///
+/// @brief input A pointer to the beginning of the string to search.
+///
+/// @return Returns a pointer to the end quote on success, NULL on failure.
+char *findEndQuote(char *input, char quote) {
+  char *quoteAt = strchr(input, quote);
+  while ((quoteAt != NULL)
+    && (getNumLeadingBackslashes(input, quoteAt) & 1)
+  ) {
+    input = quoteAt + 1;
+    quoteAt = strchr(input, quote);
+  }
+
+  return quoteAt;
+}
+
+/// @fn char** parseArgs(char *consoleInput, int *argc)
+///
+/// @brief Parse a raw input string from the console into an array of individual
+/// strings to pass as the argv array to a command function.
+///
+/// @param consoleInput The raw string of data read from the user's input by the
+///   console.
+/// @param argc A pointer to the integer where the number of parsed arguments
+///   will be stored.
+///
+/// @return Returns a pointer to an array of strings on success, NULL on
+/// failure.
+char** parseArgs(char *consoleInput, int *argc) {
+  char **argv = NULL;
+
+  if ((consoleInput == NULL) || (argc == NULL)) {
+    // Failure.
+    return argv; // NULL
+  }
+  *argc = 0;
+  char *endOfInput = &consoleInput[strlen(consoleInput)];
+
+  // First, we need to declare an array that will hold all our arguments.  In
+  // order to do this, we need to know the maximum number of arguments we'll be
+  // working with.  That will be the number of tokens separated by whitespace.
+  int maxNumArgs = getNumTokens(consoleInput);
+  argv = (char**) malloc(maxNumArgs * sizeof(char*));
+  if (argv == NULL) {
+    // Nothing we can do.  Fail.
+    return argv; // NULL
+  }
+
+  // Next, go through the input and fill in the elements of the argv array with
+  // the addresses first letter of each argument and put a NULL byte at the end
+  // of each argument.
+  int numArgs = 0;
+  char *endOfArg = NULL;
+  while ((consoleInput != endOfInput) && (*consoleInput != '\0')) {
+    if (*consoleInput == '"') {
+      consoleInput++;
+      endOfArg = findEndQuote(consoleInput, '"');
+    } else if (*consoleInput == '\'') {
+      consoleInput++;
+      endOfArg = findEndQuote(consoleInput, '\'');
+    } else {
+      endOfArg = &consoleInput[strcspn(consoleInput, " \t\r\n")];
+    }
+
+    argv[numArgs] = consoleInput;
+    numArgs++;
+
+    if (endOfArg != NULL) {
+      *endOfArg = '\0';
+      if (endOfArg != endOfInput) {
+        consoleInput = endOfArg + 1;
+      } else {
+        consoleInput = endOfInput;
+      }
+    } else {
+      consoleInput += strlen(consoleInput);
+    }
+
+    consoleInput = &consoleInput[strspn(consoleInput, " \t\r\n")];
+  }
+
+  *argc = numArgs;
+  return argv;
+}
+
+/// @fn void* startCommand(void *args)
+///
+/// @brief Wrapper coroutine that calls a command function.
+///
+/// @param args The message received from the console process that describes
+///   the command to run, cast to a void*.
+///
+/// @return If the comamnd is run, returns the result of the command cast to a
+/// void*.  If the command is not run, returns -1 cast to a void*.
+void* startCommand(void *args) {
+  // The scheduler is suspended because of the coroutineResume at the start
+  // of this call.  So, we need to immediately yield and put ourselves back in
+  // the round-robin array.
+  coroutineYield(NULL);
+  Comessage *comessage = (Comessage*) args;
+  if (comessage == NULL) {
+    printString("ERROR:  No arguments message provided to startCommand.\n");
+    return (void*) ((intptr_t) -1);
+  }
+
+  int argc = 0;
+  char **argv = NULL;
+  CommandEntry *commandEntry
+    = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
+
+  argv = parseArgs(consoleInput, &argc);
+  if (argv == NULL) {
+    // Fail.
+    printString("ERROR:  Could not parse input into argc and argv.\n");
+    consoleInput = stringDestroy(consoleInput);
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleSchedulerMessage "
+        "for invalid message type.\n");
+    }
+    return (void*) ((intptr_t) -1);
+  }
+
+  int returnValue = commandEntry->func(argc, argv);
+  free(consoleInput); consoleInput = NULL;
+  free(argv); argv = NULL;
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    printString("ERROR!!!  "
+      "Could not release message from handleSchedulerMessage "
+      "for invalid message type.\n");
+  }
+
+  // We need to clear the coroutine pointer.
+  runningCommands[coroutineId(NULL)].coroutine = NULL;
+
+  return (void*) ((intptr_t) returnValue);
+}
+
+/// @fn void* dummyProcess(void *args)
+///
+/// @brief Dummy process that's loaded at startup to prepopulate the process
+/// array with coroutines.
+///
+/// @param args Any arguments passed to this function.  Ignored.
+///
+/// @return This function always returns NULL.
+void* dummyProcess(void *args) {
+  (void) args;
+  runningCommands[coroutineId(NULL)].coroutine = NULL;
+  nanoOsExitProcess(0);
+}
+
+/// @fn ProcessInfo* getProcessInfo(void)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to get information about the running processes.
+///
+/// @return Returns a pointer to the dynamically-allocated ProcessInfo object
+/// on success, NULL on failure.
+ProcessInfo* getProcessInfo(void) {
+  Comessage *comessage = NULL;
+  int waitStatus = coroutineSuccess;
+  ProcessInfo *processInfo = NULL;
+  NanoOsMessage *nanoOsMessage = NULL;
+  uint8_t numRunningProcesses = 0;
+
+  // We don't know where our messages to the scheduler will be in its queue, so
+  // we can't assume they will be processed immediately, but we can't wait
+  // forever either.  Set a 100 ms timeout.
+  struct timespec timeout = { 0, 100000000 };
+
+  // Because the scheduler runs on the main coroutine, it doesn't have the
+  // ability to yield.  That means it can't do anything that requires a
+  // synchronus message exchange, i.e. allocating memory.  So, we need to
+  // allocate memory from the current process and then pass that back to the
+  // scheduler to populate.  That means we first need to know how many processes
+  // are running so that we know how much space to allocate.  So, get that
+  // first.
+  comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
+    (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    goto exit;
+  }
+
+  waitStatus = comessageWaitForDone(comessage, &timeout);
+  if (waitStatus != coroutineSuccess) {
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get the number of running commands timed out.\n");
+    } else {
+      printf("Command to get the number of running commands failed.\n");
+    }
+
+    // Without knowing how many processes there are, we can't continue.  Bail.
+    goto releaseMessage;
+  }
+
+  numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  if (numRunningProcesses == 0) {
+    printf("ERROR:  Number of running processes returned from the "
+      "scheduler is 0.\n");
+    goto releaseMessage;
+  }
+
+  // We need numRunningProcesses rows.
+  processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
+    + ((numRunningProcesses - 1) * sizeof(ProcessInfoElement)));
+  if (processInfo == NULL) {
+    printf(
+      "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
+  }
+
+  // It is possible, although unlikely, that an additional process is started
+  // between the time we made the call above and the time that our message gets
+  // handled below.  We allocated our return value based upon the size that was
+  // returned above and, if we're not careful, it will be possible to overflow
+  // the array.  Initialize processInfo->numProcesses so that
+  // handleGetProcessInfo knows the maximum number of ProcessInfoElements it can
+  // populated.
+  processInfo->numProcesses = numRunningProcesses;
+  nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
+  if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,
+    nanoOsMessage, sizeof(NanoOsMessage), /* waiting= */ true)
+    != coroutineSuccess
+  ) {
+    printf(
+      "ERROR:  Could not initialize message to send to get process info.\n");
+    goto freeMemory;
+  }
+
+  if (sendComessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, comessage)
+    != coroutineSuccess
+  ) {
+    printf("ERROR:  Could not send scheduler message to get process info.\n");
+    goto freeMemory;
+  }
+
+  waitStatus = comessageWaitForDone(comessage, &timeout);
+  if (waitStatus != coroutineSuccess) {
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get process information timed out.\n");
+    } else {
+      printf("Command to get process information failed.\n");
+    }
+
+    // Without knowing the data for the processes, we can't display them.  Bail.
+    goto freeMemory;
+  }
+
+  goto releaseMessage;
+
+freeMemory:
+  free(processInfo); processInfo = NULL;
+
+releaseMessage:
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    printf("ERROR!!!  Could not release message sent to scheduler for "
+      "getting the number of running processes.\n");
+  }
+
+exit:
+  return processInfo;
+}
+
+/// @fn int killProcess(COROUTINE_ID_TYPE processId)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to kill a running process.
+///
+/// @param processId The ID of the process to kill.
+///
+/// @return Returns 0 on success, 1 on failure.
+int killProcess(COROUTINE_ID_TYPE processId) {
+  if ((processId <= NANO_OS_RESERVED_PROCESS_ID)
+    || (processId >= NANO_OS_NUM_COMMANDS)
+    || (coroutineResumable(runningCommands[processId].coroutine) == false)
+  ) {
+    printString("ERROR:  Invalid process ID.\n");
+    return 1;
+  }
+
+  Comessage *comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
+    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    releaseConsole();
+    return 1;
+  }
+
+  // We don't know where our message to the scheduler will be in its queue, so
+  // we can't assume it will be processed immediately, but we can't wait forever
+  // either.  Set a 100 ms timeout.
+  struct timespec ts = { 0, 100000000 };
+  int waitStatus = comessageWaitForDone(comessage, &ts);
+  int returnValue = 0;
+  if (waitStatus == coroutineSuccess) {
+    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+    returnValue = nanoOsMessage->data;
+    if (returnValue == 0) {
+      printf("Process terminated.\n");
+    } else {
+      printf("Process termination returned status %d.\n", returnValue);
+    }
+  } else {
+    returnValue = 1;
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to kill PID %d timed out.\n", processId);
+    } else {
+      printf("Command to kill PID %d failed.\n", processId);
+    }
+  }
+
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    returnValue = 1;
+    printf("ERROR!!!  "
+      "Could not release message sent to scheduler for kill command.\n");
+  }
+
+  return returnValue;
+}
+
+/// @fn int runProcess(CommandEntry *commandEntry, char *consoleInput)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to start a process.
+///
+/// @param commandEntry A pointer to the CommandEntry that describes the command
+///   to run.
+/// @param consoleInput The raw consoleInput that was captured for the command
+///   line.
+///
+/// @return Returns 0 on success, 1 on failure.
+int runProcess(CommandEntry *commandEntry, char *consoleInput) {
+  int returnValue = 0;
+
+  if (sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
+    (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
+    false) == NULL
+  ) {
+    printString("ERROR!!!  Could not communicate with scheduler.\n");
+    returnValue = 1;
+  }
+
+  return returnValue;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//////////// NOTHING BELOW THIS LINE MAY ALLOCATE DYNAMIC MEMORY!!! ////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 /// @fn Coroutine* getCoroutineByPid(unsigned int pid)
 ///
 /// @brief Look up a croutine for a running command given its process ID.
@@ -253,190 +655,6 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
   }
 
   return returnValue;
-}
-
-/// @fn int getNumTokens(const char *input)
-///
-/// @brief Get the number of whitespace-delimited tokens in a string.
-///
-/// @param input A pointer to the input string to consider.
-///
-/// @return Returns the number of tokens discovered.
-int getNumTokens(const char *input) {
-  int numTokens = 0;
-  if (input == NULL) {
-    return numTokens;
-  }
-
-  while (*input != '\0') {
-    numTokens++;
-    input = &input[strcspn(input, " \t\r\n")];
-    input = &input[strspn(input, " \t\r\n")];
-  }
-
-  return numTokens;
-}
-
-/// @fn int getNumLeadingBackslashes(char *strStart, char *strPos)
-///
-/// @brief Get the number of backslashes that precede a character.
-///
-/// @param strStart A pointer to the start of the string the character is in.
-/// @param strPos A pointer to the character to look before.
-int getNumLeadingBackslashes(char *strStart, char *strPos) {
-  int numLeadingBackslashes = 0;
-
-  strPos--;
-  while ((((uintptr_t) strPos) >= ((uintptr_t) strStart))
-    && (*strPos == '\\')
-  ) {
-    numLeadingBackslashes++;
-    strPos--;
-  }
-
-  return numLeadingBackslashes;
-}
-
-/// @fn char *findEndQuote(char *input, char quote)
-///
-/// @brief Find the first double quote that is not escaped.
-///
-/// @brief input A pointer to the beginning of the string to search.
-///
-/// @return Returns a pointer to the end quote on success, NULL on failure.
-char *findEndQuote(char *input, char quote) {
-  char *quoteAt = strchr(input, quote);
-  while ((quoteAt != NULL)
-    && (getNumLeadingBackslashes(input, quoteAt) & 1)
-  ) {
-    input = quoteAt + 1;
-    quoteAt = strchr(input, quote);
-  }
-
-  return quoteAt;
-}
-
-/// @fn char** parseArgs(char *consoleInput, int *argc)
-///
-/// @brief Parse a raw input string from the console into an array of individual
-/// strings to pass as the argv array to a command function.
-///
-/// @param consoleInput The raw string of data read from the user's input by the
-///   console.
-/// @param argc A pointer to the integer where the number of parsed arguments
-///   will be stored.
-///
-/// @return Returns a pointer to an array of strings on success, NULL on
-/// failure.
-char** parseArgs(char *consoleInput, int *argc) {
-  char **argv = NULL;
-
-  if ((consoleInput == NULL) || (argc == NULL)) {
-    // Failure.
-    return argv; // NULL
-  }
-  *argc = 0;
-  char *endOfInput = &consoleInput[strlen(consoleInput)];
-
-  // First, we need to declare an array that will hold all our arguments.  In
-  // order to do this, we need to know the maximum number of arguments we'll be
-  // working with.  That will be the number of tokens separated by whitespace.
-  int maxNumArgs = getNumTokens(consoleInput);
-  argv = (char**) malloc(maxNumArgs * sizeof(char*));
-  if (argv == NULL) {
-    // Nothing we can do.  Fail.
-    return argv; // NULL
-  }
-
-  // Next, go through the input and fill in the elements of the argv array with
-  // the addresses first letter of each argument and put a NULL byte at the end
-  // of each argument.
-  int numArgs = 0;
-  char *endOfArg = NULL;
-  while ((consoleInput != endOfInput) && (*consoleInput != '\0')) {
-    if (*consoleInput == '"') {
-      consoleInput++;
-      endOfArg = findEndQuote(consoleInput, '"');
-    } else if (*consoleInput == '\'') {
-      consoleInput++;
-      endOfArg = findEndQuote(consoleInput, '\'');
-    } else {
-      endOfArg = &consoleInput[strcspn(consoleInput, " \t\r\n")];
-    }
-
-    argv[numArgs] = consoleInput;
-    numArgs++;
-
-    if (endOfArg != NULL) {
-      *endOfArg = '\0';
-      if (endOfArg != endOfInput) {
-        consoleInput = endOfArg + 1;
-      } else {
-        consoleInput = endOfInput;
-      }
-    } else {
-      consoleInput += strlen(consoleInput);
-    }
-
-    consoleInput = &consoleInput[strspn(consoleInput, " \t\r\n")];
-  }
-
-  *argc = numArgs;
-  return argv;
-}
-
-/// @fn void* startCommand(void *args)
-///
-/// @brief Wrapper coroutine that calls a command function.
-///
-/// @param args The message received from the console process that describes
-///   the command to run, cast to a void*.
-///
-/// @return If the comamnd is run, returns the result of the command cast to a
-/// void*.  If the command is not run, returns -1 cast to a void*.
-void* startCommand(void *args) {
-  // The scheduler is suspended because of the coroutineResume at the start
-  // of this call.  So, we need to immediately yield and put ourselves back in
-  // the round-robin array.
-  coroutineYield(NULL);
-  Comessage *comessage = (Comessage*) args;
-  if (comessage == NULL) {
-    printString("ERROR:  No arguments message provided to startCommand.\n");
-    return (void*) ((intptr_t) -1);
-  }
-
-  int argc = 0;
-  char **argv = NULL;
-  CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
-
-  argv = parseArgs(consoleInput, &argc);
-  if (argv == NULL) {
-    // Fail.
-    printString("ERROR:  Could not parse input into argc and argv.\n");
-    consoleInput = stringDestroy(consoleInput);
-    if (comessageRelease(comessage) != coroutineSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleSchedulerMessage "
-        "for invalid message type.\n");
-    }
-    return (void*) ((intptr_t) -1);
-  }
-
-  int returnValue = commandEntry->func(argc, argv);
-  free(consoleInput); consoleInput = NULL;
-  free(argv); argv = NULL;
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    printString("ERROR!!!  "
-      "Could not release message from handleSchedulerMessage "
-      "for invalid message type.\n");
-  }
-
-  // We need to clear the coroutine pointer.
-  runningCommands[coroutineId(NULL)].coroutine = NULL;
-
-  return (void*) ((intptr_t) returnValue);
 }
 
 /// @fn int handleRunProcess(Comessage *comessage)
@@ -701,20 +919,6 @@ void handleSchedulerMessage(void) {
   return;
 }
 
-/// @fn void* dummyProcess(void *args)
-///
-/// @brief Dummy process that's loaded at startup to prepopulate the process
-/// array with coroutines.
-///
-/// @param args Any arguments passed to this function.  Ignored.
-///
-/// @return This function always returns NULL.
-void* dummyProcess(void *args) {
-  (void) args;
-  runningCommands[coroutineId(NULL)].coroutine = NULL;
-  nanoOsExitProcess(0);
-}
-
 /// @fn void runScheduler(void)
 ///
 /// @brief Initialize and run the round-robin scheduler.
@@ -787,203 +991,5 @@ void runScheduler(void) {
     coroutineIndex++;
     coroutineIndex %= numScheduledCoroutines;
   }
-}
-
-/// @fn ProcessInfo* getProcessInfo(void)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to get information about the running processes.
-///
-/// @return Returns a pointer to the dynamically-allocated ProcessInfo object
-/// on success, NULL on failure.
-ProcessInfo* getProcessInfo(void) {
-  Comessage *comessage = NULL;
-  int waitStatus = coroutineSuccess;
-  ProcessInfo *processInfo = NULL;
-  NanoOsMessage *nanoOsMessage = NULL;
-  uint8_t numRunningProcesses = 0;
-
-  // We don't know where our messages to the scheduler will be in its queue, so
-  // we can't assume they will be processed immediately, but we can't wait
-  // forever either.  Set a 100 ms timeout.
-  struct timespec timeout = { 0, 100000000 };
-
-  // Because the scheduler runs on the main coroutine, it doesn't have the
-  // ability to yield.  That means it can't do anything that requires a
-  // synchronus message exchange, i.e. allocating memory.  So, we need to
-  // allocate memory from the current process and then pass that back to the
-  // scheduler to populate.  That means we first need to know how many processes
-  // are running so that we know how much space to allocate.  So, get that
-  // first.
-  comessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
-    (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
-  if (comessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
-    goto exit;
-  }
-
-  waitStatus = comessageWaitForDone(comessage, &timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to get the number of running commands timed out.\n");
-    } else {
-      printf("Command to get the number of running commands failed.\n");
-    }
-
-    // Without knowing how many processes there are, we can't continue.  Bail.
-    goto releaseMessage;
-  }
-
-  numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
-  if (numRunningProcesses == 0) {
-    printf("ERROR:  Number of running processes returned from the "
-      "scheduler is 0.\n");
-    goto releaseMessage;
-  }
-
-  // We need numRunningProcesses rows.
-  processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
-    + ((numRunningProcesses - 1) * sizeof(ProcessInfoElement)));
-  if (processInfo == NULL) {
-    printf(
-      "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
-  }
-
-  // It is possible, although unlikely, that an additional process is started
-  // between the time we made the call above and the time that our message gets
-  // handled below.  We allocated our return value based upon the size that was
-  // returned above and, if we're not careful, it will be possible to overflow
-  // the array.  Initialize processInfo->numProcesses so that
-  // handleGetProcessInfo knows the maximum number of ProcessInfoElements it can
-  // populated.
-  processInfo->numProcesses = numRunningProcesses;
-  nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
-  if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,
-    nanoOsMessage, sizeof(NanoOsMessage), /* waiting= */ true)
-    != coroutineSuccess
-  ) {
-    printf(
-      "ERROR:  Could not initialize message to send to get process info.\n");
-    goto freeMemory;
-  }
-
-  if (sendComessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, comessage)
-    != coroutineSuccess
-  ) {
-    printf("ERROR:  Could not send scheduler message to get process info.\n");
-    goto freeMemory;
-  }
-
-  waitStatus = comessageWaitForDone(comessage, &timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to get process information timed out.\n");
-    } else {
-      printf("Command to get process information failed.\n");
-    }
-
-    // Without knowing the data for the processes, we can't display them.  Bail.
-    goto freeMemory;
-  }
-
-  goto releaseMessage;
-
-freeMemory:
-  free(processInfo); processInfo = NULL;
-
-releaseMessage:
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    printf("ERROR!!!  Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
-  }
-
-exit:
-  return processInfo;
-}
-
-/// @fn int killProcess(COROUTINE_ID_TYPE processId)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to kill a running process.
-///
-/// @param processId The ID of the process to kill.
-///
-/// @return Returns 0 on success, 1 on failure.
-int killProcess(COROUTINE_ID_TYPE processId) {
-  if ((processId <= NANO_OS_RESERVED_PROCESS_ID)
-    || (processId >= NANO_OS_NUM_COMMANDS)
-    || (coroutineResumable(runningCommands[processId].coroutine) == false)
-  ) {
-    printString("ERROR:  Invalid process ID.\n");
-    return 1;
-  }
-
-  Comessage *comessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
-    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
-  if (comessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
-    releaseConsole();
-    return 1;
-  }
-
-  // We don't know where our message to the scheduler will be in its queue, so
-  // we can't assume it will be processed immediately, but we can't wait forever
-  // either.  Set a 100 ms timeout.
-  struct timespec ts = { 0, 100000000 };
-  int waitStatus = comessageWaitForDone(comessage, &ts);
-  int returnValue = 0;
-  if (waitStatus == coroutineSuccess) {
-    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-    returnValue = nanoOsMessage->data;
-    if (returnValue == 0) {
-      printf("Process terminated.\n");
-    } else {
-      printf("Process termination returned status %d.\n", returnValue);
-    }
-  } else {
-    returnValue = 1;
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to kill PID %d timed out.\n", processId);
-    } else {
-      printf("Command to kill PID %d failed.\n", processId);
-    }
-  }
-
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    returnValue = 1;
-    printf("ERROR!!!  "
-      "Could not release message sent to scheduler for kill command.\n");
-  }
-
-  return returnValue;
-}
-
-/// @fn int runProcess(CommandEntry *commandEntry, char *consoleInput)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to start a process.
-///
-/// @param commandEntry A pointer to the CommandEntry that describes the command
-///   to run.
-/// @param consoleInput The raw consoleInput that was captured for the command
-///   line.
-///
-/// @return Returns 0 on success, 1 on failure.
-int runProcess(CommandEntry *commandEntry, char *consoleInput) {
-  int returnValue = 0;
-
-  if (sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-    (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
-    false) == NULL
-  ) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
-    returnValue = 1;
-  }
-
-  return returnValue;
 }
 
