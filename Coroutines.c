@@ -186,6 +186,27 @@ static Coroutine* _globalIdle = NULL;
 /// @brief The size of each coroutine's stack in bytes.
 static int _globalStackSize = COROUTINE_DEFAULT_STACK_SIZE;
 
+/// @fn int64_t coroutinesGetNanoseconds(const struct timespec *ts)
+///
+/// @brief Convert the time in a timespec to a raw number of nanoseconds.
+///
+/// @param ts A pointer to the struct timespec to convert.  If this value is
+///   NULL, the current time will be used.
+///
+/// @return Returns the number of nanoseconds since midnight, Jan 1, 1970
+/// represented by the timespec.
+int64_t coroutinesGetNanoseconds(const struct timespec *ts) {
+  struct timespec timespecStorage = { 0, 0 };
+
+  if (ts == NULL) {
+    timespec_get(&timespecStorage, TIME_UTC);
+    ts = &timespecStorage;
+  }
+
+  return (((int64_t) ts->tv_sec) * ((int64_t) 1000000000))
+         + ((int64_t) ts->tv_nsec);
+}
+
 /// @fn void coroutineGlobalPush(Coroutine **list, Coroutine *coroutine)
 ///
 /// @brief Add a coroutine to a global list and get the previous head of the
@@ -1234,6 +1255,8 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     // Cannot honor the request.
     return coroutineError;
   }
+  int64_t now = coroutinesGetNanoseconds(NULL);
+  int64_t delayTime = now + coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
@@ -1245,22 +1268,12 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 
   int returnValue = comutexTryLock(mtx);
   while (returnValue != coroutineSuccess) {
-    struct timespec now;
-    if (timespec_get(&now, TIME_UTC) == 0) {
-      uint64_t nowns = (now.tv_sec * 1000000000) + now.tv_nsec;
-      uint64_t tsns = (ts->tv_sec * 1000000000) + ts->tv_nsec;
-      if (nowns > tsns) {
-        returnValue = coroutineTimedout;
-        break;
-      }
-      mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
-      returnValue = comutexTryLock(mtx);
-    } else {
-      // timespec_get returned an error.  We have no valid time to wait.  We've
-      // already tried to lock once and that's the best we can do.
-      returnValue = coroutineError;
+    if (coroutinesGetNanoseconds(NULL) > delayTime) {
+      returnValue = coroutineTimedout;
       break;
     }
+    mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
+    returnValue = comutexTryLock(mtx);
   }
 
   return returnValue;
@@ -1435,6 +1448,8 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     // Cannot honor the request.
     return coroutineError;
   }
+  int64_t now = coroutinesGetNanoseconds(NULL);
+  int64_t delayTime = now + coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   cond->lastYieldValue = NULL;
@@ -1472,18 +1487,10 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   while ((cond->numSignals == 0) || (cond->head != running)) {
     cond->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
 
-    struct timespec now;
-    if (timespec_get(&now, TIME_UTC) == 0) {
-      uint64_t nowns = (now.tv_sec * 1000000000) + now.tv_nsec;
-      uint64_t tsns = (ts->tv_sec * 1000000000) + ts->tv_nsec;
-      if (nowns > tsns) {
-        returnValue = coroutineTimedout;
-        break;
-      }
-    } else if (cond->numSignals == 0) {
-      // timespec_get returned an error.  We have no valid time to wait.  We've
-      // already tried to wait once and that's the best we can do.
-      returnValue = coroutineError;
+    if (((cond->numSignals == 0) || (cond->head != running))
+      && (coroutinesGetNanoseconds(NULL) > delayTime)
+    ) {
+      returnValue = coroutineTimedout;
       break;
     }
   }
