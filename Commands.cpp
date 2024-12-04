@@ -52,21 +52,16 @@ int ps(int argc, char **argv) {
   int returnValue = 0;
   Comessage *comessage = NULL;
   int waitStatus = coroutineSuccess;
-  uint8_t numRunningProcesses = 0;
-  void ***processInfo = NULL;
+  uint8_t numRunningProcesses = 0, ii = 0;
+  ProcessInfo *processInfo = NULL;
+  NanoOsMessage *nanoOsMessage = NULL;
+
+  printf("- Dynamic memory left: %d\n", getFreeMemory());
 
   // We don't know where our messages to the scheduler will be in its queue, so
   // we can't assume they will be processed immediately, but we can't wait
   // forever either.  Set a 100 ms timeout.
   struct timespec timeout = { 0, 100000000 };
-
-  //// for (int ii = 0; ii < NANO_OS_NUM_COMMANDS; ii++) {
-  ////   if (coroutineResumable(runningCommands[ii].coroutine)) {
-  ////     printf("%d  %s\n",
-  ////       coroutineId(runningCommands[ii].coroutine),
-  ////       runningCommands[ii].name);
-  ////   }
-  //// }
 
   comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
@@ -99,17 +94,47 @@ int ps(int argc, char **argv) {
     goto releaseMessage;
   }
 
-  // We need a table with numRunningProcesses rows and NUM_PROCESS_INFO_COLUMNS
-  // columns.
-  processInfo = (void***) malloc(numRunningProcesses * sizeof(void**));
-  for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
-    processInfo[ii] = (void**) malloc(NUM_PROCESS_INFO_COLUMNS * sizeof(void*));
+  // We need numRunningProcesses rows.
+  processInfo
+    = (ProcessInfo*) malloc(numRunningProcesses * sizeof(ProcessInfo));
+  nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
+  if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,
+    nanoOsMessage, sizeof(NanoOsMessage), /* waiting= */ true)
+    != coroutineSuccess
+  ) {
+    printf(
+      "ERROR:  Could not initialize message to send to get process info.\n");
+    returnValue = 1;
+    goto freeMemory;
+  }
+
+  if (sendComessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, comessage)
+    != coroutineSuccess
+  ) {
+    printf("ERROR:  Could not send scheduler message to get process info.\n");
+    returnValue = 1;
+    goto freeMemory;
+  }
+
+  waitStatus = comessageWaitForDone(comessage, &timeout);
+  if (waitStatus != coroutineSuccess) {
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get the number of running commands timed out.\n");
+    } else {
+      printf("Command to get the number of running commands failed.\n");
+    }
+
+    // Without knowing the data for the processes, we can't display them.  Bail.
+    returnValue = 1;
+    goto freeMemory;
+  }
+
+  for (ii = 0; ii < numRunningProcesses; ii++) {
+    printf("%d  %s\n", processInfo[ii].pid, processInfo[ii].name);
   }
 
 freeMemory:
-  for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
-    free(processInfo[ii]); processInfo[ii] = NULL;
-  }
   free(processInfo); processInfo = NULL;
 
 releaseMessage:
