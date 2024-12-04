@@ -329,6 +329,35 @@ int memoryManagerHandleRealloc(
   return returnValue;
 }
 
+/// @fn int memoryManagerHandleFree(
+///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///
+/// @brief Command handler for a MEMORY_MANAGER_FREE command.  Extracts the
+/// pointer to free from the message and then calls localFree.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param incoming A pointer to the message received from the requesting
+///   process.
+///
+/// @return Returns 0 on success, error code on failure.
+int memoryManagerHandleFree(
+  MemoryManagerState *memoryManagerState, Comessage *incoming
+) {
+  int returnValue = 0;
+
+  void *ptr = nanoOsMessageDataPointer(incoming, void*);
+  localFree(memoryManagerState, ptr);
+  if (comessageRelease(incoming) != coroutineSuccess) {
+    printString("ERROR!!!  "
+      "Could not release message from memoryManagerHandleFree.\n");
+    returnValue = -1;
+  }
+
+  return returnValue;
+}
+
 /// @fn int memoryManagerHandleGetFreeMemory(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
@@ -419,6 +448,7 @@ int (*memoryManagerCommand[])(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) = {
   memoryManagerHandleRealloc,
+  memoryManagerHandleFree,
   memoryManagerHandleGetFreeMemory,
   memoryManagerHandleFreeProcessMemory,
 };
@@ -686,7 +716,8 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(void *ptr) {
-  memoryManagerSendReallocMessage(ptr, 0);
+  sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
+    (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
   return;
 }
 
