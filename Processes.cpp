@@ -569,7 +569,7 @@ int handleKillProcess(Comessage *comessage) {
       NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
       comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-      sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, comessage);
+      memoryManagerCast(comessage);
     } else {
       // Tell the caller that we've failed.
       NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
