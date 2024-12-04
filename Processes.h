@@ -154,6 +154,7 @@ Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
+ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -769,3 +769,107 @@ void runScheduler(void) {
   }
 }
 
+/// @fn ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses)
+///
+/// @brief Do all the inter-process communication with the scheduler required
+/// to get information about the running processes.
+///
+/// @param numRunningProcesses A pointer to the storage for number of running
+///   processes.
+///
+/// @return Returns a pointer to the dynamically-allocated ProcessInfo array
+/// on success, NULL on failure.
+ProcessInfo* getProcessInfo(uint8_t *numRunningProcesses) {
+  Comessage *comessage = NULL;
+  int waitStatus = coroutineSuccess;
+  ProcessInfo *processInfo = NULL;
+  NanoOsMessage *nanoOsMessage = NULL;
+
+  // We don't know where our messages to the scheduler will be in its queue, so
+  // we can't assume they will be processed immediately, but we can't wait
+  // forever either.  Set a 100 ms timeout.
+  struct timespec timeout = { 0, 100000000 };
+
+  if (numRunningProcesses == NULL) {
+    printf("ERROR:  numRunningProcesses cannot be NULL in getProcessInfo.\n");
+    goto exit;
+  }
+
+  // Initialize numRunningProcesses to 0 if it's not already.
+  *numRunningProcesses = 0;
+
+  comessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
+    (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
+  if (comessage == NULL) {
+    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    goto exit;
+  }
+
+  waitStatus = comessageWaitForDone(comessage, &timeout);
+  if (waitStatus != coroutineSuccess) {
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get the number of running commands timed out.\n");
+    } else {
+      printf("Command to get the number of running commands failed.\n");
+    }
+
+    // Without knowing how many processes there are, we can't continue.  Bail.
+    goto releaseMessage;
+  }
+
+  *numRunningProcesses = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  if (*numRunningProcesses == 0) {
+    printf("ERROR:  Number of running processes returned from the "
+      "scheduler is 0.\n");
+    goto releaseMessage;
+  }
+
+  // We need numRunningProcesses rows.
+  processInfo
+    = (ProcessInfo*) malloc(*numRunningProcesses * sizeof(ProcessInfo));
+  nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
+  if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,
+    nanoOsMessage, sizeof(NanoOsMessage), /* waiting= */ true)
+    != coroutineSuccess
+  ) {
+    printf(
+      "ERROR:  Could not initialize message to send to get process info.\n");
+    goto freeMemory;
+  }
+
+  if (sendComessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, comessage)
+    != coroutineSuccess
+  ) {
+    printf("ERROR:  Could not send scheduler message to get process info.\n");
+    goto freeMemory;
+  }
+
+  waitStatus = comessageWaitForDone(comessage, &timeout);
+  if (waitStatus != coroutineSuccess) {
+    if (waitStatus == coroutineTimedout) {
+      printf("Command to get process information timed out.\n");
+    } else {
+      printf("Command to get process information failed.\n");
+    }
+
+    // Without knowing the data for the processes, we can't display them.  Bail.
+    goto freeMemory;
+  }
+
+  goto releaseMessage;
+
+freeMemory:
+  free(processInfo); processInfo = NULL;
+
+releaseMessage:
+  if (comessageRelease(comessage) != coroutineSuccess) {
+    printf("ERROR!!!  Could not release message sent to scheduler for "
+      "getting the number of running processes.\n");
+  }
+
+exit:
+  return processInfo;
+}
+
