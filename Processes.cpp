@@ -581,7 +581,7 @@ int handleKillProcess(Comessage *comessage) {
     }
   }
 
-  // DO NOT release the message since that's done by the memory manager handler.
+  // DO NOT release the message since that's done by the caller.
 
   return returnValue;
 }
