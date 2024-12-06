@@ -55,7 +55,7 @@ extern "C"
 /// @brief The amount of time, in milliseconds of a full cycle of the LED.  The
 /// console process is also responsible for blinking the LED so that the user
 /// has external confirmation that the system is still running.
-#define LED_CYCLE_TIME_MS 1000
+#define LED_CYCLE_TIME_MS 2000
 
 /// @def CONSOLE_BUFFER_SIZE
 ///
@@ -113,6 +113,25 @@ typedef struct ConsoleBuffer {
   bool inUse;
   char buffer[CONSOLE_BUFFER_SIZE];
 } ConsoleBuffer;
+
+/// @struct ConsolePort
+///
+/// @brief Descriptor for a single console port that can be used for input from
+/// a user.
+///
+/// @param consoleBuffer A pointer to the ConsoleBuffer used to buffer input
+///   from the user.
+/// @param owner The ID of the process that currently owns the console port.
+/// @param waitingForInput Whether or not the owning process is currently
+///   waiting for input from the user.
+/// @param readByte A pointer to the non-blocking function that will attempt to
+///   read a byte of input from the user.
+typedef struct ConsolePort {
+  ConsoleBuffer      *consoleBuffer;
+  COROUTINE_ID_TYPE   owner;
+  bool                waitingForInput;
+  int               (*readByte)(ConsolePort *consolePort);
+} ConsolePort;
 
 /// @struct ConsoleState
 ///
