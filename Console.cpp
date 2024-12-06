@@ -459,6 +459,14 @@ void ledToggle() {
   return;
 }
 
+/// @fn int readSerialByte(ConsolePort *consolePort)
+///
+/// @brief Do a non-blocking read of the serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
 int readSerialByte(ConsolePort *consolePort) {
   int serialData = -1;
   serialData = Serial.read();
@@ -476,6 +484,13 @@ int readSerialByte(ConsolePort *consolePort) {
   return serialData;
 }
 
+/// @fn int printSerialString(const char *string)
+///
+/// @brief Print a string to the default serial port.
+///
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
 int printSerialString(const char *string) {
   return Serial.print(string);
 }
