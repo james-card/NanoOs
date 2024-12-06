@@ -144,6 +144,7 @@ extern "C"
 ///
 /// @brief Special value to indicate that a coroutine's ID value is not set.
 /// This is the initial value just after the coroutine constructor completes.
+#ifndef COROUTINE_ID_NOT_SET
 #if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int64_t)
 #define COROUTINE_ID_NOT_SET ((int64_t) 0x8000000000000000)
 #elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int32_t)
@@ -154,7 +155,8 @@ extern "C"
 #define COROUTINE_ID_NOT_SET ((int8_t) 0x80)
 #else
 #error "Invalid COROUTINE_ID_TYPE."
-#endif
+#endif // COROUTINE_ID_TYPE
+#endif // COROUTINE_ID_NOT_SET
 
 /// @enum CoroutineState
 ///
