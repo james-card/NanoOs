@@ -167,30 +167,6 @@ typedef struct ConsoleState {
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
 
-// Inter-process command handlers
-void consoleWriteCharHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteUCharHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteIntHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteUIntHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteLongIntHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteLongUIntHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteFloatHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteDoubleHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteStringHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleGetBufferHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-void consoleWriteBufferHandler(
-  ConsoleState *consoleState, Comessage *inputMessage);
-
 // Support functions
 void releaseConsole();
 
