@@ -509,11 +509,11 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memoryManagerState->mallocStart
     = (uintptr_t) memoryManagerState->mallocNext;
   
-  // We want to grab as much memory as possible for the memory manager.  Get the
-  // delta between the address of mallocBufferStart and the end of memory.
-  memoryManagerState->mallocEnd
-    = ((uintptr_t) memoryManagerState->mallocBuffer)
-    - ((uintptr_t) (((uintptr_t) &mallocBufferStart)
+  // We want to grab as much memory as we can support for the memory manager.
+  // Get the delta between the address of mallocBufferStart and the end of
+  // memory.
+  uintptr_t memorySize
+    = ((uintptr_t) (((uintptr_t) &mallocBufferStart)
         - ((__brkval == NULL)
           ? (uintptr_t) &__heap_start
           : (uintptr_t) __brkval
@@ -522,12 +522,18 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
     )
     + 1;
   
+  // The size element of a MemNode is stored as an 11-bit number, which means we
+  // can only support a maximum of 2047 bytes.  Make sure we don't exceed that.
+  if (memorySize >= 2048) {
+    memorySize = 2047;
+  }
+  
   // The value at memNode(memoryManagerState->mallocNext)->size needs to be
   // non-zero in order for the memory compaction algorithm in localFree to work
   // properly.
-  memNode(memoryManagerState->mallocNext)->size
-    = (uintptr_t) memoryManagerState->mallocNext
-      - memoryManagerState->mallocEnd + 1;
+  memoryManagerState->mallocEnd
+    = ((uintptr_t) memoryManagerState->mallocBuffer) - memorySize;
+  memNode(memoryManagerState->mallocNext)->size = memorySize;
   
   longjmp(returnBuffer, (int) stack);
 }
