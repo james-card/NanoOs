@@ -37,9 +37,12 @@
 ///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
+/// @param consoleMessage A pointer to the Comessage that will be sent to the
+///   Console to assign ownership of the console port.
 typedef struct CommandDescriptor {
   int consolePort;
   char *consoleInput;
+  Comessage *consoleMessage;
 } CommandDescriptor;
 
 /// @var runningCommands
@@ -457,6 +460,11 @@ int runProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consolePort = consolePort;
   commandDescriptor->consoleInput = consoleInput;
+  commandDescriptor->consoleMessage = getAvailableMessage();
+  while (commandDescriptor->consoleMessage == NULL) {
+    coroutineYield(NULL);
+    commandDescriptor->consoleMessage = getAvailableMessage();
+  }
 
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
@@ -473,8 +481,8 @@ int runProcess(CommandEntry *commandEntry,
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-//////////// NOTHING BELOW THIS LINE MAY ALLOCATE DYNAMIC MEMORY!!! ////////////
-////////////////////////////////////////////////////////////////////////////////
+///////////// NOTHING BELOW THIS LINE MAY ALLOCATE DYNAMIC MEMORY  /////////////
+//////////////////////// OR CALL sendNanoOsMessageTo*!!! ///////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @fn Coroutine* getCoroutineByPid(unsigned int pid)
@@ -699,7 +707,9 @@ int handleRunProcess(Comessage *comessage) {
 
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
+  char *consoleInput = commandDescriptor->consoleInput;
   
   if (commandEntry->userProcess == false) {
     // This is not the expected case, but it's the priority case, so list it
@@ -778,6 +788,7 @@ int handleRunProcess(Comessage *comessage) {
       releaseConsole();
     }
   }
+  comessageRelease(commandDescriptor->consoleMessage);
 
   return returnValue;
 }
