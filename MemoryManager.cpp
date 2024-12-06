@@ -493,8 +493,8 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
 ///   deallocation.
 /// @param returnBuffer The jmp_buf that will be used to resume execution in the
 ///   main process function.
-/// @param stack A pointer to the stack in allocateStack.  Passed just so that
-///   the compiler doesn't optimize it out.
+/// @param stack A pointer to the stack in allocateMemoryManagerStack.  Passed
+///   just so that the compiler doesn't optimize it out.
 ///
 /// @return This function returns no value and, indeed, never actually returns.
 void initializeGlobals(MemoryManagerState *memoryManagerState,
@@ -532,7 +532,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   longjmp(returnBuffer, (int) stack);
 }
 
-/// @fn void allocateStack(MemoryManagerState *memoryManagerState,
+/// @fn void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
 ///   jmp_buf returnBuffer, int stackSize, char *topOfStack)
 ///
 /// @brief Allocate space on the stack for the main process and then call
@@ -554,7 +554,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
 /// @param topOfStack A pointer to the first stack pointer that gets created.
 ///
 /// @return This function returns no value and, indeed, never actually returns.
-void allocateStack(MemoryManagerState *memoryManagerState,
+void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, int stackSize, char *topOfStack
 ) {
   char stack[MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE];
@@ -565,7 +565,7 @@ void allocateStack(MemoryManagerState *memoryManagerState,
   }
   
   if (stackSize > MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE) {
-    allocateStack(
+    allocateMemoryManagerStack(
       memoryManagerState,
       returnBuffer,
       stackSize - MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE,
@@ -622,7 +622,7 @@ void* memoryManager(void *args) {
   jmp_buf returnBuffer;
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
-    allocateStack(&memoryManagerState, returnBuffer,
+    allocateMemoryManagerStack(&memoryManagerState, returnBuffer,
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
   
