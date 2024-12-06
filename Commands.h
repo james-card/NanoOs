@@ -67,10 +67,12 @@ typedef int (*CommandFunction)(int argc, char **argv);
 /// @param userProcess Whether this is a user process that should be run in one
 ///   of the general-purpose process slots (true) or it should be run in the
 ///   slot reserved for system processes (false).
+/// @param help A one-line summary of what this command does.
 typedef struct CommandEntry {
   const char      *name;
   CommandFunction  func;
   bool             userProcess;
+  const char      *help;
 } CommandEntry;
 
 // Exported functions

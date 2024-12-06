@@ -144,6 +144,44 @@ int echoSomething(int argc, char **argv) {
   nanoOsExitProcess(0);
 }
 
+/// @fn int help(int argc, char **argv);
+///
+/// @brief Print the help strings for all the commands in the system.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
+///
+/// @return This function always returns 0.
+int help(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+  char formatString[12];
+
+  size_t maxCommandNameLength = 0;
+  for (int ii = 0; ii < NUM_COMMANDS; ii++) {
+    size_t commandNameLength = strlen(commands[ii].name);
+    if (commandNameLength > maxCommandNameLength) {
+      maxCommandNameLength = commandNameLength;
+    }
+  }
+  maxCommandNameLength++;
+  sprintf(formatString, "%%-%us %%s\n", maxCommandNameLength);
+
+  char *commandName = (char*) malloc(maxCommandNameLength + 1);
+  for (int ii = 0; ii < NUM_COMMANDS; ii++) {
+    strcpy(commandName, commands[ii].name);
+    strcat(commandName, ":");
+    const char *help = commands[ii].help;
+    printf(formatString, commandName, help);
+  }
+  commandName = stringDestroy(commandName);
+
+  releaseConsole();
+  nanoOsExitProcess(0);
+}
+
 /// @var counter
 ///
 /// @brief Value that is continually incremented by the runCounter command and
@@ -322,37 +360,50 @@ CommandEntry commands[] = {
   {
     .name = "echo",
     .func = echo,
-    .userProcess = true
+    .userProcess = true,
+    .help = "Echo a string back to the console."
   },
   {
     .name = "echoSomething",
     .func = echoSomething,
-    .userProcess = true
+    .userProcess = true,
+    .help = "Echo the word \"Something\" back to the console."
+  },
+  {
+    .name = "help",
+    .func = help,
+    .userProcess = true,
+    .help = "Print this help message."
   },
   {
     .name = "kill",
     .func = kill,
-    .userProcess = false
+    .userProcess = false,
+    .help = "Kill a running process."
   },
   {
     .name = "ps",
     .func = ps,
-    .userProcess = false
+    .userProcess = false,
+    .help = "List the running processes."
   },
   {
     .name = "runCounter",
     .func = runCounter,
-    .userProcess = true
+    .userProcess = true,
+    .help = "Increment a counter as a background process."
   },
   {
     .name = "showInfo",
     .func = showInfo,
-    .userProcess = true
+    .userProcess = true,
+    .help = "Show various pieces of information about the system."
   },
   {
     .name = "ver",
     .func = ver,
-    .userProcess = true
+    .userProcess = true,
+    .help = "Show the version of the operating system."
   },
 };
 
