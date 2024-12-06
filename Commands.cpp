@@ -282,17 +282,18 @@ int ver(int argc, char **argv) {
 
 // Exported functions
 
-/// @fn void handleCommand(char *consoleInput)
+/// @fn void handleCommand(int consolePort, char *consoleInput)
 ///
 /// @brief Parse the command name out of the console input and run the command
 /// using the rest of the input as an argument to the command.  The command will
 /// be launched as a separate process, not run inline.
 ///
+/// @param consolePort The index of the console port the input came from.
 /// @param consoleInput A pointer to the beginning of the buffer that contains
 /// user input.
 ///
 /// @return This function returns no value.
-void handleCommand(char *consoleInput) {
+void handleCommand(int consolePort, char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
@@ -331,7 +332,7 @@ void handleCommand(char *consoleInput) {
 
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (runProcess(commandEntry, consoleInput) != 0) {
+    if (runProcess(commandEntry, consolePort, consoleInput) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }

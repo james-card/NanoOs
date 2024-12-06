@@ -33,6 +33,15 @@
 
 // Coroutines support
 
+/// @struct CommandDescriptor
+///
+/// @param consolePort The index of the ConsolePort the input came from.
+/// @param consoleInput The input as provided by the console.
+typedef struct CommandDescriptor {
+  int consolePort;
+  char *consoleInput;
+} CommandDescriptor;
+
 /// @var runningCommands
 ///
 /// @brief Pointer to the array of running commands that will be stored in the
@@ -205,7 +214,9 @@ void* startCommand(void *args) {
   char **argv = NULL;
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(comessage, CommandEntry*);
-  char *consoleInput = nanoOsMessageDataPointer(comessage, char*);
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
+  char *consoleInput = commandDescriptor->consoleInput;
 
   argv = parseArgs(consoleInput, &argc);
   if (argv == NULL) {
@@ -222,6 +233,7 @@ void* startCommand(void *args) {
 
   int returnValue = commandEntry->func(argc, argv);
   free(consoleInput); consoleInput = NULL;
+  free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
   if (comessageRelease(comessage) != coroutineSuccess) {
     printString("ERROR!!!  "
@@ -421,7 +433,8 @@ int killProcess(COROUTINE_ID_TYPE processId) {
   return returnValue;
 }
 
-/// @fn int runProcess(CommandEntry *commandEntry, char *consoleInput)
+/// @fn int runProcess(CommandEntry *commandEntry,
+///   int consolePort, char *consoleInput)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
 /// to start a process.
@@ -432,18 +445,29 @@ int killProcess(COROUTINE_ID_TYPE processId) {
 ///   line.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int runProcess(CommandEntry *commandEntry, char *consoleInput) {
-  int returnValue = 0;
+int runProcess(CommandEntry *commandEntry,
+  int consolePort, char *consoleInput
+) {
+  int returnValue = 1;
+  CommandDescriptor *commandDescriptor
+    = (CommandDescriptor*) malloc(sizeof(CommandDescriptor));
+  if (commandDescriptor == NULL) {
+    printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
+    return returnValue; // 1
+  }
+  commandDescriptor->consolePort = consolePort;
+  commandDescriptor->consoleInput = consoleInput;
 
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-    (NanoOsMessageData) commandEntry, (NanoOsMessageData) consoleInput,
+    (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
     false) == NULL
   ) {
     printString("ERROR!!!  Could not communicate with scheduler.\n");
-    returnValue = 1;
+    return returnValue; // 1
   }
 
+  returnValue = 0;
   return returnValue;
 }
 

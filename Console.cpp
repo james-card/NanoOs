@@ -557,7 +557,7 @@ void* runConsole(void *args) {
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
-          handleCommand(bufferCopy);
+          handleCommand(ii, bufferCopy);
           // If the command has already returned or wrote to the console before
           // its first yield, we may need to display its output.  Handle the
           // next next message in our queue just in case.
