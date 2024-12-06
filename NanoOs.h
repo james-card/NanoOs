@@ -57,7 +57,7 @@ extern "C"
 {
 #endif
 
-/// @def NANO_OS_NUM_COMMANDS
+/// @def NANO_OS_NUM_PROCESSES
 ///
 /// @brief The total number of concurrent processes that can be run by the OS,
 /// including the scheduler.
@@ -67,7 +67,7 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 127, then the type defined by COROUTINE_ID_TYPE in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_COMMANDS             8
+#define NANO_OS_NUM_PROCESSES             8
 
 /// @def NANO_OS_STACK_SIZE
 ///
