@@ -100,10 +100,12 @@ typedef enum MemoryManagerResponse {
 /// @param size The number of bytes to allocate.  If this value is 0, the memory
 ///   at ptr will be freed.
 /// @param pid The ID of the process making the request.
+/// @param responseType The response type the caller is waiting for.
 typedef struct ReallocMessage {
   void *ptr;
   size_t size;
   COROUTINE_ID_TYPE pid;
+  int responseType;
 } ReallocMessage;
 
 /// @struct MemoryManagerState

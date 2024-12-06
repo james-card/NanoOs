@@ -316,7 +316,7 @@ int memoryManagerHandleRealloc(
   
   // We need to mark waiting as true here so that comessageSetDone signals the
   // client side correctly.
-  comessageInit(response, MEMORY_MANAGER_RETURNING_POINTER,
+  comessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
@@ -694,6 +694,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
   reallocMessage.pid = coroutineId(NULL);
+  reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
   Comessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
     MEMORY_MANAGER_REALLOC, /* func= */ 0, (NanoOsMessageData) &reallocMessage,
