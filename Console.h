@@ -69,6 +69,11 @@ extern "C"
 /// console process's stack.
 #define CONSOLE_NUM_BUFFERS  4
 
+/// @def CONSOLE_NUM_PORTS
+///
+/// @brief The number of console supports supported.
+#define CONSOLE_NUM_PORTS 1
+
 /// @enum ConsoleCommand
 ///
 /// @brief The commands that the console understands via inter-process messages.
@@ -137,7 +142,14 @@ typedef struct ConsolePort {
 ///
 /// @brief State maintained by the main console process and passed to the inter-
 /// process command handlers.
+///
+/// @param consolePorts The array of ConsolePorts that will be polled for input
+///   from the user.
+/// @param consoleBuffers The array of ConsoleBuffers that can be used by
+///   the console ports for input and by processes for output.
 typedef struct ConsoleState {
+  ConsolePort conslePorts[CONSOLE_NUM_PORTS];
+  // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
 
