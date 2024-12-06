@@ -51,8 +51,8 @@
 ///   necessarily the process that allocated it).
 typedef struct MemNode {
   struct MemNode    *prev;
-  size_t             size;
-  COROUTINE_ID_TYPE  owner;
+  size_t             size:11;
+  COROUTINE_ID_TYPE  owner:4;
 } MemNode;
 
 /// @def memNode
