@@ -192,11 +192,7 @@ void consoleWriteBufferHandler(
   ConsoleState *consoleState, Comessage *inputMessage);
 
 // Support functions
-void consoleMessageCleanup(Comessage *inputMessage);
-void handleConsoleMessages(ConsoleState *consoleState);
-void blink();
 void releaseConsole();
-int printConsoleValue(ConsoleCommand command, void *value, size_t length);
 
 // Exported processes
 void* runConsole(void *args);
