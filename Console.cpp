@@ -459,6 +459,27 @@ void ledToggle() {
   return;
 }
 
+int readSerialByte(ConsolePort *consolePort) {
+  int serialData = -1;
+  serialData = Serial.read();
+  if (serialData > -1) {
+    ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
+    char *buffer = consoleBuffer->buffer;
+    buffer[consolePort->consoleIndex] = (char) serialData;
+    if (consolePort->echo == true) {
+      Serial.print(buffer[consolePort->consoleIndex]);
+    }
+    consolePort->consoleIndex++;
+    consolePort->consoleIndex %= CONSOLE_BUFFER_SIZE;
+  }
+
+  return serialData;
+}
+
+int printSerialString(const char *string) {
+  return Serial.print(string);
+}
+
 /// @fn void* runConsole(void *args)
 ///
 /// @brief Main process for managing console input and output.  Runs in an
@@ -473,47 +494,66 @@ void ledToggle() {
 /// @return This function never returns, but would return NULL if it did.
 void* runConsole(void *args) {
   (void) args;
-  unsigned char consoleIndex = 0;
-  int serialData = -1;
+  int byteRead = -1;
   ConsoleState consoleState;
   memset(&consoleState, 0, sizeof(ConsoleState));
+
+  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
+    consoleState.consoleBuffers[ii].inUse = false;
+  }
+
+  // For each console port, use the console buffer at the corresponding index.
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    consoleState.consolePorts[ii].consoleBuffer
+      = &consoleState.consoleBuffers[ii];
+    consoleState.consolePorts[ii].consoleBuffer->inUse = true;
+  }
+
+  // Set the port-specific data.
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].consoleIndex = 0;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].waitingForInput = false;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].readByte = readSerialByte;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].echo = true;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].printString
+    = printSerialString;
+
   // Use the first console buffer as the buffer for console input.
   consoleState.consoleBuffers[0].inUse = true;
-  char *consoleBuffer = consoleState.consoleBuffers[0].buffer;
 
   while (1) {
     ledToggle();
 
-    serialData = Serial.read();
-    if (serialData > -1) {
-      consoleBuffer[consoleIndex] = (char) serialData;
-      Serial.print(consoleBuffer[consoleIndex]);
-      consoleIndex++;
-      consoleIndex %= CONSOLE_BUFFER_SIZE;
-    }
+    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+      ConsolePort *consolePort
+        = &consoleState.consolePorts[CONSOLE_SERIAL_PORT];
+      byteRead = consolePort->readByte(consolePort);
+      if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
+        if (consolePort->owner == COROUTINE_ID_NOT_SET) {
+          // NULL-terminate the buffer.
+          consolePort->consoleIndex--;
+          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+          if (byteRead == ((int) '\r')) {
+            consolePort->printString("\n");
+          }
 
-    if ((serialData == ((int) '\n')) || (serialData == ((int) '\r'))) {
-      // NULL-terminate the buffer.
-      consoleIndex--;
-      consoleBuffer[consoleIndex] = '\0';
-      if (serialData == ((int) '\r')) {
-        Serial.println("");
+          // Use consoleIndex as the size to create a buffer and make a copy.
+          char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
+          memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
+            consolePort->consoleIndex);
+          bufferCopy[consolePort->consoleIndex] = '\0';
+          handleCommand(bufferCopy);
+          // If the command has already returned or wrote to the console before
+          // its first yield, we may need to display its output.  Handle the
+          // next next message in our queue just in case.
+          handleConsoleMessages(&consoleState);
+          consolePort->consoleIndex = 0;
+        }
       }
-
-      // Use consoleIndex as the size to create a buffer and make a copy.
-      char *bufferCopy = (char*) malloc(consoleIndex + 1);
-      memcpy(bufferCopy, consoleBuffer, consoleIndex);
-      bufferCopy[consoleIndex] = '\0';
-      handleCommand(bufferCopy);
-      // If the command has already returned or wrote to the console before its
-      // first yield, we may need to display its output.  Handle the next
-      // next message in our queue just in case.
+      
+      coroutineYield(NULL);
       handleConsoleMessages(&consoleState);
-      consoleIndex = 0;
     }
-    
-    coroutineYield(NULL);
-    handleConsoleMessages(&consoleState);
   }
 
   return NULL;

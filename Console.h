@@ -74,6 +74,11 @@ extern "C"
 /// @brief The number of console supports supported.
 #define CONSOLE_NUM_PORTS 1
 
+/// @def CONSOLE_SERIAL_PORT
+///
+/// Index into ConsoleState.conslePorts for the regular serial port.
+#define CONSOLE_SERIAL_PORT 0
+
 /// @enum ConsoleCommand
 ///
 /// @brief The commands that the console understands via inter-process messages.
@@ -126,16 +131,25 @@ typedef struct ConsoleBuffer {
 ///
 /// @param consoleBuffer A pointer to the ConsoleBuffer used to buffer input
 ///   from the user.
+/// @param consoleIndex An index into the buffer provided by consoleBuffer of
+///   the next position to read a byte into.
 /// @param owner The ID of the process that currently owns the console port.
 /// @param waitingForInput Whether or not the owning process is currently
 ///   waiting for input from the user.
 /// @param readByte A pointer to the non-blocking function that will attempt to
 ///   read a byte of input from the user.
+/// @param echo Whether or not the data read from the port should be echoed back
+///   to the port.
+/// @param printString A pointer to the function that will print a string of
+///   output to the console port.
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
+  unsigned char       consoleIndex;
   COROUTINE_ID_TYPE   owner;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
+  bool                echo;
+  int               (*printString)(const char *string);
 } ConsolePort;
 
 /// @struct ConsoleState
@@ -148,7 +162,7 @@ typedef struct ConsolePort {
 /// @param consoleBuffers The array of ConsoleBuffers that can be used by
 ///   the console ports for input and by processes for output.
 typedef struct ConsoleState {
-  ConsolePort conslePorts[CONSOLE_NUM_PORTS];
+  ConsolePort consolePorts[CONSOLE_NUM_PORTS];
   // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
