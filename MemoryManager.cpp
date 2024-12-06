@@ -303,19 +303,21 @@ int memoryManagerHandleRealloc(
   Comessage *response = incoming;
 
   int returnValue = 0;
-  ReallocMessage *reallocMessage = (ReallocMessage*) comessageData(incoming);
+  ReallocMessage *reallocMessage
+    = nanoOsMessageDataPointer(incoming, ReallocMessage*);
   void *clientReturnValue
     = localRealloc(memoryManagerState,
       reallocMessage->ptr, reallocMessage->size, reallocMessage->pid);
-  size_t clientReturnSize
-    = (clientReturnValue != NULL) ? reallocMessage->size : 0;
+  reallocMessage->ptr = clientReturnValue;
+  reallocMessage->size = memNode(clientReturnValue)->size;
   
   Coroutine *from = comessageFrom(incoming);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   
   // We need to mark waiting as true here so that comessageSetDone signals the
   // client side correctly.
   comessageInit(response, MEMORY_MANAGER_RETURNING_POINTER,
-    clientReturnValue, clientReturnSize, true);
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
   if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
   }
@@ -693,21 +695,26 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   reallocMessage.size = size;
   reallocMessage.pid = coroutineId(NULL);
   
-  Comessage sent;
-  memset(&sent, 0, sizeof(sent));
-  comessageInit(&sent, MEMORY_MANAGER_REALLOC,
-    &reallocMessage, sizeof(reallocMessage), true);
+  Comessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_REALLOC, /* func= */ 0, (NanoOsMessageData) &reallocMessage,
+    true);
   
-  if (sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
-    != coroutineSuccess
-  ) {
+  if (sent == NULL) {
     // Nothing more we can do.
-    return returnValue;
+    return returnValue; // NULL
   }
   
-  Comessage *response = comessageWaitForReplyWithType(&sent, false,
+  Comessage *response = comessageWaitForReplyWithType(sent, false,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  returnValue = comessageData(response);
+  if (response == NULL) {
+    // Something is wrong.  Fail.
+    return returnValue; // NULL
+  }
+  
+  // The handler set the pointer back in the structure we sent it, so grab it
+  // out of the structure we already have.
+  returnValue = reallocMessage.ptr;
+  comessageRelease(sent);
   
   return returnValue;
 }
