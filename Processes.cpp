@@ -711,22 +711,25 @@ int handleRunProcess(Comessage *comessage) {
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
   
+  // Find an open slot.
+  int jj = NANO_OS_FIRST_PROCESS_ID;
   if (commandEntry->userProcess == false) {
-    // This is not the expected case, but it's the priority case, so list it
-    // first.
-    Coroutine *coroutine
-      = runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine;
+    // Start with the reserved process.
+    jj = NANO_OS_RESERVED_PROCESS_ID;
+  }
+  for (; jj < NANO_OS_NUM_PROCESSES; jj++) {
+    Coroutine *coroutine = runningCommands[jj].coroutine;
     if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
       coroutine = coroutineCreate(startCommand);
-      coroutineSetId(coroutine, NANO_OS_RESERVED_PROCESS_ID);
-      if (assignMemory(consoleInput, NANO_OS_RESERVED_PROCESS_ID) != 0) {
+      coroutineSetId(coroutine, jj);
+      if (assignMemory(consoleInput, jj) != 0) {
         printString(
           "WARNING:  Could not assign console input to new process.\n");
         printString("Memory leak.\n");
       }
 
-      runningCommands[NANO_OS_RESERVED_PROCESS_ID].coroutine = coroutine;
-      runningCommands[NANO_OS_RESERVED_PROCESS_ID].name = commandEntry->name;
+      runningCommands[jj].coroutine = coroutine;
+      runningCommands[jj].name = commandEntry->name;
 
       coroutineResume(coroutine, comessage);
       returnValue = 0;
@@ -735,50 +738,26 @@ int handleRunProcess(Comessage *comessage) {
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
       }
-    } else {
+      break;
+    }
+  }
+
+  if (jj == NANO_OS_NUM_PROCESSES) {
+    if (commandEntry->userProcess == false) {
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command again in a bit.
       if (returnValue == 0) {
         releaseConsole();
       }
       returnValue = EBUSY;
-    }
-  } else {
-    // Find an open non-reserved slot.
-    int jj = NANO_OS_FIRST_PROCESS_ID;
-    for (; jj < NANO_OS_NUM_PROCESSES; jj++) {
-      Coroutine *coroutine = runningCommands[jj].coroutine;
-      if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-        coroutine = coroutineCreate(startCommand);
-        coroutineSetId(coroutine, jj);
-        if (assignMemory(consoleInput, jj) != 0) {
-          printString(
-            "WARNING:  Could not assign console input to new process.\n");
-          printString("Memory leak.\n");
-        }
-
-        runningCommands[jj].coroutine = coroutine;
-        runningCommands[jj].name = commandEntry->name;
-
-        coroutineResume(coroutine, comessage);
-        returnValue = 0;
-        if (comessageRelease(comessage) != coroutineSuccess) {
-          printString("ERROR!!!  "
-            "Could not release message from handleSchedulerMessage "
-            "for invalid message type.\n");
-        }
-        break;
-      }
-    }
-
-    if (jj == NANO_OS_NUM_PROCESSES) {
-      // printf is blocking.  handleCommand is called from runConsole itself,
-      // so we can't use a blocking call here.  Use the non-blocking
-      // printString instead.
-      printString("Out of memory to launch process.\n");
+    } else {
       // This is a user process, not a system process, so the user is just out
       // of luck.  *DO NOT* set returnValue to a non-zero value here as that
       // would result in an infinite loop.
+      //
+      // printf sends synchronous messages to the console, which we can't do.
+      // Use the non-blocking printString instead.
+      printString("Out of memory to launch process.\n");
       consoleInput = stringDestroy(consoleInput);
       if (comessageRelease(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
@@ -788,6 +767,7 @@ int handleRunProcess(Comessage *comessage) {
       releaseConsole();
     }
   }
+  
   comessageRelease(commandDescriptor->consoleMessage);
 
   return returnValue;
