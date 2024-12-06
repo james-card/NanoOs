@@ -36,7 +36,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   // start serial port at 115200 bps:
-  Serial.begin(115200);
+  Serial.begin(1000000);
   // wait for serial port to connect. Needed for native USB port only.
   while (!Serial);
 
