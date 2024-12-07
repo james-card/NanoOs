@@ -110,12 +110,6 @@ typedef struct NanoOsMessage {
   Comessage         *comessage;
 } NanoOsMessage;
 
-/// @def NUM_PROCESS_INFO_COLUMNS
-///
-/// @brief The number of columns of information that will be returned when the
-/// running processes are intererogated.
-#define NUM_PROCESS_INFO_COLUMNS 2
-
 /// @def nanoOsMessageFuncValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
