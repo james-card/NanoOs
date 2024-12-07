@@ -711,8 +711,9 @@ int schedulerSendComessageToCoroutine(
 
   coroutineResume(coroutine, comessage);
   if (comessageDone(comessage) != true) {
-    printString(
-      "WARNING:  Called coroutine command did not mark the message 'done'.\n");
+    // This is our only indication from the called coroutine that something went
+    // wrong.  Return an error status here.
+    returnValue = coroutineError;
   }
 
   return returnValue;
