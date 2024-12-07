@@ -58,11 +58,11 @@ extern "C"
 
 /// @def COROUTINE_ID_TYPE
 ///
-/// @brief The integer type to use of coroutine IDs.  This must be a signed
-/// type.  We will have fewer than 128 coroutines in NanoOs, so an int8_t will
+/// @brief The integer type to use of coroutine IDs.  This must be an unsigned
+/// type.  We will have fewer than 256 coroutines in NanoOs, so a uint8_t will
 /// work just fine for us.  This will save us some memory in the definition of
 /// the Coroutine data structure, of course.
-#define COROUTINE_ID_TYPE int8_t
+#define COROUTINE_ID_TYPE uint8_t
 
 /// @def COROUTINE_ID_NOT_SET
 ///
@@ -71,7 +71,7 @@ extern "C"
 /// set.  In NanoOs, we only use 8 processes, so a value of -8 will work fine
 /// for us.  Also, in the MemoryManager library, we use 4 bits to store the ID
 /// of the owner, so this is an appropriate value.
-#define COROUTINE_ID_NOT_SET ((int8_t) 0xf8)
+#define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
 
 // Missing from Arduino
 struct timespec {

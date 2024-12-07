@@ -103,28 +103,28 @@ extern "C"
 /// @brief The integer type to use for coroutine IDs.  Defaults to 64-bit IDs
 /// if none is provided.
 #ifndef COROUTINE_ID_TYPE
-#define COROUTINE_ID_TYPE int64_t
+#define COROUTINE_ID_TYPE uint64_t
 #endif
 
 /// @def COROUTINE_ID_TYPE_int64_t_int64_t
 ///
 /// @brief Define that gets matched when COROUTINE_ID_TYPE is an int64_t.
-#define COROUTINE_ID_TYPE_int64_t_int64_t 1
+#define COROUTINE_ID_TYPE_uint64_t_uint64_t 1
 
 /// @def COROUTINE_ID_TYPE_int32_t_int32_t
 ///
 /// @brief Define that gets matched when COROUTINE_ID_TYPE is an int32_t.
-#define COROUTINE_ID_TYPE_int32_t_int32_t 1
+#define COROUTINE_ID_TYPE_uint32_t_uint32_t 1
 
 /// @def COROUTINE_ID_TYPE_int16_t_int16_t
 ///
 /// @brief Define that gets matched when COROUTINE_ID_TYPE is an int16_t.
-#define COROUTINE_ID_TYPE_int16_t_int16_t 1
+#define COROUTINE_ID_TYPE_uint16_t_uint16_t 1
 
 /// @def COROUTINE_ID_TYPE_int8_t_int8_t
 ///
 /// @brief Define that gets matched when COROUTINE_ID_TYPE is an int8_t.
-#define COROUTINE_ID_TYPE_int8_t_int8_t   1
+#define COROUTINE_ID_TYPE_uint8_t_uint8_t   1
 
 /// @def EXPAND_COROUTINE_ID_TYPE
 ///
@@ -145,14 +145,14 @@ extern "C"
 /// @brief Special value to indicate that a coroutine's ID value is not set.
 /// This is the initial value just after the coroutine constructor completes.
 #ifndef COROUTINE_ID_NOT_SET
-#if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int64_t)
-#define COROUTINE_ID_NOT_SET ((int64_t) 0x8000000000000000)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int32_t)
-#define COROUTINE_ID_NOT_SET ((int32_t) 0x80000000)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int16_t)
-#define COROUTINE_ID_NOT_SET ((int16_t) 0x8000)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, int8_t)
-#define COROUTINE_ID_NOT_SET ((int8_t) 0x80)
+#if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint64_t)
+#define COROUTINE_ID_NOT_SET ((int64_t) 0xfffffffffffffff0)
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint32_t)
+#define COROUTINE_ID_NOT_SET ((int32_t) 0xffffffff)
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint16_t)
+#define COROUTINE_ID_NOT_SET ((int16_t) 0xffff)
+#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint8_t)
+#define COROUTINE_ID_NOT_SET ((int8_t) 0xff)
 #else
 #error "Invalid COROUTINE_ID_TYPE."
 #endif // COROUTINE_ID_TYPE

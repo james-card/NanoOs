@@ -964,7 +964,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
 ///
 /// @param coroutine A pointer to the coroutine whose ID is to be set.  If this
 ///   value is NULL then the ID of the currently running coroutine will be set.
-/// @param id A signed integer to set as the coroutine's ID.
+/// @param id An unsigned integer to set as the coroutine's ID.
 ///
 /// @return This function always returns coroutineSuccess.
 int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
