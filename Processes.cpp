@@ -710,6 +710,10 @@ int schedulerSendComessageToCoroutine(
   }
 
   coroutineResume(coroutine, comessage);
+  if (comessageDone(comessage) != true) {
+    printString(
+      "WARNING:  Called coroutine command did not mark the message 'done'.\n");
+  }
 
   return returnValue;
 }
@@ -823,9 +827,10 @@ int handleRunProcess(Comessage *comessage) {
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
+  int consolePort = commandDescriptor->consolePort;
   
   // Find an open slot.
-  int ii = NANO_OS_FIRST_PROCESS_ID;
+  COROUTINE_ID_TYPE ii = NANO_OS_FIRST_PROCESS_ID;
   if (commandEntry->userProcess == false) {
     // Start with the reserved process.
     ii = NANO_OS_RESERVED_PROCESS_ID;
@@ -856,6 +861,19 @@ int handleRunProcess(Comessage *comessage) {
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
       }
+
+      ConsolePortOwnerUnion consolePortOwnerUnion;
+      consolePortOwnerUnion.consolePortOwnerAssociation.consolePort
+        = consolePort;
+      consolePortOwnerUnion.consolePortOwnerAssociation.owner = ii;
+      if (schedulerSendNanoOsMessageToPid(
+        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+        /* func= */ 0, consolePortOwnerUnion.nanoOsMessageData, true)
+        != coroutineSuccess
+      ) {
+        printString("WARNING:  Could not assign console port to process.\n");
+      }
+      
       break;
     }
   }
