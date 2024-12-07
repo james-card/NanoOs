@@ -383,13 +383,43 @@ void consoleWriteBufferHandler(
   return;
 }
 
+/// @fn void consoleAssignPortHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Assign a console port to a running process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///   This contains a NanoOsMessage that contains a ConsolePortOwnerAssociation
+///   that will associate the port with the process if this function succeeds.
+///
+/// @return This function returns no value, but it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
 void consoleAssignPortHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
-  (void) consoleState;
-  (void) inputMessage;
+  ConsolePortOwnerUnion consolePortOwnerUnion;
+  consolePortOwnerUnion.nanoOsMessageData
+    = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
+  ConsolePortOwnerAssociation *consolePortOwnerAssociation
+    = &consolePortOwnerUnion.consolePortOwnerAssociation;
 
-  comessageRelease(inputMessage);
+  uint8_t consolePort = consolePortOwnerAssociation->consolePort;
+  COROUTINE_ID_TYPE owner = consolePortOwnerAssociation->owner;
+
+  if (consolePort < CONSOLE_NUM_PORTS) {
+    consoleState->consolePorts[consolePort].owner = owner;
+    comessageRelease(inputMessage);
+  } else {
+    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printInt(consolePort);
+    printString("\n");
+    // *DON'T* call comessageRelease or comessageSetDone here.  The lack of the
+    // message being done will indicate to the caller that there was a problem
+    // servicing the command.
+  }
+
   return;
 }
 
