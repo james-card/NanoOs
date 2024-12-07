@@ -627,6 +627,7 @@ void* memoryManager(void *args) {
   printConsole("\n");
   
   MemoryManagerState memoryManagerState;
+  Comessage *schedulerMessage = NULL;
   jmp_buf returnBuffer;
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
@@ -643,8 +644,26 @@ void* memoryManager(void *args) {
   releaseConsole();
   
   while (1) {
-    coroutineYield(NULL);
-    handleMemoryManagerMessages(&memoryManagerState);
+    schedulerMessage = (Comessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      MemoryManagerCommand messageType
+        = (MemoryManagerCommand) comessageType(schedulerMessage);
+      if (messageType < NUM_MEMORY_MANAGER_COMMANDS) {
+        memoryManagerCommand[messageType](
+          &memoryManagerState, schedulerMessage);
+      } else {
+        printString("ERROR!!!  Received unknown memory manager command ");
+        printInt(messageType);
+        printString(" from scheduler.\n");
+      }
+    } else {
+      // No message from the scheduler.  Handle any user process messages in
+      // our message queue.
+      handleMemoryManagerMessages(&memoryManagerState);
+    }
   }
   
   return NULL;

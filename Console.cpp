@@ -533,6 +533,7 @@ void* runConsole(void *args) {
   int byteRead = -1;
   ConsoleState consoleState;
   memset(&consoleState, 0, sizeof(ConsoleState));
+  Comessage *schedulerMessage = NULL;
 
   for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
     consoleState.consoleBuffers[ii].inUse = false;
@@ -587,8 +588,26 @@ void* runConsole(void *args) {
         }
       }
       
-      coroutineYield(NULL);
-      handleConsoleMessages(&consoleState);
+      schedulerMessage = (Comessage*) coroutineYield(NULL);
+      if (schedulerMessage != NULL) {
+        // We have a message from the scheduler that we need to process.  This
+        // is not the expected case, but it's the priority case, so we need to
+        // list it first.
+        ConsoleCommand messageType
+          = (ConsoleCommand) comessageType(schedulerMessage);
+        if (messageType < NUM_CONSOLE_COMMANDS) {
+          consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
+          comessageSetDone(schedulerMessage);
+        } else {
+          printString("ERROR!!!  Received unknown console command ");
+          printInt(messageType);
+          printString(" from scheduler.\n");
+        }
+      } else {
+        // No message from the scheduler.  Handle any user process messages in
+        // our message queue.
+        handleConsoleMessages(&consoleState);
+      }
     }
   }
 
