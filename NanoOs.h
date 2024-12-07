@@ -45,12 +45,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Custom includes
-#include "NanoOsLibC.h"
+// Coroutines
 #include "Coroutines.h"
-#include "Commands.h"
-#include "MemoryManager.h"
-#include "Processes.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -120,6 +116,27 @@ extern "C"
 /// @brief The version string for NanoOs
 #define NANO_OS_VERSION "0.0.1"
 
+/// @typedef NanoOsMessageData
+///
+/// @brief Data type used in a NanoOsMessage.
+typedef unsigned long long int NanoOsMessageData;
+
+/// @struct NanoOsMessage
+///
+/// @brief A generic message that can be exchanged between processes.
+///
+/// @param func Information about the function to run, cast to an unsigned long
+///   long int.
+/// @param data Information about the data to use, cast to an unsigned long
+///   long int.
+/// @param comessage A pointer to the comessage that points to this
+///   NanoOsMessage.
+typedef struct NanoOsMessage {
+  NanoOsMessageData  func;
+  NanoOsMessageData  data;
+  Comessage         *comessage;
+} NanoOsMessage;
+
 // Support functions
 long getElapsedMilliseconds(unsigned long startTime);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
@@ -128,7 +145,11 @@ void timespecFromDelay(struct timespec *ts, long int delayMs);
 } // extern "C"
 #endif
 
-// This has to be included separately and last.
+// NanoOs includes.  These have to be included separately and last.
+#include "NanoOsLibC.h"
+#include "Commands.h"
+#include "MemoryManager.h"
+#include "Processes.h"
 #include "Console.h"
 
 #endif // NANO_OS_H

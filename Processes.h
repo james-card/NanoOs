@@ -89,27 +89,6 @@ typedef enum SchedulerCommand {
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
-/// @typedef NanoOsMessageData
-///
-/// @brief Data type used in a NanoOsMessage.
-typedef unsigned long long int NanoOsMessageData;
-
-/// @struct NanoOsMessage
-///
-/// @brief A generic message that can be exchanged between processes.
-///
-/// @param func Information about the function to run, cast to an unsigned long
-///   long int.
-/// @param data Information about the data to use, cast to an unsigned long
-///   long int.
-/// @param comessage A pointer to the comessage that points to this
-///   NanoOsMessage.
-typedef struct NanoOsMessage {
-  NanoOsMessageData  func;
-  NanoOsMessageData  data;
-  Comessage         *comessage;
-} NanoOsMessage;
-
 /// @def nanoOsMessageFuncValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
