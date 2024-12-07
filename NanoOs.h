@@ -62,10 +62,10 @@ extern "C"
 /// @brief The total number of concurrent processes that can be run by the OS,
 /// including the scheduler.
 ///
-/// @note If this value is increased beyond 8, the number of bits used to store
+/// @note If this value is increased beyond 15, the number of bits used to store
 /// the owner in a MemNode in MemoryManager.cpp must be extended and the value
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
-/// increased beyond 127, then the type defined by COROUTINE_ID_TYPE in
+/// increased beyond 255, then the type defined by COROUTINE_ID_TYPE in
 /// NanoOsLibC.h must also be extended.
 #define NANO_OS_NUM_PROCESSES             8
 
