@@ -282,7 +282,7 @@ int ver(int argc, char **argv) {
 
 // Exported functions
 
-/// @fn void handleCommand(int consolePort, char *consoleInput)
+/// @fn int handleCommand(int consolePort, char *consoleInput)
 ///
 /// @brief Parse the command name out of the console input and run the command
 /// using the rest of the input as an argument to the command.  The command will
@@ -293,7 +293,8 @@ int ver(int argc, char **argv) {
 /// user input.
 ///
 /// @return This function returns no value.
-void handleCommand(int consolePort, char *consoleInput) {
+int handleCommand(int consolePort, char *consoleInput) {
+  int returnValue = coroutineSuccess;
   CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
@@ -340,12 +341,11 @@ void handleCommand(int consolePort, char *consoleInput) {
     // printf is blocking.  handleCommand is called from runConsole itself, so
     // we can't use a blocking call here.  Use the non-blocking printString
     // instead.
-    printString("Unknown command.\n");
     free(consoleInput); consoleInput = NULL;
-    releaseConsole();
+    returnValue = coroutineError;
   }
 
-  return;
+  return returnValue;
 }
 
 /// @var commands
