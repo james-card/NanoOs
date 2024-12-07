@@ -426,8 +426,23 @@ void consoleAssignPortHandler(
 void consoleReleasePortHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
-  (void) consoleState;
-  (void) inputMessage;
+  COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      consolePorts[ii].owner = COROUTINE_ID_NOT_SET;
+      consolePorts[ii].printString("> ");
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to release a port from non-owning process ");
+    printInt(owner);
+    printString("\n");
+  }
 
   return;
 }
@@ -608,34 +623,38 @@ void* runConsole(void *args) {
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
-          handleCommand(ii, bufferCopy);
-          // If the command has already returned or wrote to the console before
-          // its first yield, we may need to display its output.  Handle the
-          // next next message in our queue just in case.
-          handleConsoleMessages(&consoleState);
+          if (handleCommand(ii, bufferCopy) == coroutineSuccess) {
+            // If the command has already returned or wrote to the console
+            // before its first yield, we may need to display its output.
+            // Handle the next next message in our queue just in case.
+            handleConsoleMessages(&consoleState);
+          } else {
+            consolePort->printString("Unknown command.\n");
+            consolePort->printString("> ");
+          }
           consolePort->consoleIndex = 0;
         }
       }
-      
-      schedulerMessage = (Comessage*) coroutineYield(NULL);
-      if (schedulerMessage != NULL) {
-        // We have a message from the scheduler that we need to process.  This
-        // is not the expected case, but it's the priority case, so we need to
-        // list it first.
-        ConsoleCommand messageType
-          = (ConsoleCommand) comessageType(schedulerMessage);
-        if (messageType < NUM_CONSOLE_COMMANDS) {
-          consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
-        } else {
-          printString("ERROR!!!  Received unknown console command ");
-          printInt(messageType);
-          printString(" from scheduler.\n");
-        }
+    }
+    
+    schedulerMessage = (Comessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      ConsoleCommand messageType
+        = (ConsoleCommand) comessageType(schedulerMessage);
+      if (messageType < NUM_CONSOLE_COMMANDS) {
+        consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
       } else {
-        // No message from the scheduler.  Handle any user process messages in
-        // our message queue.
-        handleConsoleMessages(&consoleState);
+        printString("ERROR!!!  Received unknown console command ");
+        printInt(messageType);
+        printString(" from scheduler.\n");
       }
+    } else {
+      // No message from the scheduler.  Handle any user process messages in
+      // our message queue.
+      handleConsoleMessages(&consoleState);
     }
   }
 
@@ -803,7 +822,9 @@ void releaseConsole() {
   // from within the console coroutine.  That means we can't do blocking prints
   // from this function.  i.e. We can't use printf here.  Use printConsole
   // instead.
-  printConsole("> ");
+  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
+    /* func= */ 0, /* data= */ 0, false);
+  coroutineYield(NULL);
 }
 
 /// @fn printConsole(<type> message)
