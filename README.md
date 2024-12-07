@@ -18,9 +18,14 @@ The Coroutines library works by segmenting the main stack.  Coroutines are alloc
 
 NanoOs is a nanokernel architecture.  Specifically, what this means is that there is no distinction between user space and kernel space.  Everything is kernel space.  There's no way to have any kind of memory protection in this kind of environment.
 
-Another implication of this arhitecture is that there basically is no kernel.  The system is really a collection of processes that communicate with each other in order to accomplish their work.  Each process has a specific task it is responsible for.  When a process needs something from another process, it sends a message to the designated process.  If it needs a response, it blocks waiting for a reply before continuing.
 
-## System Processes
+## Processes
+
+One implication of the nanokernel arhitecture is that there basically is no kernel.  The system is really a collection of processes that communicate with each other in order to accomplish their work.  Each process has a specific task it is responsible for.  When a process needs something from another process, it sends a message to the designated process.  If it needs a response, it blocks waiting for a reply before continuing.
+
+As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more processes is possible, but would require modification of some constants and data structures within the operating system.
+
+### System Processes
 
 Currently, the following processes are always present and running:
 
