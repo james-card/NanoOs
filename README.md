@@ -28,7 +28,7 @@ Currently, the following processes are always present and running:
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
-In addition, there is a "reserved" process slot in which non-user processes run.  Note that only one non-user process may be running at a time.  These processes are intended to be very short-lived so that they do not consume the slot for an extended period of time.
+In addition, there is a "reserved" process slot in which non-user processes may run.  These processes are intended to be very short-lived so that they do not consume a slot for an extended period of time.
 
 ## Message Passing
 
@@ -38,8 +38,10 @@ When a user process needs something from one of the system processes, it prepare
 
 ## Dynamic Memory
 
-NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last coroutine and makes use of all of the remaining memory at that time.  As of today, that amount is a little less than 1 KB.
+NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last coroutine and makes use of all of the remaining memory at that time.  As of today, that amount is a little less than 1 KB.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
 
 The memory manager is a modified bump allocator that supports automatic memory compaction.  Any time the last pointer in the allocation list is freed, the next pointer is moved backward until a block that has not been freed is found or until the beginning of dynamic memory is reached.  The number of outstanding memory allocations is not tracked because it's unnecessary.  This allows partial reclamation of memory space without having to free all outstanding allocations.
 
 The memory manager also tracks the size of each allocation.  This allows for realloc to function correctly.  If the size of the reallocation is less than or equal to the size already allocated, no action is taken.  If the size of the reallocation is greater than the size already allocated, the old memory can be copied to the new location before returning the new pointer to the user (as is supposed to happen for realloc).
+
+The owning process of a piece of dynamically-allocated memory is also tracked.  By default, this is the process that originally made the allocation request.  However, the scheduler has the ability to reassign ownership on process creation.  This allows for all memory owned by an individual process to be freed in the event it is prematurely terminated.
