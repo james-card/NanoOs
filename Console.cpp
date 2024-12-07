@@ -383,6 +383,25 @@ void consoleWriteBufferHandler(
   return;
 }
 
+void consoleAssignPortHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  (void) consoleState;
+  (void) inputMessage;
+
+  comessageRelease(inputMessage);
+  return;
+}
+
+void consoleReleasePortHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  (void) consoleState;
+  (void) inputMessage;
+
+  return;
+}
+
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
@@ -398,6 +417,8 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteStringHandler,
   consoleGetBufferHandler,
   consoleWriteBufferHandler,
+  consoleAssignPortHandler,
+  consoleReleasePortHandler,
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)

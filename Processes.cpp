@@ -710,26 +710,32 @@ int handleRunProcess(Comessage *comessage) {
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
+  Comessage *consoleMessage = commandDescriptor->consoleMessage;
   
   // Find an open slot.
-  int jj = NANO_OS_FIRST_PROCESS_ID;
+  int ii = NANO_OS_FIRST_PROCESS_ID;
   if (commandEntry->userProcess == false) {
     // Start with the reserved process.
-    jj = NANO_OS_RESERVED_PROCESS_ID;
+    ii = NANO_OS_RESERVED_PROCESS_ID;
   }
-  for (; jj < NANO_OS_NUM_PROCESSES; jj++) {
-    Coroutine *coroutine = runningCommands[jj].coroutine;
+  for (; ii < NANO_OS_NUM_PROCESSES; ii++) {
+    Coroutine *coroutine = runningCommands[ii].coroutine;
     if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
       coroutine = coroutineCreate(startCommand);
-      coroutineSetId(coroutine, jj);
-      if (assignMemory(consoleInput, jj) != 0) {
+      coroutineSetId(coroutine, ii);
+      if (assignMemory(consoleInput, ii) != 0) {
         printString(
           "WARNING:  Could not assign console input to new process.\n");
         printString("Memory leak.\n");
       }
+      if (assignMemory(commandDescriptor, ii) != 0) {
+        printString(
+          "WARNING:  Could not assign command descriptor to new process.\n");
+        printString("Memory leak.\n");
+      }
 
-      runningCommands[jj].coroutine = coroutine;
-      runningCommands[jj].name = commandEntry->name;
+      runningCommands[ii].coroutine = coroutine;
+      runningCommands[ii].name = commandEntry->name;
 
       coroutineResume(coroutine, comessage);
       returnValue = 0;
@@ -742,7 +748,7 @@ int handleRunProcess(Comessage *comessage) {
     }
   }
 
-  if (jj == NANO_OS_NUM_PROCESSES) {
+  if (ii == NANO_OS_NUM_PROCESSES) {
     if (commandEntry->userProcess == false) {
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command again in a bit.
@@ -758,7 +764,9 @@ int handleRunProcess(Comessage *comessage) {
       // printf sends synchronous messages to the console, which we can't do.
       // Use the non-blocking printString instead.
       printString("Out of memory to launch process.\n");
+      comessageRelease(consoleMessage);
       consoleInput = stringDestroy(consoleInput);
+      free(commandDescriptor); commandDescriptor = NULL;
       if (comessageRelease(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
@@ -768,8 +776,6 @@ int handleRunProcess(Comessage *comessage) {
     }
   }
   
-  comessageRelease(commandDescriptor->consoleMessage);
-
   return returnValue;
 }
 

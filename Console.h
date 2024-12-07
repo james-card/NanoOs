@@ -41,6 +41,7 @@
 // Custom includes
 #include "NanoOs.h"
 #include "Coroutines.h"
+#include "Processes.h"
 
 #ifndef CONSOLE_H
 #define CONSOLE_H
@@ -94,6 +95,8 @@ typedef enum ConsoleCommand {
   CONSOLE_WRITE_STRING,
   CONSOLE_GET_BUFFER,
   CONSOLE_WRITE_BUFFER,
+  CONSOLE_ASSIGN_PORT,
+  CONSOLE_RELEASE_PORT,
   NUM_CONSOLE_COMMANDS
 } ConsoleCommand;
 
@@ -166,6 +169,31 @@ typedef struct ConsoleState {
   // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
+
+/// @struct ConsolePortOwnerAssociation
+///
+/// @brief Structure to associate a console port with its owner.  This
+/// information is used in a CONSOLE_ASSIGN_PORT command.
+///
+/// @param consolePort The index into the consolePorts array of a ConsoleState
+///   object.
+/// @param owner The process ID of the owner of the console port.
+typedef struct ConsolePortOwnerAssociation {
+  uint8_t           consolePort;
+  COROUTINE_ID_TYPE owner;
+} ConsolePortOwnerAssociation;
+
+/// @union ConsolePortOwnerUnion
+///
+/// @brief Union of a ConsolePortOwnerAssociation and a NanoOsMessageData to
+/// allow for easy conversion between the two.
+///
+/// @param consolePortOwnerAssociation The ConsolePortOwnerAssociation part.
+/// @param nanoOsMessageData The NanoOsMessageData part.
+typedef union ConsolePortOwnerUnion {
+  ConsolePortOwnerAssociation consolePortOwnerAssociation;
+  NanoOsMessageData           nanoOsMessageData;
+} ConsolePortOwnerUnion;
 
 // Support functions
 void releaseConsole();
