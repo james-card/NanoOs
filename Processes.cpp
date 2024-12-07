@@ -605,7 +605,7 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   comessageInit(comessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (comessageQueuePush(coroutine, comessage) != coroutineSuccess) {
+  if (sendComessageToCoroutine(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToCoroutine.\n");
@@ -683,9 +683,149 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-////////////// SCEDULER-PRIVATE FUNCTIONS ONLY BELOW THIS POINT!! //////////////
+///////////// SCHEDULER-PRIVATE FUNCTIONS ONLY BELOW THIS POINT!! //////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+/// @fn int schedulerSendComessageToCoroutine(
+///   Coroutine *coroutine, Comessage *comessage)
+///
+/// @brief Get an available Comessage, populate it with the specified data, and
+/// push it onto a destination coroutine's queue.
+///
+/// @param coroutine A pointer to the destination coroutine to send the message
+///   to.
+/// @param comessage A pointer to the message to send to the destination
+///   coroutine.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int schedulerSendComessageToCoroutine(
+  Coroutine *coroutine, Comessage *comessage
+) {
+  int returnValue = coroutineSuccess;
+  if ((coroutine == NULL) || (comessage == NULL)) {
+    // Invalid.
+    returnValue = coroutineError;
+    return returnValue;
+  }
+
+  coroutineResume(coroutine, comessage);
+
+  return returnValue;
+}
+
+/// @fn int schedulerSendComessageToPid(unsigned int pid, Comessage *comessage)
+///
+/// @brief Look up a coroutine by its PID and send a message to it.
+///
+/// @param pid The ID of the process to send the message to.
+/// @param comessage A pointer to the message to send to the destination
+///   process.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int schedulerSendComessageToPid(unsigned int pid, Comessage *comessage) {
+  Coroutine *coroutine = getCoroutineByPid(pid);
+  // If coroutine is NULL, it will be detected as not running by
+  // schedulerSendComessageToCoroutine, so there's no real point in checking for
+  // NULL here.
+  return schedulerSendComessageToCoroutine(coroutine, comessage);
+}
+
+/// @fn Comessage* schedulerSendNanoOsMessageToCoroutine(
+///   Coroutine *coroutine, int type,
+///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
+///
+/// @brief Send a NanoOsMessage to another process identified by its Coroutine.
+///
+/// @param pid The process ID of the destination process.
+/// @param type The type of the message to send to the destination process.
+/// @param func The function information to send to the destination process,
+///   cast to a NanoOsMessageData.
+/// @param data The data to send to the destination process, cast to a
+///   NanoOsMessageData.
+/// @param waiting Whether or not the sender is waiting on a response from the
+///   destination process.
+///
+/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
+Comessage* schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting
+) {
+  Comessage *comessage = NULL;
+  if (!coroutineRunning(coroutine)) {
+    // Can't send to a non-resumable coroutine.
+    printString("ERROR!!!  Coroutine ");
+    printInt(coroutineId(coroutine));
+    printString(" is not running.\n");
+    if (coroutine == NULL) {
+      printString("coroutine is NULL\n");
+    } else {
+      printString("coroutine is in state ");
+      printInt(coroutine->state);
+      printString("\n");
+    }
+    return comessage; // NULL
+  }
+
+  comessage = getAvailableMessage();
+  while (comessage == NULL) {
+    coroutineYield(NULL);
+    comessage = getAvailableMessage();
+  }
+
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  nanoOsMessage->func = func;
+  nanoOsMessage->data = data;
+
+  comessageInit(comessage, type,
+    nanoOsMessage, sizeof(*nanoOsMessage), waiting);
+
+  if (schedulerSendComessageToCoroutine(coroutine, comessage)
+    != coroutineSuccess
+  ) {
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  Could not release message from "
+        "schedulerSendNanoOsMessageToCoroutine.\n");
+    }
+    comessage = NULL;
+  }
+
+  return comessage;
+}
+
+/// @fn Comessage* schedulerSendNanoOsMessageToPid(int pid, int type,
+///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
+///
+/// @brief Send a NanoOsMessage to another process identified by its PID. Looks
+/// up the process's Coroutine by its PID and then calls
+/// schedulerSendNanoOsMessageToCoroutine.
+///
+/// @param pid The process ID of the destination process.
+/// @param type The type of the message to send to the destination process.
+/// @param func The function information to send to the destination process,
+///   cast to a NanoOsMessageData.
+/// @param data The data to send to the destination process, cast to a
+///   NanoOsMessageData.
+/// @param waiting Whether or not the sender is waiting on a response from the
+///   destination process.
+///
+/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
+Comessage* schedulerSendNanoOsMessageToPid(int pid, int type,
+  NanoOsMessageData func, NanoOsMessageData data, bool waiting
+) {
+  Comessage *comessage = NULL;
+  if (pid >= NANO_OS_NUM_PROCESSES) {
+    // Not a valid PID.  Fail.
+    printString("ERROR!!!  ");
+    printInt(pid);
+    printString(" is not a valid PID.\n");
+    return comessage; // NULL
+  }
+
+  Coroutine *coroutine = runningCommands[pid].coroutine;
+  comessage = schedulerSendNanoOsMessageToCoroutine(
+    coroutine, type, func, data, waiting);
+  return comessage;
+}
 
 /// @fn int handleRunProcess(Comessage *comessage)
 ///
