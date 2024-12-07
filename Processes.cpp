@@ -37,12 +37,9 @@
 ///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
-/// @param consoleMessage A pointer to the Comessage that will be sent to the
-///   Console to assign ownership of the console port.
 typedef struct CommandDescriptor {
   int consolePort;
   char *consoleInput;
-  Comessage *consoleMessage;
 } CommandDescriptor;
 
 /// @var runningCommands
@@ -460,11 +457,6 @@ int runProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consolePort = consolePort;
   commandDescriptor->consoleInput = consoleInput;
-  commandDescriptor->consoleMessage = getAvailableMessage();
-  while (commandDescriptor->consoleMessage == NULL) {
-    coroutineYield(NULL);
-    commandDescriptor->consoleMessage = getAvailableMessage();
-  }
 
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
@@ -481,8 +473,8 @@ int runProcess(CommandEntry *commandEntry,
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-///////////// NOTHING BELOW THIS LINE MAY ALLOCATE DYNAMIC MEMORY  /////////////
-//////////////////////// OR CALL sendNanoOsMessageTo*!!! ///////////////////////
+/////////// NOTHING BELOW THIS LINE MAY CALL sendNanoOsMessageTo*!!! ///////////
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @fn Coroutine* getCoroutineByPid(unsigned int pid)
@@ -689,6 +681,12 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
   return returnValue;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////// SCEDULER-PRIVATE FUNCTIONS ONLY BELOW THIS POINT!! //////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 /// @fn int handleRunProcess(Comessage *comessage)
 ///
 /// @brief Run a process in an appropriate process slot.
@@ -710,7 +708,6 @@ int handleRunProcess(Comessage *comessage) {
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
-  Comessage *consoleMessage = commandDescriptor->consoleMessage;
   
   // Find an open slot.
   int ii = NANO_OS_FIRST_PROCESS_ID;
@@ -764,7 +761,6 @@ int handleRunProcess(Comessage *comessage) {
       // printf sends synchronous messages to the console, which we can't do.
       // Use the non-blocking printString instead.
       printString("Out of memory to launch process.\n");
-      comessageRelease(consoleMessage);
       consoleInput = stringDestroy(consoleInput);
       free(commandDescriptor); commandDescriptor = NULL;
       if (comessageRelease(comessage) != coroutineSuccess) {
