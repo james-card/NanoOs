@@ -524,10 +524,10 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
     )
     + 1;
   
-  // The size element of a MemNode is stored as an 11-bit number, which means we
-  // can only support a maximum of 2047 bytes.  Make sure we don't exceed that.
-  if (memorySize >= 2048) {
-    memorySize = 2047;
+  // The size element of a MemNode is stored as an 12-bit number, which means we
+  // can only support a maximum of 4096 bytes.  Make sure we don't exceed that.
+  if (memorySize > 4096) {
+    memorySize = 4096;
   }
   
   // The value at memNode(memoryManagerState->mallocNext)->size needs to be
