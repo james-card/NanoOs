@@ -807,6 +807,28 @@ int schedulerSendNanoOsMessageToPid(int pid, int type,
   return returnValue;
 }
 
+/// @fn int schedulerAssignPortToPid(
+///   uint8_t consolePort, COROUTINE_ID_TYPE owner)
+///
+/// @brief Assign a console port to a process ID.
+///
+/// @param consolePort The ID of the consolePort to assign.
+/// @param owner The ID of the process to assign the port to.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int schedulerAssignPortToPid(uint8_t consolePort, COROUTINE_ID_TYPE owner) {
+  ConsolePortOwnerUnion consolePortOwnerUnion;
+  consolePortOwnerUnion.consolePortOwnerAssociation.consolePort
+    = consolePort;
+  consolePortOwnerUnion.consolePortOwnerAssociation.owner = owner;
+
+  int returnValue = schedulerSendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+    /* func= */ 0, consolePortOwnerUnion.nanoOsMessageData, true);
+
+  return returnValue;
+}
+
 /// @fn int handleRunProcess(Comessage *comessage)
 ///
 /// @brief Run a process in an appropriate process slot.
@@ -1101,12 +1123,13 @@ void runScheduler(void) {
   runningCommands[0].coroutine = &mainCoroutine;
   runningCommands[0].name = "scheduler";
 
-  // Create the console process.
+  // Create the console process and start it.
   Coroutine *coroutine = NULL;
   coroutine = coroutineCreate(runConsole);
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
+  coroutineResume(coroutine, NULL);
 
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
@@ -1123,6 +1146,15 @@ void runScheduler(void) {
   coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
   runningCommands[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine = coroutine;
   runningCommands[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
+  // Assign the console ports to it.
+  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (schedulerAssignPortToPid(ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID)
+      != coroutineSuccess
+    ) {
+      printString(
+        "WARNING:  Could not assign console port to memory manager.\n");
+    }
+  }
 
   // We're going to do a round-robin scheduler.  We don't want to use the array
   // of runningCommands because the scheduler process itself is in that list.
