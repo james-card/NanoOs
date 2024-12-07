@@ -440,7 +440,6 @@ void handleConsoleMessages(ConsoleState *consoleState) {
     }
 
     consoleCommandHandlers[messageType](consoleState, message);
-    comessageSetDone(message);
     message = comessageQueuePop();
   }
 
@@ -597,7 +596,6 @@ void* runConsole(void *args) {
           = (ConsoleCommand) comessageType(schedulerMessage);
         if (messageType < NUM_CONSOLE_COMMANDS) {
           consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
-          comessageSetDone(schedulerMessage);
         } else {
           printString("ERROR!!!  Received unknown console command ");
           printInt(messageType);
