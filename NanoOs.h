@@ -116,6 +116,16 @@ extern "C"
 /// @brief The version string for NanoOs
 #define NANO_OS_VERSION "0.0.1"
 
+/// @def MIN
+///
+/// @brief Get the minimum of two values.
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+/// @def MAX
+///
+/// @brief Get the maximum of two values.
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
 /// @typedef NanoOsMessageData
 ///
 /// @brief Data type used in a NanoOsMessage.
