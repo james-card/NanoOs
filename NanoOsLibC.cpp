@@ -73,6 +73,17 @@ int printInt(int integer) {
   return 0;
 }
 
+/// @fn int printDouble(double floatingPointValue)
+///
+/// @brief C wrapper around Serial.print for a double.
+///
+/// @return This function always returns 0.
+int printDouble(double floatingPointValue) {
+  Serial.print(floatingPointValue);
+
+  return 0;
+}
+
 /// @fn int printList_(const char *firstString, ...)
 ///
 /// @brief Print a list of values.  Values are in (type, value) pairs until the
