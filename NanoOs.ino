@@ -41,6 +41,12 @@ void setup() {
   while (!Serial);
 
   digitalWrite(LED_BUILTIN, HIGH);
+
+  // Initialize stdin, stdout, and stderr to something we can at least tell the
+  // difference between.
+  stdin  = (FILE*) ((intptr_t) 0x0);
+  stdout = (FILE*) ((intptr_t) 0x1);
+  stderr = (FILE*) ((intptr_t) 0x2);
 }
 
 // In a normal Arduino sketch, the loop function runs over and over again
