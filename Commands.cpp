@@ -328,13 +328,14 @@ int convertTemp(int argc, char **argv) {
     // Show the menu.
     printf("Choose a menu option:\n");
     printf("\n");
-    printf("0. Exit\n");
     printf("1. Convert Farenheit to Celsius\n");
     printf("2. Convert Farenheit to Kelvin\n");
     printf("3. Convert Celsius to Farenheit\n");
     printf("4. Convert Celsius to Kelvin\n");
     printf("5. Convert Kelvin to Farenheit\n");
     printf("6. Convert Kelvin to Celsius\n");
+    printf("\n");
+    printf("0. Exit\n");
     printf("\n");
     printf("menu option> ");
     scanf("%d", &menuInput);
