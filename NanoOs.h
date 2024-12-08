@@ -126,6 +126,11 @@ extern "C"
 /// @brief Get the maximum of two values.
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
+/// @def ABS
+///
+/// @brief Get the absolute value of a value.
+#define ABS(x) (((x) >= 0) ? (x) : (-(x)))
+
 /// @typedef NanoOsMessageData
 ///
 /// @brief Data type used in a NanoOsMessage.
