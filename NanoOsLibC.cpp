@@ -465,7 +465,8 @@ int scanfParseString(
 
 /// @fn int vsscanf(const char *buffer, const char *format, va_list args)
 ///
-/// @brief Read formatted input into arguments provided in a va_list.
+/// @brief Read formatted input from a string into arguments provided in a
+/// va_list.
 ///
 /// @param buffer A string containing the formatted input to parse.
 /// @param format The string specifying the format of the input to use.
@@ -670,9 +671,9 @@ int vsscanf(const char *buffer, const char *format, va_list args) {
   return returnValue;
 }
 
-/// @fn int vsscanf(const char *buffer, const char *format, va_list args)
+/// @fn int sscanf(const char *buffer, const char *format, va_list args)
 ///
-/// @brief Read formatted input into provided arguments.
+/// @brief Read formatted input from a string into provided arguments.
 ///
 /// @param buffer A string containing the formatted input to parse.
 /// @param format The string specifying the format of the input to use.
