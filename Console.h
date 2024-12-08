@@ -237,6 +237,24 @@ char *consoleFgets(char *buffer, int size, FILE *stream);
 #endif
 #define fgets consoleFgets
 
+int consoleVFScanf(FILE *stream, const char *format, va_list ap);
+#ifdef vfscanf
+#undef vfscanf
+#endif
+#define vfscanf consoleVFScanf
+
+int consoleFScanf(FILE *stream, const char *format, ...);
+#ifdef fscanf
+#undef fscanf
+#endif
+#define fscanf consoleFScanf
+
+int consoleScanf(const char *format, ...);
+#ifdef scanf
+#undef scanf
+#endif
+#define scanf consoleScanf
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

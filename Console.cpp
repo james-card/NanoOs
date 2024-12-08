@@ -902,44 +902,44 @@ char *consoleFgets(char *buffer, int size, FILE *stream) {
   return returnValue;
 }
 
-//// int consoleVFScanf(FILE *stream, const char *format, va_list ap) {
-////   int returnValue = 0;
-//// 
-////   if (stream == stdin) {
-////     char *consoleInput = consoleWaitForInput();
-////     if (consoleInput == NULL) {
-////       returnValue = EOF;
-////       return returnValue;
-////     }
-//// 
-////     returnValue = vsscanf(consoleInput, format, ap);
-////     consoleInput = stringDestroy(consoleInput);
-////   }
-//// 
-////   return returnValue;
-//// }
-//// 
-//// int consoleFScanf(FILE *stream, const char *format, ...) {
-////   int returnValue = 0;
-////   va_list args;
-//// 
-////   va_start(args, format);
-////   returnValue = consoleVFscanf(stream, format, args);
-////   va_end(args);
-//// 
-////   return returnValue;
-//// }
-//// 
-//// int consoleScanf(const char *format, ...) {
-////   int returnValue = 0;
-////   va_list args;
-//// 
-////   va_start(args, format);
-////   returnValue = consoleVFscanf(stdin, format, args);
-////   va_end(args);
-//// 
-////   return returnValue;
-//// }
+int consoleVFScanf(FILE *stream, const char *format, va_list ap) {
+  int returnValue = 0;
+
+  if (stream == stdin) {
+    char *consoleInput = consoleWaitForInput();
+    if (consoleInput == NULL) {
+      returnValue = EOF;
+      return returnValue;
+    }
+
+    returnValue = vsscanf(consoleInput, format, ap);
+    consoleInput = stringDestroy(consoleInput);
+  }
+
+  return returnValue;
+}
+
+int consoleFScanf(FILE *stream, const char *format, ...) {
+  int returnValue = 0;
+  va_list args;
+
+  va_start(args, format);
+  returnValue = consoleVFScanf(stream, format, args);
+  va_end(args);
+
+  return returnValue;
+}
+
+int consoleScanf(const char *format, ...) {
+  int returnValue = 0;
+  va_list args;
+
+  va_start(args, format);
+  returnValue = consoleVFScanf(stdin, format, args);
+  va_end(args);
+
+  return returnValue;
+}
 
 // Console port support functions.
 
