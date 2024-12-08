@@ -299,24 +299,24 @@ int convertTemp(int argc, char **argv) {
 
   typedef enum MenuOption {
     MENU_EXIT,
-    MENU_FARENHEIT_TO_CELSIUS,
-    MENU_FARENHEIT_TO_KELVIN,
-    MENU_CELSIUS_TO_FARENHEIT,
+    MENU_FAHRENHEIT_TO_CELSIUS,
+    MENU_FAHRENHEIT_TO_KELVIN,
+    MENU_CELSIUS_TO_FAHRENHEIT,
     MENU_CELSIUS_TO_KELVIN,
-    MENU_KELVIN_TO_FARENHEIT,
+    MENU_KELVIN_TO_FAHRENHEIT,
     MENU_KELVIN_TO_CELSIUS,
     NUM_MENU_OPTIONS,
   } MenuOption;
 
   typedef enum TemperatureScale {
-    TEMPERATURE_SCALE_FARENHEIT,
+    TEMPERATURE_SCALE_FAHRENHEIT,
     TEMPERATURE_SCALE_CELSIUS,
     TEMPERATURE_SCALE_KELVIN,
     NUM_TEMPERATURE_SCALES,
   } TemperatureScale;
 
   const char *temperatureScaleNames[] = {
-    "Farenheit",
+    "Fahrenheit",
     "Celsius",
     "Kelvin",
     "Invalid",
@@ -331,11 +331,11 @@ int convertTemp(int argc, char **argv) {
     // Show the menu.
     printf("Choose a menu option:\n");
     printf("\n");
-    printf("1. Convert Farenheit to Celsius\n");
-    printf("2. Convert Farenheit to Kelvin\n");
-    printf("3. Convert Celsius to Farenheit\n");
+    printf("1. Convert Fahrenheit to Celsius\n");
+    printf("2. Convert Fahrenheit to Kelvin\n");
+    printf("3. Convert Celsius to Fahrenheit\n");
     printf("4. Convert Celsius to Kelvin\n");
-    printf("5. Convert Kelvin to Farenheit\n");
+    printf("5. Convert Kelvin to Fahrenheit\n");
     printf("6. Convert Kelvin to Celsius\n");
     printf("\n");
     printf("0. Exit\n");
@@ -351,21 +351,21 @@ int convertTemp(int argc, char **argv) {
       continue;
     }
 
-    if (menuOption < MENU_CELSIUS_TO_FARENHEIT) {
-      inputScale = TEMPERATURE_SCALE_FARENHEIT;
+    if (menuOption < MENU_CELSIUS_TO_FAHRENHEIT) {
+      inputScale = TEMPERATURE_SCALE_FAHRENHEIT;
       outputScale = TEMPERATURE_SCALE_CELSIUS;
-      if (menuOption == MENU_FARENHEIT_TO_KELVIN) {
+      if (menuOption == MENU_FAHRENHEIT_TO_KELVIN) {
         outputScale = TEMPERATURE_SCALE_KELVIN;
       }
-    } else if (menuOption < MENU_KELVIN_TO_FARENHEIT) {
+    } else if (menuOption < MENU_KELVIN_TO_FAHRENHEIT) {
       inputScale = TEMPERATURE_SCALE_CELSIUS;
-      outputScale = TEMPERATURE_SCALE_FARENHEIT;
+      outputScale = TEMPERATURE_SCALE_FAHRENHEIT;
       if (menuOption == MENU_CELSIUS_TO_KELVIN) {
         outputScale = TEMPERATURE_SCALE_KELVIN;
       }
     } else { // menuOption < NUM_MENU_OPTIONS
       inputScale = TEMPERATURE_SCALE_KELVIN;
-      outputScale = TEMPERATURE_SCALE_FARENHEIT;
+      outputScale = TEMPERATURE_SCALE_FAHRENHEIT;
       if (menuOption == MENU_KELVIN_TO_CELSIUS) {
         outputScale = TEMPERATURE_SCALE_CELSIUS;
       }
@@ -375,15 +375,15 @@ int convertTemp(int argc, char **argv) {
       temperatureScaleNames[inputScale]);
     scanf("%lf", &inputTemperature);
 
-    if (menuOption < MENU_CELSIUS_TO_FARENHEIT) {
-      // First, convert Farenheit to Celsius.
+    if (menuOption < MENU_CELSIUS_TO_FAHRENHEIT) {
+      // First, convert Fahrenheit to Celsius.
       outputTemperature = ((inputTemperature - 32.0) * 5.0) / 9.0;
-      if (menuOption == MENU_FARENHEIT_TO_KELVIN) {
+      if (menuOption == MENU_FAHRENHEIT_TO_KELVIN) {
         // Convert Celsius to Kelvin.
         outputTemperature += 273.15;
       }
-    } else if (menuOption < MENU_KELVIN_TO_FARENHEIT) {
-      if (menuOption == MENU_CELSIUS_TO_FARENHEIT) {
+    } else if (menuOption < MENU_KELVIN_TO_FAHRENHEIT) {
+      if (menuOption == MENU_CELSIUS_TO_FAHRENHEIT) {
         outputTemperature = ((inputTemperature * 9.0) / 5.0) + 32.0;
       } else { // menuOption == MENU_CELSIUS_TO_KELVIN
         outputTemperature = inputTemperature + 273.15;
@@ -391,7 +391,7 @@ int convertTemp(int argc, char **argv) {
     } else { // menuOption < NUM_MENU_OPTIONS
       // First, convert Kelvin to Celsius.
       outputTemperature = inputTemperature - 273.15;
-      if (menuOption == MENU_KELVIN_TO_FARENHEIT) {
+      if (menuOption == MENU_KELVIN_TO_FAHRENHEIT) {
         outputTemperature = ((outputTemperature * 9.0) / 5.0) + 32.0;
       }
     }
