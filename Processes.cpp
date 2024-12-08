@@ -1098,6 +1098,12 @@ void handleSchedulerMessage(void) {
 ///
 /// @return This function returns no value and, in fact, never returns at all.
 void runScheduler(void) {
+  // Initialize stdin, stdout, and stderr to something we can at least tell the
+  // difference between.
+  stdin  = (FILE*) ((intptr_t) 0x0);
+  stdout = (FILE*) ((intptr_t) 0x1);
+  stderr = (FILE*) ((intptr_t) 0x2);
+
   // Create the storage for the array of running commands and initialize the
   // array global pointer.
   RunningCommand runningCommandsStorage[NANO_OS_NUM_PROCESSES] = {};
