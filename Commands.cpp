@@ -393,10 +393,10 @@ int convertTemp(int argc, char **argv) {
       }
     }
 
-    printf("%d.%02d degrees %s is %d.%02d degrees %s.\n\n",
-      floatToInts(inputTemperature, 2),
+    printf("%d.%03d degrees %s is %d.%03d degrees %s.\n\n",
+      floatToInts(inputTemperature, 3),
       temperatureScaleNames[inputScale],
-      floatToInts(outputTemperature, 2),
+      floatToInts(outputTemperature, 3),
       temperatureScaleNames[outputScale]);
   }
 
