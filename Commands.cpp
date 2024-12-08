@@ -280,6 +280,131 @@ int ver(int argc, char **argv) {
   nanoOsExitProcess(0);
 }
 
+/// @fn int convertTemp(int argc, char **argv)
+///
+/// @brief Menu-based command to convert temperatures between scales.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
+///
+/// @return This function always returns 0.
+int convertTemp(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  typedef enum MenuOption {
+    MENU_EXIT,
+    MENU_FARENHEIT_TO_CELSIUS,
+    MENU_FARENHEIT_TO_KELVIN,
+    MENU_CELSIUS_TO_FARENHEIT,
+    MENU_CELSIUS_TO_KELVIN,
+    MENU_KELVIN_TO_FARENHEIT,
+    MENU_KELVIN_TO_CELSIUS,
+    NUM_MENU_OPTIONS,
+  } MenuOption;
+
+  typedef enum TemperatureScale {
+    TEMPERATURE_SCALE_FARENHEIT,
+    TEMPERATURE_SCALE_CELSIUS,
+    TEMPERATURE_SCALE_KELVIN,
+    NUM_TEMPERATURE_SCALES,
+  } TemperatureScale;
+
+  const char *temperatureScaleNames[] = {
+    "Farenheit",
+    "Celsius",
+    "Kelvin",
+    "Invalid",
+  };
+
+  MenuOption menuOption = NUM_MENU_OPTIONS;
+  TemperatureScale inputScale = NUM_TEMPERATURE_SCALES;
+  TemperatureScale outputScale = NUM_TEMPERATURE_SCALES;
+  int menuInput = 0;
+  double inputTemperature = 0.0, outputTemperature = 0.0;
+  while (menuOption != MENU_EXIT) {
+    // Show the menu.
+    printf("Choose a menu option:\n");
+    printf("\n");
+    printf("0. Exit\n");
+    printf("1. Convert Farenheit to Celsius\n");
+    printf("2. Convert Farenheit to Kelvin\n");
+    printf("3. Convert Celsius to Farenheit\n");
+    printf("4. Convert Celsius to Kelvin\n");
+    printf("5. Convert Kelvin to Farenheit\n");
+    printf("6. Convert Kelvin to Celsius\n");
+    printf("\n");
+    printf("> ");
+    scanf("%d", &menuInput);
+    menuOption = (MenuOption) menuInput;
+
+    if (menuOption == MENU_EXIT) {
+      break;
+    } else if (menuOption >= NUM_MENU_OPTIONS) {
+      printf("Invalid option.\n");
+      printf("\n");
+      continue;
+    }
+
+    if (menuOption < MENU_CELSIUS_TO_FARENHEIT) {
+      inputScale = TEMPERATURE_SCALE_FARENHEIT;
+      outputScale = TEMPERATURE_SCALE_CELSIUS;
+      if (menuOption == MENU_FARENHEIT_TO_KELVIN) {
+        outputScale = TEMPERATURE_SCALE_KELVIN;
+      }
+    } else if (menuOption < MENU_KELVIN_TO_FARENHEIT) {
+      inputScale = TEMPERATURE_SCALE_CELSIUS;
+      outputScale = TEMPERATURE_SCALE_FARENHEIT;
+      if (menuOption == MENU_CELSIUS_TO_KELVIN) {
+        outputScale = TEMPERATURE_SCALE_KELVIN;
+      }
+    } else { // menuOption < NUM_MENU_OPTIONS
+      inputScale = TEMPERATURE_SCALE_KELVIN;
+      outputScale = TEMPERATURE_SCALE_FARENHEIT;
+      if (menuOption == MENU_KELVIN_TO_CELSIUS) {
+        outputScale = TEMPERATURE_SCALE_CELSIUS;
+      }
+    }
+
+    printf("\n");
+    printf("Enter temperature in degrees %s: ",
+      temperatureScaleNames[inputScale]);
+    scanf("%lf", inputTemperature);
+
+    if (menuOption < MENU_CELSIUS_TO_FARENHEIT) {
+      // First, convert Farenheit to Celsius.
+      outputTemperature = ((inputTemperature - 32.0) * 5.0) / 9.0;
+      if (menuOption == MENU_FARENHEIT_TO_KELVIN) {
+        // Convert Celsius to Kelvin.
+        outputTemperature -= 273.15;
+      }
+    } else if (menuOption < MENU_KELVIN_TO_FARENHEIT) {
+      if (menuOption == MENU_CELSIUS_TO_FARENHEIT) {
+        outputTemperature = ((inputTemperature * 9.0) / 5.0) + 32.0;
+      } else { // menuOption == MENU_CELSIUS_TO_KELVIN
+        outputTemperature = inputTemperature - 273.15;
+      }
+    } else { // menuOption < NUM_MENU_OPTIONS
+      // First, convert Kelvin to Celsius.
+      outputTemperature = inputTemperature + 273.15;
+      if (menuOption == MENU_KELVIN_TO_FARENHEIT) {
+        outputTemperature = ((outputTemperature * 9.0) / 5.0) + 32.0;
+      }
+    }
+
+    printf("Temperature in degrees %s is %d.%02d\n: ",
+      temperatureScaleNames[outputScale],
+      (int) outputTemperature,
+      (ABS((int) outputTemperature) * 100) % 100);
+  }
+
+  printf("Bye!\n");
+  releaseConsole();
+  nanoOsExitProcess(0);
+}
+
 // Exported functions
 
 /// @fn int handleCommand(int consolePort, char *consoleInput)
@@ -358,6 +483,12 @@ int handleCommand(int consolePort, char *consoleInput) {
 /// REMINDER:  These commands have to be in alphabetical order so that the
 ///            binarysearch will work!!!
 CommandEntry commands[] = {
+  {
+    .name = "convertTemp",
+    .func = convertTemp,
+    .userProcess = true,
+    .help = "Convert temperatures between scales."
+  },
   {
     .name = "echo",
     .func = echo,
