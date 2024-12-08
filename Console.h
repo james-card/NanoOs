@@ -231,6 +231,12 @@ int consolePrintf(const char *format, ...);
 #endif
 #define printf consolePrintf
 
+char *consoleFgets(char *buffer, int size, FILE *stream);
+#ifdef fgets
+#undef fgets
+#endif
+#define fgets consoleFgets
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
