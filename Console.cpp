@@ -902,25 +902,46 @@ char *consoleFgets(char *buffer, int size, FILE *stream) {
   return returnValue;
 }
 
-int consoleVFScanf(FILE *stream, const char *format, va_list ap) {
-  int returnValue = 0;
+/// @fn int consoleVFScanf(FILE *stream, const char *format, va_list args)
+///
+/// @brief Read formatted input from a file stream into arguments provided in
+/// a va_list.
+///
+/// @param stream A pointer to the FILE stream to read from.  Currently, only
+///   stdin is supported.
+/// @param format The string specifying the expected format of the input data.
+/// @param args The va_list containing the arguments to store the parsed values
+///   into.
+///
+/// @return Returns the number of items parsed on success, EOF on failure.
+int consoleVFScanf(FILE *stream, const char *format, va_list args) {
+  int returnValue = EOF;
 
   if (stream == stdin) {
     char *consoleInput = consoleWaitForInput();
     if (consoleInput == NULL) {
-      returnValue = EOF;
-      return returnValue;
+      return returnValue; // EOF
     }
 
-    returnValue = vsscanf(consoleInput, format, ap);
+    returnValue = vsscanf(consoleInput, format, args);
     consoleInput = stringDestroy(consoleInput);
   }
 
   return returnValue;
 }
 
+/// @fn int consoleFScanf(FILE *stream, const char *format, ...)
+///
+/// @brief Read formatted input from a file stream into provided arguments.
+///
+/// @param stream A pointer to the FILE stream to read from.  Currently, only
+///   stdin is supported.
+/// @param format The string specifying the expected format of the input data.
+/// @param ... The arguments to store the parsed values into.
+///
+/// @return Returns the number of items parsed on success, EOF on failure.
 int consoleFScanf(FILE *stream, const char *format, ...) {
-  int returnValue = 0;
+  int returnValue = EOF;
   va_list args;
 
   va_start(args, format);
@@ -930,8 +951,16 @@ int consoleFScanf(FILE *stream, const char *format, ...) {
   return returnValue;
 }
 
+/// @fn int consoleScanf(const char *format, ...)
+///
+/// @brief Read formatted input from the console into provided arguments.
+///
+/// @param format The string specifying the expected format of the input data.
+/// @param ... The arguments to store the parsed values into.
+///
+/// @return Returns the number of items parsed on success, EOF on failure.
 int consoleScanf(const char *format, ...) {
-  int returnValue = 0;
+  int returnValue = EOF;
   va_list args;
 
   va_start(args, format);
