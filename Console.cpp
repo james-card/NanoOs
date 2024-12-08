@@ -334,7 +334,8 @@ void consoleAssignPortHandler(
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     consoleState->consolePorts[consolePort].owner = owner;
-    comessageRelease(inputMessage);
+    comessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
   } else {
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
@@ -378,6 +379,45 @@ void consoleReleasePortHandler(
     printString("\n");
   }
 
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
+/// @fn void consoleWaitForInputHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Wait for input from any of the console ports owned by a process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleWaitForInputHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      consolePorts[ii].waitingForInput = true;
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to wait for input from non-owning process ");
+    printInt(owner);
+    printString("\n");
+  }
+
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
   return;
 }
 
@@ -390,6 +430,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteBufferHandler,
   consoleAssignPortHandler,
   consoleReleasePortHandler,
+  consoleWaitForInputHandler,
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
@@ -415,6 +456,24 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   }
 
   return;
+}
+
+/// @fn int consoleSendInputToProcess(
+///   COROUTINE_ID_TYPE processId, char *consoleInput)
+///
+/// @brief Send input captured from a console port to a process that's waiting
+/// for it.
+int consoleSendInputToProcess(COROUTINE_ID_TYPE processId, char *consoleInput) {
+  int returnValue = coroutineSuccess;
+
+  Comessage *comessage = sendNanoOsMessageToPid(
+    processId, CONSOLE_RETURNING_INPUT,
+    /* func= */ 0, (intptr_t) consoleInput, false);
+  if (comessage == NULL) {
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
 }
 
 /// @var lastToggleTime
@@ -549,6 +608,7 @@ void* runConsole(void *args) {
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
+          consolePort->consoleIndex = 0;
           if (handleCommand(ii, bufferCopy) == coroutineSuccess) {
             // If the command has already returned or wrote to the console
             // before its first yield, we may need to display its output.
@@ -558,6 +618,16 @@ void* runConsole(void *args) {
             consolePort->printString("Unknown command.\n");
             consolePort->printString("> ");
           }
+        } else if (consolePort->waitingForInput == true) {
+          char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
+          memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
+            consolePort->consoleIndex);
+          bufferCopy[consolePort->consoleIndex] = '\0';
+          consolePort->consoleIndex = 0;
+          consoleSendInputToProcess(consolePort->owner, bufferCopy);
+        } else {
+          // Console port is owned but owning process is not waiting for input.
+          // Reset our buffer and do nothing.
           consolePort->consoleIndex = 0;
         }
       }
@@ -791,5 +861,24 @@ int printConsole(double message) {
 }
 int printConsole(const char *message) {
   return printConsoleValue(CONSOLE_VALUE_STRING, &message, sizeof(message));
+}
+
+/// @fn char* consoleWaitForInput(void)
+///
+/// @brief Wait for input from the console port owned by the current process.
+///
+/// @return Returns a pointer to the input retrieved on success, NULL on
+/// failure.
+char* consoleWaitForInput(void) {
+  Comessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WAIT_FOR_INPUT,
+    /* func= */ 0, /* data= */ 0, true);
+
+  Comessage *response = comessageWaitForReplyWithType(sent, true,
+    CONSOLE_RETURNING_INPUT, NULL);
+  char *returnValue = nanoOsMessageDataPointer(response, char*);
+  comessageRelease(response);
+
+  return returnValue;
 }
 
