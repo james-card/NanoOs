@@ -31,6 +31,50 @@
 #include "Console.h"
 #include "Commands.h"
 
+/// @fn int consolePrintMessage(
+///   ConsoleState *consoleState, Comessage *inputMessage, const char *message)
+///
+/// @brief Print a message to all console ports that are owned by a process.
+///
+/// @param consoleState The ConsoleState being maintained by the runConsole
+///   function.
+/// @param inputMessage The message received from the process printing the
+///   message.
+/// @param message The formatted string message to print.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int consolePrintMessage(
+  ConsoleState *consoleState, Comessage *inputMessage, const char *message
+) {
+  int returnValue = coroutineSuccess;
+  COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      consolePorts[ii].printString(message);
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to print message from non-owning process ");
+    printInt(owner);
+    printString("\n");
+    returnValue = coroutineError;
+  }
+
+  return returnValue;
+}
+
+/// @fn void consoleMessageCleanup(Comessage *inputMessage)
+///
+/// @brief Release an input Comessage if there are no waiters for the message.
+///
+/// @param inputMessage A pointer to the Comessage to cleanup.
+///
+/// @return This function returns no value.
 void consoleMessageCleanup(Comessage *inputMessage) {
   if (comessageWaiting(inputMessage) == false) {
     if (comessageRelease(inputMessage) != coroutineSuccess) {
@@ -273,6 +317,118 @@ void consoleWriteStringHandler(
   return;
 }
 
+/// @fn void consoleWriteValueHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_WRITE_VALUE command.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  Unused by this function.
+/// @param inputMessage A pointer to the Comessage that was received from the
+///   process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+void consoleWriteValueHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  char staticBuffer[19]; // max length of a 64-bit value is 18 digits plus NULL.
+  ConsoleValueType valueType
+    = nanoOsMessageFuncValue(inputMessage, ConsoleValueType);
+  const char *message = NULL;
+
+  switch (valueType) {
+    case CONSOLE_VALUE_CHAR:
+      {
+        char value = nanoOsMessageDataValue(inputMessage, char);
+        sprintf(staticBuffer, "%c", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_UCHAR:
+      {
+        unsigned char value
+          = nanoOsMessageDataValue(inputMessage, unsigned char);
+        sprintf(staticBuffer, "%u", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_INT:
+      {
+        int value = nanoOsMessageDataValue(inputMessage, int);
+        sprintf(staticBuffer, "%d", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_UINT:
+      {
+        unsigned int value
+          = nanoOsMessageDataValue(inputMessage, unsigned int);
+        sprintf(staticBuffer, "%u", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_LONG_INT:
+      {
+        long int value = nanoOsMessageDataValue(inputMessage, long int);
+        sprintf(staticBuffer, "%ld", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_LONG_UINT:
+      {
+        long unsigned int value
+          = nanoOsMessageDataValue(inputMessage, long unsigned int);
+        sprintf(staticBuffer, "%lu", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_FLOAT:
+      {
+        float value = nanoOsMessageDataValue(inputMessage, float);
+        sprintf(staticBuffer, "%f", (double) value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_DOUBLE:
+      {
+        double value = nanoOsMessageDataValue(inputMessage, double);
+        sprintf(staticBuffer, "%lf", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_STRING:
+      {
+        message = nanoOsMessageDataPointer(inputMessage, const char*);
+      }
+      break;
+
+    default:
+      // Do nothing.
+      break;
+
+  }
+
+  // It's possible we were passed a bad type that didn't result in the value of
+  // message being set, so only attempt to print it if it was set.
+  if (message != NULL) {
+    consolePrintMessage(consoleState, inputMessage, message);
+  }
+
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
 /// @fn void consoleGetBufferHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
@@ -373,7 +529,7 @@ void consoleWriteBufferHandler(
   if (consoleBuffer != NULL) {
     const char *message = consoleBuffer->buffer;
     if (message != NULL) {
-      Serial.print(message);
+      consolePrintMessage(consoleState, inputMessage, message);
     }
     consoleBuffer->inUse = false;
   }
@@ -423,6 +579,16 @@ void consoleAssignPortHandler(
   return;
 }
 
+/// @fn void consoleReleasePortHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Release all the ports currently owned by a process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
 void consoleReleasePortHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
@@ -460,6 +626,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteFloatHandler,
   consoleWriteDoubleHandler,
   consoleWriteStringHandler,
+  consoleWriteValueHandler,
   consoleGetBufferHandler,
   consoleWriteBufferHandler,
   consoleAssignPortHandler,
@@ -788,7 +955,7 @@ int consolePrintf(const char *format, ...) {
 }
 
 /// @fn int printConsoleValue(
-///   ConsoleCommand command, void *value, size_t length)
+///   ConsoleValueType valueType, void *value, size_t length)
 ///
 /// @brief Send a command to print a value to the console.
 ///
@@ -801,13 +968,13 @@ int consolePrintf(const char *format, ...) {
 ///
 /// @return This function is non-blocking, always succeeds, and always returns
 /// 0.
-int printConsoleValue(ConsoleCommand command, void *value, size_t length) {
+int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
   NanoOsMessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
   memcpy(&message, value, length);
 
-  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, command,
-    0, message, false);
+  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
+    valueType, message, false);
 
   return 0;
 }
@@ -840,30 +1007,30 @@ void releaseConsole() {
 ///
 /// @return Returns the value returned by printConsoleValue.
 int printConsole(char message) {
-  return printConsoleValue(CONSOLE_WRITE_CHAR, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_CHAR, &message, sizeof(message));
 }
 int printConsole(unsigned char message) {
-  return printConsoleValue(CONSOLE_WRITE_UCHAR, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_UCHAR, &message, sizeof(message));
 }
 int printConsole(int message) {
-  return printConsoleValue(CONSOLE_WRITE_INT, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_INT, &message, sizeof(message));
 }
 int printConsole(unsigned int message) {
-  return printConsoleValue(CONSOLE_WRITE_UINT, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_UINT, &message, sizeof(message));
 }
 int printConsole(long int message) {
-  return printConsoleValue(CONSOLE_WRITE_LONG_INT, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_LONG_INT, &message, sizeof(message));
 }
 int printConsole(long unsigned int message) {
-  return printConsoleValue(CONSOLE_WRITE_LONG_UINT, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_LONG_UINT, &message, sizeof(message));
 }
 int printConsole(float message) {
-  return printConsoleValue(CONSOLE_WRITE_FLOAT, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_FLOAT, &message, sizeof(message));
 }
 int printConsole(double message) {
-  return printConsoleValue(CONSOLE_WRITE_DOUBLE, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_DOUBLE, &message, sizeof(message));
 }
 int printConsole(const char *message) {
-  return printConsoleValue(CONSOLE_WRITE_STRING, &message, sizeof(message));
+  return printConsoleValue(CONSOLE_VALUE_STRING, &message, sizeof(message));
 }
 
