@@ -44,6 +44,8 @@
 #define NANO_OS_LIB_C
 
 #include <time.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -100,6 +102,8 @@ int printString(const char *string);
 int printInt(int integer);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
+int vsscanf(const char *buffer, const char *format, va_list args);
+int sscanf(const char *buffer, const char *format, ...);
 
 #ifdef __cplusplus
 } // extern "C"
