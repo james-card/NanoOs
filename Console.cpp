@@ -658,6 +658,8 @@ void* runConsole(void *args) {
   return NULL;
 }
 
+// Output support functions.
+
 /// @fn ConsoleBuffer* consoleGetBuffer(void)
 ///
 /// @brief Get a buffer from the runConsole process by sending it a command
@@ -809,21 +811,6 @@ int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
   return 0;
 }
 
-/// @fn void releaseConsole()
-///
-/// @brief Release the console and display the command prompt to the user again.
-///
-/// @return This function returns no value.
-void releaseConsole() {
-  // releaseConsole is sometimes called from within handleCommand, which runs
-  // from within the console coroutine.  That means we can't do blocking prints
-  // from this function.  i.e. We can't use printf here.  Use printConsole
-  // instead.
-  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
-    /* func= */ 0, /* data= */ 0, false);
-  coroutineYield(NULL);
-}
-
 /// @fn printConsole(<type> message)
 ///
 /// @brief Print a message of an arbitrary type to the console.
@@ -864,6 +851,8 @@ int printConsole(const char *message) {
   return printConsoleValue(CONSOLE_VALUE_STRING, &message, sizeof(message));
 }
 
+// Input support functions.
+
 /// @fn char* consoleWaitForInput(void)
 ///
 /// @brief Wait for input from the console port owned by the current process.
@@ -881,5 +870,56 @@ char* consoleWaitForInput(void) {
   comessageRelease(response);
 
   return returnValue;
+}
+
+/// @fn char *consoleFgets(char *buffer, int size, FILE *stream)
+///
+/// @brief Custom implementation of fgets for this library.
+///
+/// @param buffer The character buffer to write the captured input into.
+/// @param size The maximum number of bytes to write into the buffer.
+/// @param stream A pointer to the FILE stream to read from.  Currently, only
+///   stdin is supported.
+///
+/// @return Returns the buffer pointer provided on success, NULL on failure.
+char *consoleFgets(char *buffer, int size, FILE *stream) {
+  char *returnValue = NULL;
+
+  if (stream == stdin) {
+    printString("stream == stdin(");
+    printInt((intptr_t) stream);
+    printString(")\n");
+
+    char *consoleInput = consoleWaitForInput();
+    if (consoleInput == NULL) {
+      return returnValue; // NULL
+    }
+    returnValue = buffer;
+    int consoleInputLength = (int) strlen(consoleInput);
+
+    int numBytesToCopy = MIN(size - 1, consoleInputLength);
+    memcpy(buffer, consoleInput, numBytesToCopy);
+    buffer[numBytesToCopy] = '\0';
+    consoleInput = stringDestroy(consoleInput);
+  }
+
+  return returnValue;
+}
+
+// Console port support functions.
+
+/// @fn void releaseConsole()
+///
+/// @brief Release the console and display the command prompt to the user again.
+///
+/// @return This function returns no value.
+void releaseConsole() {
+  // releaseConsole is sometimes called from within handleCommand, which runs
+  // from within the console coroutine.  That means we can't do blocking prints
+  // from this function.  i.e. We can't use printf here.  Use printConsole
+  // instead.
+  sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
+    /* func= */ 0, /* data= */ 0, false);
+  coroutineYield(NULL);
 }
 
