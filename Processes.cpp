@@ -228,6 +228,7 @@ void* startCommand(void *args) {
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
     }
+    releaseConsole();
     return (void*) ((intptr_t) -1);
   }
 
@@ -235,6 +236,7 @@ void* startCommand(void *args) {
   free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
+  releaseConsole();
   if (comessageRelease(comessage) != coroutineSuccess) {
     printString("ERROR!!!  "
       "Could not release message from handleSchedulerMessage "
@@ -397,7 +399,6 @@ int killProcess(COROUTINE_ID_TYPE processId) {
     (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
   if (comessage == NULL) {
     printf("ERROR!!!  Could not communicate with scheduler.\n");
-    releaseConsole();
     return 1;
   }
 
