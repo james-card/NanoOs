@@ -886,10 +886,6 @@ char *consoleFgets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
 
   if (stream == stdin) {
-    printString("stream == stdin(");
-    printInt((intptr_t) stream);
-    printString(")\n");
-
     char *consoleInput = consoleWaitForInput();
     if (consoleInput == NULL) {
       return returnValue; // NULL
