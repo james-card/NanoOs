@@ -83,15 +83,6 @@ extern "C"
 ///
 /// @brief The commands that the console understands via inter-process messages.
 typedef enum ConsoleCommand {
-  CONSOLE_WRITE_CHAR,
-  CONSOLE_WRITE_UCHAR,
-  CONSOLE_WRITE_INT,
-  CONSOLE_WRITE_UINT,
-  CONSOLE_WRITE_LONG_INT,
-  CONSOLE_WRITE_LONG_UINT,
-  CONSOLE_WRITE_FLOAT,
-  CONSOLE_WRITE_DOUBLE,
-  CONSOLE_WRITE_STRING,
   CONSOLE_WRITE_VALUE,
   CONSOLE_GET_BUFFER,
   CONSOLE_WRITE_BUFFER,
