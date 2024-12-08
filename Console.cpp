@@ -625,6 +625,7 @@ void* runConsole(void *args) {
           bufferCopy[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
           consoleSendInputToProcess(consolePort->owner, bufferCopy);
+          consolePort->waitingForInput = false;
         } else {
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
