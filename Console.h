@@ -88,6 +88,7 @@ typedef enum ConsoleCommand {
   CONSOLE_WRITE_BUFFER,
   CONSOLE_ASSIGN_PORT,
   CONSOLE_RELEASE_PORT,
+  CONSOLE_WAIT_FOR_INPUT,
   NUM_CONSOLE_COMMANDS
 } ConsoleCommand;
 
@@ -115,6 +116,7 @@ typedef enum ConsoleValueType {
 /// synchronous, so only responses for synchronous commands are defined.
 typedef enum ConsoleResponse {
   CONSOLE_RETURNING_BUFFER,
+  CONSOLE_RETURNING_INPUT,
   NUM_CONSOLE_RESPONSES
 } ConsleResponse;
 
