@@ -67,7 +67,7 @@ int ps(int argc, char **argv) {
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   releaseConsole();
-  nanoOsExitProcess(returnValue);
+  return returnValue;
 }
 
 /// @fn int kill(int argc, char **argv);
@@ -89,14 +89,14 @@ int kill(int argc, char **argv) {
     printf("  kill <process ID>\n");
     printf("\n");
     releaseConsole();
-    nanoOsExitProcess(1);
+    return 1;
   }
   COROUTINE_ID_TYPE processId = (COROUTINE_ID_TYPE) strtol(argv[1], NULL, 10);
 
   int returnValue = killProcess(processId);
 
   releaseConsole();
-  nanoOsExitProcess(returnValue);
+  return returnValue;
 }
 
 /// @fn int echo(int argc, char **argv);
@@ -120,7 +120,7 @@ int echo(int argc, char **argv) {
   printConsole("\n");
 
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @fn int echoSomething(int argc, char **argv);
@@ -141,7 +141,7 @@ int echoSomething(int argc, char **argv) {
 
   printf("Something\n");
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @fn int help(int argc, char **argv);
@@ -179,7 +179,7 @@ int help(int argc, char **argv) {
   commandName = stringDestroy(commandName);
 
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @var counter
@@ -214,7 +214,7 @@ int runCounter(int argc, char **argv) {
     coroutineYield(NULL);
   }
 
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @fn int showInfo(int argc, char **argv);
@@ -260,7 +260,7 @@ int showInfo(int argc, char **argv) {
   printf("stderr: %p\n", stderr);
 
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @fn int ver(int argc, char **argv);
@@ -280,7 +280,7 @@ int ver(int argc, char **argv) {
   printf("NanoOs version " NANO_OS_VERSION "\n");
 
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 /// @fn int convertTemp(int argc, char **argv)
@@ -405,7 +405,7 @@ int convertTemp(int argc, char **argv) {
 
   printf("Bye!\n\n");
   releaseConsole();
-  nanoOsExitProcess(0);
+  return 0;
 }
 
 // Exported functions

@@ -122,14 +122,6 @@ typedef enum SchedulerCommand {
 /// @brief Convenience macro for the common operation of destroying a string.
 #define stringDestroy(string) ((char*) (free((void*) string), NULL))
 
-/// @def nanoOsExitProcess
-///
-/// @brief Macro to clean up the process's global state and then exit cleanly.
-///
-/// @param returnValue The value to return back to the scheduler.
-#define nanoOsExitProcess(returnValue) \
-  return returnValue /* Deliberately omitting semicolon. */
-
 // Exported functionality
 void runScheduler(void);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);

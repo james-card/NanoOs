@@ -258,7 +258,7 @@ void* startCommand(void *args) {
 void* dummyProcess(void *args) {
   (void) args;
   runningCommands[coroutineId(NULL)].coroutine = NULL;
-  nanoOsExitProcess(0);
+  return NULL;
 }
 
 /// @fn ProcessInfo* getProcessInfo(void)
