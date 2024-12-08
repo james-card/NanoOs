@@ -255,6 +255,9 @@ int showInfo(int argc, char **argv) {
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   myString = stringDestroy(myString);
+  printf("stdin: %p\n", stdin);
+  printf("stdout: %p\n", stdout);
+  printf("stderr: %p\n", stderr);
 
   releaseConsole();
   nanoOsExitProcess(0);
