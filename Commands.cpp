@@ -336,15 +336,14 @@ int convertTemp(int argc, char **argv) {
     printf("5. Convert Kelvin to Farenheit\n");
     printf("6. Convert Kelvin to Celsius\n");
     printf("\n");
-    printf("> ");
+    printf("menu option> ");
     scanf("%d", &menuInput);
     menuOption = (MenuOption) menuInput;
 
     if (menuOption == MENU_EXIT) {
       break;
     } else if (menuOption >= NUM_MENU_OPTIONS) {
-      printf("Invalid option.\n");
-      printf("\n");
+      printf("Invalid option.\n\n");
       continue;
     }
 
@@ -368,39 +367,39 @@ int convertTemp(int argc, char **argv) {
       }
     }
 
-    printf("\n");
-    printf("Enter temperature in degrees %s: ",
+    printf("\nEnter temperature in degrees %s: ",
       temperatureScaleNames[inputScale]);
-    scanf("%lf", inputTemperature);
+    scanf("%lf", &inputTemperature);
 
     if (menuOption < MENU_CELSIUS_TO_FARENHEIT) {
       // First, convert Farenheit to Celsius.
       outputTemperature = ((inputTemperature - 32.0) * 5.0) / 9.0;
       if (menuOption == MENU_FARENHEIT_TO_KELVIN) {
         // Convert Celsius to Kelvin.
-        outputTemperature -= 273.15;
+        outputTemperature += 273.15;
       }
     } else if (menuOption < MENU_KELVIN_TO_FARENHEIT) {
       if (menuOption == MENU_CELSIUS_TO_FARENHEIT) {
         outputTemperature = ((inputTemperature * 9.0) / 5.0) + 32.0;
       } else { // menuOption == MENU_CELSIUS_TO_KELVIN
-        outputTemperature = inputTemperature - 273.15;
+        outputTemperature = inputTemperature + 273.15;
       }
     } else { // menuOption < NUM_MENU_OPTIONS
       // First, convert Kelvin to Celsius.
-      outputTemperature = inputTemperature + 273.15;
+      outputTemperature = inputTemperature - 273.15;
       if (menuOption == MENU_KELVIN_TO_FARENHEIT) {
         outputTemperature = ((outputTemperature * 9.0) / 5.0) + 32.0;
       }
     }
 
-    printf("Temperature in degrees %s is %d.%02d\n: ",
-      temperatureScaleNames[outputScale],
-      (int) outputTemperature,
-      (ABS((int) outputTemperature) * 100) % 100);
+    printf("%d.%02d degrees %s is %d.%02d degrees %s.\n\n",
+      floatToInts(inputTemperature, 2),
+      temperatureScaleNames[inputScale],
+      floatToInts(outputTemperature, 2),
+      temperatureScaleNames[outputScale]);
   }
 
-  printf("Bye!\n");
+  printf("Bye!\n\n");
   releaseConsole();
   nanoOsExitProcess(0);
 }
