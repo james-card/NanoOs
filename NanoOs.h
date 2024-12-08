@@ -119,17 +119,38 @@ extern "C"
 /// @def MIN
 ///
 /// @brief Get the minimum of two values.
+///
+/// @param x The first value to compare.
+/// @param y The second value to compare.
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /// @def MAX
 ///
 /// @brief Get the maximum of two values.
+///
+/// @param x The first value to compare.
+/// @param y The second value to compare.
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 /// @def ABS
 ///
 /// @brief Get the absolute value of a value.
+///
+/// @param x The value to get the absolute value of.
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
+
+/// @def floatToInts
+///
+/// @brief Break a floating-point number into two integer values that represent
+/// its whole component and its decimal component to a specified level of
+/// precision.
+///
+/// @param number The number to break into integers.
+/// @param precision The desired number of decimal places in the decimal
+///   component.
+#define floatToInts(number, precision) \
+  (int) number, \
+  ABS((int) (number * 100)) % 100
 
 /// @typedef NanoOsMessageData
 ///
