@@ -100,6 +100,7 @@ typedef void TypeDescriptor;
 // Debug functions
 int printString(const char *string);
 int printInt(int integer);
+int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 int vsscanf(const char *buffer, const char *format, va_list args);
