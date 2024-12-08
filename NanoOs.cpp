@@ -74,3 +74,27 @@ void timespecFromDelay(struct timespec *ts, long int delayMs) {
   return;
 }
 
+/// @fn unsigned int raiseUInt(unsigned int x, unsigned int y)
+///
+/// @brief Raise a non-negative integer to a non-negative exponent.
+///
+/// @param x The base number to raise.
+/// @param y The exponent to raise the base to.
+///
+/// @param Returns the result of x ** y.
+unsigned int raiseUInt(unsigned int x, unsigned int y) {
+  unsigned int z = 1;
+  unsigned int multiplier = x;
+
+  while (y > 0) {
+    if (y & 1) {
+      z *= multiplier;
+    }
+
+    multiplier *= multiplier;
+    y >>= 1;
+  }
+
+  return z;
+}
+

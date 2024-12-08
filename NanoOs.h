@@ -150,7 +150,7 @@ extern "C"
 ///   component.
 #define floatToInts(number, precision) \
   (int) number, \
-  ABS((int) (number * 100)) % 100
+  ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
 /// @typedef NanoOsMessageData
 ///
@@ -176,6 +176,7 @@ typedef struct NanoOsMessage {
 // Support functions
 long getElapsedMilliseconds(unsigned long startTime);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
+unsigned int raiseUInt(unsigned int x, unsigned int y);
 
 #ifdef __cplusplus
 } // extern "C"
