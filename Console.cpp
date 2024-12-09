@@ -368,7 +368,7 @@ void consoleReleasePortHandler(
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = COROUTINE_ID_NOT_SET;
-      consolePorts[ii].printString("> ");
+      //// consolePorts[ii].printString("> ");
       portFound = true;
     }
   }
@@ -379,6 +379,55 @@ void consoleReleasePortHandler(
     printString("\n");
   }
 
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
+/// @fn void consoleGetOwnedPortHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Get the first port currently owned by a process.
+///
+/// @note While it is technically possible for a single process to own multiple
+/// ports, the expectation here is that this call is made by a process that is
+/// only expecting to own one.  This is mostly for the purposes of transferring
+/// ownership of the port from one process to another.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleGetOwnedPortHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  Comessage *returnMessage = inputMessage;
+
+  int ownedPort = -1;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      ownedPort = ii;
+      break;
+    }
+  }
+
+  if (ownedPort < 0) {
+    printString("WARNING:  Request to get a port from non-owning process ");
+    printInt(owner);
+    printString("\n");
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) comessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = (intptr_t) ownedPort;
+  comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  sendComessageToPid(owner, inputMessage);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
@@ -430,6 +479,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteBufferHandler,
   consoleAssignPortHandler,
   consoleReleasePortHandler,
+  consoleGetOwnedPortHandler,
   consoleWaitForInputHandler,
 };
 
@@ -972,12 +1022,12 @@ int consoleScanf(const char *format, ...) {
 
 // Console port support functions.
 
-/// @fn void releaseConsole()
+/// @fn void releaseConsole(void)
 ///
 /// @brief Release the console and display the command prompt to the user again.
 ///
 /// @return This function returns no value.
-void releaseConsole() {
+void releaseConsole(void) {
   // releaseConsole is sometimes called from within handleCommand, which runs
   // from within the console coroutine.  That means we can't do blocking prints
   // from this function.  i.e. We can't use printf here.  Use printConsole
@@ -985,5 +1035,28 @@ void releaseConsole() {
   sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
     /* func= */ 0, /* data= */ 0, false);
   coroutineYield(NULL);
+}
+
+/// @fn int getOwnedPort(void)
+///
+/// @brief Get the first port owned by the running process.
+///
+/// @return Returns the numerical index of the console port the process owns on
+/// success, -1 on failure.
+int getOwnedPort(void) {
+  Comessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
+    /* func= */ 0, /* data= */ 0, /* waiting= */ true);
+
+  // The console will reuse the message we sent, so don't release the message
+  // in comessageWaitForReplyWithType.
+  Comessage *reply = comessageWaitForReplyWithType(
+    sent, /* releaseAfterDone= */ false,
+    CONSOLE_RETURNING_PORT, NULL);
+
+  int returnValue = nanoOsMessageDataValue(reply, int);
+  comessageRelease(reply);
+
+  return returnValue;
 }
 
