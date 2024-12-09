@@ -368,7 +368,7 @@ void consoleReleasePortHandler(
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = COROUTINE_ID_NOT_SET;
-      //// consolePorts[ii].printString("> ");
+      consolePorts[ii].printString("> ");
       portFound = true;
     }
   }
