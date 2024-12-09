@@ -75,8 +75,11 @@ typedef struct CommandEntry {
   const char      *help;
 } CommandEntry;
 
-// Exported functions
+// Exported support functions
 int handleCommand(int consolePort, char *consoleInput);
+
+// Exported processes
+void* runShell(void *args);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -399,21 +399,15 @@ int convertTemp(int argc, char **argv) {
   return 0;
 }
 
-// Exported functions
-
-/// @fn int handleCommand(int consolePort, char *consoleInput)
+/// @fn CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
-/// @brief Parse the command name out of the console input and run the command
-/// using the rest of the input as an argument to the command.  The command will
-/// be launched as a separate process, not run inline.
+/// @brief Get the command specified by consoleInput.
 ///
-/// @param consolePort The index of the console port the input came from.
-/// @param consoleInput A pointer to the beginning of the buffer that contains
-/// user input.
+/// @param consoleInput The raw input captured in the console buffer.
 ///
-/// @return This function returns no value.
-int handleCommand(int consolePort, char *consoleInput) {
-  int returnValue = coroutineSuccess;
+/// @return Returns a pointer to the found CommandEntry on success, NULL on
+/// failure.
+CommandEntry* getCommandEntryFromInput(char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
@@ -450,9 +444,28 @@ int handleCommand(int consolePort, char *consoleInput) {
     }
   }
 
+  return commandEntry;
+}
+
+// Exported functions
+
+/// @fn int handleCommand(int consolePort, char *consoleInput)
+///
+/// @brief Parse the command name out of the console input and run the command
+/// using the rest of the input as an argument to the command.  The command will
+/// be launched as a separate process, not run inline.
+///
+/// @param consolePort The index of the console port the input came from.
+/// @param consoleInput A pointer to the beginning of the buffer that contains
+/// user input.
+///
+/// @return This function returns no value.
+int handleCommand(int consolePort, char *consoleInput) {
+  int returnValue = coroutineSuccess;
+  CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (runProcess(commandEntry, consolePort, consoleInput) != 0) {
+    if (runProcess(commandEntry, consoleInput, consolePort, true) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
@@ -465,6 +478,48 @@ int handleCommand(int consolePort, char *consoleInput) {
   }
 
   return returnValue;
+}
+
+/// @fn void* runShell(void *args)
+///
+/// @brief Coroutine function for interactive user shell.
+///
+/// @param args Any arguments passed by the scheduler.  Ignored by this
+///   function.
+///
+/// @return This function never exits, but would return NULL if it did.
+void* runShell(void *args) {
+  (void) args;
+  char commandBuffer[CONSOLE_BUFFER_SIZE];
+  (void) commandBuffer;
+  int consolePort = getOwnedPort();
+
+  while (1) {
+    printf("> ");
+    fgets(commandBuffer, sizeof(commandBuffer), stdin);
+    CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
+    if (commandEntry == NULL) {
+      printf("Unknown command.\n");
+      continue;
+    }
+
+    char *newlineAt = strchr(commandBuffer, '\r');
+    if (newlineAt == NULL) {
+      newlineAt = strchr(commandBuffer, '\n');
+    }
+    if (newlineAt != NULL) {
+      *newlineAt = '\0';
+    }
+
+    size_t bufferLength = strlen(commandBuffer);
+    char *consoleInput = (char*) malloc(bufferLength + 1);
+    strcpy(consoleInput, commandBuffer);
+    if (runProcess(commandEntry, consoleInput, consolePort, true) != 0) {
+      consoleInput = stringDestroy(consoleInput);
+    }
+  }
+
+  return NULL;
 }
 
 /// @var commands

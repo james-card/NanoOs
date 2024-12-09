@@ -35,11 +35,16 @@
 
 /// @struct CommandDescriptor
 ///
+/// @brief Container of information for launching a process.
+///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
+/// @param assignPort Whether or not the listed console port should be assigned
+///   to the spawned process.
 typedef struct CommandDescriptor {
-  int consolePort;
+  int   consolePort;
   char *consoleInput;
+  bool  assignPort;
 } CommandDescriptor;
 
 /// @var runningCommands
@@ -435,7 +440,7 @@ int killProcess(COROUTINE_ID_TYPE processId) {
 }
 
 /// @fn int runProcess(CommandEntry *commandEntry,
-///   int consolePort, char *consoleInput)
+///   char *consoleInput, int consolePort, bool assignPort)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
 /// to start a process.
@@ -444,10 +449,14 @@ int killProcess(COROUTINE_ID_TYPE processId) {
 ///   to run.
 /// @param consoleInput The raw consoleInput that was captured for the command
 ///   line.
+/// @param consolePort The index of the console port the process is being
+///   launched from.
+/// @param assignPort Whether or not the console should be assigned to the
+///   launched process.
 ///
 /// @return Returns 0 on success, 1 on failure.
 int runProcess(CommandEntry *commandEntry,
-  int consolePort, char *consoleInput
+  char *consoleInput, int consolePort, bool assignPort
 ) {
   int returnValue = 1;
   CommandDescriptor *commandDescriptor
@@ -457,6 +466,7 @@ int runProcess(CommandEntry *commandEntry,
     return returnValue; // 1
   }
   commandDescriptor->consolePort = consolePort;
+  commandDescriptor->assignPort = assignPort;
   commandDescriptor->consoleInput = consoleInput;
 
   if (sendNanoOsMessageToPid(
