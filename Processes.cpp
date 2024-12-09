@@ -33,18 +33,21 @@
 
 // Coroutines support
 
+/// @def SERIAL_PORT_SHELL_PID
+///
+/// @brief The process ID (PID) of the first user process, i.e. the first ID
+/// after the last system process ID.
+#define SERIAL_PORT_SHELL_PID 3
+
 /// @struct CommandDescriptor
 ///
 /// @brief Container of information for launching a process.
 ///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
-/// @param assignPort Whether or not the listed console port should be assigned
-///   to the spawned process.
 typedef struct CommandDescriptor {
   int   consolePort;
   char *consoleInput;
-  bool  assignPort;
 } CommandDescriptor;
 
 /// @var runningCommands
@@ -237,6 +240,14 @@ void* startCommand(void *args) {
     return (void*) ((intptr_t) -1);
   }
 
+  char *ampersandAt = strchr(argv[argc - 1], '&');
+  if (ampersandAt != NULL) {
+    ampersandAt++;
+    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+      releaseConsole();
+    }
+  }
+
   int returnValue = commandEntry->func(argc, argv);
   free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
@@ -391,7 +402,7 @@ exit:
 ///
 /// @return Returns 0 on success, 1 on failure.
 int killProcess(COROUTINE_ID_TYPE processId) {
-  if ((processId <= NANO_OS_RESERVED_PROCESS_ID)
+  if ((processId < NANO_OS_FIRST_PROCESS_ID)
     || (processId >= NANO_OS_NUM_PROCESSES)
     || (coroutineResumable(runningCommands[processId].coroutine) == false)
   ) {
@@ -440,7 +451,7 @@ int killProcess(COROUTINE_ID_TYPE processId) {
 }
 
 /// @fn int runProcess(CommandEntry *commandEntry,
-///   char *consoleInput, int consolePort, bool assignPort)
+///   char *consoleInput, int consolePort)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
 /// to start a process.
@@ -451,12 +462,10 @@ int killProcess(COROUTINE_ID_TYPE processId) {
 ///   line.
 /// @param consolePort The index of the console port the process is being
 ///   launched from.
-/// @param assignPort Whether or not the console should be assigned to the
-///   launched process.
 ///
 /// @return Returns 0 on success, 1 on failure.
 int runProcess(CommandEntry *commandEntry,
-  char *consoleInput, int consolePort, bool assignPort
+  char *consoleInput, int consolePort
 ) {
   int returnValue = 1;
   CommandDescriptor *commandDescriptor
@@ -465,9 +474,8 @@ int runProcess(CommandEntry *commandEntry,
     printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
     return returnValue; // 1
   }
-  commandDescriptor->consolePort = consolePort;
-  commandDescriptor->assignPort = assignPort;
   commandDescriptor->consoleInput = consoleInput;
+  commandDescriptor->consolePort = consolePort;
 
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
@@ -828,14 +836,36 @@ int schedulerSendNanoOsMessageToPid(int pid, int type,
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerAssignPortToPid(uint8_t consolePort, COROUTINE_ID_TYPE owner) {
-  ConsolePortOwnerUnion consolePortOwnerUnion;
-  consolePortOwnerUnion.consolePortOwnerAssociation.consolePort
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.consolePortPidAssociation.consolePort
     = consolePort;
-  consolePortOwnerUnion.consolePortOwnerAssociation.owner = owner;
+  consolePortPidUnion.consolePortPidAssociation.processId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
-    /* func= */ 0, consolePortOwnerUnion.nanoOsMessageData, true);
+    /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true);
+
+  return returnValue;
+}
+
+/// @fn int schedulerSetPortShell(
+///   uint8_t consolePort, COROUTINE_ID_TYPE shell)
+///
+/// @brief Assign a console port to a process ID.
+///
+/// @param consolePort The ID of the consolePort to set the shell for.
+/// @param shell The ID of the shell process for the port.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int schedulerSetPortShell(uint8_t consolePort, COROUTINE_ID_TYPE shell) {
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.consolePortPidAssociation.consolePort
+    = consolePort;
+  consolePortPidUnion.consolePortPidAssociation.processId = shell;
+
+  int returnValue = schedulerSendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
+    /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true);
 
   return returnValue;
 }
@@ -864,61 +894,77 @@ int handleRunProcess(Comessage *comessage) {
   int consolePort = commandDescriptor->consolePort;
   
   // Find an open slot.
-  COROUTINE_ID_TYPE ii = NANO_OS_FIRST_PROCESS_ID;
+  COROUTINE_ID_TYPE processId = NANO_OS_FIRST_PROCESS_ID;
   if (commandEntry->userProcess == false) {
-    // Start with the reserved process.
-    ii = NANO_OS_RESERVED_PROCESS_ID;
-  }
-  for (; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    Coroutine *coroutine = runningCommands[ii].coroutine;
-    if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
-      coroutine = coroutineCreate(startCommand);
-      coroutineSetId(coroutine, ii);
-      if (assignMemory(consoleInput, ii) != 0) {
-        printString(
-          "WARNING:  Could not assign console input to new process.\n");
-        printString("Memory leak.\n");
-      }
-      if (assignMemory(commandDescriptor, ii) != 0) {
-        printString(
-          "WARNING:  Could not assign command descriptor to new process.\n");
-        printString("Memory leak.\n");
-      }
+    // Not the normal case but the priority case, so handle it first.  We're
+    // going to kill the caller and reuse its process slot 
+    Coroutine *caller = comessageFrom(comessage);
+    processId = coroutineId(caller);
 
-      runningCommands[ii].coroutine = coroutine;
-      runningCommands[ii].name = commandEntry->name;
+    // We don't want to wait for the memory manager to release the memory.  Make
+    // it do it immediately.  We need to do this before we kill the process.
+    if (schedulerSendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+      MEMORY_MANAGER_FREE_PROCESS_MEMORY, /* func= */ 0, processId, false)
+    ) {
+      printString("WARNING:  Could not release memory for process ");
+      printInt(processId);
+      printString("\n");
+      printString("Memory leak.\n");
+    }
 
-      coroutineResume(coroutine, comessage);
-      returnValue = 0;
-      if (comessageRelease(comessage) != coroutineSuccess) {
-        printString("ERROR!!!  "
-          "Could not release message from handleSchedulerMessage "
-          "for invalid message type.\n");
+    // Kill and clear out the calling process.
+    coroutineTerminate(caller, NULL);
+    runningCommands[processId].coroutine = NULL;
+    runningCommands[processId].name = NULL;
+  } else {
+    for (; processId < NANO_OS_NUM_PROCESSES; processId++) {
+      Coroutine *coroutine = runningCommands[processId].coroutine;
+      if ((coroutine == NULL) || (coroutineFinished(coroutine))) {
+        break;
       }
-
-      ConsolePortOwnerUnion consolePortOwnerUnion;
-      consolePortOwnerUnion.consolePortOwnerAssociation.consolePort
-        = consolePort;
-      consolePortOwnerUnion.consolePortOwnerAssociation.owner = ii;
-      if (schedulerSendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
-        /* func= */ 0, consolePortOwnerUnion.nanoOsMessageData, true)
-        != coroutineSuccess
-      ) {
-        printString("WARNING:  Could not assign console port to process.\n");
-      }
-      
-      break;
     }
   }
 
-  if (ii == NANO_OS_NUM_PROCESSES) {
+  if (processId < NANO_OS_NUM_PROCESSES) {
+    Coroutine *coroutine = coroutineCreate(startCommand);
+    coroutineSetId(coroutine, processId);
+    if (assignMemory(consoleInput, processId) != 0) {
+      printString(
+        "WARNING:  Could not assign console input to new process.\n");
+      printString("Memory leak.\n");
+    }
+    if (assignMemory(commandDescriptor, processId) != 0) {
+      printString(
+        "WARNING:  Could not assign command descriptor to new process.\n");
+      printString("Memory leak.\n");
+    }
+
+    runningCommands[processId].coroutine = coroutine;
+    runningCommands[processId].name = commandEntry->name;
+
+    coroutineResume(coroutine, comessage);
+    returnValue = 0;
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleSchedulerMessage "
+        "for invalid message type.\n");
+    }
+
+    ConsolePortPidUnion consolePortPidUnion;
+    consolePortPidUnion.consolePortPidAssociation.consolePort
+      = consolePort;
+    consolePortPidUnion.consolePortPidAssociation.processId = processId;
+    if (schedulerSendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+      /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true)
+      != coroutineSuccess
+    ) {
+      printString("WARNING:  Could not assign console port to process.\n");
+    }
+  } else {
     if (commandEntry->userProcess == false) {
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command again in a bit.
-      if (returnValue == 0) {
-        releaseConsole();
-      }
       returnValue = EBUSY;
     } else {
       // This is a user process, not a system process, so the user is just out
@@ -935,7 +981,6 @@ int handleRunProcess(Comessage *comessage) {
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
       }
-      releaseConsole();
     }
   }
   
@@ -955,7 +1000,7 @@ int handleKillProcess(Comessage *comessage) {
 
   COROUTINE_ID_TYPE processId
     = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
-  if ((processId > NANO_OS_RESERVED_PROCESS_ID)
+  if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
     && (coroutineResumable(runningCommands[processId].coroutine))
   ) {
@@ -1145,7 +1190,7 @@ void runScheduler(void) {
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
-  for (int ii = NANO_OS_RESERVED_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
+  for (int ii = NANO_OS_FIRST_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
     coroutine = coroutineCreate(dummyProcess);
     coroutineSetId(coroutine, ii);
     runningCommands[ii].coroutine = coroutine;
@@ -1166,6 +1211,15 @@ void runScheduler(void) {
         "WARNING:  Could not assign console port to memory manager.\n");
     }
   }
+  coroutineResume(coroutine, NULL);
+
+  // Set the shells for the ports.
+  if (schedulerSetPortShell(CONSOLE_SERIAL_PORT, SERIAL_PORT_SHELL_PID)
+    != coroutineSuccess
+  ) {
+    printString("WARNING:  Could not set shell for serial port.\n");
+    printString("          Undefined behavior will result.\n");
+  }
 
   // We're going to do a round-robin scheduler.  We don't want to use the array
   // of runningCommands because the scheduler process itself is in that list.
@@ -1179,8 +1233,18 @@ void runScheduler(void) {
 
   // Start our round-robin scheduler.
   int coroutineIndex = 0;
+  const int serialPortShellCoroutineIndex = SERIAL_PORT_SHELL_PID - 1;
   while (1) {
-    coroutineResume(*scheduledCoroutines[coroutineIndex], NULL);
+    coroutine = *scheduledCoroutines[coroutineIndex];
+    coroutineResume(coroutine, NULL);
+    if ((coroutineIndex == serialPortShellCoroutineIndex)
+      && (coroutineRunning(coroutine) == false)
+    ) {
+      // Restart the shell.
+      coroutine = coroutineCreate(runShell);
+      coroutineSetId(coroutine, SERIAL_PORT_SHELL_PID);
+      runningCommands[SERIAL_PORT_SHELL_PID].coroutine = coroutine;
+    }
     handleSchedulerMessage();
     coroutineIndex++;
     coroutineIndex %= numScheduledCoroutines;

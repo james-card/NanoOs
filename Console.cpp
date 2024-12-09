@@ -307,6 +307,47 @@ void consoleWriteBufferHandler(
   return;
 }
 
+/// @fn void consoleSetPortShellHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Set the designated shell process ID for a port.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
+///   that will associate the port with the process if this function succeeds.
+///
+/// @return This function returns no value, but it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+void consoleSetPortShellHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.nanoOsMessageData
+    = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
+  ConsolePortPidAssociation *consolePortPidAssociation
+    = &consolePortPidUnion.consolePortPidAssociation;
+
+  uint8_t consolePort = consolePortPidAssociation->consolePort;
+  COROUTINE_ID_TYPE processId = consolePortPidAssociation->processId;
+
+  if (consolePort < CONSOLE_NUM_PORTS) {
+    consoleState->consolePorts[consolePort].shell = processId;
+    comessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
+  } else {
+    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printInt(consolePort);
+    printString("\n");
+    // *DON'T* call comessageRelease or comessageSetDone here.  The lack of the
+    // message being done will indicate to the caller that there was a problem
+    // servicing the command.
+  }
+
+  return;
+}
+
 /// @fn void consoleAssignPortHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
@@ -315,7 +356,7 @@ void consoleWriteBufferHandler(
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
 /// @param inputMessage A pointer to the Comessage with the received command.
-///   This contains a NanoOsMessage that contains a ConsolePortOwnerAssociation
+///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
 ///   that will associate the port with the process if this function succeeds.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
@@ -323,17 +364,17 @@ void consoleWriteBufferHandler(
 void consoleAssignPortHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
-  ConsolePortOwnerUnion consolePortOwnerUnion;
-  consolePortOwnerUnion.nanoOsMessageData
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.nanoOsMessageData
     = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
-  ConsolePortOwnerAssociation *consolePortOwnerAssociation
-    = &consolePortOwnerUnion.consolePortOwnerAssociation;
+  ConsolePortPidAssociation *consolePortPidAssociation
+    = &consolePortPidUnion.consolePortPidAssociation;
 
-  uint8_t consolePort = consolePortOwnerAssociation->consolePort;
-  COROUTINE_ID_TYPE owner = consolePortOwnerAssociation->owner;
+  uint8_t consolePort = consolePortPidAssociation->consolePort;
+  COROUTINE_ID_TYPE processId = consolePortPidAssociation->processId;
 
   if (consolePort < CONSOLE_NUM_PORTS) {
-    consoleState->consolePorts[consolePort].owner = owner;
+    consoleState->consolePorts[consolePort].owner = processId;
     comessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
@@ -367,8 +408,7 @@ void consoleReleasePortHandler(
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
-      consolePorts[ii].owner = COROUTINE_ID_NOT_SET;
-      consolePorts[ii].printString("> ");
+      consolePorts[ii].owner = consolePorts[ii].shell;
       portFound = true;
     }
   }
@@ -477,6 +517,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteValueHandler,
   consoleGetBufferHandler,
   consoleWriteBufferHandler,
+  consoleSetPortShellHandler,
   consoleAssignPortHandler,
   consoleReleasePortHandler,
   consoleGetOwnedPortHandler,
@@ -628,6 +669,7 @@ void* runConsole(void *args) {
   // Set the port-specific data.
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].consoleIndex = 0;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].readByte = readSerialByte;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].echo = true;

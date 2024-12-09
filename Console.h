@@ -86,6 +86,7 @@ typedef enum ConsoleCommand {
   CONSOLE_WRITE_VALUE,
   CONSOLE_GET_BUFFER,
   CONSOLE_WRITE_BUFFER,
+  CONSOLE_SET_PORT_SHELL,
   CONSOLE_ASSIGN_PORT,
   CONSOLE_RELEASE_PORT,
   CONSOLE_GET_OWNED_PORT,
@@ -148,6 +149,7 @@ typedef struct ConsoleBuffer {
 /// @param consoleIndex An index into the buffer provided by consoleBuffer of
 ///   the next position to read a byte into.
 /// @param owner The ID of the process that currently owns the console port.
+/// @param shell The ID of the process that serves as the console port's shell.
 /// @param waitingForInput Whether or not the owning process is currently
 ///   waiting for input from the user.
 /// @param readByte A pointer to the non-blocking function that will attempt to
@@ -160,6 +162,7 @@ typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleIndex;
   COROUTINE_ID_TYPE   owner;
+  COROUTINE_ID_TYPE   shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
   bool                echo;
@@ -181,30 +184,30 @@ typedef struct ConsoleState {
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
 
-/// @struct ConsolePortOwnerAssociation
+/// @struct ConsolePortPidAssociation
 ///
-/// @brief Structure to associate a console port with its owner.  This
+/// @brief Structure to associate a console port with a process ID.  This
 /// information is used in a CONSOLE_ASSIGN_PORT command.
 ///
 /// @param consolePort The index into the consolePorts array of a ConsoleState
 ///   object.
-/// @param owner The process ID of the owner of the console port.
-typedef struct ConsolePortOwnerAssociation {
+/// @param processId The process ID associated with the port.
+typedef struct ConsolePortPidAssociation {
   uint8_t           consolePort;
-  COROUTINE_ID_TYPE owner;
-} ConsolePortOwnerAssociation;
+  COROUTINE_ID_TYPE processId;
+} ConsolePortPidAssociation;
 
-/// @union ConsolePortOwnerUnion
+/// @union ConsolePortPidUnion
 ///
-/// @brief Union of a ConsolePortOwnerAssociation and a NanoOsMessageData to
+/// @brief Union of a ConsolePortPidAssociation and a NanoOsMessageData to
 /// allow for easy conversion between the two.
 ///
-/// @param consolePortOwnerAssociation The ConsolePortOwnerAssociation part.
+/// @param consolePortPidAssociation The ConsolePortPidAssociation part.
 /// @param nanoOsMessageData The NanoOsMessageData part.
-typedef union ConsolePortOwnerUnion {
-  ConsolePortOwnerAssociation consolePortOwnerAssociation;
-  NanoOsMessageData           nanoOsMessageData;
-} ConsolePortOwnerUnion;
+typedef union ConsolePortPidUnion {
+  ConsolePortPidAssociation consolePortPidAssociation;
+  NanoOsMessageData         nanoOsMessageData;
+} ConsolePortPidUnion;
 
 // Support functions
 void releaseConsole(void);

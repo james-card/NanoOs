@@ -465,7 +465,7 @@ int handleCommand(int consolePort, char *consoleInput) {
   CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (runProcess(commandEntry, consoleInput, consolePort, true) != 0) {
+    if (runProcess(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
@@ -514,7 +514,7 @@ void* runShell(void *args) {
     size_t bufferLength = strlen(commandBuffer);
     char *consoleInput = (char*) malloc(bufferLength + 1);
     strcpy(consoleInput, commandBuffer);
-    if (runProcess(commandEntry, consoleInput, consolePort, true) != 0) {
+    if (runProcess(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
     }
   }

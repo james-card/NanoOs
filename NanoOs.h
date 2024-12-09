@@ -63,14 +63,14 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 255, then the type defined by COROUTINE_ID_TYPE in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES             8
+#define NANO_OS_NUM_PROCESSES               8
 
 /// @def NANO_OS_STACK_SIZE
 ///
 /// @brief The minimum size for an individual process's stack.  Actual size will
 /// be slightly larger than this.  This value needs to be a multiple of 
 /// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
-#define NANO_OS_STACK_SIZE               512
+#define NANO_OS_STACK_SIZE                 512
 #if ((NANO_OS_STACK_SIZE % COROUTINE_STACK_CHUNK_SIZE) != 0)
 #error "NANO_OS_STACK_SIZE must be a multiple of COROUTINE_STACK_CHUNK_SIZE."
 #endif
@@ -79,37 +79,30 @@ extern "C"
 ///
 /// @brief The total number of inter-process messages that will be available
 /// for use by processes.
-#define NANO_OS_NUM_MESSAGES               8
+#define NANO_OS_NUM_MESSAGES                 8
 
 /// @def NANO_OS_SCHEDULER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that is reserved for the
 /// scheduler.
-#define NANO_OS_SCHEDULER_PROCESS_ID       0
+#define NANO_OS_SCHEDULER_PROCESS_ID         0
 
 /// @def NANO_OS_CONSOLE_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that will run the console.  This
 /// must be the lowest value after the scheduler process (i.e. 1).
-#define NANO_OS_CONSOLE_PROCESS_ID         1
+#define NANO_OS_CONSOLE_PROCESS_ID           1
 
 /// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process.
-#define NANO_OS_MEMORY_MANAGER_PROCESS_ID  2
-
-/// @def NANO_OS_RESERVED_PROCESS_ID
-///
-/// @brief The process ID (PID) of the process that is reserved for system
-/// processes.  This needs to be the last of the system processes because of
-/// how this value is used in the scheduler's initialization.
-#define NANO_OS_RESERVED_PROCESS_ID          3
+#define NANO_OS_MEMORY_MANAGER_PROCESS_ID    2
 
 /// @def NANO_OS_FIRST_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process, i.e. the first ID
 /// after the last system process ID.
-#define NANO_OS_FIRST_PROCESS_ID           4
+#define NANO_OS_FIRST_PROCESS_ID             3
 
 /// @def NANO_OS_VERSION
 ///
