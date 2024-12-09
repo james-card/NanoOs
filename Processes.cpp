@@ -727,6 +727,11 @@ int schedulerSendComessageToCoroutine(
     returnValue = coroutineError;
     return returnValue;
   }
+  // comessage->from would normally be set when we do a comessageQueuePush.
+  // We're not using that mechanism here, so we have to do it manually.  If we
+  // don't do this, then commands that validate that the message came from the
+  // scheduler will fail.
+  comessage->from = runningCommands[NANO_OS_SCHEDULER_PROCESS_ID].coroutine;
 
   coroutineResume(coroutine, comessage);
   if (comessageDone(comessage) != true) {
