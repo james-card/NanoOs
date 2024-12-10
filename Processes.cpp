@@ -1214,6 +1214,7 @@ __attribute__((noinline)) void runScheduler(void) {
   }
 
   // Initialize ourself in the array of running commands.
+  coroutineSetId(mainCoroutine, NANO_OS_SCHEDULER_PROCESS_ID);
   runningCommands[0].coroutine = mainCoroutine;
   runningCommands[0].name = "scheduler";
 
