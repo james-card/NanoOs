@@ -64,14 +64,13 @@ typedef int (*CommandFunction)(int argc, char **argv);
 /// @param name The textual name of the command.
 /// @param func A function pointer to the process that will be spawned to
 ///   execute the command.
-/// @param userProcess Whether this is a user process that should be run in one
-///   of the general-purpose process slots (true) or it should be run in the
-///   slot reserved for system processes (false).
+/// @param shellProcess Whether this is a process that should replace the shell
+///   process slot (true) or run in a separate slot (false).
 /// @param help A one-line summary of what this command does.
 typedef struct CommandEntry {
   const char      *name;
   CommandFunction  func;
-  bool             userProcess;
+  bool             shellProcess;
   const char      *help;
 } CommandEntry;
 
