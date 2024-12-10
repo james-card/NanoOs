@@ -1008,7 +1008,9 @@ int handleRunProcess(Comessage *comessage) {
       //
       // printf sends synchronous messages to the console, which we can't do.
       // Use the non-blocking printString instead.
-      printString("Out of memory to launch process.\n");
+      printString("Out of process slots to launch process.\n");
+      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+        SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
       consoleInput = stringDestroy(consoleInput);
       free(commandDescriptor); commandDescriptor = NULL;
       if (comessageRelease(comessage) != coroutineSuccess) {
