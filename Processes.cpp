@@ -247,7 +247,7 @@ void* startCommand(void *args) {
   }
 
   bool backgroundProcess = false;
-  if (commandEntry->shellProcess == false) {
+  if (commandEntry->shellCommand == false) {
     char *ampersandAt = strchr(argv[argc - 1], '&');
     if (ampersandAt != NULL) {
       ampersandAt++;
@@ -263,7 +263,7 @@ void* startCommand(void *args) {
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if ((commandEntry->shellProcess == false) && (backgroundProcess == false)) {
+  if ((commandEntry->shellCommand == false) && (backgroundProcess == false)) {
     // The caller is still running and waiting to be told it can resume.  Notify
     // it via a message.
     sendNanoOsMessageToPid(commandDescriptor->callingProcess,
@@ -933,7 +933,7 @@ int handleRunProcess(Comessage *comessage) {
   
   // Find an open slot.
   COROUTINE_ID_TYPE processId = NANO_OS_FIRST_PROCESS_ID;
-  if (commandEntry->shellProcess == true) {
+  if (commandEntry->shellCommand == true) {
     // Not the normal case but the priority case, so handle it first.  We're
     // going to kill the caller and reuse its process slot.
     Coroutine *caller = comessageFrom(comessage);
@@ -999,7 +999,7 @@ int handleRunProcess(Comessage *comessage) {
       printString("WARNING:  Could not assign console port to process.\n");
     }
   } else {
-    if (commandEntry->shellProcess == true) {
+    if (commandEntry->shellCommand == true) {
       // Don't call stringDestroy with consoleInput because we're going to try
       // this command again in a bit.
       returnValue = EBUSY;

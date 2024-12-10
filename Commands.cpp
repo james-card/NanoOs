@@ -532,55 +532,55 @@ CommandEntry commands[] = {
   {
     .name = "convertTemp",
     .func = convertTemp,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Convert temperatures between scales."
   },
   {
     .name = "echo",
     .func = echo,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Echo a string back to the console."
   },
   {
     .name = "echoSomething",
     .func = echoSomething,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Echo the word \"Something\" back to the console."
   },
   {
     .name = "help",
     .func = help,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Print this help message."
   },
   {
     .name = "kill",
     .func = kill,
-    .shellProcess = true,
+    .shellCommand = true,
     .help = "Kill a running process."
   },
   {
     .name = "ps",
     .func = ps,
-    .shellProcess = true,
+    .shellCommand = true,
     .help = "List the running processes."
   },
   {
     .name = "runCounter",
     .func = runCounter,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Increment a counter as a background process."
   },
   {
     .name = "showInfo",
     .func = showInfo,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Show various pieces of information about the system."
   },
   {
     .name = "ver",
     .func = ver,
-    .shellProcess = false,
+    .shellCommand = false,
     .help = "Show the version of the operating system."
   },
 };
