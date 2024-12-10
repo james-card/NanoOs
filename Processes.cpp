@@ -247,14 +247,16 @@ void* startCommand(void *args) {
   }
 
   bool backgroundProcess = false;
-  char *ampersandAt = strchr(argv[argc - 1], '&');
-  if (ampersandAt != NULL) {
-    ampersandAt++;
-    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
-      backgroundProcess = true;
-      releaseConsole();
-      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-        SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+  if (commandEntry->shellProcess == false) {
+    char *ampersandAt = strchr(argv[argc - 1], '&');
+    if (ampersandAt != NULL) {
+      ampersandAt++;
+      if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+        backgroundProcess = true;
+        releaseConsole();
+        sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+          SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+      }
     }
   }
 
