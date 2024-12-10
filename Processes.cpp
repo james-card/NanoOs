@@ -230,6 +230,9 @@ void* startCommand(void *args) {
   if (argv == NULL) {
     // Fail.
     printString("ERROR:  Could not parse input into argc and argv.\n");
+    printString("Received consoleInput:  \"");
+    printString(consoleInput);
+    printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
@@ -722,8 +725,14 @@ int schedulerSendComessageToCoroutine(
   Coroutine *coroutine, Comessage *comessage
 ) {
   int returnValue = coroutineSuccess;
-  if ((coroutine == NULL) || (comessage == NULL)) {
-    // Invalid.
+  if (coroutine == NULL) {
+    printString(
+      "ERROR:  Attempt to send scheduler comessage to NULL coroutine.\n");
+    returnValue = coroutineError;
+    return returnValue;
+  } else if (comessage == NULL) {
+    printString(
+      "ERROR:  Attempt to send NULL scheduler comessage to coroutine.\n");
     returnValue = coroutineError;
     return returnValue;
   }
@@ -737,6 +746,7 @@ int schedulerSendComessageToCoroutine(
   if (comessageDone(comessage) != true) {
     // This is our only indication from the called coroutine that something went
     // wrong.  Return an error status here.
+    printString("ERROR:  Called coroutine did not mark sent message done.\n");
     returnValue = coroutineError;
   }
 
@@ -762,7 +772,7 @@ int schedulerSendComessageToPid(unsigned int pid, Comessage *comessage) {
 
 /// @fn int schedulerSendNanoOsMessageToCoroutine(
 ///   Coroutine *coroutine, int type,
-///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
+///   NanoOsMessageData func, NanoOsMessageData data)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
 ///
@@ -778,7 +788,7 @@ int schedulerSendComessageToPid(unsigned int pid, Comessage *comessage) {
 /// @return Returns coroutineSuccess on success, a different coroutine status
 /// on failure.
 int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
-  NanoOsMessageData func, NanoOsMessageData data, bool waiting
+  NanoOsMessageData func, NanoOsMessageData data
 ) {
   Comessage comessage;
   memset(&comessage, 0, sizeof(comessage));
@@ -787,8 +797,9 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   nanoOsMessage.func = func;
   nanoOsMessage.data = data;
 
-  comessageInit(&comessage, type,
-    &nanoOsMessage, sizeof(nanoOsMessage), waiting);
+  // These messages are always waiting for done from the caller, so hardcode
+  // the waiting parameter to true here.
+  comessageInit(&comessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
   int returnValue = schedulerSendComessageToCoroutine(coroutine, &comessage);
 
@@ -796,7 +807,7 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 }
 
 /// @fn int schedulerSendNanoOsMessageToPid(int pid, int type,
-///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
+///   NanoOsMessageData func, NanoOsMessageData data)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its PID. Looks
 /// up the process's Coroutine by its PID and then calls
@@ -808,13 +819,11 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 ///   cast to a NanoOsMessageData.
 /// @param data The data to send to the destination process, cast to a
 ///   NanoOsMessageData.
-/// @param waiting Whether or not the sender is waiting on a response from the
-///   destination process.
 ///
 /// @return Returns coroutineSuccess on success, a different coroutine status
 /// on failure.
 int schedulerSendNanoOsMessageToPid(int pid, int type,
-  NanoOsMessageData func, NanoOsMessageData data, bool waiting
+  NanoOsMessageData func, NanoOsMessageData data
 ) {
   int returnValue = coroutineError;
   if (pid >= NANO_OS_NUM_PROCESSES) {
@@ -827,7 +836,7 @@ int schedulerSendNanoOsMessageToPid(int pid, int type,
 
   Coroutine *coroutine = runningCommands[pid].coroutine;
   returnValue = schedulerSendNanoOsMessageToCoroutine(
-    coroutine, type, func, data, waiting);
+    coroutine, type, func, data);
   return returnValue;
 }
 
@@ -848,7 +857,7 @@ int schedulerAssignPortToPid(uint8_t consolePort, COROUTINE_ID_TYPE owner) {
 
   int returnValue = schedulerSendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
-    /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true);
+    /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
 }
@@ -870,7 +879,7 @@ int schedulerSetPortShell(uint8_t consolePort, COROUTINE_ID_TYPE shell) {
 
   int returnValue = schedulerSendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
-    /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true);
+    /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
 }
@@ -902,25 +911,25 @@ int handleRunProcess(Comessage *comessage) {
   COROUTINE_ID_TYPE processId = NANO_OS_FIRST_PROCESS_ID;
   if (commandEntry->userProcess == false) {
     // Not the normal case but the priority case, so handle it first.  We're
-    // going to kill the caller and reuse its process slot 
+    // going to kill the caller and reuse its process slot.
     Coroutine *caller = comessageFrom(comessage);
     processId = coroutineId(caller);
+
+    // Kill and clear out the calling process.
+    coroutineTerminate(caller, NULL);
+    runningCommands[processId].coroutine = NULL;
+    runningCommands[processId].name = NULL;
 
     // We don't want to wait for the memory manager to release the memory.  Make
     // it do it immediately.  We need to do this before we kill the process.
     if (schedulerSendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-      MEMORY_MANAGER_FREE_PROCESS_MEMORY, /* func= */ 0, processId, false)
+      MEMORY_MANAGER_FREE_PROCESS_MEMORY, /* func= */ 0, processId)
     ) {
       printString("WARNING:  Could not release memory for process ");
       printInt(processId);
       printString("\n");
       printString("Memory leak.\n");
     }
-
-    // Kill and clear out the calling process.
-    coroutineTerminate(caller, NULL);
-    runningCommands[processId].coroutine = NULL;
-    runningCommands[processId].name = NULL;
   } else {
     for (; processId < NANO_OS_NUM_PROCESSES; processId++) {
       Coroutine *coroutine = runningCommands[processId].coroutine;
@@ -949,21 +958,8 @@ int handleRunProcess(Comessage *comessage) {
 
     coroutineResume(coroutine, comessage);
     returnValue = 0;
-    if (comessageRelease(comessage) != coroutineSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleSchedulerMessage "
-        "for invalid message type.\n");
-    }
 
-    ConsolePortPidUnion consolePortPidUnion;
-    consolePortPidUnion.consolePortPidAssociation.consolePort
-      = consolePort;
-    consolePortPidUnion.consolePortPidAssociation.processId = processId;
-    if (schedulerSendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
-      /* func= */ 0, consolePortPidUnion.nanoOsMessageData, true)
-      != coroutineSuccess
-    ) {
+    if (schedulerAssignPortToPid(consolePort, processId) != coroutineSuccess) {
       printString("WARNING:  Could not assign console port to process.\n");
     }
   } else {
@@ -1249,6 +1245,7 @@ void runScheduler(void) {
       coroutine = coroutineCreate(runShell);
       coroutineSetId(coroutine, SERIAL_PORT_SHELL_PID);
       runningCommands[SERIAL_PORT_SHELL_PID].coroutine = coroutine;
+      runningCommands[SERIAL_PORT_SHELL_PID].name = "shell";
     }
     handleSchedulerMessage();
     coroutineIndex++;
