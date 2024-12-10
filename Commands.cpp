@@ -408,7 +408,7 @@ CommandEntry* getCommandEntryFromInput(char *consoleInput) {
   CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
-    size_t commandNameLength = strcspn(consoleInput, " \t\r\n");
+    size_t commandNameLength = strcspn(consoleInput, " \t\r\n&");
     for (int ii = 0, jj = NUM_COMMANDS - 1; ii <= jj;) {
       const char *commandName = commands[searchIndex].name;
       int comparisonValue
