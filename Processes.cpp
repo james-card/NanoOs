@@ -45,9 +45,12 @@
 ///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
+/// @param callingProcess The process ID of the process that is launching the
+///   command.
 typedef struct CommandDescriptor {
-  int   consolePort;
-  char *consoleInput;
+  int                consolePort;
+  char              *consoleInput;
+  COROUTINE_ID_TYPE  callingProcess;
 } CommandDescriptor;
 
 /// @var runningCommands
@@ -251,7 +254,16 @@ void* startCommand(void *args) {
     }
   }
 
+  // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
+
+  if (commandEntry->userProcess == true) {
+    // The caller is still running and waiting to be told it can resume.  Notify
+    // it via a message.
+    sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+      SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+  }
+
   free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
@@ -479,6 +491,7 @@ int runProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consoleInput = consoleInput;
   commandDescriptor->consolePort = consolePort;
+  commandDescriptor->callingProcess = coroutineId(NULL);
 
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
@@ -488,6 +501,11 @@ int runProcess(CommandEntry *commandEntry,
     printString("ERROR!!!  Could not communicate with scheduler.\n");
     return returnValue; // 1
   }
+
+  Comessage *doneMessage
+    = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
+  // We don't need any data from the message.  Just release it.
+  comessageRelease(doneMessage);
 
   returnValue = 0;
   return returnValue;
