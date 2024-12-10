@@ -146,13 +146,13 @@ extern "C"
 /// This is the initial value just after the coroutine constructor completes.
 #ifndef COROUTINE_ID_NOT_SET
 #if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint64_t)
-#define COROUTINE_ID_NOT_SET ((int64_t) 0xfffffffffffffff0)
+#define COROUTINE_ID_NOT_SET ((uint64_t) 0xfffffffffffffff0)
 #elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint32_t)
-#define COROUTINE_ID_NOT_SET ((int32_t) 0xffffffff)
+#define COROUTINE_ID_NOT_SET ((uint32_t) 0xffffffff)
 #elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint16_t)
-#define COROUTINE_ID_NOT_SET ((int16_t) 0xffff)
+#define COROUTINE_ID_NOT_SET ((uint16_t) 0xffff)
 #elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint8_t)
-#define COROUTINE_ID_NOT_SET ((int8_t) 0xff)
+#define COROUTINE_ID_NOT_SET ((uint8_t) 0xff)
 #else
 #error "Invalid COROUTINE_ID_TYPE."
 #endif // COROUTINE_ID_TYPE
