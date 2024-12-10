@@ -49,7 +49,7 @@ Since NanoOs aims to emulate parts of UNIX, background user processes are suppor
 
 ## Message Passing
 
-NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All system processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
+NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All OS processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
 
 When a user process needs something from one of the system processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the system process.  All system operations are handled this way.
 
