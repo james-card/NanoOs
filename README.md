@@ -37,7 +37,7 @@ These processes work together to provide the basic kernel-level functionality.
 
 ### The Shell and Shell Processes
 
-NanoOs has a very simple command line shell.  The shell is not considered one of the special kernel processes.  It would be considered a "user space" process if there were any such thing.
+NanoOs has a very simple command line shell.  The shell is not considered one of the special kernel processes.
 
 One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  This is of special concern for processes that need to do process maintenance such as listing running processes or killing a process.  If the shell always launches a command in a new process slot, all slots can be consumed with user processes and process maintenance will become impossible.
 
@@ -53,7 +53,7 @@ Since NanoOs aims to emulate parts of UNIX, background user processes are suppor
 
 NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All kernel processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
 
-When a user process needs something from one of the system processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the system process.  All system operations are handled this way.
+When a user process needs something from one of the kernel processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the kernel process.  All system operations are handled this way.
 
 ## Dynamic Memory
 
