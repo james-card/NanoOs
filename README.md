@@ -23,9 +23,9 @@ NanoOs is a nanokernel architecture.  Specifically, what this means is that ther
 
 One implication of the nanokernel arhitecture is that there basically is no kernel.  The system is really a collection of processes that communicate with each other in order to accomplish their work.  Each process has a specific task it is responsible for.  When a process needs something from another process, it sends a message to the designated process.  If it needs a response, it blocks waiting for a reply before continuing.
 
-As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more processes is possible, but would require modification of some constants and data structures within the operating system.
+As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more than 15 processes is possible, but would require modification of some constants and data structures within the operating system.
 
-### System Processes
+### OS Processes
 
 Currently, the following processes are always present and running:
 
@@ -33,7 +33,19 @@ Currently, the following processes are always present and running:
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
-In addition, there is a "reserved" process slot in which non-user processes may run.  These processes are intended to be very short-lived so that they do not consume a slot for an extended period of time.
+### The Shell and Shell Processes
+
+NanoOs has a very simple command line shell.  The shell is not considered one of the special OS processes.  It would be considered a "user space" process if there were any such thing.
+
+One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  This is of special concern for processes that need to do process maintenance such as listing running processes or killing a process.  If the shell always launches a command in a new process slot, all slots can be consumed with user processes and process maintenance will become impossible.
+
+To address this, NanoOs borrows a concept from early versions of UNIX.  The command entries in the Commands library have an attribute called "shellCommand".  Commands that have this attribute set to "true" will *REPLACE* the shell process when they execute.  All other commands will run in a different process slot.  This allows mission-critical processes to be guaranteed a slot to run in while doing normal process management for most processes.
+
+### Background Processes
+
+Since NanoOs aims to emulate parts of UNIX, background user processes are supported.  As in UNIX-like environments, launching a process in the background is achieved in a similar manner to UNIX shells:  By appending an ampersand ('&') to the end of the command line.
+
+*NOTE:*  Background processes do not have access to stdout/stderr.  Their only communication mechanism is inter-process communication.
 
 ## Message Passing
 
