@@ -25,7 +25,7 @@ One implication of the nanokernel arhitecture is that there basically is no kern
 
 As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more than 15 processes is possible, but would require modification of some constants and data structures within the operating system.
 
-### OS Processes
+### "Kernel" Processes
 
 Currently, the following processes are always present and running:
 
@@ -33,9 +33,11 @@ Currently, the following processes are always present and running:
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
+These processes work together to provide the basic kernel-level functionality.
+
 ### The Shell and Shell Processes
 
-NanoOs has a very simple command line shell.  The shell is not considered one of the special OS processes.  It would be considered a "user space" process if there were any such thing.
+NanoOs has a very simple command line shell.  The shell is not considered one of the special kernel processes.  It would be considered a "user space" process if there were any such thing.
 
 One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  This is of special concern for processes that need to do process maintenance such as listing running processes or killing a process.  If the shell always launches a command in a new process slot, all slots can be consumed with user processes and process maintenance will become impossible.
 
@@ -49,7 +51,7 @@ Since NanoOs aims to emulate parts of UNIX, background user processes are suppor
 
 ## Message Passing
 
-NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All OS processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
+NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All kernel processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
 
 When a user process needs something from one of the system processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the system process.  All system operations are handled this way.
 
