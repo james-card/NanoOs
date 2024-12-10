@@ -64,6 +64,19 @@ void setup() {
 // scheduler, which will do all the one-time setup and then enter its infinite
 // round-robin loop.
 void loop() {
+  void* dummyProcess(void *args);
+  extern NanoOsMessage *nanoOsMessages;
+
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
+
+  Coroutine _mainCoroutine;
+  mainCoroutine = &_mainCoroutine;
+  coroutineConfig(mainCoroutine, NANO_OS_STACK_SIZE);
+  coroutineSetId(mainCoroutine, 0);
+  Coroutine *coroutine = coroutineCreate(dummyProcess);
+  coroutineResume(coroutine, NULL);
+
   // Enter the scheduler.  This never returns.
   runScheduler();
 }

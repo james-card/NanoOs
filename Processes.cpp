@@ -53,6 +53,12 @@ typedef struct CommandDescriptor {
   COROUTINE_ID_TYPE  callingProcess;
 } CommandDescriptor;
 
+/// @var mainCoroutine
+///
+/// @brief Pointer to the main coroutine that's allocated in the main loop
+/// function.
+Coroutine *mainCoroutine = NULL;
+
 /// @var runningCommands
 ///
 /// @brief Pointer to the array of running commands that will be stored in the
@@ -296,7 +302,6 @@ void* startCommand(void *args) {
 /// @return This function always returns NULL.
 void* dummyProcess(void *args) {
   (void) args;
-  runningCommands[coroutineId(NULL)].coroutine = NULL;
   return NULL;
 }
 
@@ -1192,7 +1197,7 @@ void handleSchedulerMessage(void) {
 /// @brief Initialize and run the round-robin scheduler.
 ///
 /// @return This function returns no value and, in fact, never returns at all.
-void runScheduler(void) {
+__attribute__((noinline)) void runScheduler(void) {
   // Create the storage for the array of running commands and initialize the
   // array global pointer.
   RunningCommand runningCommandsStorage[NANO_OS_NUM_PROCESSES] = {};
@@ -1203,19 +1208,13 @@ void runScheduler(void) {
   // NanoOsMessges.
   Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     // messages[ii].data will be initialized by getAvailableMessage.
     nanoOsMessages[ii].comessage = &messages[ii];
   }
 
-  Coroutine mainCoroutine;
-  coroutineConfig(&mainCoroutine, NANO_OS_STACK_SIZE);
-  coroutineSetId(&mainCoroutine, 0);
-
   // Initialize ourself in the array of running commands.
-  runningCommands[0].coroutine = &mainCoroutine;
+  runningCommands[0].coroutine = mainCoroutine;
   runningCommands[0].name = "scheduler";
 
   // Create the console process and start it.
@@ -1226,6 +1225,14 @@ void runScheduler(void) {
   runningCommands[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   coroutineResume(coroutine, NULL);
 
+  printString("\n");
+  printString("Main stack size = ");
+  printInt(ABS_DIFF(
+    ((intptr_t) runningCommandsStorage),
+    ((intptr_t) coroutine)
+  ));
+  printString(" bytes\n");
+
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
@@ -1234,6 +1241,12 @@ void runScheduler(void) {
     coroutineSetId(coroutine, ii);
     runningCommands[ii].coroutine = coroutine;
   }
+  printString("Coroutine stack size = ");
+  printInt(ABS_DIFF(
+    ((intptr_t) runningCommands[NANO_OS_FIRST_PROCESS_ID].coroutine),
+    ((intptr_t) runningCommands[NANO_OS_FIRST_PROCESS_ID + 1].coroutine)
+  ));
+  printString(" bytes\n");
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
@@ -1258,6 +1271,12 @@ void runScheduler(void) {
   ) {
     printString("WARNING:  Could not set shell for serial port.\n");
     printString("          Undefined behavior will result.\n");
+  }
+
+  // Clear out all the dummy processes now.
+  for (int ii = NANO_OS_FIRST_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
+    coroutineResume(runningCommands[ii].coroutine, NULL);
+    runningCommands[ii].coroutine = NULL;
   }
 
   // We're going to do a round-robin scheduler.  We don't want to use the array
