@@ -60,22 +60,28 @@ void setup() {
 // much more efficient to just store the pointers in the global address space
 // and put the real storage in the main loop's stack.  However, that means that
 // we have to do all the one-time setup from within the main function.  That, in
-// turn, means that we can never exit this function.  So, we will enter the
-// scheduler, which will do all the one-time setup and then enter its infinite
-// round-robin loop.
+// turn, means that we can never exit this function.  So, we will do all the
+// one-time setup and then run our scheduler loop from within this call.
 void loop() {
+  // Prototypes and externs we need that are not exported from the Processes
+  // library.
   void* dummyProcess(void *args);
   extern NanoOsMessage *nanoOsMessages;
 
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
-
+  // We want the address of the first coroutine to be as close to the base as
+  // possible.  Because of that, we need to create the first one before we enter
+  // the scheduler.  That means we need to allocate the main coroutine here,
+  // configure it, and then create and run one before we ever enter the
+  // scheduler.
   Coroutine _mainCoroutine;
   mainCoroutine = &_mainCoroutine;
   coroutineConfig(mainCoroutine, NANO_OS_STACK_SIZE);
-  coroutineSetId(mainCoroutine, 0);
   Coroutine *coroutine = coroutineCreate(dummyProcess);
   coroutineResume(coroutine, NULL);
+
+  // Additional variables we need to allocate before going into the scheduler.
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
 
   // Enter the scheduler.  This never returns.
   runScheduler();
