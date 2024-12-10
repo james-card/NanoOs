@@ -915,6 +915,18 @@ int handleRunProcess(Comessage *comessage) {
     Coroutine *caller = comessageFrom(comessage);
     processId = coroutineId(caller);
 
+    // Protect the relevant memory from deletion below.
+    if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+      printString(
+        "WARNING:  Could not protect console input from deletion.\n");
+      printString("Undefined behavior.\n");
+    }
+    if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+      printString(
+        "WARNING:  Could not protect command descriptor from deletion.\n");
+      printString("Undefined behavior.\n");
+    }
+
     // Kill and clear out the calling process.
     coroutineTerminate(caller, NULL);
     runningCommands[processId].coroutine = NULL;
