@@ -200,9 +200,6 @@ int runCounter(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  // This is a background process, so go ahead and release the console.
-  releaseConsole();
-
   while (1) {
     counter++;
     coroutineYield(NULL);
