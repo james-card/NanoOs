@@ -41,7 +41,7 @@ NanoOs has a very simple command line shell.  The shell is not considered one of
 
 One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  This is of special concern for processes that need to do process maintenance such as listing running processes or killing a process.  If the shell always launches a command in a new process slot, all slots can be consumed with user processes and process maintenance will become impossible.
 
-To address this, NanoOs borrows a concept from early versions of UNIX.  The command entries in the Commands library have an attribute called "shellCommand".  Commands that have this attribute set to "true" will *REPLACE* the shell process when they execute.  All other commands will run in a different process slot.  This allows mission-critical processes to be guaranteed a slot to run in while doing normal process management for most processes.
+To address this, NanoOs borrows a concept from early versions of UNIX.  The command entries in the Commands library have an attribute called "shellCommand".  Commands that have this attribute set to "true" will *REPLACE* the shell process when they execute.  All other commands will run in a different process slot.  This allows mission-critical processes to be guaranteed a slot to run in while doing normal process management for most processes.  The shell is automatically restarted by the scheduler when a shell process exits.
 
 ### Background Processes
 
