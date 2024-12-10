@@ -89,6 +89,14 @@ typedef enum SchedulerCommand {
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
+/// @enum SchedulerResponse
+///
+/// @brief Responses the scheduler may send to a command.
+typedef enum SchedulerResponse {
+  SCHEDULER_PROCESS_COMPLETE,
+  NUM_SCHEDULER_RESPONSES
+} SchedulerResponse;
+
 /// @def nanoOsMessageFuncValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
