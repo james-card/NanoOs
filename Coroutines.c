@@ -1741,12 +1741,15 @@ Comessage* comessageQueuePopType(int type) {
       // Desired type was found.  Remove the message from the queue.
       returnValue = cur;
       *prev = cur->next;
-      cur->next = NULL;
 
       if (coroutine->nextMessage == NULL) {
         // Empty queue.  Set coroutine->lastMessage to NULL too.
         coroutine->lastMessage = NULL;
       }
+      if (coroutine->lastMessage == cur) {
+        coroutine->lastMessage = cur->next;
+      }
+      cur->next = NULL;
     }
 
     comutexUnlock(&coroutine->messageLock);
@@ -1771,7 +1774,7 @@ Comessage* comessageQueuePopType(int type) {
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-Comessage* comessageWaitQueueForType_(
+Comessage* comessageQueueWaitForType_(
   int *type, const struct timespec *ts
 ) {
   Comessage *returnValue = NULL;
@@ -1808,12 +1811,15 @@ Comessage* comessageWaitQueueForType_(
         // Desired type was found.  Remove the message from the coroutine.
         returnValue = cur;
         *prev = cur->next;
-        cur->next = NULL;
 
         if (coroutine->nextMessage == NULL) {
           // Empty queue.  Set coroutine->lastMessage to NULL too.
           coroutine->lastMessage = NULL;
         }
+        if (coroutine->lastMessage == cur) {
+          coroutine->lastMessage = cur->next;
+        }
+        cur->next = NULL;
       } else {
         // Desired type was not found.  Block until something else is pushed.
         if (ts == NULL) {
@@ -1852,7 +1858,7 @@ Comessage* comessageWaitQueueForType_(
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
 Comessage* comessageQueueWait(const struct timespec *ts) {
-  return comessageWaitQueueForType_(NULL, ts);
+  return comessageQueueWaitForType_(NULL, ts);
 }
 
 /// @fn Comessage* comessageQueueWaitForType(int type, const struct timespec *ts)
@@ -1869,7 +1875,7 @@ Comessage* comessageQueueWait(const struct timespec *ts) {
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
 Comessage* comessageQueueWaitForType(int type, const struct timespec *ts) {
-  return comessageWaitQueueForType_(&type, ts);
+  return comessageQueueWaitForType_(&type, ts);
 }
 
 /// @fn int comessageQueuePush(Coroutine *coroutine, Comessage *comessage)
@@ -2315,12 +2321,15 @@ Comessage* comessageWaitForReplyWithType_(
       // Desired reply was found.  Remove the message from the coroutine.
       reply = cur;
       *prev = cur->next;
-      cur->next = NULL;
 
       if (coroutine->nextMessage == NULL) {
         // Empty queue.  Set coroutine->lastMessage to NULL too.
         coroutine->lastMessage = NULL;
       }
+      if (coroutine->lastMessage == cur) {
+        coroutine->lastMessage = cur->next;
+      }
+      cur->next = NULL;
     } else {
       // Desired reply was not found.  Block until something else is pushed.
       if (ts == NULL) {
