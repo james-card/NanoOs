@@ -554,6 +554,12 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 ///
 /// @brief Send input captured from a console port to a process that's waiting
 /// for it.
+///
+/// @param processId The ID of the process that's waiting for input to be
+///   returned.
+/// @param consoleInput A copy of the input that was captured from the console.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
 int consoleSendInputToProcess(COROUTINE_ID_TYPE processId, char *consoleInput) {
   int returnValue = coroutineSuccess;
 
@@ -711,6 +717,7 @@ void* runConsole(void *args) {
             consolePort->printString("> ");
           }
         } else if (consolePort->waitingForInput == true) {
+          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
