@@ -132,6 +132,14 @@ extern "C"
 /// @param x The value to get the absolute value of.
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
 
+/// @def ABS_DIFF
+///
+/// @brief Get the absolute value of the difference between two values.
+///
+/// @param x The first value to evaluate in the difference.
+/// @param y The second value to evaluate in the difference.
+#define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
+
 /// @def floatToInts
 ///
 /// @brief Break a floating-point number into two integer values that represent
