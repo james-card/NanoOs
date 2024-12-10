@@ -246,18 +246,22 @@ void* startCommand(void *args) {
     return (void*) ((intptr_t) -1);
   }
 
+  bool backgroundProcess = false;
   char *ampersandAt = strchr(argv[argc - 1], '&');
   if (ampersandAt != NULL) {
     ampersandAt++;
     if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+      backgroundProcess = true;
       releaseConsole();
+      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+        SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
     }
   }
 
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if (commandEntry->userProcess == true) {
+  if ((commandEntry->userProcess == true) && (backgroundProcess == false)) {
     // The caller is still running and waiting to be told it can resume.  Notify
     // it via a message.
     sendNanoOsMessageToPid(commandDescriptor->callingProcess,
