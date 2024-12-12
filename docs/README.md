@@ -9,4 +9,5 @@ This work started out as an experiment to see if I could implement an operating 
 ## History
 
 [2024-11-18: Starting Out](2024-11-18_Starting-Out.md)
+[2024-11-22: Missing Interprocess Communication](2024-11-22_Missing-Interprocess-Communication.md)
 
