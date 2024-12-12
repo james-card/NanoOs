@@ -4,7 +4,7 @@ Working on this OS for the Arduino Nano made me realize something:  There's no m
 
 So, a few things fell out of this.  First, I had to invent something for my coroutines.  That was a priority and a must.  The good news is that I succeeded and that it's working very well.  I was able to implement a version of printf that utilizes inter-process communication between the process calling printf and the console process that manages input and output.  So, success!
 
-Second, though, I'm going to have to come up with an equivalent for threads and I'm going to have to propose it to the C standards committee.  This really has to be fixed.  Over the years, I've put together an enormous set of code that provides in C what other high-level languages provide natively.  Most of that stuff I'd consider optional.  This, however, isn't optional.  C needs to support inter-thread communication natively.  I really can't believe it doesn't already.
+Second, though, I'm going to have to come up with an equivalent for threads and I'm going to have to propose it to the C standards committee.  This really has to be fixed.  Over the years, I've put together [an enormous set of code](https://github.com/james-card/cnext) that provides in C what other high-level languages provide natively.  Most of that stuff I'd consider optional.  This, however, isn't optional.  C needs to support inter-thread communication natively.  I really can't believe it doesn't already.
 
 Thankfully, I have a contact who is on the C standard committee.  I've talked to them before about incorporating some of my ideas into the standard and got put on the back-burner, so to speak.  This is different.  This needs attention.  If C is going to support threads, it needs to support this.
 
