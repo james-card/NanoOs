@@ -18,3 +18,5 @@ This work started out as an experiment to see if I could implement an operating 
 
 [2024-12-01: Dynamic Memory](2024-12-01_Dynamic-Memory.md)
 
+[2024-12-09: stdin](2024-12-09_Stdin.md)
+
