@@ -1,6 +1,6 @@
 # [NanoOs](https://github.com/james-card/NanoOs)
 
-A nanokernel multitasking OS for an Arduino Nano.
+A multitasking nanokernel OS for an Arduino Nano.
 
 ## Goals
 
