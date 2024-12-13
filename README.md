@@ -10,9 +10,9 @@ My first priority was getting a system that would support multiple concurrent pr
 
 ## Environmental Considerations
 
-Stacks for the coroutines have to be tiny.  In the current implementation, each coroutine has a 512-byte stack available to it.  Fortunately, the Nano Every uses an 8-bit processor, so variables are also small.  Function calls don't consume much stack space because the values pushed onto the stack are so small.
+Stacks for the processes have to be tiny.  In the current implementation, each process has a 512-byte stack available to it.  Fortunately, the Nano Every uses an 8-bit processor, so variables are also small.  Function calls don't consume much stack space because the values pushed onto the stack are so small.
 
-The Coroutines library works by segmenting the main stack.  Coroutines are allocated by putting a Coroutine object at the top of each coroutine's stack, so the total size consumed between coroutines is a little larger than the size of the stack that's configured.  As of the time of this writing (29-Nov-2024), the stack plus Coroutine object size is 605 bytes when a 512-byte stack is specified.  With this configuration, in 6 KB of RAM, NanoOs can support 8 concurrent processes.
+The Coroutines library works by segmenting the main stack.  Coroutines are allocated by putting a Coroutine object at the top of each process's stack, so the total size consumed between processes is a little larger than the size of the stack that's configured.  As of the time of this writing (29-Nov-2024), the stack plus Coroutine object size is 605 bytes when a 512-byte stack is specified.  With this configuration, in 6 KB of RAM, NanoOs can support 8 concurrent processes.
 
 ## Architecture
 
@@ -57,7 +57,7 @@ When a user process needs something from one of the kernel processes, it prepare
 
 ## Dynamic Memory
 
-NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last coroutine and makes use of all of the remaining memory at that time.  As of today, that amount is around 1 KB.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
+NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last process and makes use of all of the remaining memory at that time.  As of today, that amount is around 1 KB.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
 
 The memory manager is a modified bump allocator that supports automatic memory compaction.  Any time the last pointer in the allocation list is freed, the next pointer is moved backward until a block that has not been freed is found or until the beginning of dynamic memory is reached.  The number of outstanding memory allocations is not tracked because it's unnecessary.  This allows partial reclamation of memory space without having to free all outstanding allocations.
 
