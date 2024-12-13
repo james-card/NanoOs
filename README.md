@@ -1,6 +1,6 @@
 # NanoOs
 
-A nanokernel for an Arduino Nano.
+A nanokernel multitasking OS for an Arduino Nano.
 
 ## Goals
 
@@ -64,3 +64,8 @@ The memory manager is a modified bump allocator that supports automatic memory c
 The memory manager also tracks the size of each allocation.  This allows for realloc to function correctly.  If the size of the reallocation is less than or equal to the size already allocated, no action is taken.  If the size of the reallocation is greater than the size already allocated, the old memory can be copied to the new location before returning the new pointer to the user (as is supposed to happen for realloc).
 
 The owning process of a piece of dynamically-allocated memory is also tracked.  By default, this is the process that originally made the allocation request.  However, the scheduler has the ability to reassign ownership on process creation.  This allows for all memory owned by an individual process to be freed in the event it is prematurely terminated.
+
+## Development History
+
+The development history of this work is archived at this repository's [GitHub Pages](https://james-card.github.io/NanoOs/) site.
+
