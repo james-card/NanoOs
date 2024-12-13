@@ -6,7 +6,7 @@ A multitasking nanokernel OS for an Arduino Nano.
 
 This work started out as an experiment to see if I could implement an operating system similar to an early version of UNIX in a similar environment.  Early versions of UNIX ran on a PDP-11 with 16 KB of memory and an approximately 1 MHz processor.  Arduinos are the closest modern devices to that kind of environment, so that's where I started.  This code was written for an Arduino Nano Every, which has a 20 MHz processor and 6 KB of RAM.  Quite a bit faster, and a little less than half the RAM.  Definitely a challenging environment.
 
-My first priority was getting a system that would support multiple concurrent processes.  Supporting multiple concurrent users is a non-starter without that ability.  The only way to achieve that in this kind of environment is with cooperative multitasking.  Fortunately, I have a Coroutines library that will work in this kind of environment, and I applied it here.
+My first priority was getting a system that would support multiple concurrent processes.  Supporting multiple concurrent users is a non-starter without that ability.  Fortunately, I have a Coroutines library that will work in this kind of environment, and I applied it here.
 
 ## Environmental Considerations
 
