@@ -90,6 +90,7 @@ typedef enum ConsoleCommand {
   CONSOLE_ASSIGN_PORT,
   CONSOLE_RELEASE_PORT,
   CONSOLE_GET_OWNED_PORT,
+  CONSOLE_SET_ECHO_PORT,
   CONSOLE_WAIT_FOR_INPUT,
   NUM_CONSOLE_COMMANDS
 } ConsoleCommand;
@@ -212,6 +213,7 @@ typedef union ConsolePortPidUnion {
 // Support functions
 void releaseConsole(void);
 int getOwnedPort(void);
+int setEcho(bool desiredEchoState);
 
 // Exported processes
 void* runConsole(void *args);

@@ -474,6 +474,57 @@ void consoleGetOwnedPortHandler(
   return;
 }
 
+/// @fn void consoleSetEchoHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Get the first port currently owned by a process.
+///
+/// @note While it is technically possible for a single process to own multiple
+/// ports, the expectation here is that this call is made by a process that is
+/// only expecting to own one.  This is mostly for the purposes of transferring
+/// ownership of the port from one process to another.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleSetEchoHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  Comessage *returnMessage = inputMessage;
+  bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) comessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = 0;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      consolePorts[ii].echo = desiredEchoState;
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to set echo from non-owning process ");
+    printInt(owner);
+    printString("\n");
+    nanoOsMessage->data = (intptr_t) -1;
+  }
+
+  comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  sendComessageToPid(owner, inputMessage);
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
 /// @fn void consoleWaitForInputHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
@@ -521,6 +572,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleAssignPortHandler,
   consoleReleasePortHandler,
   consoleGetOwnedPortHandler,
+  consoleSetEchoHandler,
   consoleWaitForInputHandler,
 };
 
@@ -1096,6 +1148,29 @@ int getOwnedPort(void) {
   Comessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
+
+  // The console will reuse the message we sent, so don't release the message
+  // in comessageWaitForReplyWithType.
+  Comessage *reply = comessageWaitForReplyWithType(
+    sent, /* releaseAfterDone= */ false,
+    CONSOLE_RETURNING_PORT, NULL);
+
+  int returnValue = nanoOsMessageDataValue(reply, int);
+  comessageRelease(reply);
+
+  return returnValue;
+}
+
+/// @fn int setEcho(bool desiredEchoState)
+///
+/// @brief Get the echo state for all ports owned by the current process.
+///
+/// @return Returns 0 if the echo state was set for the current process's
+/// ports, -1 on failure.
+int setEcho(bool desiredEchoState) {
+  Comessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
+    /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
   // in comessageWaitForReplyWithType.
