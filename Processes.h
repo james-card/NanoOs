@@ -103,6 +103,7 @@ typedef enum SchedulerCommand {
   SCHEDULER_GET_NUM_RUNNING_PROCESSES,
   SCHEDULER_GET_PROCESS_INFO,
   SCHEDULER_GET_PROCESS_USER,
+  SCHEDULER_SET_PROCESS_USER,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
@@ -161,6 +162,7 @@ ProcessInfo* getProcessInfo(void);
 int killProcess(COROUTINE_ID_TYPE processId);
 int runProcess(CommandEntry *commandEntry, char *consoleInput, int consolePort);
 UserId getProcessUser(void);
+int setProcessUser(UserId userId);
 
 #ifdef __cplusplus
 } // extern "C"
