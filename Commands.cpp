@@ -396,6 +396,84 @@ int convertTemp(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int sha1Sum(int argc, char **argv)
+///
+/// @brief Compute the SHA1 sum of an input string.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Must be at least 2.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  argv[1] will be she string to compute.
+///
+/// @return Returns 0 on success, 1 on failure.
+int sha1Sum(int argc, char **argv) {
+  int returnValue = 0;
+  uint8_t *digest = NULL;
+  char *hexDigest = NULL;
+  uint32_t *working = NULL;
+  uint8_t *dataTail = NULL;
+
+  if (argc < 2) {
+    fprintf(stderr, "Usage:  %s <string>\n", argv[0]);
+    returnValue = 1;
+    goto exit;
+  }
+  const char *inputString = argv[1];
+
+  digest = (uint8_t*) malloc(20);
+  if (digest == NULL) {
+    fputs("ERROR:  Could not allocate digest.\n", stderr);
+    returnValue = 1;
+    goto exit;
+  }
+
+  hexDigest = (char*) malloc(41);
+  if (hexDigest == NULL) {
+    fputs("ERROR:  Could not allocate hexDigest.\n", stderr);
+    returnValue = 1;
+    goto freeDigest;
+  }
+
+  working = (uint32_t*) calloc(1, 80 * sizeof(uint32_t));
+  if (working == NULL) {
+    fputs("ERROR:  Could not allocate working.\n", stderr);
+    returnValue = 1;
+    goto freeHexDigest;
+  }
+
+  dataTail = (uint8_t*) calloc(1, 128);
+  if (dataTail == NULL) {
+    fputs("ERROR:  Could not allocate dataTail.\n", stderr);
+    returnValue = 1;
+    goto freeWorking;
+  }
+
+  if (sha1digest(digest, hexDigest, inputString, strlen(inputString),
+    working, dataTail) != 0
+  ) {
+    fprintf(stderr, "ERROR:  SHA1 sum could not be computed.\n");
+    returnValue = 1;
+    goto freeDataTail;
+  }
+
+  printf("SHA1 sum:  %s\n", hexDigest);
+
+freeDataTail:
+  free(dataTail); dataTail = NULL;
+
+freeWorking:
+  free(working); working = NULL;
+
+freeHexDigest:
+  hexDigest = stringDestroy(hexDigest);
+
+freeDigest:
+  free(digest); digest == NULL;
+
+exit:
+  return returnValue;
+}
+
 /// @fn CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
 /// @brief Get the command specified by consoleInput.
@@ -570,6 +648,12 @@ CommandEntry commands[] = {
     .func = runCounter,
     .shellCommand = false,
     .help = "Increment a counter as a background process."
+  },
+  {
+    .name = "sha1Sum",
+    .func = sha1Sum,
+    .shellCommand = false,
+    .help = "Compute the SHA1 sum of a value."
   },
   {
     .name = "showInfo",
