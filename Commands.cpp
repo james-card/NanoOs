@@ -36,7 +36,7 @@ extern const int NUM_COMMANDS;
 
 // Commands
 
-/// @fn int ps(int argc, char **argv);
+/// @fn int psCommandHandler(int argc, char **argv);
 ///
 /// @brief Display a list of running processes and their process IDs.
 ///
@@ -46,7 +46,7 @@ extern const int NUM_COMMANDS;
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int ps(int argc, char **argv) {
+int psCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
   int returnValue = 0;
@@ -69,7 +69,7 @@ int ps(int argc, char **argv) {
   return returnValue;
 }
 
-/// @fn int kill(int argc, char **argv);
+/// @fn int killCommandHandler(int argc, char **argv);
 ///
 /// @brief Kill a running process identified by its process ID.
 ///
@@ -79,7 +79,7 @@ int ps(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int kill(int argc, char **argv) {
+int killCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -96,7 +96,7 @@ int kill(int argc, char **argv) {
   return returnValue;
 }
 
-/// @fn int echo(int argc, char **argv);
+/// @fn int echoCommandHandler(int argc, char **argv);
 ///
 /// @brief Echo a string from the user back to the console output.
 ///
@@ -107,7 +107,7 @@ int kill(int argc, char **argv) {
 ///   output separated by a space.
 ///
 /// @return This function always returns 0.
-int echo(int argc, char **argv) {
+int echoCommandHandler(int argc, char **argv) {
   for (int ii = 1; ii < argc; ii++) {
     printConsole(argv[ii]);
     if (ii < (argc - 1)) {
@@ -119,7 +119,7 @@ int echo(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int echoSomething(int argc, char **argv);
+/// @fn int echoSomethingCommandHandler(int argc, char **argv);
 ///
 /// @brief Echo the word "Something" to the console output.  This function
 /// exists to make sure that the binary search used for command lookup works
@@ -131,7 +131,7 @@ int echo(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int echoSomething(int argc, char **argv) {
+int echoSomethingCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -139,7 +139,7 @@ int echoSomething(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int help(int argc, char **argv);
+/// @fn int helpCommandHandler(int argc, char **argv);
 ///
 /// @brief Print the help strings for all the commands in the system.
 ///
@@ -149,7 +149,7 @@ int echoSomething(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int help(int argc, char **argv) {
+int helpCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
   char formatString[12];
@@ -182,7 +182,7 @@ int help(int argc, char **argv) {
 /// shown via the showInfo command.
 static unsigned int counter = 0;
 
-/// @fn int runCounter(int argc, char **argv);
+/// @fn int runCounterCommandHandler(int argc, char **argv);
 ///
 /// @brief Continually increment the global counter variable by one and then
 /// yield control back to the scheduler.  This process exists as an example of
@@ -196,7 +196,7 @@ static unsigned int counter = 0;
 /// @return This function would always return 0 if it returned, however it
 /// runs in an infinite loop and only stops when it is killed by the kill
 /// command.
-int runCounter(int argc, char **argv) {
+int runCounterCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -208,7 +208,7 @@ int runCounter(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int showInfo(int argc, char **argv);
+/// @fn int showInfoCommandHandler(int argc, char **argv);
 ///
 /// @brief Show various information about the state of the system.
 ///
@@ -218,7 +218,7 @@ int runCounter(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int showInfo(int argc, char **argv) {
+int showInfoCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -253,7 +253,7 @@ int showInfo(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int ver(int argc, char **argv);
+/// @fn int verCommandHandler(int argc, char **argv);
 ///
 /// @brief Display the version of the OS on the console.
 ///
@@ -263,7 +263,7 @@ int showInfo(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int ver(int argc, char **argv) {
+int verCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -272,7 +272,7 @@ int ver(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int convertTemp(int argc, char **argv)
+/// @fn int convertTempCommandHandler(int argc, char **argv)
 ///
 /// @brief Menu-based command to convert temperatures between scales.
 ///
@@ -282,7 +282,7 @@ int ver(int argc, char **argv) {
 ///   argument per array element.
 ///
 /// @return This function always returns 0.
-int convertTemp(int argc, char **argv) {
+int convertTempCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
@@ -396,7 +396,7 @@ int convertTemp(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int sha1Sum(int argc, char **argv)
+/// @fn int sha1SumCommandHandler(int argc, char **argv)
 ///
 /// @brief Compute the SHA1 sum of an input string.
 ///
@@ -406,7 +406,7 @@ int convertTemp(int argc, char **argv) {
 ///   argument per array element.  argv[1] will be she string to compute.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int sha1Sum(int argc, char **argv) {
+int sha1SumCommandHandler(int argc, char **argv) {
   int returnValue = 0;
   const char *inputString = NULL;
   uint8_t *digest = NULL;
@@ -612,61 +612,61 @@ void* runShell(void *args) {
 CommandEntry commands[] = {
   {
     .name = "convertTemp",
-    .func = convertTemp,
+    .func = convertTempCommandHandler,
     .shellCommand = false,
     .help = "Convert temperatures between scales."
   },
   {
-    .name = "echo",
-    .func = echo,
+    .name = "echoCommandHandler",
+    .func = echoCommandHandler,
     .shellCommand = false,
     .help = "Echo a string back to the console."
   },
   {
-    .name = "echoSomething",
-    .func = echoSomething,
+    .name = "echoSomethingCommandHandler",
+    .func = echoSomethingCommandHandler,
     .shellCommand = false,
     .help = "Echo the word \"Something\" back to the console."
   },
   {
     .name = "help",
-    .func = help,
+    .func = helpCommandHandler,
     .shellCommand = false,
     .help = "Print this help message."
   },
   {
     .name = "kill",
-    .func = kill,
+    .func = killCommandHandler,
     .shellCommand = true,
     .help = "Kill a running process."
   },
   {
     .name = "ps",
-    .func = ps,
+    .func = psCommandHandler,
     .shellCommand = true,
     .help = "List the running processes."
   },
   {
     .name = "runCounter",
-    .func = runCounter,
+    .func = runCounterCommandHandler,
     .shellCommand = false,
     .help = "Increment a counter as a background process."
   },
   {
     .name = "sha1Sum",
-    .func = sha1Sum,
+    .func = sha1SumCommandHandler,
     .shellCommand = false,
     .help = "Compute the SHA1 sum of a value."
   },
   {
     .name = "showInfo",
-    .func = showInfo,
+    .func = showInfoCommandHandler,
     .shellCommand = false,
     .help = "Show various pieces of information about the system."
   },
   {
     .name = "ver",
-    .func = ver,
+    .func = verCommandHandler,
     .shellCommand = false,
     .help = "Show the version of the operating system."
   },
