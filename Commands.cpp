@@ -617,13 +617,13 @@ CommandEntry commands[] = {
     .help = "Convert temperatures between scales."
   },
   {
-    .name = "echoCommandHandler",
+    .name = "echo",
     .func = echoCommandHandler,
     .shellCommand = false,
     .help = "Echo a string back to the console."
   },
   {
-    .name = "echoSomethingCommandHandler",
+    .name = "echoSomething",
     .func = echoSomethingCommandHandler,
     .shellCommand = false,
     .help = "Echo the word \"Something\" back to the console."
