@@ -522,28 +522,28 @@ int runProcess(CommandEntry *commandEntry,
   return returnValue;
 }
 
-/// @fn int8_t getProcessUser(void)
+/// @fn int16_t getProcessUser(void)
 ///
 /// @brief Get the ID of the user running the current process.
 ///
 /// @return Returns the ID of the user running the current process on success,
 /// -1 on failure.
-int8_t getProcessUser(void) {
-  int8_t returnValue = -1;
+int16_t getProcessUser(void) {
+  int16_t userId = -1;
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
     /* func= */ 0, /* data= */ 0, true) == NULL
   ) {
     printString("ERROR!!!  Could not communicate with scheduler.\n");
-    return returnValue; // -1
+    return userId; // -1
   }
 
   Comessage *doneMessage
     = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
-  returnValue = nanoOsMessageDataValue(doneMessage, int8_t);
+  userId = nanoOsMessageDataValue(doneMessage, int16_t);
   comessageRelease(doneMessage);
 
-  return returnValue;
+  return userId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

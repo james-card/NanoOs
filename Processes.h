@@ -56,7 +56,7 @@ extern "C"
 typedef struct RunningProcess {
   const char *name;
   Coroutine  *coroutine;
-  int8_t      userId;
+  int16_t     userId;
 } RunningProcess;
 
 /// @struct ProcessInfoElement
@@ -89,9 +89,9 @@ typedef struct ProcessInfo {
 /// @param username The literal name of the user.
 /// @param password The SHA1 hash of the user's password.
 typedef struct User {
-  int8_t userId;
-  char *username;
-  char *password;
+  int16_t  userId;
+  char    *username;
+  char    *password;
 } User;
 
 /// @enum SchedulerCommand
@@ -160,7 +160,7 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 ProcessInfo* getProcessInfo(void);
 int killProcess(COROUTINE_ID_TYPE processId);
 int runProcess(CommandEntry *commandEntry, char *consoleInput, int consolePort);
-int8_t getProcessUser(void);
+int16_t getProcessUser(void);
 
 #ifdef __cplusplus
 } // extern "C"
