@@ -408,6 +408,7 @@ int convertTemp(int argc, char **argv) {
 /// @return Returns 0 on success, 1 on failure.
 int sha1Sum(int argc, char **argv) {
   int returnValue = 0;
+  const char *inputString = NULL;
   uint8_t *digest = NULL;
   char *hexDigest = NULL;
   uint32_t *working = NULL;
@@ -418,7 +419,7 @@ int sha1Sum(int argc, char **argv) {
     returnValue = 1;
     goto exit;
   }
-  const char *inputString = argv[1];
+  inputString = argv[1];
 
   digest = (uint8_t*) malloc(20);
   if (digest == NULL) {
@@ -448,7 +449,7 @@ int sha1Sum(int argc, char **argv) {
     goto freeWorking;
   }
 
-  if (sha1digest(digest, hexDigest, inputString, strlen(inputString),
+  if (sha1Digest(digest, hexDigest, (uint8_t*) inputString, strlen(inputString),
     working, dataTail) != 0
   ) {
     fprintf(stderr, "ERROR:  SHA1 sum could not be computed.\n");
@@ -468,7 +469,7 @@ freeHexDigest:
   hexDigest = stringDestroy(hexDigest);
 
 freeDigest:
-  free(digest); digest == NULL;
+  free(digest); digest = NULL;
 
 exit:
   return returnValue;
@@ -568,6 +569,8 @@ void* runShell(void *args) {
   char commandBuffer[CONSOLE_BUFFER_SIZE];
   (void) commandBuffer;
   int consolePort = getOwnedPort();
+
+  printf("NanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
 
   while (1) {
     printf("> ");
