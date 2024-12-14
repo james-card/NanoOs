@@ -187,6 +187,7 @@ int sha1Digest(uint8_t *digest, char *hexdigest,
   const uint8_t *data, size_t databytes,
   uint32_t *W, uint8_t *datatail);
 int sha1HexToDigest(const char *hexDigest, uint8_t *digest);
+char* getHexDigest(const char *inputString);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -98,3 +98,67 @@ unsigned int raiseUInt(unsigned int x, unsigned int y) {
   return z;
 }
 
+/// @fn char* getHexDigest(const char *inputString)
+///
+/// @brief Compute and return a dynamically-allocated hexadecimal representation
+/// of the SHA1 digest of an input string.
+///
+/// @param inputString The string to compute the digest of.
+///
+/// @return Returns the a pointer to computed hexadecimal digest on success,
+/// NULL on failure.
+char* getHexDigest(const char *inputString) {
+  uint8_t *digest = NULL;
+  char *hexDigest = NULL;
+  uint32_t *working = NULL;
+  uint8_t *dataTail = NULL;
+
+  digest = (uint8_t*) malloc(20);
+  if (digest == NULL) {
+    fputs("ERROR:  Could not allocate digest.\n", stderr);
+    goto exit;
+  }
+
+  working = (uint32_t*) calloc(1, 80 * sizeof(uint32_t));
+  if (working == NULL) {
+    fputs("ERROR:  Could not allocate working.\n", stderr);
+    goto freeDigest;
+  }
+
+  dataTail = (uint8_t*) calloc(1, 128);
+  if (dataTail == NULL) {
+    fputs("ERROR:  Could not allocate dataTail.\n", stderr);
+    goto freeWorking;
+  }
+
+  hexDigest = (char*) malloc(41);
+  if (hexDigest == NULL) {
+    fputs("ERROR:  Could not allocate hexDigest.\n", stderr);
+    goto freeDataTail;
+  }
+
+  if (sha1Digest(digest, hexDigest, (uint8_t*) inputString, strlen(inputString),
+    working, dataTail) != 0
+  ) {
+    fprintf(stderr, "ERROR:  SHA1 sum could not be computed.\n");
+    goto freeHexDigest;
+  }
+
+  goto freeDataTail;
+
+freeHexDigest:
+  hexDigest = stringDestroy(hexDigest);
+
+freeDataTail:
+  free(dataTail); dataTail = NULL;
+
+freeWorking:
+  free(working); working = NULL;
+
+freeDigest:
+  free(digest); digest = NULL;
+
+exit:
+  return hexDigest;
+}
+
