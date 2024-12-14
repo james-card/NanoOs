@@ -178,9 +178,10 @@ typedef struct NanoOsMessage {
 long getElapsedMilliseconds(unsigned long startTime);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 unsigned int raiseUInt(unsigned int x, unsigned int y);
-int sha1digest(uint8_t *digest, char *hexdigest,
+int sha1Digest(uint8_t *digest, char *hexdigest,
   const uint8_t *data, size_t databytes,
   uint32_t *W, uint8_t *datatail);
+int sha1HexToDigest(const char *hexDigest, uint8_t *digest);
 
 #ifdef __cplusplus
 } // extern "C"
