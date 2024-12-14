@@ -44,17 +44,20 @@ extern "C"
 {
 #endif
 
-/// @struct RunningCommand
+/// @struct RunningProcess
 ///
-/// @brief Descriptor for a running instance of a command.
+/// @brief Descriptor for a running process.
 ///
-/// @param name The name of the command as stored in its CommandEntry.
+/// @param name The name of the command as stored in its CommandEntry or as
+///   set by the scheduler at launch.
 /// @param coroutine A pointer to the Coroutine instance that manages the
 ///   running command's execution state.
-typedef struct RunningCommand {
+/// @param userId The numerical ID of the user that is running the process.
+typedef struct RunningProcess {
   const char *name;
   Coroutine  *coroutine;
-} RunningCommand;
+  int8_t      userId;
+} RunningProcess;
 
 /// @struct ProcessInfoElement
 ///
@@ -70,6 +73,8 @@ typedef struct ProcessInfoElement {
 
 /// @struct ProcessInfo
 ///
+/// @brief The object that's populated and returned by a getProcessInfo call.
+///
 /// @param numProcesses The number of elements in the processes array.
 /// @param processes The array of ProcessInfoElements that describe the
 ///   processes.
@@ -77,6 +82,17 @@ typedef struct ProcessInfo {
   uint8_t numProcesses;
   ProcessInfoElement processes[1];
 } ProcessInfo;
+
+/// @struct User
+///
+/// @param userId The numeric ID for the user.
+/// @param username The literal name of the user.
+/// @param password The SHA1 hash of the user's password.
+typedef struct User {
+  int8_t userId;
+  char *username;
+  char *password;
+} User;
 
 /// @enum SchedulerCommand
 ///
@@ -86,6 +102,7 @@ typedef enum SchedulerCommand {
   SCHEDULER_KILL_PROCESS,
   SCHEDULER_GET_NUM_RUNNING_PROCESSES,
   SCHEDULER_GET_PROCESS_INFO,
+  SCHEDULER_GET_PROCESS_USER,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
@@ -143,6 +160,7 @@ void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
 ProcessInfo* getProcessInfo(void);
 int killProcess(COROUTINE_ID_TYPE processId);
 int runProcess(CommandEntry *commandEntry, char *consoleInput, int consolePort);
+int8_t getProcessUser(void);
 
 #ifdef __cplusplus
 } // extern "C"
