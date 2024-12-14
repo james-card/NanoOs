@@ -25,7 +25,7 @@
 /*******************************************************************************
  * Teeny SHA-1
  *
- * The below sha1digest() calculates a SHA-1 hash value for a
+ * The below sha1Digest() calculates a SHA-1 hash value for a
  * specified data buffer and generates a hex representation of the
  * result.  This implementation is a re-forming of the SHA-1 code at
  * https://github.com/jinqiangshou/EncryptionLibrary.
@@ -34,7 +34,7 @@
  *
  * License: MIT, see included LICENSE file for details.
  *
- * To use the sha1digest() function either copy it into an existing
+ * To use the sha1Digest() function either copy it into an existing
  * project source code file or include this file in a project and put
  * the declaration (example below) in the sources files where needed.
  ******************************************************************************/
@@ -45,7 +45,7 @@
 #include <string.h>
 
 /*******************************************************************************
- * sha1digest: https://github.com/CTrabant/teeny-sha1
+ * sha1Digest: https://github.com/CTrabant/teeny-sha1
  *
  * Calculate the SHA-1 value for supplied data buffer and generate a
  * text representation in hexadecimal.
@@ -66,7 +66,7 @@
  *
  * @return: 0 on success and non-zero on error.
  ******************************************************************************/
-int sha1digest(uint8_t *digest, char *hexdigest,
+int sha1Digest(uint8_t *digest, char *hexdigest,
   const uint8_t *data, size_t databytes,
   uint32_t *W, uint8_t *datatail
 ) {
@@ -214,6 +214,73 @@ int sha1digest(uint8_t *digest, char *hexdigest,
   hexdigest[40] = '\0';
 
   return 0;
-}  /* End of sha1digest() */
+}  /* End of sha1Digest() */
 
+/// @fn uint8_t hexToChar(const char *inputString)
+///
+/// @brief This function converts a single two-character hexadecimal ASCII
+/// string to a single byte .
+///
+/// @param inputString is a pointer to the beginning of a % encoded two-digit
+///   hexadecimal value.
+///
+/// @return Returns the character that's been converted.
+uint8_t hexToChar(const char *inputString) {
+  uint8_t character = '\0';
+
+  if (inputString == NULL) {
+    return '\0';
+  }
+
+  if ((inputString[0] >= 'A') && (inputString[0] <= 'F')) {
+    character = (((uint8_t) inputString[0]) - ((uint8_t) 'A')) + 10;
+  } else if ((inputString[0] >= 'a') && (inputString[0] <= 'f')) {
+    character = (((uint8_t) inputString[0]) - ((uint8_t) 'a')) + 10;
+  } else if ((inputString[0] >= '0') && (inputString[0] <= '9')) {
+    character = ((uint8_t) inputString[0]) - ((uint8_t) '0');
+  } else {
+    // Invalid input
+    return '\0';
+  }
+
+  character <<= 4; // *= 16;
+
+  if ((inputString[1] >= 'A') && (inputString[1] <= 'F')) {
+    character += (((uint8_t) inputString[1]) - ((uint8_t) 'A')) + 10;
+  } else if ((inputString[1] >= 'a') && (inputString[1] <= 'f')) {
+    character += (((uint8_t) inputString[1]) - ((uint8_t) 'a')) + 10;
+  } else if ((inputString[1] >= '0') && (inputString[1] <= '9')) {
+    character += ((uint8_t) inputString[1]) - ((uint8_t) '0');
+  } else {
+    // Invalid input
+    return '\0';
+  }
+
+  return character;
+}
+
+/// @fn int sha1HexToDigest(const char *hexDigest, uint8_t *digest)
+///
+/// @brief Convert a SHA1 digest in ASCII hex format to its binary
+/// representation.
+///
+/// @param hexDigest A pointer to the hexadecimal-formatted ASCII representing
+///   the digest.
+/// @param digest A pointer to the output buffer that will be filled with the
+///   binary of the digest.
+///
+/// @return Returns 0 on success, -1 on failure.
+int sha1HexToDigest(const char *hexDigest, uint8_t *digest) {
+  if (!hexDigest || !digest) {
+    return -1;
+  }
+
+  for (uint8_t idx = 0; idx < 20; idx++) {
+    *digest = hexToChar(hexDigest);
+    digest++;
+    hexDigest += 2;
+  }
+
+  return 0;
+}
 
