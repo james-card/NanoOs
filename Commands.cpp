@@ -515,7 +515,9 @@ void* runShell(void *args) {
   (void) commandBuffer;
   int consolePort = getOwnedPort();
 
-  printf("NanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
+  if (getProcessUser() < 0) {
+    printf("NanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
+  }
 
   while (1) {
     printf("> ");
