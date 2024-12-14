@@ -153,6 +153,11 @@ extern "C"
   (int) number, \
   ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
+/// @typedef UserId
+///
+/// @brief The type to use to represent a numeric user ID.
+typedef int16_t UserId;
+
 /// @typedef NanoOsMessageData
 ///
 /// @brief Data type used in a NanoOsMessage.

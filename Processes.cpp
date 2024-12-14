@@ -522,14 +522,14 @@ int runProcess(CommandEntry *commandEntry,
   return returnValue;
 }
 
-/// @fn int16_t getProcessUser(void)
+/// @fn UserId getProcessUser(void)
 ///
 /// @brief Get the ID of the user running the current process.
 ///
 /// @return Returns the ID of the user running the current process on success,
 /// -1 on failure.
-int16_t getProcessUser(void) {
-  int16_t userId = -1;
+UserId getProcessUser(void) {
+  UserId userId = -1;
   if (sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
     /* func= */ 0, /* data= */ 0, true) == NULL
@@ -540,7 +540,7 @@ int16_t getProcessUser(void) {
 
   Comessage *doneMessage
     = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
-  userId = nanoOsMessageDataValue(doneMessage, int16_t);
+  userId = nanoOsMessageDataValue(doneMessage, UserId);
   comessageRelease(doneMessage);
 
   return userId;
