@@ -114,10 +114,10 @@ extern "C"
 /// @brief The numerical ID of the root user.
 #define ROOT_USER_ID 0
 
-/// @def PROCESS_NOT_OWNED_USER_ID
+/// @def NO_USER_ID
 ///
 /// @brief The numerical value that indicates that a process is not owned.
-#define PROCESS_NOT_OWNED_USER_ID -1
+#define NO_USER_ID -1
 
 /// @def MIN
 ///
@@ -174,9 +174,9 @@ typedef int16_t UserId;
 /// @param username The literal name of the user.
 /// @param password The SHA1 hash of the user's password.
 typedef struct User {
-  UserId  userId;
-  char   *username;
-  char   *password;
+  UserId        userId;
+  const char   *username;
+  const char   *password;
 } User;
 
 /// @typedef NanoOsMessageData
@@ -209,6 +209,8 @@ int sha1Digest(uint8_t *digest, char *hexdigest,
   uint32_t *W, uint8_t *datatail);
 int sha1HexToDigest(const char *hexDigest, uint8_t *digest);
 char* getHexDigest(const char *inputString);
+const char* getUsernameByUserId(UserId userId);
+UserId getUserIdByUsername(const char *username);
 
 #ifdef __cplusplus
 } // extern "C"

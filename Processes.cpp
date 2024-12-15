@@ -276,7 +276,7 @@ void* startCommand(void *args) {
     sendNanoOsMessageToPid(commandDescriptor->callingProcess,
       SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
     }
-    runningProcesses[coroutineId(NULL)].userId = PROCESS_NOT_OWNED_USER_ID;
+    runningProcesses[coroutineId(NULL)].userId = NO_USER_ID;
   }
 
   free(consoleInput); consoleInput = NULL;
@@ -1402,7 +1402,7 @@ __attribute__((noinline)) void runScheduler(void) {
   for (int ii = NANO_OS_FIRST_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
     coroutineResume(runningProcesses[ii].coroutine, NULL);
     runningProcesses[ii].coroutine = NULL;
-    runningProcesses[ii].userId = PROCESS_NOT_OWNED_USER_ID;
+    runningProcesses[ii].userId = NO_USER_ID;
   }
 
   // We're going to do a round-robin scheduler.  We don't want to use the array

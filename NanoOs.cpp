@@ -31,6 +31,10 @@
 // Custom includes
 #include "NanoOs.h"
 
+// Externs
+extern User users[];
+extern const int NUM_USERS;
+
 /// @fn long getElapsedMilliseconds(unsigned long startTime)
 ///
 /// @brief Get the number of milliseconds that have elapsed since a specified
@@ -162,3 +166,69 @@ exit:
   return hexDigest;
 }
 
+/// @fn const char* getUsernameByUserId(UserId userId)
+///
+/// @brief Get the username for a user given their numeric user ID.
+///
+/// @param userId The numeric ID of the user.
+///
+/// @return Returns the username of the user on success, NULL on failure.
+const char* getUsernameByUserId(UserId userId) {
+  const char *username = NULL;
+
+  for (int ii = 0; ii < NUM_USERS; ii++) {
+    if (users[ii].userId == userId) {
+      username = users[ii].username;
+      break;
+    }
+  }
+
+  return username;
+}
+
+/// @fn UserId getUserIdByUsername(const char *username)
+///
+/// @brief Get the numeric ID of a user given their username.
+///
+/// @param username The username string for the user.
+///
+/// @return Returns the numeric ID of the user on success, NO_USER_ID on
+/// failure.
+UserId getUserIdByUsername(const char *username) {
+  UserId userId = NO_USER_ID;
+
+  for (int ii = 0; ii < NUM_USERS; ii++) {
+    if (strcmp(users[ii].username,username) == 0) {
+      userId = users[ii].userId;
+      break;
+    }
+  }
+
+  return userId;
+}
+
+/// @var users
+///
+/// @brief The array of user information to simulate a user database.
+User users[] = {
+  {
+    userId   = 0;
+    username = "root";
+    password = "33a485cb146e1153c69b588c671ab474f2e5b800";
+  },
+  {
+    userId   = 1000;
+    username = "user1";
+    password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d";
+  },
+  {
+    userId   = 1001;
+    username = "user2";
+    password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae";
+  },
+};
+
+/// @var NUM_USERS
+///
+/// @brief The number of users in the users array.
+const int NUM_USERS = sizeof(users) / sizeof(users[0]);
