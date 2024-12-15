@@ -101,6 +101,8 @@ typedef void TypeDescriptor;
 
 #define STOP       ((void*) ((intptr_t) -1))
 
+extern const char *boolNames[];
+
 // Debug functions
 int printString(const char *string);
 int printInt(int integer);

@@ -31,6 +31,14 @@
 #include "NanoOs.h"
 #include "NanoOsLibC.h"
 
+/// @var boolNames
+///
+/// @brief Mapping of bool values to their string names.
+const char *boolNames[] = {
+  "false",
+  "true"
+};
+
 /// @fn int timespec_get(struct timespec* spec, int base)
 ///
 /// @brief Get the current time in the form of a struct timespec.
