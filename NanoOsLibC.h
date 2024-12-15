@@ -87,8 +87,10 @@ int timespec_get(struct timespec* spec, int base);
 // The errors defined by the compiler's version of errno.h are not helpful
 // because most things are defined to be ENOERR.  So, we need to define some of
 // our own.
-#define EBUSY            1      /* Device or resource busy */
-#define ENOMEM           2      /* Out of memory */
+#define EBUSY            2      /* Device or resource busy */
+#define ENOMEM           3      /* Out of memory */
+#define EACCES           4      /* Permission denied */
+#define EINVAL           5      /* Invalid argument */
 
 typedef void TypeDescriptor;
 
