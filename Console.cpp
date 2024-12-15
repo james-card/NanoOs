@@ -673,12 +673,14 @@ int readSerialByte(ConsolePort *consolePort) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
     buffer[consolePort->consoleIndex] = (char) serialData;
-    if (
-      (consolePort->echo == true)
-      && ((char) serialData != '\r')
-      && ((char) serialData != '\n')
-    ) {
-      Serial.print((char) serialData);
+    if (consolePort->echo == true) {
+      if (((char) serialData != '\r')
+        && ((char) serialData != '\n')
+      ) {
+        Serial.print((char) serialData);
+      } else {
+        Serial.print("\r\n");
+      }
     }
     consolePort->consoleIndex++;
     consolePort->consoleIndex %= CONSOLE_BUFFER_SIZE;
