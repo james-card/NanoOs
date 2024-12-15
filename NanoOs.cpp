@@ -179,7 +179,7 @@ exit:
 ///
 /// @return Returns the username of the user on success, NULL on failure.
 const char* getUsernameByUserId(UserId userId) {
-  const char *username = NULL;
+  const char *username = "";
 
   for (int ii = 0; ii < NUM_USERS; ii++) {
     if (users[ii].userId == userId) {
