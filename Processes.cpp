@@ -558,7 +558,7 @@ int setProcessUser(UserId userId) {
   int returnValue = -1;
   Comessage *comessage
     = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_SET_PROCESS_USER,
     /* func= */ 0, /* data= */ userId, true);
   if (comessage == NULL) {
     printString("ERROR!!!  Could not communicate with scheduler.\n");
