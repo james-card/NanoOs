@@ -232,6 +232,7 @@ void login(void) {
     fputs("Password: ", stdout);
     fgets(password, sizeof(password), stdin);
     setConsoleEcho(true);
+    fputs("\n", stdout);
 
     newlineAt = strchr(username, '\r');
     if (newlineAt == NULL) {
