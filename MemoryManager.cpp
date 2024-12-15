@@ -612,7 +612,7 @@ void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
   return;
 }
 
-/// @fn void* memoryManager(void *args)
+/// @fn void* runMemoryManager(void *args)
 ///
 /// @brief Main process for the memory manager that will configure all the
 /// variables and be responsible for handling the messages.
@@ -622,7 +622,7 @@ void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
 ///
 /// @return This function never exits its main loop, so never returns, however
 /// it would return NULL if it returned anything.
-void* memoryManager(void *args) {
+void* runMemoryManager(void *args) {
   (void) args;
   printConsole("\n");
   

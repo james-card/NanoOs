@@ -1374,7 +1374,7 @@ __attribute__((noinline)) void runScheduler(void) {
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
-  coroutine = coroutineCreate(memoryManager);
+  coroutine = coroutineCreate(runMemoryManager);
   coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
   runningProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine = coroutine;
   runningProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";

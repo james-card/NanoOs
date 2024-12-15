@@ -128,7 +128,7 @@ typedef struct MemoryManagerState {
 } MemoryManagerState;
 
 // Function prototypes
-void* memoryManager(void *args);
+void* runMemoryManager(void *args);
 
 void memoryManagerFree(void *ptr);
 #ifdef free
