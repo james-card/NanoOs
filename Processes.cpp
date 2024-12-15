@@ -459,7 +459,8 @@ int killProcess(COROUTINE_ID_TYPE processId) {
     if (returnValue == 0) {
       printf("Process terminated.\n");
     } else {
-      printf("Process termination returned status %d.\n", returnValue);
+      printf("Process termination returned status \"%s\".\n",
+        nanoOsStrError(returnValue));
     }
   } else {
     returnValue = 1;
@@ -1267,12 +1268,8 @@ int handleSetProcessUser(Comessage *comessage) {
   nanoOsMessage->data = -1;
 
   if (processId < NANO_OS_NUM_PROCESSES) {
-    if ((runningProcesses[processId].userId == -1)
-      || (runningProcesses[processId].userId == userId)
-    ) {
-      runningProcesses[processId].userId = userId;
-      nanoOsMessage->data = 0;
-    }
+    runningProcesses[processId].userId = userId;
+    nanoOsMessage->data = 0;
   }
 
   comessageSetDone(comessage);
