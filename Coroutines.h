@@ -366,7 +366,9 @@ typedef struct Comessage {
 
 
 // Coroutine function prototypes.  Doxygen inline in source file.
-int coroutineConfig(Coroutine *first, int stackSize);
+int coroutineConfig(Coroutine *first, int stackSize,
+  CoconditionSignalCallback coconditionSignalCallback
+);
 Coroutine* coroutineCreate(CoroutineFunction func);
 void* coroutineResume(Coroutine *targetCoroutine, void *arg);
 void* coroutineYield(void *arg);

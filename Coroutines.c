@@ -186,6 +186,11 @@ static Coroutine* _globalIdle = NULL;
 /// @brief The size of each coroutine's stack in bytes.
 static int _globalStackSize = COROUTINE_DEFAULT_STACK_SIZE;
 
+/// @var static CoconditionSignalCallback _globalComessageSignalCallback
+///
+/// @brief Global callback to call when a cocondition is signalled.
+static CoconditionSignalCallback _globalCoconditionSignalCallback = NULL;
+
 /// @fn int64_t coroutinesGetNanoseconds(const struct timespec *ts)
 ///
 /// @brief Convert the time in a timespec to a raw number of nanoseconds.
@@ -282,6 +287,11 @@ ZEROINIT(static tss_t _tssIdle);
 /// @brief Thread-specific size of each coroutine's stack, in bytes.
 ZEROINIT(static tss_t _tssStackSize);
 
+/// @var static CoconditionSignalCallback _tssComessageSignalCallback
+///
+/// @brief Thread-specific callback to call when a cocondition is signalled.
+ZEROINIT(static CoconditionSignalCallback _tssCoconditionSignalCallback);
+
 /// @var static once_flag _threadMetadataSetup
 ///
 /// @brief once_flag to make sure we only initialize the thread-specific storage
@@ -294,10 +304,6 @@ static once_flag _threadMetadataSetup = ONCE_FLAG_INIT;
 ///
 /// @return This function returns no value.
 void coroutineSetupThreadMetadata(void) {
-  // _first is the only Coroutine node that will be allocated with dynamic
-  // memory, so it's the only one that needs a destructor.  All the other
-  // nodes on the _running and _idle lists will be on the stack and do not
-  // need destructors.
   int status = tss_create(&_tssFirst, NULL);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssFirst.\n");
@@ -313,6 +319,10 @@ void coroutineSetupThreadMetadata(void) {
   status = tss_create(&_tssStackSize, NULL);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssStackSize.\n");
+  }
+  status = tss_create(&_tssCoconditionSignalCallback, NULL);
+  if (status != thrd_success) {
+    fprintf(stderr, "Could not initialize _tssCoconditionSignalCallback.\n");
   }
 }
 
@@ -363,6 +373,16 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
     fprintf(stderr,
       "Could not set _tssStackSize to %d in "
       "coroutineInitializeThreadMetadata.\n", _globalStackSize);
+    return false;
+  }
+  status = tss_set(
+    _tssCoconditionSignalCallback,
+    _globalCoconditionSignalCallback
+  );
+  if (status != thrd_success) {
+    fprintf(stderr,
+      "Could not set _tssCoconditionSignalCallback to %p in "
+      "coroutineInitializeThreadMetadata.\n", _globalCoconditionSignalCallback);
     return false;
   }
 
@@ -1048,7 +1068,7 @@ bool coroutineThreadingSupportEnabled() {
 
 #endif // THREAD_SAFE_COROUTINES
 
-/// @fn int coroutineConfig(Coroutine *first, int stackSize)
+/// @fn int coroutineConfig(Coroutine *first, int stackSize, CoconditionSignalCallback coconditionSignalCallback)
 ///
 /// @brief Configure the global or thread-specific defaults for all coroutines
 /// allocated by the current thread.
@@ -1057,9 +1077,13 @@ bool coroutineThreadingSupportEnabled() {
 /// @param stackSize The desired minimum size of a coroutine's stack, in bytes.
 ///   If this value is less than COROUTINE_STACK_CHUNK_SIZE,
 ///   COROUTINE_DEFAULT_STACK_SIZE will be used.
+/// @param coconditionSignalCallback The callback that is to be used whenever
+///   a coconditon is signalled.  This parameter may be NULL.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on error.
-int coroutineConfig(Coroutine *first, int stackSize) {
+int coroutineConfig(Coroutine *first, int stackSize,
+  CoconditionSignalCallback coconditionSignalCallback
+) {
   if (stackSize < COROUTINE_STACK_CHUNK_SIZE) {
     stackSize = COROUTINE_DEFAULT_STACK_SIZE;
   }
@@ -1106,6 +1130,7 @@ int coroutineConfig(Coroutine *first, int stackSize) {
         return coroutineError;
     }
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
+    tss_set(_tssCoconditionSignalCallback, coconditionSignalCallback);
   }
 #endif // THREAD_SAFE_COROUTINES
   if (first != NULL) {
@@ -1122,6 +1147,7 @@ int coroutineConfig(Coroutine *first, int stackSize) {
     return coroutineError;
   }
   _globalStackSize = stackSize;
+  _globalCoconditionSignalCallback = coconditionSignalCallback;
 
   return coroutineSuccess;
 }
