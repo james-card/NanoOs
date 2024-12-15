@@ -674,9 +674,7 @@ int readSerialByte(ConsolePort *consolePort) {
     char *buffer = consoleBuffer->buffer;
     buffer[consolePort->consoleIndex] = (char) serialData;
     if (consolePort->echo == true) {
-      if (((char) serialData != '\r')
-        && ((char) serialData != '\n')
-      ) {
+      if ((char) serialData != '\n') {
         Serial.print((char) serialData);
       } else {
         Serial.print("\r\n");
@@ -697,21 +695,28 @@ int readSerialByte(ConsolePort *consolePort) {
 ///
 /// @return Returns the number of bytes written to the serial port.
 int printSerialString(const char *string) {
-  int returnValue = -1;
-  size_t numBytes = strlen(string);
+  int returnValue = 0;
+  size_t numBytes = 0;
 
-  char *newlineAt = strchr(string, '\r');
+  char *newlineAt = strchr(string, '\n');
+  newlineAt = strchr(string, '\n');
   if (newlineAt == NULL) {
-    newlineAt = strchr(string, '\n');
-  }
-  if (newlineAt != NULL) {
+    numBytes = strlen(string);
+  } else {
     numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
   }
-
-  returnValue = (int) Serial.write(string, numBytes);
-  if (newlineAt != NULL) {
+  while (newlineAt != NULL) {
+    returnValue += (int) Serial.write(string, numBytes);
     returnValue += (int) Serial.write("\r\n");
+    string = newlineAt + 1;
+    newlineAt = strchr(string, '\n');
+    if (newlineAt == NULL) {
+      numBytes = strlen(string);
+    } else {
+      numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+    }
   }
+  returnValue += (int) Serial.write(string, numBytes);
 
   return returnValue;
 }
