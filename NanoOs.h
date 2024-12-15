@@ -211,6 +211,7 @@ int sha1HexToDigest(const char *hexDigest, uint8_t *digest);
 char* getHexDigest(const char *inputString);
 const char* getUsernameByUserId(UserId userId);
 UserId getUserIdByUsername(const char *username);
+UserId login(const char *username, const char *password);
 
 #ifdef __cplusplus
 } // extern "C"

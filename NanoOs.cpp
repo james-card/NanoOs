@@ -117,6 +117,11 @@ char* getHexDigest(const char *inputString) {
   uint32_t *working = NULL;
   uint8_t *dataTail = NULL;
 
+  if (inputString == NULL) {
+    fputs("ERROR:  No inputString supplied to getHexDigest.\n", stderr);
+    goto exit;
+  }
+
   digest = (uint8_t*) malloc(20);
   if (digest == NULL) {
     fputs("ERROR:  Could not allocate digest.\n", stderr);
@@ -198,11 +203,41 @@ UserId getUserIdByUsername(const char *username) {
   UserId userId = NO_USER_ID;
 
   for (int ii = 0; ii < NUM_USERS; ii++) {
-    if (strcmp(users[ii].username,username) == 0) {
+    if (strcmp(users[ii].username, username) == 0) {
       userId = users[ii].userId;
       break;
     }
   }
+
+  return userId;
+}
+
+/// @fn UserId login(const char *username, const char *password)
+///
+/// @brief Authenticate a user for login.
+///
+/// @param username The username that the user supplied.
+/// @param password The PLAINTEXT password the user supplied.
+///
+/// @param Returns the UserId of the user on success, NO_USER_ID on failure.
+UserId login(const char *username, const char *password) {
+  UserId userId = NO_USER_ID;
+
+  if ((username == NULL) || (password == NULL)) {
+    fprintf(stderr, "One or more NULL parameters provided to login.\n");
+    return userId; // NO_USER_ID
+  }
+
+  char *passwordDigest = getHexDigest(password);
+  for (int ii = 0; ii < NUM_USERS; ii++) {
+    if (strcmp(users[ii].username, username) == 0) {
+      if (strcmp(users[ii].password, passwordDigest) == 0) {
+        userId = users[ii].userId;
+      }
+      break;
+    }
+  }
+  passwordDigest = stringDestroy(passwordDigest);
 
   return userId;
 }
@@ -212,19 +247,19 @@ UserId getUserIdByUsername(const char *username) {
 /// @brief The array of user information to simulate a user database.
 User users[] = {
   {
-    userId   = 0;
-    username = "root";
-    password = "33a485cb146e1153c69b588c671ab474f2e5b800";
+    .userId   = 0,
+    .username = "root",
+    .password = "33a485cb146e1153c69b588c671ab474f2e5b800",
   },
   {
-    userId   = 1000;
-    username = "user1";
-    password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d";
+    .userId   = 1000,
+    .username = "user1",
+    .password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d",
   },
   {
-    userId   = 1001;
-    username = "user2";
-    password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae";
+    .userId   = 1001,
+    .username = "user2",
+    .password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae",
   },
 };
 
