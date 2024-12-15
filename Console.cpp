@@ -673,8 +673,12 @@ int readSerialByte(ConsolePort *consolePort) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
     buffer[consolePort->consoleIndex] = (char) serialData;
-    if (consolePort->echo == true) {
-      Serial.print(buffer[consolePort->consoleIndex]);
+    if (
+      (consolePort->echo == true)
+      && ((char) serialData != '\r')
+      && ((char) serialData != '\n')
+    ) {
+      Serial.print((char) serialData);
     }
     consolePort->consoleIndex++;
     consolePort->consoleIndex %= CONSOLE_BUFFER_SIZE;
@@ -691,7 +695,23 @@ int readSerialByte(ConsolePort *consolePort) {
 ///
 /// @return Returns the number of bytes written to the serial port.
 int printSerialString(const char *string) {
-  return Serial.print(string);
+  int returnValue = -1;
+  size_t numBytes = strlen(string);
+
+  char *newlineAt = strchr(string, '\r');
+  if (newlineAt == NULL) {
+    newlineAt = strchr(string, '\n');
+  }
+  if (newlineAt != NULL) {
+    numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+  }
+
+  returnValue = (int) Serial.write(string, numBytes);
+  if (newlineAt != NULL) {
+    returnValue += (int) Serial.write("\r\n");
+  }
+
+  return returnValue;
 }
 
 /// @fn void* runConsole(void *args)
@@ -1208,7 +1228,7 @@ int getOwnedConsolePort(void) {
 /// ports, -1 on failure.
 int setConsoleEcho(bool desiredEchoState) {
   Comessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_ECHO_PORT,
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
