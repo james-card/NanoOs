@@ -13,3 +13,5 @@ So, I'm probably going to be putting in some time over the weekend to figure out
 More to do, as always.  I guess the advantage of me putting something together and proposing it is that, since it's never been done before, the area is wide open to any way I want to do it.  I already have some ideas for how I can manage this with the primitives that are provided by C's thread model.  It's a bit of a pain in the rear because the implementation will have to use compiler intrinsics, which I try to avoid.  However, since this is in the [threads library](https://github.com/james-card/cthreads), I already have environment-specific implementations and I can get away with compiler intrinsics from within this context.
 
 To be continued...
+
+[Table of Contents](.)

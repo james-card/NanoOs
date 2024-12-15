@@ -15,3 +15,5 @@ One realization I had in the course of doing this is that there really needs to 
 At any rate, I think I have something now that I can use as a base proposal to my contact on the committee.  I won't do it right away.  I need to sit with this for a bit in case I have any dope-slap realizations about my design.  I do want to get to it relatively soon, though.
 
 That's it for now.  I think I'll write a dynamic memory manager for the OS next.  :-)  To be continued...
+
+[Table of Contents](.)

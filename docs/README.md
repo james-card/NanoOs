@@ -21,4 +21,3 @@ This work started out as an experiment to see if I could implement an operating 
 [2024-12-09: stdin](2024-12-09_Stdin.md)
 
 [2024-12-15: Shell Games](2024-12-15_Shell-Games.md)
-

@@ -37,3 +37,5 @@ So, yeah, here we are at the end of day two of stack segmentation and revised me
 Anyway, it all seems to work at the moment.  I'm calling it a day before anything breaks again.  Huzzah!!!
 
 To be continued...
+
+[Table of Contents](.)
