@@ -179,11 +179,11 @@ typedef struct Comessage Comessage;
 /// @brief Function signature that can be used as a coroutine.
 typedef void* (*CoroutineFunction)(void *arg);
 
-/// @typedef ComessageSignalCallback
+/// @typedef CoconditionSignalCallback
 ///
 /// @brief Function signature that can be used as a callback when a cocondition
 /// is signalled.
-typedef void (*ComessageSignalCallback)(Comessage *comessage);
+typedef void (*CoconditionSignalCallback)(Cocondition *cocondition);
 
 /// @union CoroutineFuncData
 ///
