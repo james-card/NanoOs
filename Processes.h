@@ -83,17 +83,6 @@ typedef struct ProcessInfo {
   ProcessInfoElement processes[1];
 } ProcessInfo;
 
-/// @struct User
-///
-/// @param userId The numeric ID for the user.
-/// @param username The literal name of the user.
-/// @param password The SHA1 hash of the user's password.
-typedef struct User {
-  UserId  userId;
-  char   *username;
-  char   *password;
-} User;
-
 /// @enum SchedulerCommand
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.

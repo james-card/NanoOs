@@ -168,6 +168,17 @@ extern "C"
 /// @brief The type to use to represent a numeric user ID.
 typedef int16_t UserId;
 
+/// @struct User
+///
+/// @param userId The numeric ID for the user.
+/// @param username The literal name of the user.
+/// @param password The SHA1 hash of the user's password.
+typedef struct User {
+  UserId  userId;
+  char   *username;
+  char   *password;
+} User;
+
 /// @typedef NanoOsMessageData
 ///
 /// @brief Data type used in a NanoOsMessage.
