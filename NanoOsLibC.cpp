@@ -702,3 +702,38 @@ int sscanf(const char *buffer, const char *format, ...) {
   return returnValue;
 }
 
+/// @var errorStrings
+///
+/// @brief Array of error messages arranged by error code.
+const char *errorStrings[] = {
+  "Success",
+  "Unknown error",
+  "Device or resource busy",
+  "Out of memory",
+  "Permission denied",
+  "Invalid argument",
+};
+
+/// @var NUM_ERRORS
+///
+/// @brief Constant value to hold the number of errors defined in errorStrings.
+const int NUM_ERRORS = sizeof(errorStrings) / sizeof(errorStrings[0]);
+
+/// @fn const char* nanoOsStrError(int errnum)
+///
+/// @brief strerror implementation for NanoOs.
+///
+/// @param errnum The error code either set as the variable errno or returned
+///   from a function.
+///
+/// @return This function always succeeds and returns the string corrsponding
+/// to an error.  If the provided error number is outside the range of the
+/// defined errors, the string "Unknown error" will be returned.
+const char* nanoOsStrError(int errnum) {
+  if ((errnum < 0) || (errnum >= NUM_ERRORS)) {
+    errnum = EUNKNOWN;
+  }
+
+  return errorStrings[errnum];
+}
+

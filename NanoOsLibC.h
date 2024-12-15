@@ -87,6 +87,8 @@ int timespec_get(struct timespec* spec, int base);
 // The errors defined by the compiler's version of errno.h are not helpful
 // because most things are defined to be ENOERR.  So, we need to define some of
 // our own.
+#define ENOERR           0      /* Success */
+#define EUNKNOWN         1      /* Unknown error */
 #define EBUSY            2      /* Device or resource busy */
 #define ENOMEM           3      /* Out of memory */
 #define EACCES           4      /* Permission denied */
@@ -107,6 +109,7 @@ int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 int vsscanf(const char *buffer, const char *format, va_list args);
 int sscanf(const char *buffer, const char *format, ...);
+const char* nanoOsStrError(int errnum);
 
 #ifdef __cplusplus
 } // extern "C"
