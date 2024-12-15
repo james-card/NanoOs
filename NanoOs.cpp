@@ -212,32 +212,59 @@ UserId getUserIdByUsername(const char *username) {
   return userId;
 }
 
-/// @fn UserId login(const char *username, const char *password)
+/// @fn UserId login(void)
 ///
 /// @brief Authenticate a user for login.
 ///
-/// @param username The username that the user supplied.
-/// @param password The PLAINTEXT password the user supplied.
-///
-/// @param Returns the UserId of the user on success, NO_USER_ID on failure.
-UserId login(const char *username, const char *password) {
+/// @param Returns the UserId of the user that successfully logged in.
+UserId login(void) {
   UserId userId = NO_USER_ID;
 
-  if ((username == NULL) || (password == NULL)) {
-    fprintf(stderr, "One or more NULL parameters provided to login.\n");
-    return userId; // NO_USER_ID
-  }
+  char username[50];
+  char password[96];
+  char *newlineAt = NULL;
 
-  char *passwordDigest = getHexDigest(password);
-  for (int ii = 0; ii < NUM_USERS; ii++) {
-    if (strcmp(users[ii].username, username) == 0) {
-      if (strcmp(users[ii].password, passwordDigest) == 0) {
-        userId = users[ii].userId;
+  while (userId == NO_USER_ID) {
+    fputs("login: ", stdout);
+    fgets(username, sizeof(username), stdin);
+    setConsoleEcho(false);
+    fputs("Password: ", stdout);
+    fgets(password, sizeof(password), stdin);
+    setConsoleEcho(true);
+
+    newlineAt = strchr(username, '\r');
+    if (newlineAt == NULL) {
+      newlineAt = strchr(username, '\n');
+    }
+    if (newlineAt != NULL) {
+      // Terminate the string at the newline.
+      *newlineAt = '\0';
+    }
+
+    newlineAt = strchr(password, '\r');
+    if (newlineAt == NULL) {
+      newlineAt = strchr(password, '\n');
+    }
+    if (newlineAt != NULL) {
+      // Terminate the string at the newline.
+      *newlineAt = '\0';
+    }
+
+    char *passwordDigest = getHexDigest(password);
+    for (int ii = 0; ii < NUM_USERS; ii++) {
+      if (strcmp(users[ii].username, username) == 0) {
+        if (strcmp(users[ii].password, passwordDigest) == 0) {
+          userId = users[ii].userId;
+        }
+        break;
       }
-      break;
+    }
+    passwordDigest = stringDestroy(passwordDigest);
+
+    if (userId == NO_USER_ID) {
+      fputs("\nLogin incorrect\n", stderr);
     }
   }
-  passwordDigest = stringDestroy(passwordDigest);
 
   return userId;
 }
