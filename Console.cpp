@@ -856,6 +856,45 @@ ConsoleBuffer* consoleGetBuffer(void) {
   return returnValue;
 }
 
+/// @fn int consoleFPuts(const char *s, FILE *stream)
+///
+/// @brief Print a raw string to the console.  Uses the CONSOLE_WRITE_STRING
+/// command to print the literal string passed in.  Since this function has no
+/// way of knowing whether or not the provided string is dynamically allocated,
+/// it always waits for the console message handler to complete before
+/// returning.
+///
+/// @param s A pointer to the string to print.
+/// @param stream The file stream to print to.  Ignored by this function.
+///
+/// @return This function always returns 0.
+int consoleFPuts(const char *s, FILE *stream) {
+  (void) stream;
+  int returnValue = 0;
+
+  Comessage *comessage = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
+    CONSOLE_VALUE_STRING, (intptr_t) s, true);
+  comessageWaitForDone(comessage, NULL);
+  comessageRelease(comessage);
+
+  return returnValue;
+}
+
+/// @fn int consolePuts(const char *s)
+///
+/// @brief Print a string followed by a newline to stdout.  Calls consoleFPuts
+/// twice:  Once to print the provided string and once to print the trailing
+/// newline.
+///
+/// @param s A pointer to the string to print.
+///
+/// @return Returns the value of consoleFPuts when printing the newline.
+int consolePuts(const char *s) {
+  consoleFPuts(s, stdout);
+  return consoleFPuts("\n", stdout);
+}
+
 /// @fn int consoleVFPrintf(FILE *stream, const char *format, va_list args)
 ///
 /// @brief Print a formatted string to the console.  Gets a string buffer from
@@ -1023,7 +1062,7 @@ char* consoleWaitForInput(void) {
   return returnValue;
 }
 
-/// @fn char *consoleFgets(char *buffer, int size, FILE *stream)
+/// @fn char *consoleFGets(char *buffer, int size, FILE *stream)
 ///
 /// @brief Custom implementation of fgets for this library.
 ///
@@ -1033,7 +1072,7 @@ char* consoleWaitForInput(void) {
 ///   stdin is supported.
 ///
 /// @return Returns the buffer pointer provided on success, NULL on failure.
-char *consoleFgets(char *buffer, int size, FILE *stream) {
+char *consoleFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
 
   if (stream == stdin) {

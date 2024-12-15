@@ -221,6 +221,18 @@ void* runConsole(void *args);
 // Exported IO functions
 ConsoleBuffer* consoleGetBuffer(void);
 
+int consoleFPuts(const char *s, FILE *stream);
+#ifdef fputs
+#undef fputs
+#endif
+#define fputs consoleFPuts
+
+int consolePuts(const char *s);
+#ifdef puts
+#undef puts
+#endif
+#define puts consolePuts
+
 int consoleVFPrintf(FILE *stream, const char *format, va_list args);
 #ifdef vfprintf
 #undef vfprintf
@@ -239,11 +251,11 @@ int consolePrintf(const char *format, ...);
 #endif
 #define printf consolePrintf
 
-char *consoleFgets(char *buffer, int size, FILE *stream);
+char *consoleFGets(char *buffer, int size, FILE *stream);
 #ifdef fgets
 #undef fgets
 #endif
-#define fgets consoleFgets
+#define fgets consoleFGets
 
 int consoleVFScanf(FILE *stream, const char *format, va_list ap);
 #ifdef vfscanf
