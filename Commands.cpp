@@ -423,6 +423,27 @@ int sha1SumCommandHandler(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int logoutCommandHandler(int argc, char **argv)
+///
+/// @brief Logout of a running shell.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Ignored by this function.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  Ignored by this function.
+///
+/// @return This function always returns 0.
+int logoutCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  if (setProcessUser(NO_USER_ID) != 0) {
+    fputs("WARNING:  Could not clear owner of current process.\n", stderr);
+  }
+
+  return 0;
+}
+
 /// @fn CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
 /// @brief Get the command specified by consoleInput.
@@ -580,6 +601,12 @@ CommandEntry commands[] = {
     .help = "Echo the word \"Something\" back to the console."
   },
   {
+    .name = "exit",
+    .func = logoutCommandHandler,
+    .shellCommand = true,
+    .help = "Exit the current shell."
+  },
+  {
     .name = "help",
     .func = helpCommandHandler,
     .shellCommand = false,
@@ -590,6 +617,12 @@ CommandEntry commands[] = {
     .func = killCommandHandler,
     .shellCommand = true,
     .help = "Kill a running process."
+  },
+  {
+    .name = "logout",
+    .func = logoutCommandHandler,
+    .shellCommand = true,
+    .help = "Logout of the system."
   },
   {
     .name = "ps",
