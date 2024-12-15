@@ -540,12 +540,19 @@ void* runShell(void *args) {
   int consolePort = getOwnedConsolePort();
 
   if (getProcessUser() < 0) {
-    printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
+    printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n\n",
+      consolePort);
     login();
   }
 
+  UserId processUserId = getProcessUser();
+  const char *prompt = "$";
+  if (processUserId == ROOT_USER_ID) {
+    prompt = "#";
+  }
+  const char *processUsername = getUsernameByUserId(processUserId);
   while (1) {
-    printf("> ");
+    printf("%s@localhost%s ", processUsername, prompt);
     fgets(commandBuffer, sizeof(commandBuffer), stdin);
     CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
     if (commandEntry == NULL) {
