@@ -552,7 +552,7 @@ UserId getProcessUser(void) {
 
 /// @fn int setProcessUser(UserId userId)
 ///
-/// @brief Set the ID of the current process to the specified user ID.
+/// @brief Set the user ID of the current process to the specified user ID.
 ///
 /// @return Returns 0 on success, -1 on failure.
 int setProcessUser(UserId userId) {
@@ -569,6 +569,11 @@ int setProcessUser(UserId userId) {
   comessageWaitForDone(comessage, NULL);
   returnValue = nanoOsMessageDataValue(comessage, int);
   comessageRelease(comessage);
+
+  if (returnValue != 0) {
+    printf("Scheduler returned \"%s\" for setProcessUser.\n",
+      nanoOsStrError(returnValue));
+  }
 
   return returnValue;
 }
@@ -1268,8 +1273,19 @@ int handleSetProcessUser(Comessage *comessage) {
   nanoOsMessage->data = -1;
 
   if (processId < NANO_OS_NUM_PROCESSES) {
-    runningProcesses[processId].userId = userId;
-    nanoOsMessage->data = 0;
+    if (userId == 0) {
+      if ((runningProcesses[processId].userId == -1)
+        || (runningProcesses[processId].userId == 0)
+      ) {
+        runningProcesses[processId].userId = userId;
+        nanoOsMessage->data = 0;
+      } else {
+        nanoOsMessage->data = EACCES;
+      }
+    } else {
+      runningProcesses[processId].userId = userId;
+      nanoOsMessage->data = 0;
+    }
   }
 
   comessageSetDone(comessage);
