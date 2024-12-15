@@ -1273,18 +1273,13 @@ int handleSetProcessUser(Comessage *comessage) {
   nanoOsMessage->data = -1;
 
   if (processId < NANO_OS_NUM_PROCESSES) {
-    if (userId == 0) {
-      if ((runningProcesses[processId].userId == -1)
-        || (runningProcesses[processId].userId == 0)
-      ) {
-        runningProcesses[processId].userId = userId;
-        nanoOsMessage->data = 0;
-      } else {
-        nanoOsMessage->data = EACCES;
-      }
-    } else {
+    if ((runningProcesses[processId].userId == -1)
+      || (userId == -1)
+    ) {
       runningProcesses[processId].userId = userId;
       nanoOsMessage->data = 0;
+    } else {
+      nanoOsMessage->data = EACCES;
     }
   }
 
