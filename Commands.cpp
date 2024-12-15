@@ -58,7 +58,10 @@ int psCommandHandler(int argc, char **argv) {
     uint8_t numRunningProcesses = processInfo->numProcesses;
     ProcessInfoElement *processes = processInfo->processes;
     for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
-      printf("%d  %s\n", processes[ii].pid, processes[ii].name);
+      printf("%d  %s %s\n",
+        processes[ii].pid,
+        getUsernameByUserId(processes[ii].userId),
+        processes[ii].name);
     }
     free(processInfo); processInfo = NULL;
   } else {
@@ -516,7 +519,8 @@ void* runShell(void *args) {
   int consolePort = getOwnedConsolePort();
 
   if (getProcessUser() < 0) {
-    printf("NanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
+    printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);
+    login();
   }
 
   while (1) {
