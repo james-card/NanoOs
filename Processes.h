@@ -66,9 +66,11 @@ typedef struct RunningProcess {
 ///
 /// @param pid The numerical ID of the process.
 /// @param name The name of the process.
+/// @param userId The UserId of the user that owns the process.
 typedef struct ProcessInfoElement {
   int pid;
   const char *name;
+  UserId userId;
 } ProcessInfoElement;
 
 /// @struct ProcessInfo

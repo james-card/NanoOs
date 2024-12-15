@@ -1189,6 +1189,7 @@ int handleGetProcessInfo(Comessage *comessage) {
     if (coroutineResumable(runningProcesses[ii].coroutine)) {
       processes[idx].pid = (int) coroutineId(runningProcesses[ii].coroutine);
       processes[idx].name = runningProcesses[ii].name;
+      processes[idx].userId = runningProcesses[ii].userId;
       idx++;
     }
   }
