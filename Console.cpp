@@ -674,7 +674,9 @@ int readSerialByte(ConsolePort *consolePort) {
     char *buffer = consoleBuffer->buffer;
     buffer[consolePort->consoleIndex] = (char) serialData;
     if (consolePort->echo == true) {
-      if ((char) serialData != '\n') {
+      if (((char) serialData != '\r')
+        && ((char) serialData != '\n')
+      ) {
         Serial.print((char) serialData);
       } else {
         Serial.print("\r\n");
