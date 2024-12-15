@@ -1105,33 +1105,53 @@ int handleRunProcess(Comessage *comessage) {
 int handleKillProcess(Comessage *comessage) {
   int returnValue = 0;
 
+  UserId callingUserId
+    = runningProcesses[coroutineId(comessageFrom(comessage))].userId;
   COROUTINE_ID_TYPE processId
     = nanoOsMessageDataValue(comessage, COROUTINE_ID_TYPE);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
     && (coroutineResumable(runningProcesses[processId].coroutine))
   ) {
-    if (coroutineTerminate(runningProcesses[processId].coroutine, NULL)
-      == coroutineSuccess
+    if ((runningProcesses[processId].userId == callingUserId)
+      || (callingUserId == ROOT_USER_ID)
     ) {
-      runningProcesses[processId].coroutine = NULL;
-      runningProcesses[processId].name = NULL;
+      if (coroutineTerminate(runningProcesses[processId].coroutine, NULL)
+        == coroutineSuccess
+      ) {
+        runningProcesses[processId].coroutine = NULL;
+        runningProcesses[processId].name = NULL;
 
-      // Forward the message on to the memory manager to have it clean up the
-      // process's memory.  *DO NOT* mark the message as done.  The memory
-      // manager will do that.
-      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-      comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-      memoryManagerCast(comessage);
+        // Forward the message on to the memory manager to have it clean up the
+        // process's memory.  *DO NOT* mark the message as done.  The memory
+        // manager will do that.
+        comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+          nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+        memoryManagerCast(comessage);
+      } else {
+        // Tell the caller that we've failed.
+        nanoOsMessage->data = 1;
+        if (comessageSetDone(comessage) != coroutineSuccess) {
+          printString("ERROR!!!  "
+            "Could not mark message done in handleKillProcess.\n");
+        }
+      }
     } else {
       // Tell the caller that we've failed.
-      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-      nanoOsMessage->data = 1;
+      nanoOsMessage->data = EACCES; // Permission denied
       if (comessageSetDone(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
           "Could not mark message done in handleKillProcess.\n");
       }
+    }
+  } else {
+    // Tell the caller that we've failed.
+    nanoOsMessage->data = EINVAL; // Invalid argument
+    if (comessageSetDone(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not mark message done in handleKillProcess.\n");
     }
   }
 
