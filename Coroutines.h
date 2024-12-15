@@ -168,10 +168,22 @@ typedef enum CoroutineState {
   NUM_COROUTINE_STATES
 } CoroutineState;
 
+// Forward declarations.  Doxygen below.
+typedef struct Comutex Comutex;
+typedef struct Cocondition Cocondition;
+typedef struct Coroutine Coroutine;
+typedef struct Comessage Comessage;
+
 /// @typedef CoroutineFunction
 ///
-/// Definition for a function signature that can be used as a coroutine.
+/// @brief Function signature that can be used as a coroutine.
 typedef void* (*CoroutineFunction)(void *arg);
+
+/// @typedef ComessageSignalCallback
+///
+/// @brief Function signature that can be used as a callback when a cocondition
+/// is signalled.
+typedef void (*ComessageSignalCallback)(Comessage *comessage);
 
 /// @union CoroutineFuncData
 ///
@@ -188,12 +200,6 @@ typedef union CoroutineFuncData {
   CoroutineFunction func;
   void *data;
 } CoroutineFuncData;
-
-// Forward declarations.  Doxygen below.
-typedef struct Comutex Comutex;
-typedef struct Cocondition Cocondition;
-typedef struct Coroutine Coroutine;
-typedef struct Comessage Comessage;
 
 // Coroutine mutex support.
 
