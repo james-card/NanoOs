@@ -212,12 +212,13 @@ UserId getUserIdByUsername(const char *username) {
   return userId;
 }
 
-/// @fn UserId login(void)
+/// @fn void login(void)
 ///
-/// @brief Authenticate a user for login.
+/// @brief Authenticate a user for login.  Sets the owner of the current process
+/// to the ID of the authenticated user before returning.
 ///
-/// @param Returns the UserId of the user that successfully logged in.
-UserId login(void) {
+/// @param This function returns no value.
+void login(void) {
   UserId userId = NO_USER_ID;
 
   char username[50];
@@ -266,7 +267,13 @@ UserId login(void) {
     }
   }
 
-  return userId;
+  if (setProcessUser(userId) != 0) {
+    fputs("WARNING:  "
+      "Could not set owner of current process to authenticated user.\n",
+      stderr);
+  }
+
+  return;
 }
 
 /// @var users
