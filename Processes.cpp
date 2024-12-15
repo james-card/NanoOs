@@ -1242,9 +1242,9 @@ int handleGetProcessUser(Comessage *comessage) {
 int handleSetProcessUser(Comessage *comessage) {
   int returnValue = 0;
   COROUTINE_ID_TYPE processId = coroutineId(comessageFrom(comessage));
+  UserId userId = nanoOsMessageDataValue(comessage, UserId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = -1;
-  UserId userId = nanoOsMessageDataValue(comessage, UserId);
 
   if (processId < NANO_OS_NUM_PROCESSES) {
     if ((runningProcesses[processId].userId == -1)
