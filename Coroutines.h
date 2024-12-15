@@ -85,6 +85,12 @@ extern "C"
 /// provided coroutine is blocked within a blocking coroutine operation.
 #define COROUTINE_BLOCKED ((void*) ((intptr_t) -2))
 
+/// @def COROUTINE_WAITING
+///
+/// @brief Special value to indicate to a caller of coroutineResume() that the
+/// provided coroutine is waiting to be signalled by a condition operation.
+#define COROUTINE_WAITING ((void*) ((intptr_t) -3))
+
 /// @def COROUTINE_STACK_CHUNK_SIZE
 ///
 /// @brief The size of a single chunk of the stack allocated by
