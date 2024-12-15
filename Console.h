@@ -212,8 +212,8 @@ typedef union ConsolePortPidUnion {
 
 // Support functions
 void releaseConsole(void);
-int getOwnedPort(void);
-int setEcho(bool desiredEchoState);
+int getOwnedConsolePort(void);
+int setConsoleEcho(bool desiredEchoState);
 
 // Exported processes
 void* runConsole(void *args);

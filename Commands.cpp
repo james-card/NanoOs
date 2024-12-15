@@ -513,7 +513,7 @@ void* runShell(void *args) {
   (void) args;
   char commandBuffer[CONSOLE_BUFFER_SIZE];
   (void) commandBuffer;
-  int consolePort = getOwnedPort();
+  int consolePort = getOwnedConsolePort();
 
   if (getProcessUser() < 0) {
     printf("NanoOs " NANO_OS_VERSION " localhost console %d\n", consolePort);

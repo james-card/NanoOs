@@ -1138,13 +1138,13 @@ void releaseConsole(void) {
   coroutineYield(NULL);
 }
 
-/// @fn int getOwnedPort(void)
+/// @fn int getOwnedConsolePort(void)
 ///
 /// @brief Get the first port owned by the running process.
 ///
 /// @return Returns the numerical index of the console port the process owns on
 /// success, -1 on failure.
-int getOwnedPort(void) {
+int getOwnedConsolePort(void) {
   Comessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
@@ -1161,13 +1161,13 @@ int getOwnedPort(void) {
   return returnValue;
 }
 
-/// @fn int setEcho(bool desiredEchoState)
+/// @fn int setConsoleEcho(bool desiredEchoState)
 ///
 /// @brief Get the echo state for all ports owned by the current process.
 ///
 /// @return Returns 0 if the echo state was set for the current process's
 /// ports, -1 on failure.
-int setEcho(bool desiredEchoState) {
+int setConsoleEcho(bool desiredEchoState) {
   Comessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
