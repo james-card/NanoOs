@@ -284,17 +284,17 @@ User users[] = {
   {
     .userId   = 0,
     .username = "root",
-    .password = "33a485cb146e1153c69b588c671ab474f2e5b800",
+    .password = "33a485cb146e1153c69b588c671ab474f2e5b800", // rootroot
   },
   {
     .userId   = 1000,
     .username = "user1",
-    .password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d",
+    .password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d", // user1user1
   },
   {
     .userId   = 1001,
     .username = "user2",
-    .password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae",
+    .password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae", // user2user2
   },
 };
 
