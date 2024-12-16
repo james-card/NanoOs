@@ -232,13 +232,13 @@ typedef union CoroutineFuncData {
 /// @param coroutine The coroutine that has the lock.
 /// @param recursionLevel The number of times this mutex has been successfully
 ///   locked in this coroutine.
-/// @param nextToLock The next coroutine in the queue to lock this mutex.
+/// @param head The next coroutine in the queue to lock this mutex.
 typedef struct Comutex {
   void *lastYieldValue;
   int type;
   Coroutine *coroutine;
   int recursionLevel;
-  Coroutine *nextToLock;
+  Coroutine *head;
 } Comutex;
 
 // Coroutine condition support.
