@@ -736,6 +736,12 @@ Coroutine* coroutineCreate(void* func(void *arg)) {
   // passed to this function.
   funcData = coroutinePass(currentCoroutine, funcData);
   newCoroutine = (Coroutine*) funcData.data;
+  newCoroutine->nextToSignal = NULL;
+  newCoroutine->prevToSignal = NULL;
+  newCoroutine->blockingCocondition = NULL;
+  newCoroutine->nextToLock = NULL;
+  newCoroutine->prevToLock = NULL;
+  newCoroutine->blockingComutex = NULL;
 
   return newCoroutine;
 }
@@ -1014,6 +1020,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
   targetCoroutine->nextToSignal = NULL;
   targetCoroutine->prevToSignal = NULL;
+  targetCoroutine->blockingCocondition = NULL;
 
   Comutex *mtx = targetCoroutine->blockingComutex;
   if (mtx != NULL) {
@@ -1029,6 +1036,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
   targetCoroutine->nextToLock = NULL;
   targetCoroutine->prevToLock = NULL;
+  targetCoroutine->blockingComutex = NULL;
 
   return coroutineSuccess;
 }
