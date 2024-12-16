@@ -44,6 +44,12 @@ extern "C"
 {
 #endif
 
+/// @def SCHEDULER_NUM_PROCESSES
+///
+/// @brief The number of processes managed by the scheduler.  This may be
+/// different than the total number of processes managed by NanoOs.
+#define SCHEDULER_NUM_PROCESSES (NANO_OS_NUM_PROCESSES - 1)
+
 /// @struct RunningProcess
 ///
 /// @brief Descriptor for a running process.
@@ -84,6 +90,22 @@ typedef struct ProcessInfo {
   uint8_t numProcesses;
   ProcessInfoElement processes[1];
 } ProcessInfo;
+
+/// @struct ProcessQueue
+///
+/// @brief Structure to manage an individual process queue
+///
+/// @param processes The array of pointers to Coroutine pointers from the
+///   runningProcesses array.
+/// @param head The index of the head of the queue.
+/// @param tail The index of the tail of the queue.
+/// @param numElements The number of elements currently in the queue.
+typedef struct ProcessQueue {
+  Coroutine **processes[SCHEDULER_NUM_PROCESSES];
+  uint8_t head:4;
+  uint8_t tail:4;
+  uint8_t numElements:4;
+} ProcessQueue;
 
 /// @enum SchedulerCommand
 ///
