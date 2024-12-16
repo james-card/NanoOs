@@ -77,6 +77,51 @@ Comessage *messages = NULL;
 /// main loop function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
+/// @fn int processQueuePush(ProcessQueue *processQueue, Coroutine **coroutine)
+///
+/// @brief Push a pointer to a Coroutine pointer onto a ProcessQueue.
+///
+/// @param processQueue A pointer to a ProcessQueue to add the pointer to.
+/// @param coroutine The pointer to the Coroutine pointer to add to the queue.
+///
+/// @return Returns 0 on success, ENOMEM on failure.
+int processQueuePush(ProcessQueue *processQueue, Coroutine **coroutine) {
+  if ((processQueue == NULL)
+    || (processQueue->numElements >= SCHEDULER_NUM_PROCESSES)
+  ) {
+    return ENOMEM;
+  }
+
+  processQueue->processes[processQueue->tail] = coroutine;
+  processQueue->tail++;
+  processQueue->tail %= SCHEDULER_NUM_PROCESSES;
+  processQueue->numElements++;
+
+  return 0;
+}
+
+/// @fn Coroutine** processQueuePop(ProcessQueue *processQueue)
+///
+/// @brief Pop a pointer to a Coroutine pointer from a ProcessQueue.
+///
+/// @param processQueue A pointer to a ProcessQueue to pop the pointer from.
+///
+/// @return Returns a pointer to a Coroutine pointer on success, NULL on
+/// failure.
+Coroutine** processQueuePop(ProcessQueue *processQueue) {
+  Coroutine **coroutine = NULL;
+  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
+    return coroutine; // NULL
+  }
+
+  coroutine = processQueue->processes[processQueue->head];
+  processQueue->head++;
+  processQueue->head %= SCHEDULER_NUM_PROCESSES;
+  processQueue->numElements--;
+
+  return coroutine;
+}
+
 /// @fn int getNumTokens(const char *input)
 ///
 /// @brief Get the number of whitespace-delimited tokens in a string.
