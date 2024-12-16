@@ -641,7 +641,7 @@ CommandEntry commands[] = {
     .name = "runCounter",
     .func = runCounterCommandHandler,
     .shellCommand = false,
-    .help = "Increment a counter as a background process."
+    .help = "Increment a counter in a while loop."
   },
   {
     .name = "sha1Sum",
