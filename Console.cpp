@@ -477,12 +477,8 @@ void consoleGetOwnedPortHandler(
 /// @fn void consoleSetEchoHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
-/// @brief Get the first port currently owned by a process.
-///
-/// @note While it is technically possible for a single process to own multiple
-/// ports, the expectation here is that this call is made by a process that is
-/// only expecting to own one.  This is mostly for the purposes of transferring
-/// ownership of the port from one process to another.
+/// @brief Set whether or not input is echoed back to all console ports owned
+/// by a process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
