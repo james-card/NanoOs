@@ -35,9 +35,13 @@
 
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
-/// @brief The process ID (PID) of the first user process, i.e. the first ID
-/// after the last system process ID.
+/// @brief The process ID (PID) of the USB serial port shell.
 #define USB_SERIAL_PORT_SHELL_PID 3
+
+/// @def GPIO_SERIAL_PORT_SHELL_PID
+///
+/// @brief The process ID (PID) of the GPIO serial port shell.
+#define GPIO_SERIAL_PORT_SHELL_PID 4
 
 /// @struct CommandDescriptor
 ///
@@ -1403,19 +1407,32 @@ void runScheduler(
   Coroutine ***scheduledCoroutines
 ) {
   int coroutineIndex = 0;
-  const int serialPortShellCoroutineIndex = USB_SERIAL_PORT_SHELL_PID - 1;
+  const int usbSerialPortShellCoroutineIndex = USB_SERIAL_PORT_SHELL_PID - 1;
+  const int gpioSerialPortShellCoroutineIndex = GPIO_SERIAL_PORT_SHELL_PID - 1;
   while (1) {
     Coroutine *coroutine = *scheduledCoroutines[coroutineIndex];
     coroutineResume(coroutine, NULL);
-    if ((coroutineIndex == serialPortShellCoroutineIndex)
+
+    // Check the shells and restart them if needed.
+    if ((coroutineIndex == usbSerialPortShellCoroutineIndex)
       && (coroutineRunning(coroutine) == false)
     ) {
       // Restart the shell.
       coroutine = coroutineCreate(runShell);
       coroutineSetId(coroutine, USB_SERIAL_PORT_SHELL_PID);
       runningProcesses[USB_SERIAL_PORT_SHELL_PID].coroutine = coroutine;
-      runningProcesses[USB_SERIAL_PORT_SHELL_PID].name = "shell";
+      runningProcesses[USB_SERIAL_PORT_SHELL_PID].name = "USB shell";
     }
+    if ((coroutineIndex == gpioSerialPortShellCoroutineIndex)
+      && (coroutineRunning(coroutine) == false)
+    ) {
+      // Restart the shell.
+      coroutine = coroutineCreate(runShell);
+      coroutineSetId(coroutine, GPIO_SERIAL_PORT_SHELL_PID);
+      runningProcesses[GPIO_SERIAL_PORT_SHELL_PID].coroutine = coroutine;
+      runningProcesses[GPIO_SERIAL_PORT_SHELL_PID].name = "GPIO shell";
+    }
+
     handleSchedulerMessage();
     coroutineIndex++;
     coroutineIndex %= numScheduledCoroutines;
@@ -1503,7 +1520,13 @@ __attribute__((noinline)) void startScheduler(void) {
   if (schedulerSetPortShell(USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID)
     != coroutineSuccess
   ) {
-    printString("WARNING:  Could not set shell for serial port.\n");
+    printString("WARNING:  Could not set shell for USB serial port.\n");
+    printString("          Undefined behavior will result.\n");
+  }
+  if (schedulerSetPortShell(GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID)
+    != coroutineSuccess
+  ) {
+    printString("WARNING:  Could not set shell for GPIO serial port.\n");
     printString("          Undefined behavior will result.\n");
   }
 
