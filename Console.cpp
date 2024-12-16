@@ -826,8 +826,7 @@ void* runConsole(void *args) {
     ledToggle();
 
     for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-      ConsolePort *consolePort
-        = &consoleState.consolePorts[USB_SERIAL_PORT];
+      ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
         if (consolePort->owner == COROUTINE_ID_NOT_SET) {
