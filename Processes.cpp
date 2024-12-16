@@ -1500,7 +1500,7 @@ __attribute__((noinline)) void startScheduler(void) {
   coroutineResume(coroutine, NULL);
 
   // Set the shells for the ports.
-  if (schedulerSetPortShell(CONSOLE_SERIAL_PORT, SERIAL_PORT_SHELL_PID)
+  if (schedulerSetPortShell(USB_SERIAL_PORT, SERIAL_PORT_SHELL_PID)
     != coroutineSuccess
   ) {
     printString("WARNING:  Could not set shell for serial port.\n");

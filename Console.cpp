@@ -658,17 +658,19 @@ void ledToggle() {
   return;
 }
 
-/// @fn int readUsbSerialByte(ConsolePort *consolePort)
+/// @fn int readSerialByte(ConsolePort *consolePort, UartClass &serialPort)
 ///
-/// @brief Do a non-blocking read of the serial port.
+/// @brief Do a non-blocking read of a serial port.
 ///
 /// @param ConsolePort A pointer to the ConsolePort data structure that contains
 ///   the buffer information to use.
+/// @param serialPort A reference to the UartClass object (Serial or Serial1)
+///   to read a byte from.
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readUsbSerialByte(ConsolePort *consolePort) {
+int readSerialByte(ConsolePort *consolePort, UartClass &serialPort) {
   int serialData = -1;
-  serialData = Serial.read();
+  serialData = serialPort.read();
   if (serialData > -1) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
@@ -677,9 +679,9 @@ int readUsbSerialByte(ConsolePort *consolePort) {
       if (((char) serialData != '\r')
         && ((char) serialData != '\n')
       ) {
-        Serial.print((char) serialData);
+        serialPort.print((char) serialData);
       } else {
-        Serial.print("\r\n");
+        serialPort.print("\r\n");
       }
     }
     consolePort->consoleIndex++;
@@ -689,14 +691,40 @@ int readUsbSerialByte(ConsolePort *consolePort) {
   return serialData;
 }
 
-/// @fn int printUsbSerialString(const char *string)
+/// @fn int readUsbSerialByte(ConsolePort *consolePort)
+///
+/// @brief Do a non-blocking read of the USB serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
+int readUsbSerialByte(ConsolePort *consolePort) {
+  return readSerialByte(consolePort, Serial);
+}
+
+/// @fn int readGpioSerialByte(ConsolePort *consolePort)
+///
+/// @brief Do a non-blocking read of the GPIO serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
+int readGpioSerialByte(ConsolePort *consolePort) {
+  return readSerialByte(consolePort, Serial1);
+}
+
+/// @fn int printSerialString(UartClass &serialPort, const char *string)
 ///
 /// @brief Print a string to the default serial port.
 ///
+/// @param serialPort A reference to the UartClass object (Serial or Serial1)
+///   to read a byte from.
 /// @param string A pointer to the string to print.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printUsbSerialString(const char *string) {
+int printSerialString(UartClass &serialPort, const char *string) {
   int returnValue = 0;
   size_t numBytes = 0;
 
@@ -708,8 +736,8 @@ int printUsbSerialString(const char *string) {
     numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
   }
   while (newlineAt != NULL) {
-    returnValue += (int) Serial.write(string, numBytes);
-    returnValue += (int) Serial.write("\r\n");
+    returnValue += (int) serialPort.write(string, numBytes);
+    returnValue += (int) serialPort.write("\r\n");
     string = newlineAt + 1;
     newlineAt = strchr(string, '\n');
     if (newlineAt == NULL) {
@@ -718,9 +746,31 @@ int printUsbSerialString(const char *string) {
       numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
     }
   }
-  returnValue += (int) Serial.write(string, numBytes);
+  returnValue += (int) serialPort.write(string, numBytes);
 
   return returnValue;
+}
+
+/// @fn int printUsbSerialString(const char *string)
+///
+/// @brief Print a string to the USB serial port.
+///
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
+int printUsbSerialString(const char *string) {
+  return printSerialString(Serial, string);
+}
+
+/// @fn int printGpioSerialString(const char *string)
+///
+/// @brief Print a string to the GPIO serial port.
+///
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
+int printGpioSerialString(const char *string) {
+  return printSerialString(Serial1, string);
 }
 
 /// @fn void* runConsole(void *args)
@@ -754,24 +804,30 @@ void* runConsole(void *args) {
   }
 
   // Set the port-specific data.
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].waitingForInput = false;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].readByte = readUsbSerialByte;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].echo = true;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].printString
+  consoleState.consolePorts[USB_SERIAL_PORT].consoleIndex = 0;
+  consoleState.consolePorts[USB_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput = false;
+  consoleState.consolePorts[USB_SERIAL_PORT].readByte = readUsbSerialByte;
+  consoleState.consolePorts[USB_SERIAL_PORT].echo = true;
+  consoleState.consolePorts[USB_SERIAL_PORT].printString
     = printUsbSerialString;
 
-  // Use the first console buffer as the buffer for console input.
-  consoleState.consoleBuffers[0].inUse = true;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex = 0;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput = false;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].readByte = readGpioSerialByte;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].echo = true;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].printString
+    = printGpioSerialString;
 
   while (1) {
     ledToggle();
 
     for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
       ConsolePort *consolePort
-        = &consoleState.consolePorts[CONSOLE_SERIAL_PORT];
+        = &consoleState.consolePorts[USB_SERIAL_PORT];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
         if (consolePort->owner == COROUTINE_ID_NOT_SET) {

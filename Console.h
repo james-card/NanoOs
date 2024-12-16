@@ -72,12 +72,17 @@ extern "C"
 /// @def CONSOLE_NUM_PORTS
 ///
 /// @brief The number of console supports supported.
-#define CONSOLE_NUM_PORTS 1
+#define CONSOLE_NUM_PORTS 2
 
-/// @def CONSOLE_SERIAL_PORT
+/// @def USB_SERIAL_PORT
 ///
-/// Index into ConsoleState.conslePorts for the regular serial port.
-#define CONSOLE_SERIAL_PORT 0
+/// Index into ConsoleState.conslePorts for the USB serial port.
+#define USB_SERIAL_PORT 0
+
+/// @def GPIO_SERIAL_PORT
+///
+/// Index into ConsoleState.conslePorts for the GPIO serial port.
+#define GPIO_SERIAL_PORT 1
 
 /// @enum ConsoleCommand
 ///
