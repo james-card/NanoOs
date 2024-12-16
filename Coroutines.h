@@ -79,17 +79,17 @@ extern "C"
 /// because it has completed.
 #define COROUTINE_NOT_RESUMABLE ((void*) ((intptr_t) -1))
 
-/// @def COROUTINE_BLOCKED
+/// @def COROUTINE_TIMEDWAIT
 ///
 /// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine is blocked within a blocking coroutine operation.
-#define COROUTINE_BLOCKED ((void*) ((intptr_t) -2))
+/// provided coroutine is waiting on a condition or mutex with a timeout.
+#define COROUTINE_TIMEDWAIT ((void*) ((intptr_t) -2))
 
-/// @def COROUTINE_WAITING
+/// @def COROUTINE_WAIT
 ///
 /// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine is waiting to be signalled by a condition operation.
-#define COROUTINE_WAITING ((void*) ((intptr_t) -3))
+/// provided coroutine is waiting on a condition or mutex.
+#define COROUTINE_WAIT ((void*) ((intptr_t) -3))
 
 /// @def COROUTINE_STACK_CHUNK_SIZE
 ///
@@ -226,11 +226,13 @@ typedef union CoroutineFuncData {
 /// @param coroutine The coroutine that has the lock.
 /// @param recursionLevel The number of times this mutex has been successfully
 ///   locked in this coroutine.
+/// @param nextToLock The next coroutine in the queue to lock this mutex.
 typedef struct Comutex {
   void *lastYieldValue;
   int type;
   Coroutine *coroutine;
   int recursionLevel;
+  Coroutine *nextToLock;
 } Comutex;
 
 // Coroutine condition support.
@@ -267,6 +269,7 @@ typedef struct Cocondition {
 /// @param context The jmp_buf to hold the context of the coroutine.
 /// @param id The ID of the coroutine.
 /// @param state The state of the coroutine.  (See enum above.)
+/// @param nextToLock The next coroutine to allow to lock a mutex.
 /// @param nextToSignal The next coroutine to signal when waiting on a signal.
 /// @param prevToSignal The previous coroutine to signal when waiting on a
 ///   signal.
@@ -284,6 +287,7 @@ typedef struct Coroutine {
   jmp_buf context;
   COROUTINE_ID_TYPE id;
   CoroutineState state;
+  struct Coroutine *nextToLock;
   struct Coroutine *nextToSignal;
   struct Coroutine *prevToSignal;
   jmp_buf resetContext;

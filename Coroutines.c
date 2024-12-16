@@ -1181,7 +1181,7 @@ int comutexInit(Comutex *mtx, int type) {
 /// @brief Lock a coroutine mutex.
 ///
 /// @details This function blocks the current coroutine, yielding each time it
-/// tries and fails to acquire the lock.  The special value COROUTINE_BLOCKED
+/// tries and fails to acquire the lock.  The special value COROUTINE_WAIT
 /// will be yielded to the caller each time control is yielded.
 ///
 /// @param mtx A pointer to the coroutine mutex to lock.
@@ -1197,9 +1197,40 @@ int comutexLock(Comutex *mtx) {
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
 
-  while (comutexTryLock(mtx) != coroutineSuccess) {
-    mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
+  Coroutine* running = _globalRunning;
+#ifdef THREAD_SAFE_COROUTINES
+  if (_coroutineThreadingSupportEnabled) {
+    call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
+    if (!coroutineInitializeThreadMetadata(NULL)) {
+      return coroutineError;
+    }
+    running = (Coroutine*) tss_get(_tssRunning);
   }
+#endif
+
+  if (running == NULL) {
+    // running stack not setup yet.  Bail.
+    return coroutineError;
+  }
+
+  // Push ourselves onto the queue.
+  running->nextToLock = NULL;
+  Coroutine **cur = &mtx->nextToLock;
+  while (*cur != NULL) {
+    cur = &((*cur)->nextToLock);
+  }
+  *cur = running;
+
+  while (comutexTryLock(mtx) != coroutineSuccess) {
+    mtx->lastYieldValue = coroutineYield(COROUTINE_WAIT);
+  }
+
+  // Remove ourselves from the queue.
+  cur = &mtx->nextToLock;
+  while (*cur != running) {
+    cur = &((*cur)->nextToLock);
+  }
+  *cur = (*cur)->nextToLock;
 
   return coroutineSuccess;
 }
@@ -1292,15 +1323,46 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     return coroutineError;
   }
 
+  Coroutine* running = _globalRunning;
+#ifdef THREAD_SAFE_COROUTINES
+  if (_coroutineThreadingSupportEnabled) {
+    call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
+    if (!coroutineInitializeThreadMetadata(NULL)) {
+      return coroutineError;
+    }
+    running = (Coroutine*) tss_get(_tssRunning);
+  }
+#endif
+
+  if (running == NULL) {
+    // running stack not setup yet.  Bail.
+    return coroutineError;
+  }
+
+  // Push ourselves onto the queue.
+  running->nextToLock = NULL;
+  Coroutine **cur = &mtx->nextToLock;
+  while (*cur != NULL) {
+    cur = &((*cur)->nextToLock);
+  }
+  *cur = running;
+
   int returnValue = comutexTryLock(mtx);
   while (returnValue != coroutineSuccess) {
     if (coroutinesGetNanoseconds(NULL) > delayTime) {
       returnValue = coroutineTimedout;
       break;
     }
-    mtx->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
+    mtx->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
     returnValue = comutexTryLock(mtx);
   }
+
+  // Remove ourselves from the queue.
+  cur = &mtx->nextToLock;
+  while (*cur != running) {
+    cur = &((*cur)->nextToLock);
+  }
+  *cur = (*cur)->nextToLock;
 
   return returnValue;
 }
@@ -1337,6 +1399,8 @@ int comutexTryLock(Comutex *mtx) {
   if (running == NULL) {
     // running stack not setup yet.  Bail.
     return coroutineError;
+  } else if ((mtx->nextToLock != NULL) && (mtx->nextToLock != running)) {
+    return coroutineBusy;
   }
 
   if (mtx->coroutine == NULL) {
@@ -1511,7 +1575,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
 
   int returnValue = coroutineSuccess;
   while ((cond->numSignals == 0) || (cond->head != running)) {
-    cond->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
+    cond->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
 
     if (((cond->numSignals == 0) || (cond->head != running))
       && (coroutinesGetNanoseconds(NULL) > delayTime)
@@ -1609,7 +1673,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
 
   int returnValue = coroutineSuccess;
   while ((cond->numSignals == 0) || (cond->head != running)) {
-    cond->lastYieldValue = coroutineYield(COROUTINE_BLOCKED);
+    cond->lastYieldValue = coroutineYield(COROUTINE_WAIT);
   }
   if (cond->numSignals > 0) {
     cond->numSignals--;
