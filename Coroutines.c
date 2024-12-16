@@ -992,12 +992,43 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
 
   // Remove the coroutine from any condition it was waiting on.
-  if (targetCoroutine->prevToSignal != NULL) {
-    targetCoroutine->prevToSignal->nextToSignal = targetCoroutine->nextToSignal;
+  Cocondition *cond = targetCoroutine->blockingCocondition;
+  if (cond != NULL) {
+    Coroutine **cur = &cond->head;
+    while ((*cur != NULL) && (*cur != targetCoroutine)) {
+      cur = &((*cur)->nextToSignal);
+    }
+    *cur = targetCoroutine->nextToSignal;
+    if (cond->head == NULL) {
+      // Empty queue.
+      cond->tail = NULL;
+    }
+    if (cond->tail == targetCoroutine) {
+      cond->tail = targetCoroutine->nextToSignal;
+    }
+    cond->numWaiters--;
   }
+  // targetCoroutine->prevToSignal->nextToSignal is taken care of above.
   if (targetCoroutine->nextToSignal != NULL) {
     targetCoroutine->nextToSignal->prevToSignal = targetCoroutine->prevToSignal;
   }
+  targetCoroutine->nextToSignal = NULL;
+  targetCoroutine->prevToSignal = NULL;
+
+  Comutex *mtx = targetCoroutine->blockingComutex;
+  if (mtx != NULL) {
+    Coroutine **cur = &mtx->head;
+    while ((*cur != NULL) && (*cur != targetCoroutine)) {
+      cur = &((*cur)->nextToLock);
+    }
+    *cur = targetCoroutine->nextToLock;
+  }
+  // targetCoroutine->prevToLock->nextToLock is taken care of above.
+  if (targetCoroutine->nextToLock != NULL) {
+    targetCoroutine->nextToLock->prevToLock = targetCoroutine->prevToLock;
+  }
+  targetCoroutine->nextToLock = NULL;
+  targetCoroutine->prevToLock = NULL;
 
   return coroutineSuccess;
 }
@@ -1243,7 +1274,7 @@ int comutexLock(Comutex *mtx) {
   // Push ourselves onto the queue.
   running->nextToLock = NULL;
   Coroutine *prev = NULL;
-  Coroutine **cur = &mtx->nextToLock;
+  Coroutine **cur = &mtx->head;
   while (*cur != NULL) {
     prev = *cur;
     cur = &((*cur)->nextToLock);
@@ -1259,7 +1290,7 @@ int comutexLock(Comutex *mtx) {
 
   // Remove ourselves from the queue.
   prev = NULL;
-  cur = &mtx->nextToLock;
+  cur = &mtx->head;
   while (*cur != running) {
     prev = *cur;
     cur = &((*cur)->nextToLock);
@@ -1393,7 +1424,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   // Push ourselves onto the queue.
   running->nextToLock = NULL;
   Coroutine *prev = NULL;
-  Coroutine **cur = &mtx->nextToLock;
+  Coroutine **cur = &mtx->head;
   while (*cur != NULL) {
     prev = *cur;
     cur = &((*cur)->nextToLock);
@@ -1415,7 +1446,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 
   // Remove ourselves from the queue.
   prev = NULL;
-  cur = &mtx->nextToLock;
+  cur = &mtx->head;
   while (*cur != running) {
     prev = *cur;
     cur = &((*cur)->nextToLock);
@@ -1460,7 +1491,7 @@ int comutexTryLock(Comutex *mtx) {
   if (running == NULL) {
     // running stack not setup yet.  Bail.
     return coroutineError;
-  } else if ((mtx->nextToLock != NULL) && (mtx->nextToLock != running)) {
+  } else if ((mtx->head != NULL) && (mtx->head != running)) {
     return coroutineBusy;
   }
 
