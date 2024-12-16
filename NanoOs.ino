@@ -35,10 +35,13 @@ void setup() {
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // start serial port at 115200 bps:
+  // Start the USB serial port at 1000000 bps:
   Serial.begin(1000000);
   // wait for serial port to connect. Needed for native USB port only.
   while (!Serial);
+
+  // Start the secondary serial port at 1000000 bps:
+  Serial1.begin(1000000);
 
   digitalWrite(LED_BUILTIN, HIGH);
 
