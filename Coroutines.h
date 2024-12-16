@@ -294,6 +294,7 @@ typedef struct Coroutine {
   COROUTINE_ID_TYPE id;
   CoroutineState state;
   struct Coroutine *nextToLock;
+  struct Coroutine *prevToLock;
   struct Coroutine *nextToSignal;
   struct Coroutine *prevToSignal;
   jmp_buf resetContext;
@@ -302,6 +303,8 @@ typedef struct Coroutine {
   Comessage *lastMessage;
   Cocondition messageCondition;
   Comutex messageLock;
+  Comutex *blockingComutex;
+  Cocondition *blockingCocondition;
 } Coroutine;
 
 // Coroutine message support.
