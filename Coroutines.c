@@ -1251,9 +1251,11 @@ int comutexLock(Comutex *mtx) {
   *cur = running;
   running->prevToLock = prev;
 
+  running->blockingComutex = mtx;
   while (comutexTryLock(mtx) != coroutineSuccess) {
     mtx->lastYieldValue = coroutineYield(COROUTINE_WAIT);
   }
+  running->blockingComutex = NULL;
 
   // Remove ourselves from the queue.
   prev = NULL;
@@ -1400,6 +1402,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   running->prevToLock = prev;
 
   int returnValue = comutexTryLock(mtx);
+  running->blockingComutex = mtx;
   while (returnValue != coroutineSuccess) {
     if (coroutinesGetNanoseconds(NULL) > delayTime) {
       returnValue = coroutineTimedout;
@@ -1408,6 +1411,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     mtx->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
     returnValue = comutexTryLock(mtx);
   }
+  running->blockingComutex = NULL;
 
   // Remove ourselves from the queue.
   prev = NULL;
@@ -1661,6 +1665,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
 
   int returnValue = coroutineSuccess;
+  running->blockingCocondition = cond;
   while ((cond->numSignals == 0) || (cond->head != running)) {
     cond->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
 
@@ -1671,6 +1676,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
       break;
     }
   }
+  running->blockingCocondition = NULL;
   if ((returnValue == coroutineSuccess) && (cond->numSignals > 0)) {
     cond->numSignals--;
     cond->numWaiters--;
@@ -1759,9 +1765,11 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   }
 
   int returnValue = coroutineSuccess;
+  running->blockingCocondition = cond;
   while ((cond->numSignals == 0) || (cond->head != running)) {
     cond->lastYieldValue = coroutineYield(COROUTINE_WAIT);
   }
+  running->blockingCocondition = NULL;
   if (cond->numSignals > 0) {
     cond->numSignals--;
     cond->numWaiters--;
