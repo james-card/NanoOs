@@ -33,11 +33,11 @@
 
 // Coroutines support
 
-/// @def SERIAL_PORT_SHELL_PID
+/// @def USB_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the first user process, i.e. the first ID
 /// after the last system process ID.
-#define SERIAL_PORT_SHELL_PID 3
+#define USB_SERIAL_PORT_SHELL_PID 3
 
 /// @struct CommandDescriptor
 ///
@@ -1403,7 +1403,7 @@ void runScheduler(
   Coroutine ***scheduledCoroutines
 ) {
   int coroutineIndex = 0;
-  const int serialPortShellCoroutineIndex = SERIAL_PORT_SHELL_PID - 1;
+  const int serialPortShellCoroutineIndex = USB_SERIAL_PORT_SHELL_PID - 1;
   while (1) {
     Coroutine *coroutine = *scheduledCoroutines[coroutineIndex];
     coroutineResume(coroutine, NULL);
@@ -1412,9 +1412,9 @@ void runScheduler(
     ) {
       // Restart the shell.
       coroutine = coroutineCreate(runShell);
-      coroutineSetId(coroutine, SERIAL_PORT_SHELL_PID);
-      runningProcesses[SERIAL_PORT_SHELL_PID].coroutine = coroutine;
-      runningProcesses[SERIAL_PORT_SHELL_PID].name = "shell";
+      coroutineSetId(coroutine, USB_SERIAL_PORT_SHELL_PID);
+      runningProcesses[USB_SERIAL_PORT_SHELL_PID].coroutine = coroutine;
+      runningProcesses[USB_SERIAL_PORT_SHELL_PID].name = "shell";
     }
     handleSchedulerMessage();
     coroutineIndex++;
@@ -1500,7 +1500,7 @@ __attribute__((noinline)) void startScheduler(void) {
   coroutineResume(coroutine, NULL);
 
   // Set the shells for the ports.
-  if (schedulerSetPortShell(USB_SERIAL_PORT, SERIAL_PORT_SHELL_PID)
+  if (schedulerSetPortShell(USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID)
     != coroutineSuccess
   ) {
     printString("WARNING:  Could not set shell for serial port.\n");
