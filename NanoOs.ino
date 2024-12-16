@@ -75,7 +75,7 @@ void loop() {
   // scheduler.
   Coroutine _mainCoroutine;
   mainCoroutine = &_mainCoroutine;
-  coroutineConfig(mainCoroutine, NANO_OS_STACK_SIZE, NULL);
+  coroutineConfig(mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL);
   Coroutine *coroutine = coroutineCreate(dummyProcess);
   coroutineResume(coroutine, NULL);
 

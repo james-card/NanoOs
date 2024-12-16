@@ -185,6 +185,12 @@ typedef struct Comessage Comessage;
 /// @brief Function signature that can be used as a coroutine.
 typedef void* (*CoroutineFunction)(void *arg);
 
+/// @typedef ComutexUnlockCallback
+///
+/// @brief Function signature that can be used as a callback when a comutex is
+/// unlocked.
+typedef void (*ComutexUnlockCallback)(Comutex *comutex);
+
 /// @typedef CoconditionSignalCallback
 ///
 /// @brief Function signature that can be used as a callback when a cocondition
@@ -377,6 +383,7 @@ typedef struct Comessage {
 
 // Coroutine function prototypes.  Doxygen inline in source file.
 int coroutineConfig(Coroutine *first, int stackSize,
+  ComutexUnlockCallback comutexUnlockCallback,
   CoconditionSignalCallback coconditionSignalCallback
 );
 Coroutine* coroutineCreate(CoroutineFunction func);
