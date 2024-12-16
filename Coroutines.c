@@ -1491,6 +1491,21 @@ int coconditionBroadcast(Cocondition *cond) {
 
   if (cond != NULL) {
     cond->numSignals = cond->numWaiters;
+
+    CoconditionSignalCallback coconditionSignalCallback
+      = _globalCoconditionSignalCallback;
+#ifdef THREAD_SAFE_COROUTINES
+    if (_coroutineThreadingSupportEnabled) {
+      call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
+      if (coroutineInitializeThreadMetadata(NULL)) {
+        coconditionSignalCallback
+          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
+      }
+    }
+#endif
+    if (coconditionSignalCallback != NULL) {
+      coconditionSignalCallback(cond);
+    }
   } else {
     returnValue = coroutineError;
   }
@@ -1550,6 +1565,21 @@ int coconditionSignal(Cocondition *cond) {
 
   if ((cond != NULL) && (cond->numWaiters > 0)) {
     cond->numSignals++;
+
+    CoconditionSignalCallback coconditionSignalCallback
+      = _globalCoconditionSignalCallback;
+#ifdef THREAD_SAFE_COROUTINES
+    if (_coroutineThreadingSupportEnabled) {
+      call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
+      if (coroutineInitializeThreadMetadata(NULL)) {
+        coconditionSignalCallback
+          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
+      }
+    }
+#endif
+    if (coconditionSignalCallback != NULL) {
+      coconditionSignalCallback(cond);
+    }
   } else {
     returnValue = coroutineError;
   }
