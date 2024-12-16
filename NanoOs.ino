@@ -84,6 +84,6 @@ void loop() {
   nanoOsMessages = nanoOsMessagesStorage;
 
   // Enter the scheduler.  This never returns.
-  runScheduler();
+  startScheduler();
 }
 

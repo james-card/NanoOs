@@ -143,7 +143,7 @@ typedef enum SchedulerResponse {
 extern Coroutine *mainCoroutine;
 
 // Exported functionality
-void runScheduler(void);
+void startScheduler(void);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
 Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToPid(int pid, int type,

@@ -1342,12 +1342,12 @@ void handleSchedulerMessage(void) {
   return;
 }
 
-/// @fn void runScheduler(void)
+/// @fn void startScheduler(void)
 ///
 /// @brief Initialize and run the round-robin scheduler.
 ///
 /// @return This function returns no value and, in fact, never returns at all.
-__attribute__((noinline)) void runScheduler(void) {
+__attribute__((noinline)) void startScheduler(void) {
   // Create the storage for the array of running commands and initialize the
   // array global pointer.
   RunningProcess runningProcessesStorage[NANO_OS_NUM_PROCESSES] = {};
