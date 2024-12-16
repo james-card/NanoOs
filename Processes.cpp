@@ -1342,6 +1342,41 @@ void handleSchedulerMessage(void) {
   return;
 }
 
+/// @fn void runScheduler(const int numScheduledCoroutines,
+///   Coroutine ***scheduledCoroutines)
+///
+/// @brief Run the main scheduler loop.
+///
+/// @param numScheduledCoroutines The number of coroutines managed by this
+///   scheduler loop.  Should be NANO_OS_NUM_PROCESSES - 1.
+/// @param scheduledCoroutines The array of pointers to Coroutine pointers that
+///   the loop will iterate over.
+///
+/// @return This function returns no value and, in fact, never returns at all.
+void runScheduler(
+  const int numScheduledCoroutines,
+  Coroutine ***scheduledCoroutines
+) {
+  int coroutineIndex = 0;
+  const int serialPortShellCoroutineIndex = SERIAL_PORT_SHELL_PID - 1;
+  while (1) {
+    Coroutine *coroutine = *scheduledCoroutines[coroutineIndex];
+    coroutineResume(coroutine, NULL);
+    if ((coroutineIndex == serialPortShellCoroutineIndex)
+      && (coroutineRunning(coroutine) == false)
+    ) {
+      // Restart the shell.
+      coroutine = coroutineCreate(runShell);
+      coroutineSetId(coroutine, SERIAL_PORT_SHELL_PID);
+      runningProcesses[SERIAL_PORT_SHELL_PID].coroutine = coroutine;
+      runningProcesses[SERIAL_PORT_SHELL_PID].name = "shell";
+    }
+    handleSchedulerMessage();
+    coroutineIndex++;
+    coroutineIndex %= numScheduledCoroutines;
+  }
+}
+
 /// @fn void startScheduler(void)
 ///
 /// @brief Initialize and run the round-robin scheduler.
@@ -1445,23 +1480,6 @@ __attribute__((noinline)) void startScheduler(void) {
   }
 
   // Start our round-robin scheduler.
-  int coroutineIndex = 0;
-  const int serialPortShellCoroutineIndex = SERIAL_PORT_SHELL_PID - 1;
-  while (1) {
-    coroutine = *scheduledCoroutines[coroutineIndex];
-    coroutineResume(coroutine, NULL);
-    if ((coroutineIndex == serialPortShellCoroutineIndex)
-      && (coroutineRunning(coroutine) == false)
-    ) {
-      // Restart the shell.
-      coroutine = coroutineCreate(runShell);
-      coroutineSetId(coroutine, SERIAL_PORT_SHELL_PID);
-      runningProcesses[SERIAL_PORT_SHELL_PID].coroutine = coroutine;
-      runningProcesses[SERIAL_PORT_SHELL_PID].name = "shell";
-    }
-    handleSchedulerMessage();
-    coroutineIndex++;
-    coroutineIndex %= numScheduledCoroutines;
-  }
+  runScheduler(numScheduledCoroutines, scheduledCoroutines);
 }
 
