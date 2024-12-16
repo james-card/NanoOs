@@ -1242,22 +1242,30 @@ int comutexLock(Comutex *mtx) {
 
   // Push ourselves onto the queue.
   running->nextToLock = NULL;
+  Coroutine *prev = NULL;
   Coroutine **cur = &mtx->nextToLock;
   while (*cur != NULL) {
+    prev = *cur;
     cur = &((*cur)->nextToLock);
   }
   *cur = running;
+  running->prevToLock = prev;
 
   while (comutexTryLock(mtx) != coroutineSuccess) {
     mtx->lastYieldValue = coroutineYield(COROUTINE_WAIT);
   }
 
   // Remove ourselves from the queue.
+  prev = NULL;
   cur = &mtx->nextToLock;
   while (*cur != running) {
+    prev = *cur;
     cur = &((*cur)->nextToLock);
   }
-  *cur = (*cur)->nextToLock;
+  *cur = running->nextToLock;
+  if (running->nextToLock != NULL) {
+    running->nextToLock->prevToLock = prev;
+  }
 
   return coroutineSuccess;
 }
@@ -1382,11 +1390,14 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 
   // Push ourselves onto the queue.
   running->nextToLock = NULL;
+  Coroutine *prev = NULL;
   Coroutine **cur = &mtx->nextToLock;
   while (*cur != NULL) {
+    prev = *cur;
     cur = &((*cur)->nextToLock);
   }
   *cur = running;
+  running->prevToLock = prev;
 
   int returnValue = comutexTryLock(mtx);
   while (returnValue != coroutineSuccess) {
@@ -1399,11 +1410,16 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   }
 
   // Remove ourselves from the queue.
+  prev = NULL;
   cur = &mtx->nextToLock;
   while (*cur != running) {
+    prev = *cur;
     cur = &((*cur)->nextToLock);
   }
-  *cur = (*cur)->nextToLock;
+  *cur = running->nextToLock;
+  if (running->nextToLock != NULL) {
+    running->nextToLock->prevToLock = prev;
+  }
 
   return returnValue;
 }
