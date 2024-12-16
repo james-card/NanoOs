@@ -1296,6 +1296,20 @@ int comutexUnlock(Comutex *mtx) {
     mtx->recursionLevel--;
     if (mtx->recursionLevel == 0) {
       mtx->coroutine = NULL;
+
+      ComutexUnlockCallback comutexUnlockCallback
+        = _globalComutexUnlockCallback;
+#ifdef THREAD_SAFE_COROUTINES
+      if (_coroutineThreadingSupportEnabled) {
+        // No need to call coroutineSetupThreadMetadata or
+        // coroutineInitializeThreadMetadata this time since we did that above.
+        comutexUnlockCallback
+          = (ComutexUnlockCallback*) tss_get(_tssComutexUnlockCallback);
+      }
+#endif
+      if (comutexUnlockCallback != NULL) {
+        comutexUnlockCallback(mtx);
+      }
     }
   } else {
     returnValue = coroutineError;
