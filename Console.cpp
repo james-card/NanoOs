@@ -658,7 +658,7 @@ void ledToggle() {
   return;
 }
 
-/// @fn int readSerialByte(ConsolePort *consolePort)
+/// @fn int readUsbSerialByte(ConsolePort *consolePort)
 ///
 /// @brief Do a non-blocking read of the serial port.
 ///
@@ -666,7 +666,7 @@ void ledToggle() {
 ///   the buffer information to use.
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readSerialByte(ConsolePort *consolePort) {
+int readUsbSerialByte(ConsolePort *consolePort) {
   int serialData = -1;
   serialData = Serial.read();
   if (serialData > -1) {
@@ -689,14 +689,14 @@ int readSerialByte(ConsolePort *consolePort) {
   return serialData;
 }
 
-/// @fn int printSerialString(const char *string)
+/// @fn int printUsbSerialString(const char *string)
 ///
 /// @brief Print a string to the default serial port.
 ///
 /// @param string A pointer to the string to print.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printSerialString(const char *string) {
+int printUsbSerialString(const char *string) {
   int returnValue = 0;
   size_t numBytes = 0;
 
@@ -758,10 +758,10 @@ void* runConsole(void *args) {
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].waitingForInput = false;
-  consoleState.consolePorts[CONSOLE_SERIAL_PORT].readByte = readSerialByte;
+  consoleState.consolePorts[CONSOLE_SERIAL_PORT].readByte = readUsbSerialByte;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].echo = true;
   consoleState.consolePorts[CONSOLE_SERIAL_PORT].printString
-    = printSerialString;
+    = printUsbSerialString;
 
   // Use the first console buffer as the buffer for console input.
   consoleState.consoleBuffers[0].inUse = true;
