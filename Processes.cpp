@@ -1160,6 +1160,13 @@ int handleRunProcess(Comessage *comessage) {
 int handleKillProcess(Comessage *comessage) {
   int returnValue = 0;
 
+  Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
+  if (schedulerProcessCompleteMessage == NULL) {
+    // We have to have a message to send to unblock the console.  Fail and try
+    // again later.
+    return EBUSY;
+  }
+
   UserId callingUserId
     = runningProcesses[coroutineId(comessageFrom(comessage))].userId;
   COROUTINE_ID_TYPE processId
@@ -1173,6 +1180,18 @@ int handleKillProcess(Comessage *comessage) {
     if ((runningProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
     ) {
+      // Tell the console to release the port for us.  We will forward it
+      // the message we acquired above, which it will use to send to the
+      // correct shell to unblock it.  We need to do this before terminating
+      // the process because, in the event the process we're terminating is one
+      // of the shell process slots, the message won't get released because
+      // there's no shell blocking waiting for the message.
+      schedulerSendNanoOsMessageToPid(
+        NANO_OS_CONSOLE_PROCESS_ID,
+        CONSOLE_RELEASE_PID_PORT,
+        (intptr_t) schedulerProcessCompleteMessage,
+        processId);
+
       if (coroutineTerminate(runningProcesses[processId].coroutine, NULL)
         == coroutineSuccess
       ) {
