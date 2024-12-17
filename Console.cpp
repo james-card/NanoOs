@@ -585,6 +585,7 @@ void consoleReleasePidPortHandler(
     = nanoOsMessageFuncPointer(inputMessage, Comessage*);
   comessageInit(comessage, SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
+  bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = consolePorts[ii].shell;
@@ -594,7 +595,14 @@ void consoleReleasePidPortHandler(
       // all the shells will release the message.  In reality, one process
       // almost never owns multiple ports.  The only exception is during boot.
       sendComessageToPid(consolePorts[ii].shell, comessage);
+      portFound = true;
     }
+  }
+
+  if (portFound == false) {
+    // The process doesn't own any ports.  Release the message to prevent a
+    // message leak.
+    comessageRelease(comessage);
   }
 
   comessageSetDone(inputMessage);
