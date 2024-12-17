@@ -619,6 +619,44 @@ void consoleGetPortShellHandler(
   return;
 }
 
+/// @fn void consoleReleasePidPortHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Release all the ports currently owned by a process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleReleasePidPortHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  COROUTINE_ID_TYPE sender = coroutineId(comessageFrom(inputMessage));
+  if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
+    // Sender is not the scheduler.  We will ignore this.
+    comessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
+    return;
+  }
+
+  COROUTINE_ID_TYPE owner
+    = nanoOsMessageDataValue(inputMessage, COROUTINE_ID_TYPE);
+  ConsolePort *consolePorts = consoleState->consolePorts;
+
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == owner) {
+      consolePorts[ii].owner = consolePorts[ii].shell;
+    }
+  }
+
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
+
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
@@ -634,6 +672,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWaitForInputHandler,   // CONSOLE_WAIT_FOR_INPUT
   consoleGetProcessPortHandler, // CONSOLE_GET_PROCESS_PORT
   consoleGetPortShellHandler,   // CONSOLE_GET_PORT_SHELL
+  consoleReleasePidPortHandler, // CONSOLE_RELEASE_PID_PORT
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
