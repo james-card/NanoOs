@@ -557,11 +557,11 @@ int runProcess(CommandEntry *commandEntry,
   commandDescriptor->consolePort = consolePort;
   commandDescriptor->callingProcess = coroutineId(NULL);
 
-  if (sendNanoOsMessageToPid(
+  Comessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
     (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
-    true) == NULL
-  ) {
+    true);
+  if (sent == NULL) {
     printString("ERROR!!!  Could not communicate with scheduler.\n");
     return returnValue; // 1
   }
@@ -570,6 +570,11 @@ int runProcess(CommandEntry *commandEntry,
     = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
   // We don't need any data from the message.  Just release it.
   comessageRelease(doneMessage);
+  if (comessageDone(sent) == false) {
+    // The called process was killed.  We need to release the sent message on
+    // its behalf.
+    comessageRelease(sent);
+  }
 
   returnValue = 0;
   return returnValue;
