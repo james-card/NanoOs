@@ -557,68 +557,6 @@ void consoleWaitForInputHandler(
   return;
 }
 
-/// @fn void consoleGetProcessPortHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
-///
-/// @brief Get the console port for a process given its process ID.
-///
-/// @param consoleState A pointer to the ConsoleState being maintained by the
-///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
-///
-/// @return This function returns no value.
-void consoleGetProcessPortHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
-) {
-  COROUTINE_ID_TYPE processId
-    = nanoOsMessageDataValue(inputMessage, COROUTINE_ID_TYPE);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(inputMessage);
-  int processPort = -1;
-
-  ConsolePort *consolePorts = consoleState->consolePorts;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == processId) {
-      processPort = ii;
-      break;
-    }
-  }
-  nanoOsMessage->data = processPort;
-
-  comessageSetDone(inputMessage);
-  consoleMessageCleanup(inputMessage);
-
-  return;
-}
-
-/// @fn void consoleGetPortShellHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
-///
-/// @brief Get the shell process ID of a console port.
-///
-/// @param consoleState A pointer to the ConsoleState being maintained by the
-///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
-///
-/// @return This function returns no value.
-void consoleGetPortShellHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
-) {
-  int portIndex = nanoOsMessageDataValue(inputMessage, int);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(inputMessage);
-  COROUTINE_ID_TYPE shellPid = COROUTINE_ID_NOT_SET;
-
-  ConsolePort *consolePorts = consoleState->consolePorts;
-  if ((portIndex >= 0) && (portIndex < CONSOLE_NUM_PORTS)) {
-    shellPid = consolePorts[portIndex].shell;
-  }
-  nanoOsMessage->data = shellPid;
-
-  comessageSetDone(inputMessage);
-  consoleMessageCleanup(inputMessage);
-
-  return;
-}
-
 /// @fn void consoleReleasePidPortHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
@@ -643,10 +581,19 @@ void consoleReleasePidPortHandler(
   COROUTINE_ID_TYPE owner
     = nanoOsMessageDataValue(inputMessage, COROUTINE_ID_TYPE);
   ConsolePort *consolePorts = consoleState->consolePorts;
+  Comessage *comessage
+    = nanoOsMessageFuncPointer(inputMessage, Comessage*);
+  comessageInit(comessage, SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = consolePorts[ii].shell;
+      // NOTE:  By calling sendComessageToPid from within the for loop, we run
+      // the risk of sending the same message to multiple shells.  That's
+      // irrelevant in this case since nothing is waiting for the message and
+      // all the shells will release the message.  In reality, one process
+      // almost never owns multiple ports.  The only exception is during boot.
+      sendComessageToPid(consolePorts[ii].shell, comessage);
     }
   }
 
@@ -670,8 +617,6 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleGetOwnedPortHandler,   // CONSOLE_GET_OWNED_PORT
   consoleSetEchoHandler,        // CONSOLE_SET_ECHO_PORT
   consoleWaitForInputHandler,   // CONSOLE_WAIT_FOR_INPUT
-  consoleGetProcessPortHandler, // CONSOLE_GET_PROCESS_PORT
-  consoleGetPortShellHandler,   // CONSOLE_GET_PORT_SHELL
   consoleReleasePidPortHandler, // CONSOLE_RELEASE_PID_PORT
 };
 
