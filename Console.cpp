@@ -557,19 +557,83 @@ void consoleWaitForInputHandler(
   return;
 }
 
+/// @fn void consoleGetProcessPortHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Get the console port for a process given its process ID.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleGetProcessPortHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  COROUTINE_ID_TYPE processId
+    = nanoOsMessageDataValue(inputMessage, COROUTINE_ID_TYPE);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(inputMessage);
+  int processPort = -1;
+
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == processId) {
+      processPort = ii;
+      break;
+    }
+  }
+  nanoOsMessage->data = processPort;
+
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
+/// @fn void consoleGetPortShellHandler(
+///   ConsoleState *consoleState, Comessage *inputMessage)
+///
+/// @brief Get the shell process ID of a console port.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the Comessage with the received command.
+///
+/// @return This function returns no value.
+void consoleGetPortShellHandler(
+  ConsoleState *consoleState, Comessage *inputMessage
+) {
+  int portIndex = nanoOsMessageDataValue(inputMessage, int);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(inputMessage);
+  COROUTINE_ID_TYPE shellPid = COROUTINE_ID_NOT_SET;
+
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  if ((portIndex >= 0) && (portIndex < CONSOLE_NUM_PORTS)) {
+    shellPid = consolePorts[portIndex].shell;
+  }
+  nanoOsMessage->data = shellPid;
+
+  comessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return;
+}
+
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
 void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
-  consoleWriteValueHandler,
-  consoleGetBufferHandler,
-  consoleWriteBufferHandler,
-  consoleSetPortShellHandler,
-  consoleAssignPortHandler,
-  consoleReleasePortHandler,
-  consoleGetOwnedPortHandler,
-  consoleSetEchoHandler,
-  consoleWaitForInputHandler,
+  consoleWriteValueHandler,     // CONSOLE_WRITE_VALUE
+  consoleGetBufferHandler,      // CONSOLE_GET_BUFFER
+  consoleWriteBufferHandler,    // CONSOLE_WRITE_BUFFER
+  consoleSetPortShellHandler,   // CONSOLE_SET_PORT_SHELL
+  consoleAssignPortHandler,     // CONSOLE_ASSIGN_PORT
+  consoleReleasePortHandler,    // CONSOLE_RELEASE_PORT
+  consoleGetOwnedPortHandler,   // CONSOLE_GET_OWNED_PORT
+  consoleSetEchoHandler,        // CONSOLE_SET_ECHO_PORT
+  consoleWaitForInputHandler,   // CONSOLE_WAIT_FOR_INPUT
+  consoleGetProcessPortHandler, // CONSOLE_GET_PROCESS_PORT
+  consoleGetPortShellHandler,   // CONSOLE_GET_PORT_SHELL
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
