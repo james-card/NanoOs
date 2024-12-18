@@ -59,7 +59,9 @@ int consolePrintMessage(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to print message from non-owning process ");
+    printString("WARNING:  Request to print message \"");
+    printString(message);
+    printString("\" from non-owning process ");
     printInt(owner);
     printString("\n");
     returnValue = coroutineError;
@@ -223,6 +225,7 @@ void consoleGetBufferHandler(
   Comessage *returnMessage = getAvailableMessage();
   if (returnMessage == NULL)  {
     // No return message available.  Nothing we can do.  Bail.
+    printString("ERROR:  No return message available.\n");
     comessageSetDone(inputMessage);
     return;
   }
