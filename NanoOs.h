@@ -163,6 +163,11 @@ extern "C"
   (int) number, \
   ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
+/// @def printDebug
+///
+/// @brief Macro to identify debugging prints when necessary.
+#define printDebug Serial.print
+
 /// @typedef UserId
 ///
 /// @brief The type to use to represent a numeric user ID.
