@@ -1018,6 +1018,9 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   if (targetCoroutine->nextToSignal != NULL) {
     targetCoroutine->nextToSignal->prevToSignal = targetCoroutine->prevToSignal;
   }
+  if (targetCoroutine->prevToSignal != NULL) {
+    targetCoroutine->prevToSignal->nextToSignal = targetCoroutine->nextToSignal;
+  }
   targetCoroutine->nextToSignal = NULL;
   targetCoroutine->prevToSignal = NULL;
   targetCoroutine->blockingCocondition = NULL;
@@ -1033,6 +1036,9 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   // targetCoroutine->prevToLock->nextToLock is taken care of above.
   if (targetCoroutine->nextToLock != NULL) {
     targetCoroutine->nextToLock->prevToLock = targetCoroutine->prevToLock;
+  }
+  if (targetCoroutine->prevToLock != NULL) {
+    targetCoroutine->prevToLock->nextToLock = targetCoroutine->nextToLock;
   }
   targetCoroutine->nextToLock = NULL;
   targetCoroutine->prevToLock = NULL;
@@ -1717,19 +1723,19 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   }
   running->blockingCocondition = NULL;
   if ((returnValue == coroutineSuccess) && (cond->numSignals > 0)) {
+    // We are at the head of the queue.
     cond->numSignals--;
     cond->numWaiters--;
+    cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
-    } else {
-      // We are the head of the queue.
-      cond->head = running->nextToSignal;
     }
     if (running->nextToSignal != NULL) {
       running->nextToSignal->prevToSignal = running->prevToSignal;
-    } else {
+    }
+    if (cond->tail == running) {
       // We are the tail of the queue;
-      cond->tail = running->prevToSignal;
+      cond->tail = NULL;
     }
     returnValue = coroutineSuccess;
   } else if (returnValue == coroutineTimedout) {
@@ -1737,18 +1743,24 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     // manage the links accordingly.
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
-    } else {
-      // We are the head node.
-      cond->head = running->nextToSignal;
+    }
+    if (running->nextToSignal != NULL) {
+      running->nextToSignal->prevToSignal = running->prevToSignal;
+    }
+    if (cond->head == running) {
+      cond->head = running->next;
     }
     if (cond->tail == running) {
-      cond->tail = running->prevToSignal;
+      // We are the tail of the queue;
+      cond->tail = NULL;
     }
     cond->numWaiters--;
   } else {
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
   }
+  running->nextToSignal = NULL;
+  running->prevToSignal = NULL;
 
   comutexLock(mtx);
   return returnValue;
@@ -1815,20 +1827,20 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
     cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
-    } else {
-      // We are the head of the queue.
-      cond->head = running->nextToSignal;
     }
     if (running->nextToSignal != NULL) {
       running->nextToSignal->prevToSignal = running->prevToSignal;
-    } else {
+    }
+    if (cond->tail == running) {
       // We are the tail of the queue;
-      cond->tail = running->prevToSignal;
+      cond->tail = NULL;
     }
   } else {
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
   }
+  running->nextToSignal = NULL;
+  running->prevToSignal = NULL;
 
   comutexLock(mtx);
   return returnValue;
