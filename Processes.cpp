@@ -318,7 +318,8 @@ void* startCommand(void *args) {
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if (commandEntry->shellCommand == false) {
+  if (commandDescriptor->callingProcess != coroutineId(NULL)) {
+    // This command did NOT replace a shell process.
     if (backgroundProcess == false) {
     // The caller is still running and waiting to be told it can resume.  Notify
     // it via a message.
@@ -326,17 +327,21 @@ void* startCommand(void *args) {
       SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
     }
     runningProcesses[coroutineId(NULL)].userId = NO_USER_ID;
+  } else {
+    // This command DID replace a shell process.  We need to release the
+    // message that was sent because there's no shell that is waiting to
+    // release it.
+    if (comessageRelease(comessage) != coroutineSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleSchedulerMessage "
+        "for invalid message type.\n");
+    }
   }
 
   free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
   releaseConsole();
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    printString("ERROR!!!  "
-      "Could not release message from handleSchedulerMessage "
-      "for invalid message type.\n");
-  }
 
   // We need to clear the coroutine pointer.
   runningProcesses[coroutineId(NULL)].coroutine = NULL;
