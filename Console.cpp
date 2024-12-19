@@ -220,15 +220,17 @@ void consoleWriteValueHandler(
 void consoleGetBufferHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
+  startDebugMessage("In ");
+  printDebug(__func__);
+  printDebug("\n");
   ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *returnValue = NULL;
-  Comessage *returnMessage = getAvailableMessage();
-  if (returnMessage == NULL)  {
-    // No return message available.  Nothing we can do.  Bail.
-    printString("ERROR:  No return message available.\n");
-    comessageSetDone(inputMessage);
-    return;
-  }
+  // We're going to reuse the input message as the return message.
+  Comessage *returnMessage = inputMessage;
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) comessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = (intptr_t) NULL;
 
   for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
     if (consoleBuffers[ii].inUse == false) {
@@ -240,33 +242,19 @@ void consoleGetBufferHandler(
 
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
-    NanoOsMessage *nanoOsMessage
-      = (NanoOsMessage*) comessageData(returnMessage);
-    nanoOsMessage->func = 0;
     nanoOsMessage->data = (intptr_t) returnValue;
     comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
-      nanoOsMessage, sizeof(*nanoOsMessage), false);
+      nanoOsMessage, sizeof(*nanoOsMessage), true);
+    startDebugMessage("Pushing CONSOLE_RETURNING_BUFFER message onto process ");
+    printDebug(coroutineId(comessageFrom(inputMessage)));
+    printDebug("'s queue.\n");
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
-      comessageRelease(returnMessage);
-      if (comessageRelease(inputMessage) != coroutineSuccess) {
-        Serial.print("ERROR!!!  Could not release returnMessage from ");
-        Serial.print(__func__);
-        Serial.print(" after comessageQueuePush.\n");
-      }
       returnValue->inUse = false;
     }
   } else {
-    // No free buffer.  Nothing we can do.
-    printString(
-      "ERROR!!!  No free console buffer in consoleGetBufferHandler.\n");
-    comessageRelease(returnMessage);
-    if (comessageRelease(inputMessage) != coroutineSuccess) {
-      Serial.print("ERROR!!!  Could not release returnMessage from ");
-      Serial.print(__func__);
-      Serial.print(" when returnValue was NULL.\n");
-    }
+    startDebugMessage("No free console buffer was found.\n");
   }
 
   // Whether we were able to grab a buffer or not, we're now done with this
@@ -274,6 +262,9 @@ void consoleGetBufferHandler(
   // the caller is waiting on our response, so *DO NOT* release it.  The caller
   // is responsible for releasing it when they've received the response.
   comessageSetDone(inputMessage);
+  startDebugMessage("Exiting ");
+  printDebug(__func__);
+  printDebug("\n");
   return;
 }
 
@@ -537,6 +528,7 @@ void consoleSetEchoHandler(
 void consoleWaitForInputHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
+  startDebugMessage("In consoleWaitForInputHandler.\n");
   COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
@@ -554,6 +546,9 @@ void consoleWaitForInputHandler(
     printString("\n");
   }
 
+  startDebugMessage("Marking inputMessage ");
+  printDebug((intptr_t) inputMessage);
+  printDebug(" done.\n");
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
@@ -597,7 +592,15 @@ void consoleReleasePidPortHandler(
       // irrelevant in this case since nothing is waiting for the message and
       // all the shells will release the message.  In reality, one process
       // almost never owns multiple ports.  The only exception is during boot.
-      sendComessageToPid(consolePorts[ii].shell, comessage);
+      if (owner != consolePorts[ii].shell) {
+        sendComessageToPid(consolePorts[ii].shell, comessage);
+      } else {
+        // The scheduler is telling us to free the console's port.  That means
+        // the shell is being killed and restarted.  It won't be able to
+        // receive the message if we send it, so we need to go ahead and
+        // release it.
+        comessageRelease(comessage);
+      }
       portFound = true;
     }
   }
@@ -885,6 +888,9 @@ void* runConsole(void *args) {
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
         if (consolePort->owner == COROUTINE_ID_NOT_SET) {
+          startDebugMessage("No owner for console port ");
+          printDebug(ii);
+          printDebug(".\n");
           // NULL-terminate the buffer.
           consolePort->consoleIndex--;
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
@@ -909,14 +915,21 @@ void* runConsole(void *args) {
           }
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+          startDebugMessage("Allocating memory for bufferCopy.\n");
           char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
+          startDebugMessage("bufferCopy allocated.\n");
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
+          startDebugMessage("Sending input to process ");
+          printDebug(consolePort->owner);
+          printDebug(".\n");
           consoleSendInputToProcess(consolePort->owner, bufferCopy);
+          startDebugMessage("Returned from consoleSendInputToProcess.\n");
           consolePort->waitingForInput = false;
         } else {
+          startDebugMessage("Nothing waiting for input.  Resetting port buffer.\n");
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
           consolePort->consoleIndex = 0;
@@ -965,32 +978,52 @@ ConsoleBuffer* consoleGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
+    startDebugMessage("Sending CONSOLE_GET_BUFFER command to console process.\n");
     Comessage *comessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
     if (comessage == NULL) {
+      startDebugMessage(
+        "Could not send CONSOLE_GET_BUFFER message to console process.\n");
       break; // will return returnValue, which is NULL
     }
+    startDebugMessage("Sent CONSOLE_GET_BUFFER message.\n");
 
     // We want to make sure the handler is done processing the message before
     // we wait for a reply.  Do a blocking wait.
+    startDebugMessage("Waiting for CONSOLE_GET_BUFFER message to be done.\n");
     if (comessageWaitForDone(comessage, NULL) != coroutineSuccess) {
       // Something is wrong.  Bail.
+      startDebugMessage("comessageWaitForDone failed.\n");
       break; // will return returnValue, which is NULL
     }
+    startDebugMessage("CONSOLE_GET_BUFFER message is done.\n");
 
     // The handler only marks the message as done if it has successfully sent
     // us a reply or if there was an error and it could not send a reply.  So,
     // we don't want an infinite timeout to waitForDataMessage, we want zero
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
-    returnValue = (ConsoleBuffer*) waitForDataMessage(
-      comessage, CONSOLE_RETURNING_BUFFER, &ts);
+    startDebugMessage("Waiting for CONSOLE_RETURNING_BUFFER message.\n");
+    comessage = comessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+    if (comessage == NULL) {
+      // The handler marked the sent message done but did not send a reply.
+      // That means something is wrong internally to it.  Bail.
+      startDebugMessage("Did not receive CONSOLE_RETURNING_BUFFER message.\n");
+      comessageRelease(comessage);
+      break; // will return returnValue, which is NULL
+    }
+    startDebugMessage("Received CONSOLE_RETURNING_BUFFER message.\n");
+
+    returnValue = nanoOsMessageDataPointer(comessage, ConsoleBuffer*);
+    comessageRelease(comessage);
     if (returnValue == NULL) {
       // Yield control to give the console a chance to get done processing the
       // buffers that are in use.
+      startDebugMessage("No console buffer available.  Yielding and trying again.\n");
       coroutineYield(NULL);
     }
   }
+  startDebugMessage("Exiting consoleGetBuffer.\n");
 
   return returnValue;
 }
@@ -1049,25 +1082,34 @@ int consolePuts(const char *s) {
 /// @return Returns the number of bytes printed on success, -1 on error.
 int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
   int returnValue = -1;
+  startDebugMessage("Getting console buffer.\n");
   ConsoleBuffer *consoleBuffer = consoleGetBuffer();
   if (consoleBuffer == NULL) {
     // Nothing we can do.
+    startDebugMessage("Got NULL consoleBuffer in consoleVFPrintf.\n");
     return returnValue;
   }
+  startDebugMessage("Got console buffer.\n");
 
   returnValue
     = vsnprintf(consoleBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
 
   if (stream == stdout) {
+    startDebugMessage("Sending CONSOLE_WRITE_BUFFER command to console process.\n");
     sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, false);
+    startDebugMessage("Returned from CONSOLE_WRITE_BUFFER command.\n");
   } else if (stream == stderr) {
+    startDebugMessage("Sending CONSOLE_WRITE_BUFFER command to console process.\n");
     Comessage *comessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, true);
+    startDebugMessage("Returned from CONSOLE_WRITE_BUFFER command.\n");
     comessageWaitForDone(comessage, NULL);
+    startDebugMessage("comessage is done in consoleVFPrintf.\n");
     comessageRelease(comessage);
+    startDebugMessage("comessage released consoleVFPrintf.\n");
   }
 
   return returnValue;
@@ -1215,7 +1257,9 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
 
   if (stream == stdin) {
+    startDebugMessage("Waiting for console input.\n");
     char *consoleInput = consoleWaitForInput();
+    startDebugMessage("Returned from consoleWaitForInput.\n");
     if (consoleInput == NULL) {
       return returnValue; // NULL
     }

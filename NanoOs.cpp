@@ -227,12 +227,19 @@ void login(void) {
 
   while (userId == NO_USER_ID) {
     fputs("login: ", stdout);
+    //// printDebug("Printed login.\n");
     fgets(username, sizeof(username), stdin);
+    //// printDebug("Got username.\n");
     setConsoleEcho(false);
+    //// printDebug("Set echo to false.\n");
     fputs("Password: ", stdout);
+    //// printDebug("Printed Password.\n");
     fgets(password, sizeof(password), stdin);
+    //// printDebug("Got password.\n");
     setConsoleEcho(true);
+    //// printDebug("Set echo to true.\n");
     fputs("\n", stdout);
+    //// printDebug("Printed newline.\n");
 
     newlineAt = strchr(username, '\r');
     if (newlineAt == NULL) {

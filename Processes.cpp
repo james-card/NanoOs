@@ -1168,6 +1168,9 @@ int handleRunProcess(Comessage *comessage) {
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int handleKillProcess(Comessage *comessage) {
+  startDebugMessage("comessage = ");
+  printInt((intptr_t) comessage);
+  printDebug("\n");
   int returnValue = 0;
 
   Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
@@ -1176,6 +1179,9 @@ int handleKillProcess(Comessage *comessage) {
     // again later.
     return EBUSY;
   }
+  startDebugMessage("schedulerProcessCompleteMessage = ");
+  printInt((intptr_t) schedulerProcessCompleteMessage);
+  printDebug("\n");
 
   UserId callingUserId
     = runningProcesses[coroutineId(comessageFrom(comessage))].userId;
@@ -1207,6 +1213,7 @@ int handleKillProcess(Comessage *comessage) {
       ) {
         runningProcesses[processId].coroutine = NULL;
         runningProcesses[processId].name = NULL;
+        runningProcesses[processId].userId = NO_USER_ID;
 
         // Forward the message on to the memory manager to have it clean up the
         // process's memory.  *DO NOT* mark the message as done.  The memory
