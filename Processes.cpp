@@ -1193,13 +1193,6 @@ int handleKillProcess(Comessage *comessage) {
     && (processId < NANO_OS_NUM_PROCESSES)
     && (coroutineResumable(runningProcesses[processId].coroutine))
   ) {
-    if (coroutineId(runningProcesses[processId].coroutine) != processId) {
-      startDebugMessage("ERROR!!!  Expected to be kill process ");
-      printDebug(processId);
-      printDebug(" but coroutine is ");
-      printDebug(coroutineId(runningProcesses[processId].coroutine));
-      printDebug(".\n");
-    }
     if ((runningProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
     ) {
