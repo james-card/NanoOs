@@ -1169,7 +1169,7 @@ int handleRunProcess(Comessage *comessage) {
 /// @return Returns 0 on success, non-zero error code on failure.
 int handleKillProcess(Comessage *comessage) {
   startDebugMessage("comessage = ");
-  printInt((intptr_t) comessage);
+  printDebug((intptr_t) comessage);
   printDebug("\n");
   int returnValue = 0;
 
@@ -1180,7 +1180,7 @@ int handleKillProcess(Comessage *comessage) {
     return EBUSY;
   }
   startDebugMessage("schedulerProcessCompleteMessage = ");
-  printInt((intptr_t) schedulerProcessCompleteMessage);
+  printDebug((intptr_t) schedulerProcessCompleteMessage);
   printDebug("\n");
 
   UserId callingUserId
@@ -1193,6 +1193,13 @@ int handleKillProcess(Comessage *comessage) {
     && (processId < NANO_OS_NUM_PROCESSES)
     && (coroutineResumable(runningProcesses[processId].coroutine))
   ) {
+    if (coroutineId(runningProcesses[processId].coroutine) != processId) {
+      startDebugMessage("ERROR!!!  Expected to be kill process ");
+      printDebug(processId);
+      printDebug(" but coroutine is ");
+      printDebug(coroutineId(runningProcesses[processId].coroutine));
+      printDebug(".\n");
+    }
     if ((runningProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
     ) {
