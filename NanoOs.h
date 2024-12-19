@@ -163,6 +163,8 @@ extern "C"
   (int) number, \
   ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
+#ifdef NANO_OS_DEBUG
+
 /// @def startDebugMessage
 ///
 /// @brief Print a non-newline-terminated debug message.
@@ -181,7 +183,14 @@ extern "C"
 /// @def printDebug
 ///
 /// @brief Macro to identify debugging prints when necessary.
-#define printDebug Serial.print
+#define printDebug(message) Serial.print(message)
+
+#else // NANO_OS_DEBUG
+
+#define startDebugMessage(message) {}
+#define printDebug(message) {}
+
+#endif // NANO_OS_DEBUG
 
 /// @typedef UserId
 ///
