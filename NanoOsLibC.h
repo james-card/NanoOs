@@ -104,8 +104,10 @@ typedef void TypeDescriptor;
 extern const char *boolNames[];
 
 // Debug functions
-int printString(const char *string);
-int printInt(int integer);
+int printString_(const char *string);
+#define printString printString_
+int printInt_(int integer);
+#define printInt printInt_
 int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
