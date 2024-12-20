@@ -25,7 +25,7 @@ One implication of the nanokernel arhitecture is that there basically is no kern
 
 As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more than 15 processes is possible, but would require modification of some constants and data structures within the operating system.
 
-### "Kernel" Processes
+### Kernel Processes
 
 Currently, the following processes are always present and running:
 
@@ -33,7 +33,7 @@ Currently, the following processes are always present and running:
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
-These processes work together to provide the basic kernel-level functionality.
+These processes work together to provide the basic kernel-level functionality.  These processes cannot be killed, even by the root user.
 
 ### The Shell and Shell Processes
 
@@ -43,11 +43,21 @@ One of the challenges of having a shell in an embedded OS is consuming a process
 
 To address this, NanoOs borrows a concept from early versions of UNIX.  The command entries in the Commands library have an attribute called "shellCommand".  Commands that have this attribute set to "true" will *REPLACE* the shell process when they execute.  All other commands will run in a different process slot.  This allows mission-critical processes to be guaranteed a slot to run in while doing normal process management for most processes.  The shell is automatically restarted by the scheduler when a shell process exits.
 
+### User Processes
+
+Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](blob/main/Commands.cpp) library.  The OS may support commands from a file system in a later version.  See the output of the `help` command for details of the available commands.
+
 ### Background Processes
 
 Since NanoOs aims to emulate parts of UNIX, background user processes are supported.  As in UNIX-like environments, launching a process in the background is achieved in a similar manner to UNIX shells:  By appending an ampersand ('&') to the end of the command line.
 
 *NOTE:*  Background processes do not have access to stdout/stderr.  Their only communication mechanism is inter-process communication.
+
+## Multi-user Support
+
+NanoOs supports two login shells:  One on the serial port available through the USB connection and one on the serial port available through the GPIO connection.  The shells are started at boot time and are automatically restarted by the scheduler if they are killed.  Like the first version of UNIX, this means that the OS can support two (2) concurrent users.
+
+When the shells are started, they are unowned.  When a user logs in, the user takes over ownership of the shell.  Any processes started by the shell become owned by the user that owns the shell.  Only the same user or the root user can kill a process owned by a user.  Only the root user can kill an unowned shell process.
 
 ## Message Passing
 
