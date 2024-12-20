@@ -45,7 +45,7 @@ To address this, NanoOs borrows a concept from early versions of UNIX.  The comm
 
 ### User Processes
 
-Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](blob/main/Commands.cpp) library.  The OS may support commands from a file system in a later version.  See the output of the `help` command for details of the available commands.
+Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](Commands.cpp) library.  The OS may support commands from a file system in a later version.  See the output of the `help` command for details of the available commands.
 
 ### Background Processes
 
