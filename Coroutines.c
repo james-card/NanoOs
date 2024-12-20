@@ -124,22 +124,16 @@
  * JBC 2024-11-18
  */
 
-#define startDebugMessage(message) \
-  printString("[Process "); \
-  printInt(coroutineId(NULL)); \
-  printString(" "); \
-  printString((strrchr(__FILE__, '/') + 1)); \
-  printString(":"); \
-  printString(__func__); \
-  printString("."); \
-  printInt(__LINE__); \
-  printString("] "); \
-  printString(message);
-
 // Doxygen marker
 /// @file
 
 #include "Coroutines.h"
+#undef printString
+#undef printInt
+#undef startDebugMessage
+#define printString(message) {}
+#define printInt(message) {}
+#define startDebugMessage(message) {}
 
 #ifdef THREAD_SAFE_COROUTINES
 #include "CThreads.h"

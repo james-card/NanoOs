@@ -84,6 +84,31 @@ struct timespec {
 int timespec_get(struct timespec* spec, int base);
 
 
+//// #define NANO_OS_DEBUG
+#ifdef NANO_OS_DEBUG
+
+/// @def startDebugMessage
+///
+/// @brief Print a non-newline-terminated debug message.
+#define startDebugMessage(message) \
+  printString("[Process "); \
+  printInt(coroutineId(NULL)); \
+  printString(" "); \
+  printString((strrchr(__FILE__, '/') + 1)); \
+  printString(":"); \
+  printString(__func__); \
+  printString("."); \
+  printInt(__LINE__); \
+  printString("] "); \
+  printString(message);
+
+#else // NANO_OS_DEBUG
+
+#define startDebugMessage(message) {}
+
+#endif // NANO_OS_DEBUG
+
+
 // The errors defined by the compiler's version of errno.h are not helpful
 // because most things are defined to be ENOERR.  So, we need to define some of
 // our own.

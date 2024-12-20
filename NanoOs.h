@@ -163,23 +163,7 @@ extern "C"
   (int) number, \
   ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
-//// #define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
-
-/// @def startDebugMessage
-///
-/// @brief Print a non-newline-terminated debug message.
-#define startDebugMessage(message) \
-  Serial.print("[Process "); \
-  Serial.print(coroutineId(NULL)); \
-  Serial.print(" "); \
-  Serial.print((strrchr(__FILE__, '/') + 1)); \
-  Serial.print(":"); \
-  Serial.print(__func__); \
-  Serial.print("."); \
-  Serial.print(__LINE__); \
-  Serial.print("] "); \
-  Serial.print(message);
 
 /// @def printDebug
 ///
@@ -188,7 +172,6 @@ extern "C"
 
 #else // NANO_OS_DEBUG
 
-#define startDebugMessage(message) {}
 #define printDebug(message) {}
 
 #endif // NANO_OS_DEBUG
