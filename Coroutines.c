@@ -128,12 +128,6 @@
 /// @file
 
 #include "Coroutines.h"
-#undef printString
-#undef printInt
-#undef startDebugMessage
-#define printString(message) {}
-#define printInt(message) {}
-#define startDebugMessage(message) {}
 
 #ifdef THREAD_SAFE_COROUTINES
 #include "CThreads.h"
@@ -1016,11 +1010,6 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
       cond->tail = targetCoroutine->prevToSignal;
     }
     cond->numWaiters--;
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->numWaiters = ");
-    printInt(cond->numWaiters);
-    printString("\n");
   }
   // targetCoroutine->prevToSignal->nextToSignal is taken care of above.
   if (targetCoroutine->nextToSignal != NULL) {
@@ -1569,27 +1558,7 @@ int coconditionBroadcast(Cocondition *cond) {
   int returnValue = coroutineSuccess;
 
   if (cond != NULL) {
-    startDebugMessage("Setting (");
-    printInt((intptr_t) cond);
-    printString(")->numSignals to ");
-    printInt(cond->numWaiters);
-    printString("\n");
     cond->numSignals = cond->numWaiters;
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->head = ");
-    for (Coroutine *cur = cond->head; cur != NULL; cur = cur->nextToSignal) {
-      printInt(coroutineId(cur));
-      if (cur->nextToSignal != NULL) {
-        printString(", ");
-      }
-    }
-    printString("\n");
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->tail = ");
-    printInt((cond->tail != NULL) ? coroutineId(cond->tail) : 0);
-    printString("\n");
 
     CoconditionSignalCallback coconditionSignalCallback
       = _globalCoconditionSignalCallback;
@@ -1760,11 +1729,6 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     // We are at the head of the queue.
     cond->numSignals--;
     cond->numWaiters--;
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->numWaiters = ");
-    printInt(cond->numWaiters);
-    printString("\n");
     cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
@@ -1780,9 +1744,6 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   } else if (returnValue == coroutineTimedout) {
     // Remove ourselves from the queue.  We could be anywhere in the queue, so
     // manage the links accordingly.
-    startDebugMessage("Condition ");
-    printInt((intptr_t) cond);
-    printString(" timed out.\n");
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
     }
@@ -1797,11 +1758,6 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
       cond->tail = running->prevToSignal;
     }
     cond->numWaiters--;
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->numWaiters = ");
-    printInt(cond->numWaiters);
-    printString("\n");
   } else {
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
@@ -1864,36 +1820,13 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
 
   int returnValue = coroutineSuccess;
   running->blockingCocondition = cond;
-  startDebugMessage("(");
-  printInt((intptr_t) cond);
-  printString(")->numSignals = ");
-  printInt(cond->numSignals);
-  printString("\n");
-  startDebugMessage("(");
-  printInt((intptr_t) cond);
-  printString(")->numWaiters = ");
-  printInt(cond->numWaiters);
-  printString("\n");
   while ((cond->numSignals == 0) || (cond->head != running)) {
     cond->lastYieldValue = coroutineYield(COROUTINE_WAIT);
   }
   running->blockingCocondition = NULL;
   if (cond->numSignals > 0) {
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->numSignals = ");
-    printInt(cond->numSignals);
-    printString("\n");
     cond->numSignals--;
     cond->numWaiters--;
-    startDebugMessage("(");
-    printInt((intptr_t) cond);
-    printString(")->numWaiters = ");
-    printInt(cond->numWaiters);
-    printString("\n");
-    if (cond->head == running->nextToSignal) {
-      startDebugMessage("ERROR!!!  Setting cond->head to itself!!!\n");
-    }
     cond->head = running->nextToSignal;
     if (running->prevToSignal != NULL) {
       running->prevToSignal->nextToSignal = running->nextToSignal;
@@ -1906,11 +1839,6 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
       cond->tail = running->prevToSignal;
     }
   } else {
-    startDebugMessage("ERROR!!! (");
-    printInt((intptr_t) cond);
-    printString(")->numSignals = ");
-    printInt(cond->numSignals);
-    printString("\n");
     // The condition has been destroyed out from under us.  Invalid state.
     returnValue = coroutineError;
   }
@@ -2434,7 +2362,6 @@ int comessageRelease(Comessage *comessage) {
 ///
 /// @return Returns coroutineSuccess, coroutineError on failure.
 int comessageSetDone(Comessage *comessage) {
-  startDebugMessage("In comessageSetDone.\n");
   int returnValue = coroutineError;
 
   if (comessage == NULL) {
@@ -2455,21 +2382,15 @@ int comessageSetDone(Comessage *comessage) {
     if (comessage->waiting == true) {
       // Something is waiting.  Signal the waiters.  It will be up to them to
       // destroy this message again later.
-      startDebugMessage("Broadcasting to waiting processes.\n");
       if (coconditionBroadcast(&comessage->condition) == coroutineSuccess) {
         returnValue = coroutineSuccess;
       } // else, returnValue remains coroutineError.
-      startDebugMessage("Returned from broadcast.\n");
     } else {
-      startDebugMessage("Nothing waiting for done.  NOT broadcasting to comessage ");
-      printInt((intptr_t) comessage);
-      printString(".\n");
       returnValue = coroutineSuccess;
     }
     comutexUnlock(&comessage->lock);
   } else {
     // Nothing we can do but set the done flag.
-    startDebugMessage("Comessage is NOT configured.  Just setting done.\n");
     comessage->done = true;
     returnValue = coroutineSuccess;
   }
@@ -2478,7 +2399,6 @@ int comessageSetDone(Comessage *comessage) {
   // Don't touch comessage->lock.
   // Don't touch comessage->configured.
 
-  startDebugMessage("Exiting comessageSetDone.\n");
   return returnValue;
 }
 
@@ -2513,12 +2433,9 @@ int comessageWaitForDone(Comessage *comessage, const struct timespec *ts) {
   if (comessage->done == true) {
     returnValue = coroutineSuccess;
   } else {
-    startDebugMessage("Comessage is not done.\n");
     if (ts == NULL) {
-      startDebugMessage("Calling comutexLock.\n");
       lockStatus = comutexLock(&comessage->lock);
     } else {
-      startDebugMessage("Calling comutexTimedLock.\n");
       lockStatus = comutexTimedLock(&comessage->lock, ts);
     }
     if (lockStatus != coroutineSuccess) {
@@ -2527,21 +2444,15 @@ int comessageWaitForDone(Comessage *comessage, const struct timespec *ts) {
       // never received the done flag.
       return returnValue; // coroutineError
     }
-    startDebugMessage("Mutex is locked.\n");
 
     comessage->waiting = true;
     while (comessage->done == false) {
       if (ts == NULL) {
-        startDebugMessage("Calling coconditionWait for comessage ");
-        printInt((intptr_t) comessage);
-        printString(".\n");
         waitStatus = coconditionWait(&comessage->condition, &comessage->lock);
       } else {
-        startDebugMessage("Calling coconditionTimedWait.\n");
         waitStatus
           = coconditionTimedWait(&comessage->condition, &comessage->lock, ts);
       }
-      startDebugMessage("Returned from wait.\n");
       if (waitStatus != coroutineSuccess) {
         // Either we timed out or there's a problem with the condition.  Again,
         // we don't want to proceed like this.
@@ -2553,9 +2464,7 @@ int comessageWaitForDone(Comessage *comessage, const struct timespec *ts) {
     if (comessage->done == true) {
       returnValue = coroutineSuccess;
     }
-    startDebugMessage("Calling comutexUnlock.\n");
     comutexUnlock(&comessage->lock);
-    startDebugMessage("Mutex is unlocked.\n");
   }
 
   return returnValue;
@@ -2649,7 +2558,6 @@ Comessage* comessageWaitForReplyWithType_(
 
     if (cur != NULL) {
       // Desired reply was found.  Remove the message from the coroutine.
-      startDebugMessage("Desired reply found.\n");
       reply = cur;
       *prev = cur->next;
 
@@ -2663,17 +2571,13 @@ Comessage* comessageWaitForReplyWithType_(
       cur->next = NULL;
     } else {
       // Desired reply was not found.  Block until something else is pushed.
-      startDebugMessage("Desired reply NOT found.\n");
       if (ts == NULL) {
-        startDebugMessage("Calling coconditionWait.\n");
         waitStatus = coconditionWait(
           &coroutine->messageCondition, &coroutine->messageLock);
       } else {
-        startDebugMessage("Calling coconditionTimedWait.\n");
         waitStatus = coconditionTimedWait(
           &coroutine->messageCondition, &coroutine->messageLock, ts);
       }
-      startDebugMessage("Returned from wait.\n");
       if (waitStatus != coroutineSuccess) {
         // Something isn't as expected.  Bail.
         break;
