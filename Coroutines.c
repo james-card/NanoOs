@@ -186,6 +186,11 @@ static Coroutine* _globalIdle = NULL;
 /// @brief The size of each coroutine's stack in bytes.
 static int _globalStackSize = COROUTINE_DEFAULT_STACK_SIZE;
 
+/// @var _globalStateData
+///
+/// @brief Global state data provided to the global callbacks.
+static void *_globalStateData = NULL;
+
 /// @var static ComutexUnlockCallback _globalComutexUnlockCallback
 ///
 /// @brief Global callback to call when a comutex is unlocked.
@@ -292,6 +297,11 @@ ZEROINIT(static tss_t _tssIdle);
 /// @brief Thread-specific size of each coroutine's stack, in bytes.
 ZEROINIT(static tss_t _tssStackSize);
 
+/// @var static tss_t _tssStateData
+///
+/// @brief Thread-specific state data provided to the thread-specific callbacks.
+ZEROINIT(static tss_t _tssStateData);
+
 /// @var static ComutexUnlockCallback _tssComutexUnlockCallback
 ///
 /// @brief Thread-specific callback to call when a cocondition is signalled.
@@ -329,6 +339,10 @@ void coroutineSetupThreadMetadata(void) {
   status = tss_create(&_tssStackSize, NULL);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssStackSize.\n");
+  }
+  status = tss_create(&_tssStateData, NULL);
+  if (status != thrd_success) {
+    fprintf(stderr, "Could not initialize _tssStateData.\n");
   }
   status = tss_create(&_tssComutexUnlockCallback, NULL);
   if (status != thrd_success) {
@@ -387,6 +401,13 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
     fprintf(stderr,
       "Could not set _tssStackSize to %d in "
       "coroutineInitializeThreadMetadata.\n", _globalStackSize);
+    return false;
+  }
+  status = tss_set(_tssStateData, _globalStateData);
+  if (status != thrd_success) {
+    fprintf(stderr,
+      "Could not set _tssStateData to %p in "
+      "coroutineInitializeThreadMetadata.\n", _globalStateData);
     return false;
   }
   status = tss_set(
@@ -1141,7 +1162,7 @@ bool coroutineThreadingSupportEnabled() {
 
 #endif // THREAD_SAFE_COROUTINES
 
-/// @fn int coroutineConfig(Coroutine *first, int stackSize, ComutexUnlockCallback *comutexUnlockCallback, CoconditionSignalCallback *coconditionSignalCallback)
+/// @fn int coroutineConfig(Coroutine *first, int stackSize, void *stateData, ComutexUnlockCallback *comutexUnlockCallback, CoconditionSignalCallback *coconditionSignalCallback)
 ///
 /// @brief Configure the global or thread-specific defaults for all coroutines
 /// allocated by the current thread.
@@ -1150,11 +1171,15 @@ bool coroutineThreadingSupportEnabled() {
 /// @param stackSize The desired minimum size of a coroutine's stack, in bytes.
 ///   If this value is less than COROUTINE_STACK_CHUNK_SIZE,
 ///   COROUTINE_DEFAULT_STACK_SIZE will be used.
+/// @param stateData Any state data that should be provided to the callbacks.
+///   This parameter may be NULL.
+/// @param comutexUnlockCallback The callback that is to be used whenever a
+///   comutex is unlocked.  This parameter may be NULL.
 /// @param coconditionSignalCallback The callback that is to be used whenever
 ///   a coconditon is signalled.  This parameter may be NULL.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on error.
-int coroutineConfig(Coroutine *first, int stackSize,
+int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
   ComutexUnlockCallback *comutexUnlockCallback,
   CoconditionSignalCallback *coconditionSignalCallback
 ) {
@@ -1204,6 +1229,7 @@ int coroutineConfig(Coroutine *first, int stackSize,
         return coroutineError;
     }
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
+    tss_set(_tssStateData, stateData);
     tss_set(_tssComutexUnlockCallback, comutexUnlockCallback);
     tss_set(_tssCoconditionSignalCallback, coconditionSignalCallback);
   }
@@ -1222,6 +1248,7 @@ int coroutineConfig(Coroutine *first, int stackSize,
     return coroutineError;
   }
   _globalStackSize = stackSize;
+  _globalStateData = stateData;
   if (comutexUnlockCallback != NULL) {
     _globalComutexUnlockCallback = *comutexUnlockCallback;
   }
@@ -1361,12 +1388,14 @@ int comutexUnlock(Comutex *mtx) {
     if (mtx->recursionLevel == 0) {
       mtx->coroutine = NULL;
 
+      void *stateData = _globalStateData;
       ComutexUnlockCallback comutexUnlockCallback
         = _globalComutexUnlockCallback;
 #ifdef THREAD_SAFE_COROUTINES
       if (_coroutineThreadingSupportEnabled) {
         // No need to call coroutineSetupThreadMetadata or
         // coroutineInitializeThreadMetadata this time since we did that above.
+        stateData = tss_get(_tssStateData);
         ComutexUnlockCallback *possibleCallback
           = tss_get(_tssComutexUnlockCallback);
         if (possibleCallback != NULL) {
@@ -1375,7 +1404,7 @@ int comutexUnlock(Comutex *mtx) {
       }
 #endif
       if (comutexUnlockCallback != NULL) {
-        comutexUnlockCallback(mtx);
+        comutexUnlockCallback(stateData, mtx);
       }
     }
   } else {
@@ -1569,12 +1598,14 @@ int coconditionBroadcast(Cocondition *cond) {
   if (cond != NULL) {
     cond->numSignals = cond->numWaiters;
 
+    void *stateData = _globalStateData;
     CoconditionSignalCallback coconditionSignalCallback
       = _globalCoconditionSignalCallback;
 #ifdef THREAD_SAFE_COROUTINES
     if (_coroutineThreadingSupportEnabled) {
       call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
       if (coroutineInitializeThreadMetadata(NULL)) {
+        stateData = tss_get(_tssStateData);
         CoconditionSignalCallback *possibleCallback
           = tss_get(_tssCoconditionSignalCallback);
         if (possibleCallback != NULL) {
@@ -1584,7 +1615,7 @@ int coconditionBroadcast(Cocondition *cond) {
     }
 #endif
     if (coconditionSignalCallback != NULL) {
-      coconditionSignalCallback(cond);
+      coconditionSignalCallback(stateData, cond);
     }
   } else {
     returnValue = coroutineError;
@@ -1646,19 +1677,24 @@ int coconditionSignal(Cocondition *cond) {
   if ((cond != NULL) && (cond->numWaiters > 0)) {
     cond->numSignals++;
 
+    void *stateData = _globalStateData;
     CoconditionSignalCallback coconditionSignalCallback
       = _globalCoconditionSignalCallback;
 #ifdef THREAD_SAFE_COROUTINES
     if (_coroutineThreadingSupportEnabled) {
       call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
       if (coroutineInitializeThreadMetadata(NULL)) {
-        coconditionSignalCallback = *((CoconditionSignalCallback*)
-          tss_get(_tssCoconditionSignalCallback));
+        stateData = tss_get(_tssStateData);
+        CoconditionSignalCallback *possibleCallback
+          = tss_get(_tssCoconditionSignalCallback);
+        if (possibleCallback != NULL) {
+          coconditionSignalCallback = *possibleCallback;
+        }
       }
     }
 #endif
     if (coconditionSignalCallback != NULL) {
-      coconditionSignalCallback(cond);
+      coconditionSignalCallback(stateData, cond);
     }
   } else {
     returnValue = coroutineError;
