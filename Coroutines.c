@@ -136,6 +136,15 @@
 #include <string.h>
 #include <stdio.h> // For error messages
 
+/// @union CallbackPointerCast
+///
+/// @brief C union to convert between a callback function pointer and a data
+/// pointer.
+typedef union CallbackPointerCast {
+  void (*function)(void*);
+  void *pointer;
+} CallbackPointerCast;
+
 // Prototype forward declarations for mutual recursion.
 void coroutineAllocateStack(int stackSize, void *topOfStack);
 void coroutineMain(void *stack);
@@ -295,12 +304,12 @@ ZEROINIT(static tss_t _tssStackSize);
 /// @var static ComutexUnlockCallback _tssComutexUnlockCallback
 ///
 /// @brief Thread-specific callback to call when a cocondition is signalled.
-ZEROINIT(static ComutexUnlockCallback _tssComutexUnlockCallback);
+ZEROINIT(static tss_t _tssComutexUnlockCallback);
 
 /// @var static CoconditionSignalCallback _tssCoconditionSignalCallback
 ///
 /// @brief Thread-specific callback to call when a cocondition is signalled.
-ZEROINIT(static CoconditionSignalCallback _tssCoconditionSignalCallback);
+ZEROINIT(static tss_t _tssCoconditionSignalCallback);
 
 /// @var static once_flag _threadMetadataSetup
 ///
@@ -389,24 +398,29 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
       "coroutineInitializeThreadMetadata.\n", _globalStackSize);
     return false;
   }
+  CallbackPointerCast callbackPointerCast;
+  callbackPointerCast.function
+    = (void (*)(void *)) _globalComutexUnlockCallback;
   status = tss_set(
     _tssComutexUnlockCallback,
-    _globalComutexUnlockCallback
+    callbackPointerCast.pointer
   );
   if (status != thrd_success) {
     fprintf(stderr,
       "Could not set _tssComutexUnlockCallback to %p in "
-      "coroutineInitializeThreadMetadata.\n", _globalComutexUnlockCallback);
+      "coroutineInitializeThreadMetadata.\n", callbackPointerCast.pointer);
     return false;
   }
+  callbackPointerCast.function
+    = (void (*)(void *)) _globalCoconditionSignalCallback;
   status = tss_set(
     _tssCoconditionSignalCallback,
-    _globalCoconditionSignalCallback
+    callbackPointerCast.pointer
   );
   if (status != thrd_success) {
     fprintf(stderr,
       "Could not set _tssCoconditionSignalCallback to %p in "
-      "coroutineInitializeThreadMetadata.\n", _globalCoconditionSignalCallback);
+      "coroutineInitializeThreadMetadata.\n", callbackPointerCast.pointer);
     return false;
   }
 
@@ -1203,8 +1217,11 @@ int coroutineConfig(Coroutine *first, int stackSize,
         return coroutineError;
     }
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
-    tss_set(_tssComutexUnlockCallback, coconditionSignalCallback);
-    tss_set(_tssCoconditionSignalCallback, coconditionSignalCallback);
+    CallbackPointerCast callbackPointerCast;
+    callbackPointerCast.function = (void (*)(void *)) comutexUnlockCallback;
+    tss_set(_tssComutexUnlockCallback, callbackPointerCast.pointer);
+    callbackPointerCast.function = (void (*)(void *)) coconditionSignalCallback;
+    tss_set(_tssCoconditionSignalCallback, callbackPointerCast.pointer);
   }
 #endif // THREAD_SAFE_COROUTINES
   if (first != NULL) {
@@ -1244,6 +1261,7 @@ int comutexInit(Comutex *mtx, int type) {
     mtx->type = type;
     mtx->coroutine = NULL;
     mtx->recursionLevel = 0;
+    mtx->head = NULL;
   } else {
     returnValue = coroutineError;
   }
@@ -1361,8 +1379,10 @@ int comutexUnlock(Comutex *mtx) {
       if (_coroutineThreadingSupportEnabled) {
         // No need to call coroutineSetupThreadMetadata or
         // coroutineInitializeThreadMetadata this time since we did that above.
+        CallbackPointerCast callbackPointerCast;
+        callbackPointerCast.pointer = tss_get(_tssComutexUnlockCallback);
         comutexUnlockCallback
-          = (ComutexUnlockCallback*) tss_get(_tssComutexUnlockCallback);
+          = (ComutexUnlockCallback) callbackPointerCast.function;
       }
 #endif
       if (comutexUnlockCallback != NULL) {
@@ -1566,8 +1586,10 @@ int coconditionBroadcast(Cocondition *cond) {
     if (_coroutineThreadingSupportEnabled) {
       call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
       if (coroutineInitializeThreadMetadata(NULL)) {
+        CallbackPointerCast callbackPointerCast;
+        callbackPointerCast.pointer = tss_get(_tssCoconditionSignalCallback);
         coconditionSignalCallback
-          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
+          = (CoconditionSignalCallback) callbackPointerCast.function;
       }
     }
 #endif
@@ -1640,8 +1662,10 @@ int coconditionSignal(Cocondition *cond) {
     if (_coroutineThreadingSupportEnabled) {
       call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
       if (coroutineInitializeThreadMetadata(NULL)) {
+        CallbackPointerCast callbackPointerCast;
+        callbackPointerCast.pointer = tss_get(_tssCoconditionSignalCallback);
         coconditionSignalCallback
-          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
+          = (CoconditionSignalCallback) callbackPointerCast.function;
       }
     }
 #endif
