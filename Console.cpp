@@ -87,7 +87,7 @@ void consoleMessageCleanup(Comessage *inputMessage) {
   }
 }
 
-/// @fn void consoleWriteValueHandler(
+/// @fn void consoleWriteValueCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_WRITE_VALUE command.
@@ -99,7 +99,7 @@ void consoleMessageCleanup(Comessage *inputMessage) {
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
-void consoleWriteValueHandler(
+void consoleWriteValueCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   char staticBuffer[19]; // max length of a 64-bit value is 18 digits plus NULL.
@@ -199,7 +199,7 @@ void consoleWriteValueHandler(
   return;
 }
 
-/// @fn void consoleGetBufferHandler(
+/// @fn void consoleGetBufferCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_GET_BUFFER command.  Gets a free
@@ -217,7 +217,7 @@ void consoleWriteValueHandler(
 /// Since this is a synchronous call, it also pushes a message onto the message
 /// sender's queue with the free buffer on success.  On failure, the
 /// inputMessage is marked as done but no response is sent.
-void consoleGetBufferHandler(
+void consoleGetBufferCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   startDebugMessage("In ");
@@ -268,7 +268,7 @@ void consoleGetBufferHandler(
   return;
 }
 
-/// @fn void consoleWriteBufferHandler(
+/// @fn void consoleWriteBufferCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_WRITE_BUFFER command.  Writes the
@@ -281,7 +281,7 @@ void consoleGetBufferHandler(
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
-void consoleWriteBufferHandler(
+void consoleWriteBufferCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   (void) consoleState;
@@ -301,7 +301,7 @@ void consoleWriteBufferHandler(
   return;
 }
 
-/// @fn void consoleSetPortShellHandler(
+/// @fn void consleSetPortShellCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Set the designated shell process ID for a port.
@@ -314,7 +314,7 @@ void consoleWriteBufferHandler(
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
-void consoleSetPortShellHandler(
+void consleSetPortShellCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   ConsolePortPidUnion consolePortPidUnion;
@@ -342,7 +342,7 @@ void consoleSetPortShellHandler(
   return;
 }
 
-/// @fn void consoleAssignPortHandler(
+/// @fn void consoleAssignPortCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Assign a console port to a running process.
@@ -355,7 +355,7 @@ void consoleSetPortShellHandler(
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
-void consoleAssignPortHandler(
+void consoleAssignPortCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   ConsolePortPidUnion consolePortPidUnion;
@@ -383,7 +383,7 @@ void consoleAssignPortHandler(
   return;
 }
 
-/// @fn void consoleReleasePortHandler(
+/// @fn void consoleReleasePortCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Release all the ports currently owned by a process.
@@ -393,7 +393,7 @@ void consoleAssignPortHandler(
 /// @param inputMessage A pointer to the Comessage with the received command.
 ///
 /// @return This function returns no value.
-void consoleReleasePortHandler(
+void consoleReleasePortCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
@@ -419,7 +419,7 @@ void consoleReleasePortHandler(
   return;
 }
 
-/// @fn void consoleGetOwnedPortHandler(
+/// @fn void consoleGetOwnedPortCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Get the first port currently owned by a process.
@@ -434,7 +434,7 @@ void consoleReleasePortHandler(
 /// @param inputMessage A pointer to the Comessage with the received command.
 ///
 /// @return This function returns no value.
-void consoleGetOwnedPortHandler(
+void consoleGetOwnedPortCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
@@ -468,7 +468,7 @@ void consoleGetOwnedPortHandler(
   return;
 }
 
-/// @fn void consoleSetEchoHandler(
+/// @fn void consoleSetEchoCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Set whether or not input is echoed back to all console ports owned
@@ -479,7 +479,7 @@ void consoleGetOwnedPortHandler(
 /// @param inputMessage A pointer to the Comessage with the received command.
 ///
 /// @return This function returns no value.
-void consoleSetEchoHandler(
+void consoleSetEchoCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
@@ -515,7 +515,7 @@ void consoleSetEchoHandler(
   return;
 }
 
-/// @fn void consoleWaitForInputHandler(
+/// @fn void consoleWaitForInputCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Wait for input from any of the console ports owned by a process.
@@ -525,10 +525,10 @@ void consoleSetEchoHandler(
 /// @param inputMessage A pointer to the Comessage with the received command.
 ///
 /// @return This function returns no value.
-void consoleWaitForInputHandler(
+void consoleWaitForInputCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
-  startDebugMessage("In consoleWaitForInputHandler.\n");
+  startDebugMessage("In consoleWaitForInputCommandHandler.\n");
   COROUTINE_ID_TYPE owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
@@ -555,7 +555,7 @@ void consoleWaitForInputHandler(
   return;
 }
 
-/// @fn void consoleReleasePidPortHandler(
+/// @fn void consoleReleasePidPortCommandHandler(
 ///   ConsoleState *consoleState, Comessage *inputMessage)
 ///
 /// @brief Release all the ports currently owned by a process.
@@ -565,7 +565,7 @@ void consoleWaitForInputHandler(
 /// @param inputMessage A pointer to the Comessage with the received command.
 ///
 /// @return This function returns no value.
-void consoleReleasePidPortHandler(
+void consoleReleasePidPortCommandHandler(
   ConsoleState *consoleState, Comessage *inputMessage
 ) {
   COROUTINE_ID_TYPE sender = coroutineId(comessageFrom(inputMessage));
@@ -622,16 +622,16 @@ void consoleReleasePidPortHandler(
 ///
 /// @brief Array of handlers for console command messages.
 void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
-  consoleWriteValueHandler,     // CONSOLE_WRITE_VALUE
-  consoleGetBufferHandler,      // CONSOLE_GET_BUFFER
-  consoleWriteBufferHandler,    // CONSOLE_WRITE_BUFFER
-  consoleSetPortShellHandler,   // CONSOLE_SET_PORT_SHELL
-  consoleAssignPortHandler,     // CONSOLE_ASSIGN_PORT
-  consoleReleasePortHandler,    // CONSOLE_RELEASE_PORT
-  consoleGetOwnedPortHandler,   // CONSOLE_GET_OWNED_PORT
-  consoleSetEchoHandler,        // CONSOLE_SET_ECHO_PORT
-  consoleWaitForInputHandler,   // CONSOLE_WAIT_FOR_INPUT
-  consoleReleasePidPortHandler, // CONSOLE_RELEASE_PID_PORT
+  consoleWriteValueCommandHandler,     // CONSOLE_WRITE_VALUE
+  consoleGetBufferCommandHandler,      // CONSOLE_GET_BUFFER
+  consoleWriteBufferCommandHandler,    // CONSOLE_WRITE_BUFFER
+  consleSetPortShellCommandHandler,   // CONSOLE_SET_PORT_SHELL
+  consoleAssignPortCommandHandler,     // CONSOLE_ASSIGN_PORT
+  consoleReleasePortCommandHandler,    // CONSOLE_RELEASE_PORT
+  consoleGetOwnedPortCommandHandler,   // CONSOLE_GET_OWNED_PORT
+  consoleSetEchoCommandHandler,        // CONSOLE_SET_ECHO_PORT
+  consoleWaitForInputCommandHandler,   // CONSOLE_WAIT_FOR_INPUT
+  consoleReleasePidPortCommandHandler, // CONSOLE_RELEASE_PID_PORT
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)

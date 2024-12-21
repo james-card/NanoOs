@@ -428,8 +428,8 @@ ProcessInfo* getProcessInfo(void) {
   // handled below.  We allocated our return value based upon the size that was
   // returned above and, if we're not careful, it will be possible to overflow
   // the array.  Initialize processInfo->numProcesses so that
-  // handleGetProcessInfo knows the maximum number of ProcessInfoElements it can
-  // populated.
+  // schedulerGetProcessInfoCommandHandler knows the maximum number of
+  // ProcessInfoElements it can populated.
   processInfo->numProcesses = numRunningProcesses;
   nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
@@ -1037,7 +1037,7 @@ int schedulerSetPortShell(uint8_t consolePort, COROUTINE_ID_TYPE shell) {
   return returnValue;
 }
 
-/// @fn int handleRunProcess(Comessage *comessage)
+/// @fn int schedulerRunProcessCommandHandler(Comessage *comessage)
 ///
 /// @brief Run a process in an appropriate process slot.
 ///
@@ -1045,7 +1045,7 @@ int schedulerSetPortShell(uint8_t consolePort, COROUTINE_ID_TYPE shell) {
 ///   the information about the process to run and how to run it.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleRunProcess(Comessage *comessage) {
+int schedulerRunProcessCommandHandler(Comessage *comessage) {
   static int returnValue = 0;
   if (comessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
@@ -1159,7 +1159,7 @@ int handleRunProcess(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int handleKillProcess(Comessage *comessage)
+/// @fn int schedulerKillProcessCommandHandler(Comessage *comessage)
 ///
 /// @brief Kill a process identified by its process ID.
 ///
@@ -1167,7 +1167,7 @@ int handleRunProcess(Comessage *comessage) {
 ///   the information about the process to kill.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleKillProcess(Comessage *comessage) {
+int schedulerKillProcessCommandHandler(Comessage *comessage) {
   startDebugMessage("comessage = ");
   printDebug((intptr_t) comessage);
   printDebug("\n");
@@ -1226,7 +1226,7 @@ int handleKillProcess(Comessage *comessage) {
         nanoOsMessage->data = 1;
         if (comessageSetDone(comessage) != coroutineSuccess) {
           printString("ERROR!!!  "
-            "Could not mark message done in handleKillProcess.\n");
+            "Could not mark message done in schedulerKillProcessCommandHandler.\n");
         }
       }
     } else {
@@ -1234,7 +1234,7 @@ int handleKillProcess(Comessage *comessage) {
       nanoOsMessage->data = EACCES; // Permission denied
       if (comessageSetDone(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
-          "Could not mark message done in handleKillProcess.\n");
+          "Could not mark message done in schedulerKillProcessCommandHandler.\n");
       }
     }
   } else {
@@ -1242,7 +1242,7 @@ int handleKillProcess(Comessage *comessage) {
     nanoOsMessage->data = EINVAL; // Invalid argument
     if (comessageSetDone(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not mark message done in handleKillProcess.\n");
+        "Could not mark message done in schedulerKillProcessCommandHandler.\n");
     }
   }
 
@@ -1251,7 +1251,7 @@ int handleKillProcess(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int handleGetNumRunningProcesses(Comessage *comessage)
+/// @fn int schedulerGetNumRunningProcessesCommandHandler(Comessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
@@ -1259,7 +1259,7 @@ int handleKillProcess(Comessage *comessage) {
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleGetNumRunningProcesses(Comessage *comessage) {
+int schedulerGetNumRunningProcessesCommandHandler(Comessage *comessage) {
   int returnValue = 0;
 
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -1279,7 +1279,7 @@ int handleGetNumRunningProcesses(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int handleGetProcessInfo(Comessage *comessage)
+/// @fn int schedulerGetProcessInfoCommandHandler(Comessage *comessage)
 ///
 /// @brief Fill in a provided array with information about the currently-running
 /// processes.
@@ -1288,7 +1288,7 @@ int handleGetNumRunningProcesses(Comessage *comessage) {
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleGetProcessInfo(Comessage *comessage) {
+int schedulerGetProcessInfoCommandHandler(Comessage *comessage) {
   int returnValue = 0;
 
   ProcessInfo *processInfo
@@ -1317,7 +1317,7 @@ int handleGetProcessInfo(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int handleGetProcessUser(Comessage *comessage)
+/// @fn int schedulerGetProcessUserCommandHandler(Comessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
@@ -1325,7 +1325,7 @@ int handleGetProcessInfo(Comessage *comessage) {
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleGetProcessUser(Comessage *comessage) {
+int schedulerGetProcessUserCommandHandler(Comessage *comessage) {
   int returnValue = 0;
   COROUTINE_ID_TYPE processId = coroutineId(comessageFrom(comessage));
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -1342,7 +1342,7 @@ int handleGetProcessUser(Comessage *comessage) {
   return returnValue;
 }
 
-/// @fn int handleSetProcessUser(Comessage *comessage)
+/// @fn int schedulerSetProcessUserCommandHandler(Comessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
@@ -1350,7 +1350,7 @@ int handleGetProcessUser(Comessage *comessage) {
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int handleSetProcessUser(Comessage *comessage) {
+int schedulerSetProcessUserCommandHandler(Comessage *comessage) {
   int returnValue = 0;
   COROUTINE_ID_TYPE processId = coroutineId(comessageFrom(comessage));
   UserId userId = nanoOsMessageDataValue(comessage, UserId);
@@ -1380,12 +1380,13 @@ int handleSetProcessUser(Comessage *comessage) {
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 int (*schedulerCommandHandlers[])(Comessage*) = {
-  handleRunProcess,
-  handleKillProcess,
-  handleGetNumRunningProcesses,
-  handleGetProcessInfo,
-  handleGetProcessUser,
-  handleSetProcessUser,
+  schedulerRunProcessCommandHandler,     // SCHEDULER_RUN_PROCESS
+  schedulerKillProcessCommandHandler,    // SCHEDULER_KILL_PROCESS
+  // SCHEDULER_GET_NUM_RUNNING_PROCESSES:
+  schedulerGetNumRunningProcessesCommandHandler,
+  schedulerGetProcessInfoCommandHandler, // SCHEDULER_GET_PROCESS_INFO
+  schedulerGetProcessUserCommandHandler, // SCHEDULER_GET_PROCESS_USER
+  schedulerSetProcessUserCommandHandler, // SCHEDULER_SET_PROCESS_USER
 };
 
 /// @fn void handleSchedulerMessage(void)

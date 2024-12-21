@@ -286,7 +286,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 
 /******************* End Custom Memory Management Functions *******************/
 
-/// @fn int memoryManagerHandleRealloc(
+/// @fn int memoryManagerReallocCommandHandler(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_REALLOC command.  Extracts the
@@ -299,7 +299,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 ///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
-int memoryManagerHandleRealloc(
+int memoryManagerReallocCommandHandler(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   // We're going to reuse the incoming message as the outgoing message.
@@ -334,7 +334,7 @@ int memoryManagerHandleRealloc(
   return returnValue;
 }
 
-/// @fn int memoryManagerHandleFree(
+/// @fn int memoryManagerFreeCommandHandler(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_FREE command.  Extracts the
@@ -347,7 +347,7 @@ int memoryManagerHandleRealloc(
 ///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
-int memoryManagerHandleFree(
+int memoryManagerFreeCommandHandler(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   int returnValue = 0;
@@ -356,14 +356,14 @@ int memoryManagerHandleFree(
   localFree(memoryManagerState, ptr);
   if (comessageRelease(incoming) != coroutineSuccess) {
     printString("ERROR!!!  "
-      "Could not release message from memoryManagerHandleFree.\n");
+      "Could not release message from memoryManagerFreeCommandHandler.\n");
     returnValue = -1;
   }
 
   return returnValue;
 }
 
-/// @fn int memoryManagerHandleGetFreeMemory(
+/// @fn int memoryManagerGetFreeMemoryCommandHandler(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
 /// @brief Command handler for MEMORY_MANAGER_GET_FREE_MEMORY.  Gets the amount
@@ -376,7 +376,7 @@ int memoryManagerHandleFree(
 ///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
-int memoryManagerHandleGetFreeMemory(
+int memoryManagerGetFreeMemoryCommandHandler(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   // We're going to reuse the incoming message as the outgoing message.
@@ -405,7 +405,7 @@ int memoryManagerHandleGetFreeMemory(
   return returnValue;
 }
 
-/// @fn int memoryManagerHandleFreeProcessMemory(
+/// @fn int memoryManagerFreeProcessMemoryCommandHandler(
 ///   MemoryManagerState *memoryManagerState, Comessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_FREE_PROCESS_MEMORY command.
@@ -419,7 +419,7 @@ int memoryManagerHandleGetFreeMemory(
 ///   process.
 ///
 /// @return Returns 0 on success, error code on failure.
-int memoryManagerHandleFreeProcessMemory(
+int memoryManagerFreeProcessMemoryCommandHandler(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
   int returnValue = 0;
@@ -437,25 +437,26 @@ int memoryManagerHandleFreeProcessMemory(
   
   // The client is waiting on us.  Mark the message as done.
   if (comessageSetDone(incoming) != coroutineSuccess) {
-    printString("ERROR!!!  "
-      "Could not mark message done in memoryManagerHandleFreeProcessMemory.\n");
+    printString("ERROR!!!  Could not mark message done in "
+      "memoryManagerFreeProcessMemoryCommandHandler.\n");
     returnValue = -1;
   }
   
   return returnValue;
 }
 
-/// @var memoryManagerCommand
+/// @var memoryManagerCommandHandlers
 ///
 /// @brief Array of function pointers for handlers for commands that are
 /// understood by this library.
-int (*memoryManagerCommand[])(
+int (*memoryManagerCommandHandlers[])(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) = {
-  memoryManagerHandleRealloc,
-  memoryManagerHandleFree,
-  memoryManagerHandleGetFreeMemory,
-  memoryManagerHandleFreeProcessMemory,
+  memoryManagerReallocCommandHandler,       // MEMORY_MANAGER_REALLOC
+  memoryManagerFreeCommandHandler,          // MEMORY_MANAGER_FREE
+  memoryManagerGetFreeMemoryCommandHandler, // MEMORY_MANAGER_GET_FREE_MEMORY
+  // MEMORY_MANAGER_FREE_PROCESS_MEMORY:
+  memoryManagerFreeProcessMemoryCommandHandler,
 };
 
 /// @fn void handleMemoryManagerMessages(
@@ -479,7 +480,7 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
       continue;
     }
     
-    memoryManagerCommand[messageType](memoryManagerState, comessage);
+    memoryManagerCommandHandlers[messageType](memoryManagerState, comessage);
     
     comessage = comessageQueuePop();
   }
@@ -655,7 +656,7 @@ void* runMemoryManager(void *args) {
       MemoryManagerCommand messageType
         = (MemoryManagerCommand) comessageType(schedulerMessage);
       if (messageType < NUM_MEMORY_MANAGER_COMMANDS) {
-        memoryManagerCommand[messageType](
+        memoryManagerCommandHandlers[messageType](
           &memoryManagerState, schedulerMessage);
       } else {
         printString("ERROR!!!  Received unknown memory manager command ");
