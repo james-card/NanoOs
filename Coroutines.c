@@ -990,7 +990,6 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
 
   // Halt the coroutine.
-  targetCoroutine->id = COROUTINE_ID_NOT_SET;
   targetCoroutine->state = COROUTINE_STATE_NOT_RUNNING;
   memcpy(&targetCoroutine->context, &targetCoroutine->resetContext, sizeof(jmp_buf));
 #ifdef THREAD_SAFE_COROUTINES
