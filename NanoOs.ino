@@ -95,8 +95,9 @@ void loop() {
     // messages[ii].data will be initialized by getAvailableMessage.
     nanoOsMessages[ii].comessage = &messages[ii];
   }
+  SchedulerState schedulerState = {};
 
   // Enter the scheduler.  This never returns.
-  startScheduler();
+  startScheduler(&schedulerState);
 }
 
