@@ -1690,7 +1690,6 @@ __attribute__((noinline)) void startScheduler(void) {
   // Clear out all the dummy processes now.
   for (int ii = NANO_OS_FIRST_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
     coroutineResume(schedulerState.runningProcesses[ii].coroutine, NULL);
-    schedulerState.runningProcesses[ii].coroutine = NULL;
     schedulerState.runningProcesses[ii].userId = NO_USER_ID;
   }
 
