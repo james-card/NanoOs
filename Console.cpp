@@ -449,12 +449,6 @@ void consoleGetOwnedPortCommandHandler(
     }
   }
 
-  if (ownedPort < 0) {
-    printString("WARNING:  Request to get a port from non-owning process ");
-    printInt(owner);
-    printString("\n");
-  }
-
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) comessageData(returnMessage);
   nanoOsMessage->func = 0;
