@@ -641,13 +641,15 @@ int setProcessUser(UserId userId) {
 /// @param pid The integer ID for the process.
 ///
 /// @return Returns the found coroutine pointer on success, NULL on failure.
-Coroutine* getCoroutineByPid(unsigned int pid) {
+Coroutine* getCoroutineByPid(
+  SchedulerState *schedulerState, unsigned int pid
+) {
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
     return NULL;
   }
 
-  return runningProcesses[pid].coroutine;
+  return schedulerState->runningProcesses[pid].coroutine;
 }
 
 /// @fn int sendComessageToCoroutine(
@@ -1381,7 +1383,7 @@ int schedulerSetProcessUserCommandHandler(
   nanoOsMessage->data = -1;
 
   if (processId < NANO_OS_NUM_PROCESSES) {
-    if ((runningProcesses[processId].userId == -1)
+    if ((schedulerState->runningProcesses[processId].userId == -1)
       || (userId == -1)
     ) {
       runningProcesses[processId].userId = userId;
@@ -1403,13 +1405,13 @@ int schedulerSetProcessUserCommandHandler(
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 int (*schedulerCommandHandlers[])(Comessage*) = {
-  schedulerRunProcessCommandHandler,     // SCHEDULER_RUN_PROCESS
-  schedulerKillProcessCommandHandler,    // SCHEDULER_KILL_PROCESS
+  schedulerRunProcessCommandHandler,        // SCHEDULER_RUN_PROCESS
+  schedulerKillProcessCommandHandler,       // SCHEDULER_KILL_PROCESS
   // SCHEDULER_GET_NUM_RUNNING_PROCESSES:
   schedulerGetNumRunningProcessesCommandHandler,
-  schedulerGetProcessInfoCommandHandler, // SCHEDULER_GET_PROCESS_INFO
-  schedulerGetProcessUserCommandHandler, // SCHEDULER_GET_PROCESS_USER
-  schedulerSetProcessUserCommandHandler, // SCHEDULER_SET_PROCESS_USER
+  schedulerGetProcessInfoCommandHandler,    // SCHEDULER_GET_PROCESS_INFO
+  schedulerGetProcessUserCommandHandler,    // SCHEDULER_GET_PROCESS_USER
+  schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
