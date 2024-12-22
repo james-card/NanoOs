@@ -1277,6 +1277,7 @@ int comutexInit(Comutex *mtx, int type) {
     mtx->coroutine = NULL;
     mtx->recursionLevel = 0;
     mtx->head = NULL;
+    mtx->timeoutTime = 0;
   } else {
     returnValue = coroutineError;
   }
@@ -1427,6 +1428,8 @@ void comutexDestroy(Comutex *mtx) {
     mtx->type = 0;
     mtx->coroutine = NULL;
     mtx->recursionLevel = 0;
+    mtx->head = NULL;
+    mtx->timeoutTime = 0;
   }
 }
 
@@ -1450,13 +1453,14 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     return coroutineError;
   }
   int64_t now = coroutinesGetNanoseconds(NULL);
-  int64_t delayTime = now + coroutinesGetNanoseconds(ts);
+  mtx->timeoutTime = now + coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
 
   if (!(mtx->type & comutexTimed)) {
     // This is not a timed mutex.  It does not support timeouts.  We fail.
+    mtx->timeoutTime = 0;
     return coroutineError;
   }
 
@@ -1465,6 +1469,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   if (_coroutineThreadingSupportEnabled) {
     call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
     if (!coroutineInitializeThreadMetadata(NULL)) {
+      mtx->timeoutTime = 0;
       return coroutineError;
     }
     running = (Coroutine*) tss_get(_tssRunning);
@@ -1473,6 +1478,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 
   if (running == NULL) {
     // running stack not setup yet.  Bail.
+    mtx->timeoutTime = 0;
     return coroutineError;
   }
 
@@ -1490,13 +1496,14 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   int returnValue = comutexTryLock(mtx);
   running->blockingComutex = mtx;
   while (returnValue != coroutineSuccess) {
-    if (coroutinesGetNanoseconds(NULL) > delayTime) {
+    if (coroutinesGetNanoseconds(NULL) > mtx->timeoutTime) {
       returnValue = coroutineTimedout;
       break;
     }
     mtx->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
     returnValue = comutexTryLock(mtx);
   }
+  mtx->timeoutTime = 0;
   running->blockingComutex = NULL;
 
   // Remove ourselves from the queue.
@@ -1636,6 +1643,9 @@ void coconditionDestroy(Cocondition *cond) {
     cond->lastYieldValue = NULL;
     cond->numWaiters = 0;
     cond->numSignals = -1;
+    cond->head = NULL;
+    cond->tail = NULL;
+    cond->timeoutTime = 0;
   }
 }
 
@@ -1656,6 +1666,7 @@ int coconditionInit(Cocondition* cond) {
     cond->numSignals = 0;
     cond->head = NULL;
     cond->tail = NULL;
+    cond->timeoutTime = 0;
   } else {
     returnValue = coroutineError;
   }
@@ -1726,7 +1737,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     return coroutineError;
   }
   int64_t now = coroutinesGetNanoseconds(NULL);
-  int64_t delayTime = now + coroutinesGetNanoseconds(ts);
+  cond->timeoutTime = now + coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   cond->lastYieldValue = NULL;
@@ -1746,6 +1757,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
 
   if (running == NULL) {
     // running stack not setup yet.  Bail.
+    cond->timeoutTime = 0;
     return coroutineError;
   }
 
@@ -1766,12 +1778,13 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     cond->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
 
     if (((cond->numSignals == 0) || (cond->head != running))
-      && (coroutinesGetNanoseconds(NULL) > delayTime)
+      && (coroutinesGetNanoseconds(NULL) > cond->timeoutTime)
     ) {
       returnValue = coroutineTimedout;
       break;
     }
   }
+  cond->timeoutTime = 0;
   running->blockingCocondition = NULL;
   if ((returnValue == coroutineSuccess) && (cond->numSignals > 0)) {
     // We are at the head of the queue.

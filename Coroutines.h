@@ -234,12 +234,15 @@ typedef union CoroutineFuncData {
 /// @param recursionLevel The number of times this mutex has been successfully
 ///   locked in this coroutine.
 /// @param head The next coroutine in the queue to lock this mutex.
+/// @param timeoutTime The time at which a call to comutexTimedLock will
+///   timeout.
 typedef struct Comutex {
   void *lastYieldValue;
   int type;
   Coroutine *coroutine;
   int recursionLevel;
   Coroutine *head;
+  int64_t timeoutTime;
 } Comutex;
 
 // Coroutine condition support.
@@ -258,12 +261,15 @@ typedef struct Comutex {
 /// @param head The head of the coroutine queue (the next coroutine to signal).
 /// @param tail The tail of the coroutine queue (where the next waiting
 ///   coroutine will be added).
+/// @param timeoutTime The time at which a call to coconditionTimedWait will
+///   timeout.
 typedef struct Cocondition {
   void *lastYieldValue;
   int numWaiters;
   int numSignals;
   Coroutine *head;
   Coroutine *tail;
+  int64_t timeoutTime;
 } Cocondition;
 
 // Coroutine base support.
@@ -347,6 +353,9 @@ typedef struct Comessage {
   Comutex lock;
   bool configured;
 } Comessage;
+
+// Support functions
+int64_t coroutinesGetNanoseconds(const struct timespec *ts);
 
 /// @def coroutineResumable(coroutinePointer)
 ///
