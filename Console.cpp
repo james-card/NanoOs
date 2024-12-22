@@ -625,7 +625,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
   consoleWriteValueCommandHandler,     // CONSOLE_WRITE_VALUE
   consoleGetBufferCommandHandler,      // CONSOLE_GET_BUFFER
   consoleWriteBufferCommandHandler,    // CONSOLE_WRITE_BUFFER
-  consleSetPortShellCommandHandler,   // CONSOLE_SET_PORT_SHELL
+  consleSetPortShellCommandHandler,    // CONSOLE_SET_PORT_SHELL
   consoleAssignPortCommandHandler,     // CONSOLE_ASSIGN_PORT
   consoleReleasePortCommandHandler,    // CONSOLE_RELEASE_PORT
   consoleGetOwnedPortCommandHandler,   // CONSOLE_GET_OWNED_PORT
@@ -929,7 +929,8 @@ void* runConsole(void *args) {
           startDebugMessage("Returned from consoleSendInputToProcess.\n");
           consolePort->waitingForInput = false;
         } else {
-          startDebugMessage("Nothing waiting for input.  Resetting port buffer.\n");
+          startDebugMessage(
+            "Nothing waiting for input.  Resetting port buffer.\n");
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
           consolePort->consoleIndex = 0;
