@@ -66,6 +66,10 @@ void setup() {
 // turn, means that we can never exit this function.  So, we will do all the
 // one-time setup and then run our scheduler loop from within this call.
 void loop() {
+  // Externs
+  extern Coroutine *schedulerProcess;
+  extern Comessage *messages;
+
   // Prototypes and externs we need that are not exported from the Processes
   // library.
   void* dummyProcess(void *args);
@@ -83,8 +87,14 @@ void loop() {
   coroutineResume(coroutine, NULL);
 
   // Additional variables we need to allocate before going into the scheduler.
+  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  messages = messagesStorage;
   NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
   nanoOsMessages = nanoOsMessagesStorage;
+  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
+    // messages[ii].data will be initialized by getAvailableMessage.
+    nanoOsMessages[ii].comessage = &messages[ii];
+  }
 
   // Enter the scheduler.  This never returns.
   startScheduler();

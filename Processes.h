@@ -234,9 +234,6 @@ typedef enum SchedulerResponse {
 /// @brief Convenience macro for the common operation of destroying a string.
 #define stringDestroy(string) ((char*) (free((void*) string), NULL))
 
-// externs
-extern Coroutine *schedulerProcess;
-
 // Exported functionality
 void startScheduler(void);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
