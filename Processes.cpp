@@ -341,10 +341,6 @@ void* startCommand(void *args) {
   free(argv); argv = NULL;
   releaseConsole();
 
-  // We need to clear the coroutine pointer.
-  commandDescriptor->schedulerState->runningProcesses[
-    coroutineId(NULL)].coroutine = NULL;
-
   return (void*) ((intptr_t) returnValue);
 }
 
@@ -1133,7 +1129,6 @@ int schedulerRunProcessCommandHandler(
 
     // Kill and clear out the calling process.
     coroutineTerminate(caller, NULL);
-    schedulerState->runningProcesses[processId].coroutine = NULL;
     schedulerState->runningProcesses[processId].name = NULL;
 
     // We don't want to wait for the memory manager to release the memory.  Make
@@ -1272,7 +1267,6 @@ int schedulerKillProcessCommandHandler(
       if (coroutineTerminate(runningProcesses[processId].coroutine, NULL)
         == coroutineSuccess
       ) {
-        runningProcesses[processId].coroutine = NULL;
         runningProcesses[processId].name = NULL;
         runningProcesses[processId].userId = NO_USER_ID;
 
