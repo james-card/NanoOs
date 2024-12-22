@@ -422,6 +422,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
 int memoryManagerFreeProcessMemoryCommandHandler(
   MemoryManagerState *memoryManagerState, Comessage *incoming
 ) {
+  startDebugMessage("In memoryManagerFreeProcessMemoryCommandHandler.\n");
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
@@ -442,6 +443,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
     returnValue = -1;
   }
   
+  startDebugMessage("Exiting memoryManagerFreeProcessMemoryCommandHandler.\n");
   return returnValue;
 }
 
@@ -830,21 +832,5 @@ int assignMemory(void *ptr, CoroutineId pid) {
   }
   
   return returnValue;
-}
-
-/// @fn void memoryManagerCast(Comessage *comessage)
-///
-/// @brief Send a prepared coroutine message to the memory manager process and
-/// do not wait for a reply.  This function exists to support the scheduler and
-/// to keep low-level calls that directly interact with the memory manager
-/// process out of that library.
-///
-/// @param comessage A pointer to a Comessage to relay.
-///
-/// @return This function returns no value.
-void memoryManagerCast(Comessage *comessage) {
-  sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, comessage);
-
-  return;
 }
 
