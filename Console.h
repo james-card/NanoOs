@@ -168,8 +168,8 @@ typedef struct ConsoleBuffer {
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleIndex;
-  CoroutineId   owner;
-  CoroutineId   shell;
+  CoroutineId         owner;
+  CoroutineId         shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
   bool                echo;
