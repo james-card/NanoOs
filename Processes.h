@@ -46,9 +46,56 @@ extern "C"
 
 /// @def SCHEDULER_NUM_PROCESSES
 ///
-/// @brief The number of processes managed by the scheduler.  This may be
-/// different than the total number of processes managed by NanoOs.
+/// @brief The number of processes managed by the scheduler.  This is one fewer
+/// than the total number of processes managed by NanoOs since the scheduler is
+/// a process.
 #define SCHEDULER_NUM_PROCESSES (NANO_OS_NUM_PROCESSES - 1)
+
+/// @typedef Process
+///
+/// @brief Definition of the Process object used by the OS.
+typedef Coroutine Process;
+
+/// @typedef ProcessId
+///
+/// @brief Definition of the type to use for a process ID.
+typedef CoroutineId ProcessId;
+
+/// @typedef ProcessMessage
+///
+/// @brief Definition of the ProcessMessage object that processes will use for
+/// inter-process communication.
+typedef Comessage ProcessMessage;
+
+/// @def processId
+///
+/// @brief Function macro to get the numeric ProcessId given a pointer to a
+/// Process object.
+#define processId(process) coroutineId(process)
+
+/// @def processMessageData
+///
+/// @brief Function macro to get the data pointer out of a process message.
+#define processMessageData(processMessage) comessageData(processMessage)
+
+/// @def processMessageSetDone
+///
+/// @brief Function macro to set a process message to the 'done' state.
+#define processMessageSetDone(processMessage) comessageSetDone(processMessage)
+
+/// @def processMessageWaitForDone
+///
+/// @brief Function macro to wait for a process message to enter the 'done'
+/// state.
+#define processMessageWaitForDone(processMessage, ts) \
+  comessageWaitForDone(processMessage, ts)
+
+/// @def processMessageQueuePush
+///
+/// @brief Function macro to push a process message on to a process's message
+/// queue.
+#define processMessageQueuePush(process, message) \
+  comessageQueuePush(process, message)
 
 /// @struct RunningProcess
 ///
@@ -142,6 +189,7 @@ typedef enum SchedulerCommand {
   SCHEDULER_GET_PROCESS_INFO,
   SCHEDULER_GET_PROCESS_USER,
   SCHEDULER_SET_PROCESS_USER,
+  SCHEDULER_GET_PROCESS_BY_PID,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
 
@@ -158,28 +206,28 @@ typedef enum SchedulerResponse {
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the specified type.
 #define nanoOsMessageFuncValue(msg, type) \
-  ((type) ((NanoOsMessage*) msg->data)->func)
+  ((type) ((NanoOsMessage*) (msg)->data)->func)
 
 /// @def nanoOsMessageFuncPointer
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the provided function pointer.
 #define nanoOsMessageFuncPointer(msg, type) \
-  ((type) nanoOsMessageFuncValue(msg, intptr_t))
+  ((type) nanoOsMessageFuncValue((msg), intptr_t))
 
 /// @def nanoOsMessageDataValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the specified type.
 #define nanoOsMessageDataValue(msg, type) \
-  ((type) ((NanoOsMessage*) msg->data)->data)
+  ((type) ((NanoOsMessage*) (msg)->data)->data)
 
 /// @def nanoOsMessageDataPointer
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the provided function pointer.
 #define nanoOsMessageDataPointer(msg, type) \
-  ((type) nanoOsMessageDataValue(msg, intptr_t))
+  ((type) nanoOsMessageDataValue((msg), intptr_t))
 
 /// @def stringDestroy
 ///
@@ -187,7 +235,7 @@ typedef enum SchedulerResponse {
 #define stringDestroy(string) ((char*) (free((void*) string), NULL))
 
 // externs
-extern Coroutine *mainCoroutine;
+extern Coroutine *schedulerProcess;
 
 // Exported functionality
 void startScheduler(void);

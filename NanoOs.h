@@ -213,6 +213,21 @@ typedef struct NanoOsMessage {
   Comessage         *comessage;
 } NanoOsMessage;
 
+/// @def STATIC_NANO_OS_MESSAGE
+///
+/// @brief Helper macro to define and initialize a NanoOs message for local
+/// use.
+#define STATIC_NANO_OS_MESSAGE( \
+  variableName, type, funcValue, dataValue, waiting \
+) \
+  NanoOsMessage __nanoOsMessage; \
+  Comessage variableName; \
+  __nanoOsMessage.func = funcValue; \
+  __nanoOsMessage.data = dataValue; \
+  __nanoOsMessage.comessage = &variableName; \
+  comessageInit( \
+    &variableName, type, &__nanoOsMessage, sizeof(__nanoOsMessage), waiting)
+
 // Support functions
 long getElapsedMilliseconds(unsigned long startTime);
 void timespecFromDelay(struct timespec *ts, long int delayMs);

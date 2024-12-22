@@ -77,8 +77,8 @@ void loop() {
   // configure it, and then create and run one before we ever enter the
   // scheduler.
   Coroutine _mainCoroutine;
-  mainCoroutine = &_mainCoroutine;
-  coroutineConfig(mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
+  schedulerProcess = &_mainCoroutine;
+  coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
   Coroutine *coroutine = coroutineCreate(dummyProcess);
   coroutineResume(coroutine, NULL);
 
