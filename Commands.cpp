@@ -536,8 +536,11 @@ int handleCommand(int consolePort, char *consoleInput) {
 void* runShell(void *args) {
   (void) args;
   char commandBuffer[CONSOLE_BUFFER_SIZE];
-  (void) commandBuffer;
   int consolePort = getOwnedConsolePort();
+  while (consolePort < 0) {
+    coroutineYield(NULL);
+    consolePort = getOwnedConsolePort();
+  }
 
   if (getProcessUser() < 0) {
     printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n\n",
