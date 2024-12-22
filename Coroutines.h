@@ -278,7 +278,7 @@ typedef struct Cocondition {
 ///
 /// @brief Data structure to manage an individual coroutine.
 ///
-/// @param next Pointer to the next Coroutine on the list.
+/// @param nextInList Pointer to the next Coroutine in the list.
 /// @param context The jmp_buf to hold the context of the coroutine.
 /// @param id The ID of the coroutine.
 /// @param state The state of the coroutine.  (See enum above.)
@@ -296,7 +296,7 @@ typedef struct Cocondition {
 ///   signalling between coroutines when adding a message to the queue.
 /// @param messageLock A mutex (Comutex) to guard the message condition.
 typedef struct Coroutine {
-  struct Coroutine *next;
+  struct Coroutine *nextInList;
   jmp_buf context;
   COROUTINE_ID_TYPE id;
   CoroutineState state;
@@ -367,7 +367,7 @@ int64_t coroutinesGetNanoseconds(const struct timespec *ts);
 /// @return Returns false when the coroutine has run to completion or when it is
 /// blocked inside coroutineResume() and true otherwise.
 #define coroutineResumable(coroutinePointer) \
-  (((coroutinePointer) != NULL) && ((coroutinePointer)->next == NULL))
+  (((coroutinePointer) != NULL) && ((coroutinePointer)->nextInList == NULL))
 
 /// @def coroutineFinished(coroutinePointer)
 ///

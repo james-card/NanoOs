@@ -233,7 +233,7 @@ int64_t coroutinesGetNanoseconds(const struct timespec *ts) {
 /// @param Returns the previous head of the list.
 void coroutineGlobalPush(Coroutine** list, Coroutine* coroutine) {
   if ((list != NULL) && (coroutine != NULL)) {
-    coroutine->next = *list;
+    coroutine->nextInList = *list;
     *list = coroutine;
   }
 }
@@ -250,8 +250,8 @@ Coroutine* coroutineGlobalPop(Coroutine** list) {
 
   if (list != NULL) {
     coroutine = *list;
-    *list = coroutine->next;
-    coroutine->next = NULL;
+    *list = coroutine->nextInList;
+    coroutine->nextInList = NULL;
   }
 
   return coroutine;
@@ -969,10 +969,10 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
 
   Coroutine* prev = NULL;
-  for (; running != NULL; running = running->next) {
+  for (; running != NULL; running = running->nextInList) {
     if (running == targetCoroutine) {
       if (prev != NULL) {
-        prev->next = targetCoroutine->next;
+        prev->nextInList = targetCoroutine->nextInList;
       } else {
         // The target coroutine is the top of the running stack.
 #ifdef THREAD_SAFE_COROUTINES
