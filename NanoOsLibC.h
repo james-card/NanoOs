@@ -58,13 +58,13 @@ extern "C"
 /// support.
 #define SINGLE_CORE_COROUTINES
 
-/// @def COROUTINE_ID_TYPE
+/// @def CoroutineId
 ///
 /// @brief The integer type to use of coroutine IDs.  This must be an unsigned
 /// type.  We will have fewer than 256 coroutines in NanoOs, so a uint8_t will
 /// work just fine for us.  This will save us some memory in the definition of
 /// the Coroutine data structure, of course.
-#define COROUTINE_ID_TYPE uint8_t
+#define CoroutineId uint8_t
 
 /// @def COROUTINE_ID_NOT_SET
 ///

@@ -46,7 +46,7 @@
 typedef struct MemNode {
   struct MemNode    *prev;
   size_t             size:12;
-  COROUTINE_ID_TYPE  owner:4;
+  CoroutineId  owner:4;
 } MemNode;
 
 /// @def memNode
@@ -76,7 +76,7 @@ extern "C"
 #endif
 
 /// @fn void localFreeProcessMemory(
-///   MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid)
+///   MemoryManagerState *memoryManagerState, CoroutineId pid)
 ///
 /// @brief Free *ALL* the memory owned by a process given its process ID.
 ///
@@ -87,7 +87,7 @@ extern "C"
 ///
 /// @return This function always succeeds and returns no value.
 void localFreeProcessMemory(
-  MemoryManagerState *memoryManagerState, COROUTINE_ID_TYPE pid
+  MemoryManagerState *memoryManagerState, CoroutineId pid
 ) {
   //// printDebug("Freeing memory for process ");
   //// printDebug(pid);
@@ -169,7 +169,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 }
 
 /// @fn void* localRealloc(MemoryManagerState *memoryManagerState,
-///   void *ptr, size_t size, COROUTINE_ID_TYPE pid)
+///   void *ptr, size_t size, CoroutineId pid)
 ///
 /// @brief Reallocate a provided pointer to a new size.
 ///
@@ -185,7 +185,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or on free.
 void* localRealloc(MemoryManagerState *memoryManagerState,
-  void *ptr, size_t size, COROUTINE_ID_TYPE pid
+  void *ptr, size_t size, CoroutineId pid
 ) {
   char *charPointer = (char*) ptr;
   char *returnValue = NULL;
@@ -425,7 +425,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
-    COROUTINE_ID_TYPE pid = nanoOsMessageDataValue(incoming, COROUTINE_ID_TYPE);
+    CoroutineId pid = nanoOsMessageDataValue(incoming, CoroutineId);
     localFreeProcessMemory(memoryManagerState, pid);
     nanoOsMessage->data = 0;
   } else {
@@ -804,7 +804,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
   return returnValue;
 }
 
-/// @fn int assignMemory(void *ptr, COROUTINE_ID_TYPE pid)
+/// @fn int assignMemory(void *ptr, CoroutineId pid)
 ///
 /// @brief Assign ownership of a piece of memory to a specified process.
 ///
@@ -815,7 +815,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
 /// @param pid The ID of the process to assign the memory to.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int assignMemory(void *ptr, COROUTINE_ID_TYPE pid) {
+int assignMemory(void *ptr, CoroutineId pid) {
   int returnValue = 0;
   
   if ((ptr != NULL) && (coroutineId(NULL) == NANO_OS_SCHEDULER_PROCESS_ID)) {

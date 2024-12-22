@@ -104,32 +104,32 @@ extern "C"
 #define COROUTINE_DEFAULT_STACK_SIZE 16384
 #endif
 
-/// @def COROUTINE_ID_TYPE
+/// @def CoroutineId
 ///
 /// @brief The integer type to use for coroutine IDs.  Defaults to 64-bit IDs
 /// if none is provided.
-#ifndef COROUTINE_ID_TYPE
-#define COROUTINE_ID_TYPE uint64_t
+#ifndef CoroutineId
+#define CoroutineId uint64_t
 #endif
 
 /// @def COROUTINE_ID_TYPE_int64_t_int64_t
 ///
-/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int64_t.
+/// @brief Define that gets matched when CoroutineId is an int64_t.
 #define COROUTINE_ID_TYPE_uint64_t_uint64_t 1
 
 /// @def COROUTINE_ID_TYPE_int32_t_int32_t
 ///
-/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int32_t.
+/// @brief Define that gets matched when CoroutineId is an int32_t.
 #define COROUTINE_ID_TYPE_uint32_t_uint32_t 1
 
 /// @def COROUTINE_ID_TYPE_int16_t_int16_t
 ///
-/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int16_t.
+/// @brief Define that gets matched when CoroutineId is an int16_t.
 #define COROUTINE_ID_TYPE_uint16_t_uint16_t 1
 
 /// @def COROUTINE_ID_TYPE_int8_t_int8_t
 ///
-/// @brief Define that gets matched when COROUTINE_ID_TYPE is an int8_t.
+/// @brief Define that gets matched when CoroutineId is an int8_t.
 #define COROUTINE_ID_TYPE_uint8_t_uint8_t   1
 
 /// @def EXPAND_COROUTINE_ID_TYPE
@@ -151,17 +151,17 @@ extern "C"
 /// @brief Special value to indicate that a coroutine's ID value is not set.
 /// This is the initial value just after the coroutine constructor completes.
 #ifndef COROUTINE_ID_NOT_SET
-#if TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint64_t)
+#if TEST_COROUTINE_ID_TYPE(CoroutineId, uint64_t)
 #define COROUTINE_ID_NOT_SET ((uint64_t) 0xffffffffffffffff)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint32_t)
+#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint32_t)
 #define COROUTINE_ID_NOT_SET ((uint32_t) 0xffffffff)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint16_t)
+#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint16_t)
 #define COROUTINE_ID_NOT_SET ((uint16_t) 0xffff)
-#elif TEST_COROUTINE_ID_TYPE(COROUTINE_ID_TYPE, uint8_t)
+#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint8_t)
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0xff)
 #else
-#error "Invalid COROUTINE_ID_TYPE."
-#endif // COROUTINE_ID_TYPE
+#error "Invalid type for CoroutineId."
+#endif // CoroutineId
 #endif // COROUTINE_ID_NOT_SET
 
 /// @enum CoroutineState
@@ -298,7 +298,7 @@ typedef struct Cocondition {
 typedef struct Coroutine {
   struct Coroutine *nextInList;
   jmp_buf context;
-  COROUTINE_ID_TYPE id;
+  CoroutineId id;
   CoroutineState state;
   struct Coroutine *nextToLock;
   struct Coroutine *prevToLock;
@@ -402,8 +402,8 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
 Coroutine* coroutineCreate(CoroutineFunction func);
 void* coroutineResume(Coroutine *targetCoroutine, void *arg);
 void* coroutineYield(void *arg);
-int coroutineSetId(Coroutine *coroutine, COROUTINE_ID_TYPE id);
-COROUTINE_ID_TYPE coroutineId(Coroutine *coroutine);
+int coroutineSetId(Coroutine *coroutine, CoroutineId id);
+CoroutineId coroutineId(Coroutine *coroutine);
 CoroutineState coroutineState(Coroutine *coroutine);
 #ifdef THREAD_SAFE_COROUTINES
 void coroutineSetThreadingSupportEnabled(bool state);

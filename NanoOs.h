@@ -61,7 +61,7 @@ extern "C"
 /// @note If this value is increased beyond 15, the number of bits used to store
 /// the owner in a MemNode in MemoryManager.cpp must be extended and the value
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
-/// increased beyond 255, then the type defined by COROUTINE_ID_TYPE in
+/// increased beyond 255, then the type defined by CoroutineId in
 /// NanoOsLibC.h must also be extended.
 #define NANO_OS_NUM_PROCESSES               8
 

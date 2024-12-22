@@ -1072,7 +1072,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   return coroutineSuccess;
 }
 
-/// @fn int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id)
+/// @fn int coroutineSetId(Coroutine* coroutine, CoroutineId id)
 ///
 /// @brief Set the ID associated with a coroutine.
 ///
@@ -1081,7 +1081,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
 /// @param id An unsigned integer to set as the coroutine's ID.
 ///
 /// @return This function always returns coroutineSuccess.
-int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
+int coroutineSetId(Coroutine* coroutine, CoroutineId id) {
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
 
@@ -1097,7 +1097,7 @@ int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
   return coroutineSuccess;
 }
 
-/// @fn COROUTINE_ID_TYPE coroutineId(Coroutine* coroutine)
+/// @fn CoroutineId coroutineId(Coroutine* coroutine)
 ///
 /// @brief Get the ID associated with a coroutine.
 ///
@@ -1107,7 +1107,7 @@ int coroutineSetId(Coroutine* coroutine, COROUTINE_ID_TYPE id) {
 /// @return Returns the ID of the specified or current coroutine.  The ID
 /// returned will be COROUTINE_ID_NOT_SET if the ID of the coroutine has not
 /// been previously set with a call to coroutineSetId.
-COROUTINE_ID_TYPE coroutineId(Coroutine* coroutine) {
+CoroutineId coroutineId(Coroutine* coroutine) {
   if (coroutine == NULL) {
     coroutine = getRunningCoroutine();
 

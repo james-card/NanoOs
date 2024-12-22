@@ -168,8 +168,8 @@ typedef struct ConsoleBuffer {
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleIndex;
-  COROUTINE_ID_TYPE   owner;
-  COROUTINE_ID_TYPE   shell;
+  CoroutineId   owner;
+  CoroutineId   shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
   bool                echo;
@@ -201,7 +201,7 @@ typedef struct ConsoleState {
 /// @param processId The process ID associated with the port.
 typedef struct ConsolePortPidAssociation {
   uint8_t           consolePort;
-  COROUTINE_ID_TYPE processId;
+  CoroutineId processId;
 } ConsolePortPidAssociation;
 
 /// @union ConsolePortPidUnion

@@ -104,7 +104,7 @@ typedef enum MemoryManagerResponse {
 typedef struct ReallocMessage {
   void *ptr;
   size_t size;
-  COROUTINE_ID_TYPE pid;
+  CoroutineId pid;
   int responseType;
 } ReallocMessage;
 
@@ -155,7 +155,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size);
 #define calloc memoryManagerCalloc
 
 size_t getFreeMemory(void);
-int assignMemory(void *ptr, COROUTINE_ID_TYPE pid);
+int assignMemory(void *ptr, CoroutineId pid);
 void memoryManagerCast(Comessage *comessage);
 
 

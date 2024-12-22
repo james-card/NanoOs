@@ -92,7 +92,7 @@ int killCommandHandler(int argc, char **argv) {
     printf("\n");
     return 1;
   }
-  COROUTINE_ID_TYPE processId = (COROUTINE_ID_TYPE) strtol(argv[1], NULL, 10);
+  CoroutineId processId = (CoroutineId) strtol(argv[1], NULL, 10);
 
   int returnValue = killProcess(processId);
 
