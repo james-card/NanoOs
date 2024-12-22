@@ -63,7 +63,7 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 255, then the type defined by CoroutineId in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES               8
+#define NANO_OS_NUM_PROCESSES               7
 
 /// @def NANO_OS_STACK_SIZE
 ///
@@ -221,7 +221,7 @@ typedef struct NanoOsMessage {
   variableName, type, funcValue, dataValue, waiting \
 ) \
   NanoOsMessage __nanoOsMessage; \
-  Comessage variableName; \
+  Comessage variableName = {}; \
   __nanoOsMessage.func = funcValue; \
   __nanoOsMessage.data = dataValue; \
   __nanoOsMessage.comessage = &variableName; \
