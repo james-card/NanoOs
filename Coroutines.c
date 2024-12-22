@@ -889,7 +889,6 @@ void coroutineMain(void *stack) {
 #else
     Coroutine* currentCoroutine = coroutineGlobalPop(&_globalRunning);
 #endif
-    currentCoroutine->id = COROUTINE_ID_NOT_SET;
     currentCoroutine->state = COROUTINE_STATE_NOT_RUNNING;
 #ifdef THREAD_SAFE_COROUTINES
     if (!_coroutineThreadingSupportEnabled) {
