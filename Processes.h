@@ -107,6 +107,31 @@ typedef struct ProcessQueue {
   uint8_t numElements:4;
 } ProcessQueue;
 
+/// @struct SchedulerState
+///
+/// @brief State data used by the scheduler.
+///
+/// @param runningProcesses Array that will hold the metadata for every running
+///   process, including the scheduler.
+/// @param ready Queue of processes that are allocated and not waiting on
+///   anything but not currently running.  This queue never includes the
+///   scheduler process.
+/// @param waiting Queue of processes that are waiting on a mutex or condition
+///   with an infinite timeout.  This queue never includes the scheduler
+///   process.
+/// @param timedWaiting Queue of processes that are waiting on a mutex or
+///   condition with a defined timeout.  This queue never includes the scheduler
+///   process.
+/// @param free Queue of processes that are free within the runningProcesses
+///   array.
+typedef struct SchedulerState {
+  RunningProcess runningProcesses[NANO_OS_NUM_PROCESSES];
+  ProcessQueue ready;
+  ProcessQueue waiting;
+  ProcessQueue timedWaiting;
+  ProcessQueue free;
+} SchedulerState;
+
 /// @enum SchedulerCommand
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.
