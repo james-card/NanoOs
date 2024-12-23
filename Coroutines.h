@@ -91,6 +91,12 @@ extern "C"
 /// provided coroutine is waiting on a condition or mutex.
 #define COROUTINE_WAIT ((void*) ((intptr_t) -3))
 
+/// @def COROUTINE_CORRUPT
+///
+/// @brief Special value to indicate to a caller of coroutineResume() that the
+/// provided coroutine's state has been corrupted and is not longer usable.
+#define COROUTINE_CORRUPT ((void*) ((intptr_t) -4))
+
 /// @def COROUTINE_STACK_CHUNK_SIZE
 ///
 /// @brief The size of a single chunk of the stack allocated by
@@ -296,6 +302,7 @@ typedef struct Cocondition {
 ///   signalling between coroutines when adding a message to the queue.
 /// @param messageLock A mutex (Comutex) to guard the message condition.
 typedef struct Coroutine {
+  struct Coroutine *guard1;
   struct Coroutine *nextInList;
   jmp_buf context;
   CoroutineId id;
@@ -312,6 +319,7 @@ typedef struct Coroutine {
   Comutex messageLock;
   Comutex *blockingComutex;
   Cocondition *blockingCocondition;
+  struct Coroutine *guard2;
 } Coroutine;
 
 // Coroutine message support.
@@ -410,6 +418,7 @@ void coroutineSetThreadingSupportEnabled(bool state);
 bool coroutineThreadingSupportEnabled();
 #endif
 int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes);
+Coroutine* getRunningCoroutine(void);
 
 
 // Coroutine mutex function prototypes.  Doxygen inline in source file.
