@@ -229,7 +229,6 @@ typedef struct NanoOsMessage {
     &variableName, type, &__nanoOsMessage, sizeof(__nanoOsMessage), waiting)
 
 // Support functions
-long getElapsedMilliseconds(unsigned long startTime);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 unsigned int raiseUInt(unsigned int x, unsigned int y);
 int sha1Digest(uint8_t *digest, char *hexdigest,

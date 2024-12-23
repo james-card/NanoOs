@@ -91,7 +91,9 @@ int timespec_get(struct timespec* spec, int base);
 ///
 /// @brief Print a non-newline-terminated debug message.
 #define startDebugMessage(message) \
-  printString("[Process "); \
+  printString("["); \
+  printInt(getElapsedMilliseconds(0)); \
+  printString(" Process "); \
   printInt(coroutineId(NULL)); \
   printString(" "); \
   printString((strrchr(__FILE__, '/') + 1)); \
@@ -136,6 +138,9 @@ int printInt_(int integer);
 int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
+long getElapsedMilliseconds(unsigned long startTime);
+
+// C-like functions
 int vsscanf(const char *buffer, const char *format, va_list args);
 int sscanf(const char *buffer, const char *format, ...);
 const char* nanoOsStrError(int errnum);
