@@ -35,25 +35,6 @@
 extern User users[];
 extern const int NUM_USERS;
 
-/// @fn long getElapsedMilliseconds(unsigned long startTime)
-///
-/// @brief Get the number of milliseconds that have elapsed since a specified
-/// time in the past.
-///
-/// @param startTime The time in the past to calcualte the elapsed time from.
-///
-/// @return Returns the number of milliseconds that have elapsed since the
-/// provided start time.
-long getElapsedMilliseconds(unsigned long startTime) {
-  unsigned long now = millis();
-
-  if (now < startTime) {
-    return ULONG_MAX;
-  }
-
-  return now - startTime;
-}
-
 /// @fn void timespecFromDelay(struct timespec *ts, long int delayMs)
 ///
 /// @brief Initialize the value of a struct timespec with a time in the future
@@ -227,19 +208,12 @@ void login(void) {
 
   while (userId == NO_USER_ID) {
     fputs("login: ", stdout);
-    //// printDebug("Printed login.\n");
     fgets(username, sizeof(username), stdin);
-    //// printDebug("Got username.\n");
     setConsoleEcho(false);
-    //// printDebug("Set echo to false.\n");
     fputs("Password: ", stdout);
-    //// printDebug("Printed Password.\n");
     fgets(password, sizeof(password), stdin);
-    //// printDebug("Got password.\n");
     setConsoleEcho(true);
-    //// printDebug("Set echo to true.\n");
     fputs("\n", stdout);
-    //// printDebug("Printed newline.\n");
 
     newlineAt = strchr(username, '\r');
     if (newlineAt == NULL) {
