@@ -83,7 +83,7 @@ void loop() {
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
   coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
-  Coroutine *coroutine = coroutineCreate(dummyProcess);
+  Coroutine *coroutine = coroutineInit(NULL, dummyProcess);
   coroutineResume(coroutine, NULL);
 
   // Additional variables we need to allocate before going into the scheduler.
@@ -95,6 +95,7 @@ void loop() {
     // messages[ii].data will be initialized by getAvailableMessage.
     nanoOsMessages[ii].comessage = &messages[ii];
   }
+
   SchedulerState schedulerState = {};
 
   // Enter the scheduler.  This never returns.
