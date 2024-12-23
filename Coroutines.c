@@ -38,20 +38,20 @@
  * are empty.  coroutineConfig initializes the running stack to the Coroutine
  * passed in and sets the stack size that is to be used, but leaves the idle
  * stack alone.  The idle stack is not modified until the first call to
- * coroutineCreate is made.  From that point on, there is always at least one
+ * coroutineInit is made.  From that point on, there is always at least one
  * Coroutine on the idle stack.
  *
- * When coroutineCreate is called, it first checks the idle stack to see if
+ * When coroutineInit is called, it first checks the idle stack to see if
  * there is anything available.  The only time there won't be anything available
  * is on the first time this function is called (per thread).  If nothing is
  * available, coroutineAllocateStack is called with the stack size that was
  * provided to coroutineConfig.  This will allocate the remainder of the stack
  * for the main function, allocate a Coroutine structure, push a pointer to it
- * onto the idle stack, and then resume execution in coroutineCreate.  If a
- * Coroutine is available when coroutineCreate does its check, it simply pops
+ * onto the idle stack, and then resume execution in coroutineInit.  If a
+ * Coroutine is available when coroutineInit does its check, it simply pops
  * the stack.
  *
- * Once coroutineCreate has an idle Coroutine, it pushes the Coroutine onto the
+ * Once coroutineInit has an idle Coroutine, it pushes the Coroutine onto the
  * running stack and then passes it the function pointer it was provided.  This
  * resumes execution in the coroutineMain function.  There are two possible
  * places in coroutineMain where execution may resume.  If the Coroutine that
@@ -67,7 +67,7 @@
  * is stored and then coroutineAllocateStack is called again to allocate another
  * Coroutine.  As before, this coroutine is pushed onto the idle stack, however
  * when it does a longjmp this time, execution is not resumed in the
- * coroutineCreate constructor but in the previous-level coroutineMain call.
+ * coroutineInit constructor but in the previous-level coroutineMain call.
  * This then enters the main while loop which yields control back to the calling
  * coroutine and waits for its arguments to be provided (just as in the former
  * case above).
@@ -79,7 +79,7 @@
  * coroutineYield call (or from the beginning of the function if the funcion has
  * not yet begun execution).
  *
- * coroutineCreate, coroutineMain, coroutineResume, and coroutineYield make use
+ * coroutineInit, coroutineMain, coroutineResume, and coroutineYield make use
  * of an internal function called coroutinePass and/or raw setjmp and longjmp
  * function calls.  coroutinePass also makes use of setjmp and longjmp.
  * coroutinePass takes as parameters a pointer to the Coroutine making the call
@@ -104,17 +104,17 @@
  *
  * The fact that there is always at least one Coroutine on the idle stack has
  * some implications for memory-constrained environments.  The first time that
- * coroutineCreate is called, the upper limit for the calling function's stack
+ * coroutineInit is called, the upper limit for the calling function's stack
  * -AND- the stack for the created Coroutine are both allocated.  Allocation
  * is achieved by recursively calling a function with a character buffer, which
  * means that the memory in those stacks will be touched during this process.
- * Effectively, the first time that coroutineCreate is called, a little over 2X
+ * Effectively, the first time that coroutineInit is called, a little over 2X
  * the stack size provided to coroutineConfig is touched.  This can result in
  * a nasty surprise (i.e. a crash) in severly memory-constrained environments.
  *
  * One requirement of this system is that all the stacks must be the same size.
  * The stack size provided to coroutineConfig cannot be changed once the first
- * Coroutine has been created with coroutineCreate.  This is because the size
+ * Coroutine has been created with coroutineInit.  This is because the size
  * of a stack for a Coroutine is actually provided to coroutineAllocateStack on
  * the call prior to the call that returns a usable Coroutine.  It would be very
  * difficult (and highly confusing) to try and adjust the size dynamically.  To
@@ -663,13 +663,13 @@ void* coroutineYield(void *arg) {
   return returnValue;
 }
 
-/// @fn Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func)
+/// @fn Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func)
 ///
 /// @brief The coroutine constructor function.
 ///
-/// @details Create a coroutine that will run func(). The coroutine starts off
-/// suspended.  When it is first resumed, the argument to coroutineResume() is
-/// passed to func().  If func() returns, its return value is returned by
+/// @details Initialize a coroutine that will run func(). The coroutine starts
+/// off suspended.  When it is first resumed, the argument to coroutineResume()
+/// is passed to func().  If func() returns, its return value is returned by
 /// coroutineResume() as if the coroutine yielded, except that the coroutine is
 /// then no longer resumable and may be discarded (*NOT* freed since its
 /// allocation is on the stack and not the heap).
@@ -679,12 +679,13 @@ void* coroutineYield(void *arg) {
 /// idle coroutines, we pass one the function pointer and return the activated
 /// coroutine's address.
 ///
-/// @param userCoroutine A coroutine provided by the user to configure.  If this
-///   parameter is NULL, one from the idle list will be used.
+/// @param userCoroutine A coroutine provided by the user to configure instead
+///   of creating a new one.  If this parameter is NULL, one from the idle list
+///   will be used.  If the list is empty then a new one will be created.
 /// @param func The coroutine function to run.
 ///
 /// @return Returns a newly-initialized Coroutine on success, NULL on failure.
-Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func) {
+Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
   CoroutineFuncData funcData;
   funcData.func = func;
   if (funcData.data == NULL) {
@@ -790,7 +791,7 @@ Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func) {
 /// the first function we are to run. (The head of the running list is the
 /// coroutine that forked us.) We pass the stack pointer to prevent it from
 /// being optimised away. The first time we are called we will return to the
-/// fork in the coroutineCreate() constructor function (above); on subsequent
+/// fork in the coroutineInit() constructor function (above); on subsequent
 /// calls we will resume the parent coroutineMain(). In both cases the passed
 /// value is lost when coroutinePass() longjmp()s to the forking setjmp().
 ///
@@ -806,7 +807,7 @@ Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func) {
 /// When the function returns, we move ourself from the running list to the idle
 /// list, before passing the result back to the resumer. (This is just like
 /// coroutineYield() except for adding the coroutine to the idle list.) We can
-/// then only be resumed by the coroutineCreate() constructor function which
+/// then only be resumed by the coroutineInit() constructor function which
 /// will put us back on the running list and pass us a new function to call.
 ///
 /// @param stack A pointer to the stack that was allocated for the coroutine.
@@ -882,7 +883,7 @@ void coroutineMain(void *stack) {
   // We will first yield the Coroutine allocated above that the constructor is
   // waiting on and then call the function we were passed.  When the function
   // ends, we will place ourselves on the idle list and can be reused by a
-  // future invocation of the coroutineCreate() constructor.
+  // future invocation of the coroutineInit() constructor.
   while (1) {
     // Return our Coroutine and get the function argument from the constructor.
     // coroutineYield will set our state to BLOCKED on call and RUNNING on
