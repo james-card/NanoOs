@@ -558,6 +558,11 @@ CoroutineFuncData coroutinePass(Coroutine *currentCoroutine, CoroutineFuncData a
 ///   has run to completion.  If the coroutine is not resumable, returns the
 ///   special value COROUTINE_NOT_RESUMABLE.
 void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
+  if ((targetCoroutine->guard1 != targetCoroutine)
+    || (targetCoroutine->guard2 != targetCoroutine)
+  ) {
+    return COROUTINE_CORRUPT;
+  }
 #ifdef THREAD_SAFE_COROUTINES
   if (_coroutineThreadingSupportEnabled) {
     call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
@@ -804,6 +809,8 @@ Coroutine* coroutineCreate(void* func(void *arg)) {
 void coroutineMain(void *stack) {
   ZEROINIT(Coroutine me);
   me.id = COROUTINE_ID_NOT_SET;
+  me.guard1 = &me;
+  me.guard2 = &me;
 #ifdef THREAD_SAFE_COROUTINES
   if (!_coroutineThreadingSupportEnabled) {
     coroutineGlobalPush(&_globalIdle, &me);
@@ -1385,8 +1392,6 @@ int comutexUnlock(Comutex *mtx) {
   if ((mtx != NULL) && (mtx->coroutine == running)) {
     mtx->recursionLevel--;
     if (mtx->recursionLevel == 0) {
-      mtx->coroutine = NULL;
-
       void *stateData = _globalStateData;
       ComutexUnlockCallback comutexUnlockCallback
         = _globalComutexUnlockCallback;
@@ -1405,6 +1410,8 @@ int comutexUnlock(Comutex *mtx) {
       if (comutexUnlockCallback != NULL) {
         comutexUnlockCallback(stateData, mtx);
       }
+
+      mtx->coroutine = NULL;
     }
   } else {
     returnValue = coroutineError;
