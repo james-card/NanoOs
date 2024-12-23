@@ -63,6 +63,7 @@ extern "C"
 /// stack size allocated will be slightly larger than this due to other things
 /// being pushed onto the stack before initializeGlobals is called.  Note that
 /// we need a larger stack when debugging to accommodate the logging calls.
+//// #define MEMORY_MANAGER_DEBUG
 #ifdef MEMORY_MANAGER_DEBUG
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
 #else
