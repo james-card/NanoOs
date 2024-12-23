@@ -407,7 +407,7 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
   ComutexUnlockCallback *comutexUnlockCallback,
   CoconditionSignalCallback *coconditionSignalCallback
 );
-Coroutine* coroutineCreate(CoroutineFunction func);
+Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func);
 void* coroutineResume(Coroutine *targetCoroutine, void *arg);
 void* coroutineYield(void *arg);
 int coroutineSetId(Coroutine *coroutine, CoroutineId id);

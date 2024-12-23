@@ -663,7 +663,7 @@ void* coroutineYield(void *arg) {
   return returnValue;
 }
 
-/// @fn Coroutine* coroutineCreate(void* func(void *arg))
+/// @fn Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func)
 ///
 /// @brief The coroutine constructor function.
 ///
@@ -679,10 +679,12 @@ void* coroutineYield(void *arg) {
 /// idle coroutines, we pass one the function pointer and return the activated
 /// coroutine's address.
 ///
+/// @param userCoroutine A coroutine provided by the user to configure.  If this
+///   parameter is NULL, one from the idle list will be used.
 /// @param func The coroutine function to run.
 ///
 /// @return Returns a newly-initialized Coroutine on success, NULL on failure.
-Coroutine* coroutineCreate(void* func(void *arg)) {
+Coroutine* coroutineCreate(Coroutine *userCoroutine, CoroutineFunction func) {
   CoroutineFuncData funcData;
   funcData.func = func;
   if (funcData.data == NULL) {
@@ -724,17 +726,23 @@ Coroutine* coroutineCreate(void* func(void *arg)) {
   // from coroutineMain (called by coroutineAllocateStack).  Either way, the Coroutine
   // instance we want to use is now at the head of the idle list.
 
-  // The head of the idle list has the Coroutine allocated in coroutineMain.
+  Coroutine *configuredCoroutine = NULL;
+  if (userCoroutine == NULL) {
+    // This is the expected case.  The head of the idle list has the Coroutine
+    // allocated in coroutineMain.
 #ifdef THREAD_SAFE_COROUTINES
-  Coroutine* newCoroutine = NULL;
-  if (!_coroutineThreadingSupportEnabled) {
-    newCoroutine = coroutineGlobalPop(&_globalIdle);
-  } else {
-    newCoroutine = coroutineTssPop(&_tssIdle);
-  }
+    if (!_coroutineThreadingSupportEnabled) {
+      configuredCoroutine = coroutineGlobalPop(&_globalIdle);
+    } else {
+      configuredCoroutine = coroutineTssPop(&_tssIdle);
+    }
 #else
-  Coroutine *newCoroutine = coroutineGlobalPop(&_globalIdle);
+    configuredCoroutine = coroutineGlobalPop(&_globalIdle);
 #endif
+  } else {
+    // Use what the user provided.
+    configuredCoroutine = userCoroutine;
+  }
 
   // The head of the running list is the current coroutine.
   // We need to run coroutineResume() and pass in the function pointer we were
@@ -745,32 +753,32 @@ Coroutine* coroutineCreate(void* func(void *arg)) {
   // coroutineResume() with the appropriate variable substitution done so that
   // we can legally pass a funciton pointer and retrieve the Coroutine pointer.
   // We don't need to do the thread setup logic at the start of the function
-  // since that's done above and we know that newCoroutine is resuamble, so we
+  // since that's done above and we know that coroutine is resuamble, so we
   // can skip that check.
   Coroutine *currentCoroutine = _globalRunning;
 #ifdef THREAD_SAFE_COROUTINES
   if (!_coroutineThreadingSupportEnabled) {
-    coroutineGlobalPush(&_globalRunning, newCoroutine);
+    coroutineGlobalPush(&_globalRunning, configuredCoroutine);
   } else {
     currentCoroutine = (Coroutine*) tss_get(_tssRunning);
-    coroutineTssPush(&_tssRunning, newCoroutine);
+    coroutineTssPush(&_tssRunning, configuredCoroutine);
   }
 #else
-  coroutineGlobalPush(&_globalRunning, newCoroutine);
+  coroutineGlobalPush(&_globalRunning, configuredCoroutine);
 #endif
   // The target coroutine is now at the head of the running list as is
   // expected by coroutinePass().  funcData contains the coroutine that was
   // passed to this function.
   funcData = coroutinePass(currentCoroutine, funcData);
-  newCoroutine = (Coroutine*) funcData.data;
-  newCoroutine->nextToSignal = NULL;
-  newCoroutine->prevToSignal = NULL;
-  newCoroutine->blockingCocondition = NULL;
-  newCoroutine->nextToLock = NULL;
-  newCoroutine->prevToLock = NULL;
-  newCoroutine->blockingComutex = NULL;
+  configuredCoroutine = (Coroutine*) funcData.data;
+  configuredCoroutine->nextToSignal = NULL;
+  configuredCoroutine->prevToSignal = NULL;
+  configuredCoroutine->blockingCocondition = NULL;
+  configuredCoroutine->nextToLock = NULL;
+  configuredCoroutine->prevToLock = NULL;
+  configuredCoroutine->blockingComutex = NULL;
 
-  return newCoroutine;
+  return configuredCoroutine;
 }
 
 /// void coroutineMain(void *stack)
