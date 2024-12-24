@@ -88,10 +88,11 @@ static ProcessDescriptor *allProcesses = NULL;
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
 ///
-/// @brief Push a pointer to a Coroutine pointer onto a ProcessQueue.
+/// @brief Push a pointer to a ProcessDescriptor onto a ProcessQueue.
 ///
-/// @param processQueue A pointer to a ProcessQueue to add the pointer to.
-/// @param coroutine The pointer to the Coroutine pointer to add to the queue.
+/// @param processQueue A pointer to a ProcessQueue to push the pointer to.
+/// @param processDescriptor A pointer to a ProcessDescriptor to push onto the
+///   queue.
 ///
 /// @return Returns 0 on success, ENOMEM on failure.
 int processQueuePush(
@@ -101,7 +102,7 @@ int processQueuePush(
     || (processQueue->numElements >= SCHEDULER_NUM_PROCESSES)
   ) {
     printString("ERROR!!!  Could not push process ");
-    printUInt(processDescriptor->processId);
+    printInt(processDescriptor->processId);
     printString(" onto ");
     printString(processQueue->name);
     printString(" queue!!!\n");
@@ -114,6 +115,62 @@ int processQueuePush(
   processQueue->numElements++;
 
   return 0;
+}
+
+/// @fn int processQueueRemove(
+///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
+///
+/// @brief Remove a pointer to a ProcessDescriptor from a ProcessQueue.
+///
+/// @param processQueue A pointer to a ProcessQueue to remove the pointer from.
+/// @param processDescriptor A pointer to a ProcessDescriptor to remove from the
+///   queue.
+///
+/// @return Returns 0 on success, ENOMEM on failure.
+int processQueueRemove(
+  ProcessQueue *processQueue, ProcessDescriptor *processDescriptor
+) {
+  int returnValue = EINVAL;
+  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
+    // Nothing to do.
+    return returnValue; // EINVAL
+  }
+
+  uint8_t cur = processQueue->head;
+  bool found = false;
+  for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
+    if (processQueue->processes[cur] == processDescriptor) {
+      found = true;
+      break;
+    }
+
+    cur++;
+    cur %= SCHEDULER_NUM_PROCESSES;
+  }
+
+  if (found == true) {
+    returnValue = ENOERR;
+
+    // Remove it from the array.
+    for (uint8_t ii = cur;
+      ii != processQueue->tail;
+      ii = (ii + 1) % SCHEDULER_NUM_PROCESSES
+    ) {
+      processQueue->processes[ii]
+        = processQueue->processes[(ii + 1) % SCHEDULER_NUM_PROCESSES];
+    }
+
+    // Adjust the metadata.
+    processQueue->numElements--;
+    if (processQueue->tail != 0) {
+      // The usual case.
+      processQueue->tail--;
+    } else {
+      processQueue->tail = SCHEDULER_NUM_PROCESSES - 1;
+    }
+  }
+
+  return returnValue;
 }
 
 /// @fn ProcessDescriptor* processQueuePop(ProcessQueue *processQueue)
@@ -1196,8 +1253,11 @@ int schedulerRunProcessCommandHandler(
       printString("WARNING:  Could not assign console port to process.\n");
     }
 
-    // Put the coroutine on the ready queue.
-    processQueuePush(&schedulerState->ready, processDescriptor);
+    if (commandEntry->shellCommand == false) {
+      // Put the coroutine on the ready queue.
+      processQueuePush(&schedulerState->ready, processDescriptor);
+    }
+    // else we replaced the running process and it's already on the ready queue.
   } else {
     if (commandEntry->shellCommand == true) {
       // Don't call stringDestroy with consoleInput because we're going to try
@@ -1291,6 +1351,14 @@ int schedulerKillProcessCommandHandler(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           comessage);
+
+        if (processQueueRemove(
+          &schedulerState->ready, &allProcesses[processId]) != 0
+        ) {
+          printString("ERROR!!!  Could not remove process ");
+          printInt(processId);
+          printString(" from ready queue!!!");
+        }
         processQueuePush(&schedulerState->free, &allProcesses[processId]);
       } else {
         // Tell the caller that we've failed.
