@@ -91,10 +91,6 @@ void loop() {
   messages = messagesStorage;
   NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
   nanoOsMessages = nanoOsMessagesStorage;
-  for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
-    // messages[ii].data will be initialized by getAvailableMessage.
-    nanoOsMessages[ii].comessage = &messages[ii];
-  }
 
   // Enter the scheduler.  This never returns.
   startScheduler();

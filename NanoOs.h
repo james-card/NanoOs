@@ -205,12 +205,9 @@ typedef unsigned long long int NanoOsMessageData;
 ///   long int.
 /// @param data Information about the data to use, cast to an unsigned long
 ///   long int.
-/// @param comessage A pointer to the comessage that points to this
-///   NanoOsMessage.
 typedef struct NanoOsMessage {
   NanoOsMessageData  func;
   NanoOsMessageData  data;
-  Comessage         *comessage;
 } NanoOsMessage;
 
 /// @def STATIC_NANO_OS_MESSAGE
