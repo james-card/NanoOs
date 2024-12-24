@@ -741,7 +741,40 @@ Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
     configuredCoroutine = coroutineGlobalPop(&_globalIdle);
 #endif
   } else {
-    // Use what the user provided.
+    // Use what the user provided.  By definition, idle must be non-NULL in
+    // this case.  We need to remove the user's coroutine from the idle list.
+    // Otherwise, when it completes, it will be on the list twice.
+    bool found = false;
+    if (idle != userCoroutine) {
+      // Go through the list until we find the couroutine and adjust
+      // accordingly.
+      for (Coroutine *cur = idle; cur != NULL; cur = cur->nextInList) {
+        if (cur->nextInList == userCoroutine) {
+          cur->nextInList = userCoroutine->nextInList;
+          found = true;
+          break;
+        }
+      }
+    } else {
+      // Just pop the appropriate idle list.
+      found = true;
+#ifdef THREAD_SAFE_COROUTINES
+      if (!_coroutineThreadingSupportEnabled) {
+        coroutineGlobalPop(&_globalIdle);
+      } else {
+        coroutineTssPop(&_tssIdle);
+      }
+#else
+      coroutineGlobalPop(&_globalIdle);
+#endif
+    }
+
+    if (found == false) {
+      // This isn't valid.  The coroutine we're configuring has to be idle.
+      // Bail.
+      return NULL;
+    }
+
     configuredCoroutine = userCoroutine;
   }
 
