@@ -1156,11 +1156,7 @@ int coroutineSetId(Coroutine* coroutine, CoroutineId id) {
 /// been previously set with a call to coroutineSetId.
 CoroutineId coroutineId(Coroutine* coroutine) {
   if (coroutine == NULL) {
-    coroutine = getRunningCoroutine();
-
-    if (coroutine == NULL) {
-      return COROUTINE_ID_NOT_SET;
-    }
+    return COROUTINE_ID_NOT_SET;
   }
 
   return coroutine->id;
