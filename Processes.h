@@ -97,7 +97,7 @@ typedef Comessage ProcessMessage;
 #define processMessageQueuePush(process, message) \
   comessageQueuePush(process, message)
 
-/// @struct RunningProcess
+/// @struct ProcessDescriptor
 ///
 /// @brief Descriptor for a running process.
 ///
@@ -105,12 +105,14 @@ typedef Comessage ProcessMessage;
 ///   set by the scheduler at launch.
 /// @param coroutine A pointer to the Coroutine instance that manages the
 ///   running command's execution state.
+/// @param 
 /// @param userId The numerical ID of the user that is running the process.
-typedef struct RunningProcess {
+typedef struct ProcessDescriptor {
   const char *name;
   Coroutine  *coroutine;
+  ProcessId   processId;
   UserId      userId;
-} RunningProcess;
+} ProcessDescriptor;
 
 /// @struct ProcessInfoElement
 ///
@@ -142,13 +144,13 @@ typedef struct ProcessInfo {
 ///
 /// @brief Structure to manage an individual process queue
 ///
-/// @param processes The array of pointers to Coroutine pointers from the
-///   runningProcesses array.
+/// @param processes The array of pointers to ProcessDescriptors from the
+///   allProcesses array.
 /// @param head The index of the head of the queue.
 /// @param tail The index of the tail of the queue.
 /// @param numElements The number of elements currently in the queue.
 typedef struct ProcessQueue {
-  Coroutine **processes[SCHEDULER_NUM_PROCESSES];
+  ProcessDescriptor *processes[SCHEDULER_NUM_PROCESSES];
   uint8_t head:4;
   uint8_t tail:4;
   uint8_t numElements:4;
@@ -158,8 +160,8 @@ typedef struct ProcessQueue {
 ///
 /// @brief State data used by the scheduler.
 ///
-/// @param runningProcesses Array that will hold the metadata for every running
-///   process, including the scheduler.
+/// @param allProcesses Array that will hold the metadata for every process,
+///   including the scheduler.
 /// @param ready Queue of processes that are allocated and not waiting on
 ///   anything but not currently running.  This queue never includes the
 ///   scheduler process.
@@ -169,10 +171,10 @@ typedef struct ProcessQueue {
 /// @param timedWaiting Queue of processes that are waiting on a mutex or
 ///   condition with a defined timeout.  This queue never includes the scheduler
 ///   process.
-/// @param free Queue of processes that are free within the runningProcesses
+/// @param free Queue of processes that are free within the allProcesses
 ///   array.
 typedef struct SchedulerState {
-  RunningProcess runningProcesses[NANO_OS_NUM_PROCESSES];
+  ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
   ProcessQueue ready;
   ProcessQueue waiting;
   ProcessQueue timedWaiting;
