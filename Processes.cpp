@@ -1296,6 +1296,7 @@ int schedulerKillProcessCommandHandler(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           comessage);
+        processQueuePush(&schedulerState->free, &allProcesses[processId]);
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
