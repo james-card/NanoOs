@@ -745,7 +745,7 @@ const char* nanoOsStrError(int errnum) {
   return errorStrings[errnum];
 }
 
-/// @fn long getElapsedMilliseconds(unsigned long startTime)
+/// @fn unsigned long getElapsedMilliseconds(unsigned long startTime)
 ///
 /// @brief Get the number of milliseconds that have elapsed since a specified
 /// time in the past.
@@ -754,7 +754,7 @@ const char* nanoOsStrError(int errnum) {
 ///
 /// @return Returns the number of milliseconds that have elapsed since the
 /// provided start time.
-long getElapsedMilliseconds(unsigned long startTime) {
+unsigned long getElapsedMilliseconds(unsigned long startTime) {
   unsigned long now = millis();
 
   if (now < startTime) {

@@ -138,7 +138,7 @@ int printInt_(int integer);
 int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
-long getElapsedMilliseconds(unsigned long startTime);
+unsigned long getElapsedMilliseconds(unsigned long startTime);
 
 // C-like functions
 int vsscanf(const char *buffer, const char *format, va_list args);
