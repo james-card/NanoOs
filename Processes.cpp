@@ -1166,7 +1166,9 @@ int schedulerRunProcessCommandHandler(
     processDescriptor->userId
       = schedulerState->allProcesses[coroutineId(caller)].userId;
 
-    coroutineInit(processDescriptor->coroutine, startCommand);
+    if (coroutineInit(processDescriptor->coroutine, startCommand) == NULL) {
+      printString("ERROR!!!  Could not configure coroutine for new command.\n");
+    }
     if (assignMemory(consoleInput, processDescriptor->processId) != 0) {
       printString(
         "WARNING:  Could not assign console input to new process.\n");
@@ -1612,13 +1614,17 @@ void runScheduler(SchedulerState *schedulerState) {
       && (coroutineRunning(processDescriptor->coroutine) == false)
     ) {
       // Restart the shell.
-      coroutineInit(processDescriptor->coroutine, runShell);
+      if (coroutineInit(processDescriptor->coroutine, runShell) == NULL) {
+        printString("ERROR!!!  Could not configure coroutine for shell.\n");
+      }
       processDescriptor->name = "USB shell";
     } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
       && (coroutineRunning(processDescriptor->coroutine) == false)
     ) {
       // Restart the shell.
-      coroutineInit(processDescriptor->coroutine, runShell);
+      if (coroutineInit(processDescriptor->coroutine, runShell) == NULL) {
+        printString("ERROR!!!  Could not configure coroutine for shell.\n");
+      }
       processDescriptor->name = "GPIO shell";
     }
 
