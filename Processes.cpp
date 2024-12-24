@@ -1352,21 +1352,28 @@ int schedulerKillProcessCommandHandler(
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           comessage);
 
-        if (processQueueRemove(
-          &schedulerState->ready, &allProcesses[processId]) != 0
-        ) {
-          printString("ERROR!!!  Could not remove process ");
-          printInt(processId);
-          printString(" from ready queue!!!");
-        }
         processQueuePush(&schedulerState->free, &allProcesses[processId]);
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
         if (comessageSetDone(comessage) != coroutineSuccess) {
-          printString("ERROR!!!  "
-            "Could not mark message done in schedulerKillProcessCommandHandler.\n");
+          printString("ERROR!!!  Could not mark message done in "
+            "schedulerKillProcessCommandHandler.\n");
         }
+
+        // Do *NOT* push the process back onto the free queue in this case.
+        // If we couldn't terminate it, it's not valid to try and reuse it for
+        // another process.
+      }
+
+      // Regardless of whether or not we succeeded at terminating it, we have
+      // to remove it from the ready queue.
+      if (processQueueRemove(
+        &schedulerState->ready, &allProcesses[processId]) != 0
+      ) {
+        printString("ERROR!!!  Could not remove process ");
+        printInt(processId);
+        printString(" from ready queue!!!");
       }
     } else {
       // Tell the caller that we've failed.
