@@ -276,9 +276,7 @@ void* startCommand(void *args) {
   // The scheduler is suspended because of the coroutineResume at the start
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
-  printDebug("In startCommand.\n");
   coroutineYield(NULL);
-  printDebug("Returned from first yield.\n");
   Comessage *comessage = (Comessage*) args;
   if (comessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
@@ -293,9 +291,7 @@ void* startCommand(void *args) {
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
 
-  printDebug("Calling parseArgs.\n");
   argv = parseArgs(consoleInput, &argc);
-  printDebug("Returned from parseArgs.\n");
   if (argv == NULL) {
     // Fail.
     printString("ERROR:  Could not parse input into argc and argv.\n");
@@ -327,9 +323,7 @@ void* startCommand(void *args) {
   }
 
   // Call the process function.
-  printDebug("Calling commandEntry->func.\n");
   int returnValue = commandEntry->func(argc, argv);
-  printDebug("Returned from commandEntry->func.\n");
 
   if (commandDescriptor->callingProcess != coroutineId(NULL)) {
     // This command did NOT replace a shell process.
