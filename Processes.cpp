@@ -1602,6 +1602,7 @@ void runScheduler(SchedulerState *schedulerState) {
       if (memoryManagerFreeProcessMemoryMessage != NULL) {
         NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(
           memoryManagerFreeProcessMemoryMessage);
+        nanoOsMessage->data = processDescriptor->processId;
         comessageInit(memoryManagerFreeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
