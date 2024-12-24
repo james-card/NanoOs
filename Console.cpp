@@ -247,8 +247,6 @@ void consoleGetBufferCommandHandler(
     ) {
       returnValue->inUse = false;
     }
-  } else {
-    startDebugMessage("No free console buffer was found.\n");
   }
 
   // Whether we were able to grab a buffer or not, we're now done with this
@@ -870,9 +868,6 @@ void* runConsole(void *args) {
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
         if (consolePort->owner == COROUTINE_ID_NOT_SET) {
-          startDebugMessage("No owner for console port ");
-          printDebug(ii);
-          printDebug(".\n");
           // NULL-terminate the buffer.
           consolePort->consoleIndex--;
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
@@ -905,8 +900,6 @@ void* runConsole(void *args) {
           consoleSendInputToProcess(consolePort->owner, bufferCopy);
           consolePort->waitingForInput = false;
         } else {
-          startDebugMessage(
-            "Nothing waiting for input.  Resetting port buffer.\n");
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
           consolePort->consoleIndex = 0;
@@ -917,7 +910,6 @@ void* runConsole(void *args) {
     schedulerMessage = (Comessage*) coroutineYield(NULL);
 
     if (schedulerMessage != NULL) {
-      startDebugMessage("Handling message from scheduler.\n");
       // We have a message from the scheduler that we need to process.  This
       // is not the expected case, but it's the priority case, so we need to
       // list it first.
