@@ -96,13 +96,7 @@ void loop() {
     nanoOsMessages[ii].comessage = &messages[ii];
   }
 
-  SchedulerState schedulerState = {};
-  schedulerState.ready.name = "ready";
-  schedulerState.waiting.name = "waiting";
-  schedulerState.timedWaiting.name = "timed waiting";
-  schedulerState.free.name = "free";
-
   // Enter the scheduler.  This never returns.
-  startScheduler(&schedulerState);
+  startScheduler();
 }
 
