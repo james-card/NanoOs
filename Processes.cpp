@@ -276,7 +276,9 @@ void* startCommand(void *args) {
   // The scheduler is suspended because of the coroutineResume at the start
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
+  printDebug("In startCommand.\n");
   coroutineYield(NULL);
+  printDebug("Returned from first yield.\n");
   Comessage *comessage = (Comessage*) args;
   if (comessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
@@ -291,7 +293,9 @@ void* startCommand(void *args) {
     = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
 
+  printDebug("Calling parseArgs.\n");
   argv = parseArgs(consoleInput, &argc);
+  printDebug("Returned from parseArgs.\n");
   if (argv == NULL) {
     // Fail.
     printString("ERROR:  Could not parse input into argc and argv.\n");
@@ -323,15 +327,18 @@ void* startCommand(void *args) {
   }
 
   // Call the process function.
+  printDebug("Calling commandEntry->func.\n");
   int returnValue = commandEntry->func(argc, argv);
+  printDebug("Returned from commandEntry->func.\n");
 
   if (commandDescriptor->callingProcess != coroutineId(NULL)) {
     // This command did NOT replace a shell process.
+    releaseConsole();
     if (backgroundProcess == false) {
-    // The caller is still running and waiting to be told it can resume.  Notify
-    // it via a message.
-    sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-      SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+      // The caller is still running and waiting to be told it can resume.
+      // Notify it via a message.
+      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+        SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
     }
     commandDescriptor->schedulerState->allProcesses[
       coroutineId(NULL)].userId = NO_USER_ID;
@@ -344,12 +351,12 @@ void* startCommand(void *args) {
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
     }
+    releaseConsole();
   }
 
   free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
-  releaseConsole();
 
   return (void*) ((intptr_t) returnValue);
 }
@@ -919,7 +926,13 @@ int schedulerSendComessageToCoroutine(
   // scheduler will fail.
   comessage->from = schedulerProcess;
 
-  coroutineResume(coroutine, comessage);
+  void *coroutineReturnValue = coroutineResume(coroutine, comessage);
+  if (coroutineReturnValue == COROUTINE_CORRUPT) {
+    printString("ERROR:  Called coroutine is corrupted!!!\n");
+    returnValue = coroutineError;
+    return returnValue;
+  }
+
   if (comessageDone(comessage) != true) {
     // This is our only indication from the called coroutine that something went
     // wrong.  Return an error status here.
@@ -1124,11 +1137,11 @@ int schedulerRunProcessCommandHandler(
   Coroutine *caller = comessageFrom(comessage);
   
   // Find an open slot.
-  Coroutine *coroutineToInit = NULL;
+  ProcessDescriptor *processDescriptor = NULL;
   if (commandEntry->shellCommand == true) {
     // Not the normal case but the priority case, so handle it first.  We're
     // going to kill the caller and reuse its process slot.
-    coroutineToInit = caller;
+    processDescriptor = &schedulerState->allProcesses[coroutineId(caller)];
 
     // Protect the relevant memory from deletion below.
     if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
@@ -1149,54 +1162,47 @@ int schedulerRunProcessCommandHandler(
     // it do it immediately.  We need to do this before we kill the process.
     if (schedulerSendNanoOsMessageToPid(
       schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-      MEMORY_MANAGER_FREE_PROCESS_MEMORY, /* func= */ 0, coroutineId(caller))
+      MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+      /* func= */ 0, processDescriptor->processId)
     ) {
       printString("WARNING:  Could not release memory for process ");
-      printInt(coroutineId(caller));
+      printInt(processDescriptor->processId);
       printString("\n");
       printString("Memory leak.\n");
     }
   } else {
-    ProcessDescriptor *processDescriptor
-      = processQueuePop(&schedulerState->free);
-    if (processDescriptor!= NULL) {
-      coroutineToInit = processDescriptor->coroutine;
-    }
+    processDescriptor = processQueuePop(&schedulerState->free);
   }
 
-  if (coroutineToInit != NULL) {
-    schedulerState->allProcesses[coroutineId(coroutineToInit)].userId
+  if (processDescriptor != NULL) {
+    processDescriptor->userId
       = schedulerState->allProcesses[coroutineId(caller)].userId;
 
-    Coroutine *coroutine = coroutineInit(coroutineToInit, startCommand);
-    if (assignMemory(consoleInput, coroutineId(coroutine)) != 0) {
+    coroutineInit(processDescriptor->coroutine, startCommand);
+    if (assignMemory(consoleInput, processDescriptor->processId) != 0) {
       printString(
         "WARNING:  Could not assign console input to new process.\n");
       printString("Memory leak.\n");
     }
-    if (assignMemory(commandDescriptor, coroutineId(coroutine)) != 0) {
+    if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
       printString(
         "WARNING:  Could not assign command descriptor to new process.\n");
       printString("Memory leak.\n");
     }
 
-    schedulerState->allProcesses[coroutineId(coroutine)].coroutine
-      = coroutine;
-    schedulerState->allProcesses[coroutineId(coroutine)].name
-      = commandEntry->name;
+    processDescriptor->name = commandEntry->name;
 
-    coroutineResume(coroutine, comessage);
+    coroutineResume(processDescriptor->coroutine, comessage);
     returnValue = 0;
 
     if (schedulerAssignPortToPid(schedulerState,
-      consolePort, coroutineId(coroutine)) != coroutineSuccess
+      consolePort, processDescriptor->processId) != coroutineSuccess
     ) {
       printString("WARNING:  Could not assign console port to process.\n");
     }
 
     // Put the coroutine on the ready queue.
-    processQueuePush(&schedulerState->ready,
-      &schedulerState->allProcesses[coroutineId(coroutineToInit)]);
+    processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
     if (commandEntry->shellCommand == true) {
       // Don't call stringDestroy with consoleInput because we're going to try
@@ -1572,17 +1578,19 @@ void runScheduler(SchedulerState *schedulerState) {
       printString("ERROR!!!  Coroutine corruption detected!!!\n");
       printString("          Removing from process queues.\n");
 
-      Comessage *consoleReleasePidPortMessage = getAvailableMessage();
-      if (consoleReleasePidPortMessage != NULL) {
+      Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
+      if (schedulerProcessCompleteMessage != NULL) {
         schedulerSendNanoOsMessageToPid(
           schedulerState,
           NANO_OS_CONSOLE_PROCESS_ID,
           CONSOLE_RELEASE_PID_PORT,
-          (intptr_t) consoleReleasePidPortMessage,
+          (intptr_t) schedulerProcessCompleteMessage,
           processDescriptor->processId);
       } else {
-        printString("WARNING:  Could not get message to send to console.\n");
-        // If we can't get one message, we can't get two.  Move on.
+        printString("WARNING:  Could not allocate "
+          "schedulerProcessCompleteMessage.  Memory leak.\n");
+        // If we can't allocate the first message, we can't allocate the second
+        // one either, so bail.
         continue;
       }
 
@@ -1590,7 +1598,6 @@ void runScheduler(SchedulerState *schedulerState) {
       if (memoryManagerFreeProcessMemoryMessage != NULL) {
         NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(
           memoryManagerFreeProcessMemoryMessage);
-        nanoOsMessage->data = processDescriptor->processId;
         comessageInit(memoryManagerFreeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
@@ -1599,9 +1606,10 @@ void runScheduler(SchedulerState *schedulerState) {
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           memoryManagerFreeProcessMemoryMessage);
       } else {
-        printString(
-          "WARNING:  Could not get message to send to memory manager.\n");
+        printString("WARNING:  Could not allocate "
+          "memoryManagerFreeProcessMemoryMessage.  Memory leak.\n");
       }
+
       continue;
     }
 
