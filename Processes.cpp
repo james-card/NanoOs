@@ -1768,6 +1768,9 @@ __attribute__((noinline)) void startScheduler(void) {
   printString("schedulerState size = ");
   printInt(sizeof(schedulerState));
   printString(" bytes\n");
+  printString("messagesStorage size = ");
+  printInt(sizeof(Comessage) * NANO_OS_NUM_MESSAGES);
+  printString(" bytes\n");
 
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
