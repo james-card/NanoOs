@@ -325,7 +325,7 @@ void* startCommand(void *args) {
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if (commandDescriptor->callingProcess != coroutineId(NULL)) {
+  if (commandDescriptor->callingProcess != coroutineId(getRunningCoroutine())) {
     // This command did NOT replace a shell process.
     releaseConsole();
     if (backgroundProcess == false) {
@@ -335,7 +335,7 @@ void* startCommand(void *args) {
         SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
     }
     commandDescriptor->schedulerState->allProcesses[
-      coroutineId(NULL)].userId = NO_USER_ID;
+      coroutineId(getRunningCoroutine())].userId = NO_USER_ID;
   } else {
     // This command DID replace a shell process.  We need to release the
     // message that was sent because there's no shell that is waiting to
@@ -558,7 +558,7 @@ int runProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consoleInput = consoleInput;
   commandDescriptor->consolePort = consolePort;
-  commandDescriptor->callingProcess = coroutineId(NULL);
+  commandDescriptor->callingProcess = coroutineId(getRunningCoroutine());
 
   Comessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
