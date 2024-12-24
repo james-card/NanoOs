@@ -1382,7 +1382,7 @@ int schedulerGetProcessInfoCommandHandler(
   ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (coroutineResumable(schedulerState->allProcesses[ii].coroutine)) {
+    if (coroutineRunning(schedulerState->allProcesses[ii].coroutine)) {
       processes[idx].pid
         = (int) coroutineId(schedulerState->allProcesses[ii].coroutine);
       processes[idx].name = schedulerState->allProcesses[ii].name;
@@ -1577,6 +1577,10 @@ void runScheduler(SchedulerState *schedulerState) {
     if (coroutineReturnValue == COROUTINE_CORRUPT) {
       printString("ERROR!!!  Coroutine corruption detected!!!\n");
       printString("          Removing from process queues.\n");
+
+      processDescriptor->name = NULL;
+      processDescriptor->userId = NO_USER_ID;
+      processDescriptor->coroutine->state = COROUTINE_STATE_NOT_RUNNING;
 
       Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
       if (schedulerProcessCompleteMessage != NULL) {
