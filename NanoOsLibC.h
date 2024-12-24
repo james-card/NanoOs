@@ -83,6 +83,37 @@ struct timespec {
 #define TIME_UTC 1
 int timespec_get(struct timespec* spec, int base);
 
+/// @def MIN
+///
+/// @brief Get the minimum of two values.
+///
+/// @param x The first value to compare.
+/// @param y The second value to compare.
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+/// @def MAX
+///
+/// @brief Get the maximum of two values.
+///
+/// @param x The first value to compare.
+/// @param y The second value to compare.
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
+/// @def ABS
+///
+/// @brief Get the absolute value of a value.
+///
+/// @param x The value to get the absolute value of.
+#define ABS(x) (((x) >= 0) ? (x) : (-(x)))
+
+/// @def ABS_DIFF
+///
+/// @brief Get the absolute value of the difference between two values.
+///
+/// @param x The first value to evaluate in the difference.
+/// @param y The second value to evaluate in the difference.
+#define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
+
 
 //// #define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
@@ -104,9 +135,21 @@ int timespec_get(struct timespec* spec, int base);
   printString("] "); \
   printString(message);
 
+/// @def printDebugStackDepth()
+///
+/// @brief Print the depth of the current coroutine stack.
+#define printDebugStackDepth() \
+  { \
+    char temp; \
+    startDebugMessage("Stack depth: "); \
+    printInt(ABS_DIFF((uintptr_t) &temp, (uintptr_t) getRunningCoroutine())); \
+    printString("\n"); \
+  } \
+
 #else // NANO_OS_DEBUG
 
 #define startDebugMessage(message) {}
+#define printDebugStackDepth() {}
 
 #endif // NANO_OS_DEBUG
 

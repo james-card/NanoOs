@@ -119,37 +119,6 @@ extern "C"
 /// @brief The numerical value that indicates that a process is not owned.
 #define NO_USER_ID -1
 
-/// @def MIN
-///
-/// @brief Get the minimum of two values.
-///
-/// @param x The first value to compare.
-/// @param y The second value to compare.
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
-/// @def MAX
-///
-/// @brief Get the maximum of two values.
-///
-/// @param x The first value to compare.
-/// @param y The second value to compare.
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-
-/// @def ABS
-///
-/// @brief Get the absolute value of a value.
-///
-/// @param x The value to get the absolute value of.
-#define ABS(x) (((x) >= 0) ? (x) : (-(x)))
-
-/// @def ABS_DIFF
-///
-/// @brief Get the absolute value of the difference between two values.
-///
-/// @param x The first value to evaluate in the difference.
-/// @param y The second value to evaluate in the difference.
-#define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
-
 /// @def floatToInts
 ///
 /// @brief Break a floating-point number into two integer values that represent
