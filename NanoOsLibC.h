@@ -84,7 +84,7 @@ struct timespec {
 int timespec_get(struct timespec* spec, int base);
 
 
-#define NANO_OS_DEBUG
+//// #define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
