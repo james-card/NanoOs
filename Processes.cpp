@@ -1309,7 +1309,6 @@ int schedulerKillProcessCommandHandler(
     return EBUSY;
   }
 
-  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
   UserId callingUserId
     = allProcesses[coroutineId(comessageFrom(comessage))].userId;
   CoroutineId processId
@@ -1318,7 +1317,7 @@ int schedulerKillProcessCommandHandler(
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
-    && (coroutineResumable(allProcesses[processId].coroutine))
+    && (coroutineRunning(allProcesses[processId].coroutine))
   ) {
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
@@ -1336,21 +1335,21 @@ int schedulerKillProcessCommandHandler(
         (intptr_t) schedulerProcessCompleteMessage,
         processId);
 
+      // Forward the message on to the memory manager to have it clean up the
+      // process's memory.  *DO NOT* mark the message as done.  The memory
+      // manager will do that.
+      comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+      sendComessageToCoroutine(
+        schedulerState->allProcesses[
+          NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
+        comessage);
+
       if (coroutineTerminate(allProcesses[processId].coroutine, NULL)
         == coroutineSuccess
       ) {
         allProcesses[processId].name = NULL;
         allProcesses[processId].userId = NO_USER_ID;
-
-        // Forward the message on to the memory manager to have it clean up the
-        // process's memory.  *DO NOT* mark the message as done.  The memory
-        // manager will do that.
-        comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-          nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-        sendComessageToCoroutine(
-          schedulerState->allProcesses[
-            NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
-          comessage);
 
         processQueuePush(&schedulerState->free, &allProcesses[processId]);
       } else {
@@ -1647,7 +1646,9 @@ void runScheduler(SchedulerState *schedulerState) {
     coroutineReturnValue = coroutineResume(processDescriptor->coroutine, NULL);
     if (coroutineReturnValue == COROUTINE_CORRUPT) {
       printString("ERROR!!!  Coroutine corruption detected!!!\n");
-      printString("          Removing from process queues.\n");
+      printString("          Removing coroutine ");
+      printInt(processDescriptor->processId);
+      printString(" from process queues.\n");
 
       processDescriptor->name = NULL;
       processDescriptor->userId = NO_USER_ID;
