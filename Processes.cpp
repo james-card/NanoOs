@@ -1721,6 +1721,7 @@ void runScheduler(SchedulerState *schedulerState) {
 ///
 /// @return This function returns no value and, in fact, never returns at all.
 __attribute__((noinline)) void startScheduler(void) {
+  // Initialize the scheduler's state.
   SchedulerState schedulerState = {};
   schedulerState.ready.name = "ready";
   schedulerState.waiting.name = "waiting";
@@ -1729,6 +1730,10 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Initialize the allProcesses pointer.
   allProcesses = schedulerState.allProcesses;
+
+  // Initialize the NanoOs messages.
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
 
   // Initialize ourself in the array of running commands.
   coroutineSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);

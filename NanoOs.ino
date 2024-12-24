@@ -73,7 +73,6 @@ void loop() {
   // Prototypes and externs we need that are not exported from the Processes
   // library.
   void* dummyProcess(void *args);
-  extern NanoOsMessage *nanoOsMessages;
 
   // We want the address of the first coroutine to be as close to the base as
   // possible.  Because of that, we need to create the first one before we enter
@@ -89,8 +88,6 @@ void loop() {
   // Additional variables we need to allocate before going into the scheduler.
   Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
 
   // Enter the scheduler.  This never returns.
   startScheduler();
