@@ -84,7 +84,7 @@ struct timespec {
 int timespec_get(struct timespec* spec, int base);
 
 
-//// #define NANO_OS_DEBUG
+#define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
@@ -92,15 +92,15 @@ int timespec_get(struct timespec* spec, int base);
 /// @brief Print a non-newline-terminated debug message.
 #define startDebugMessage(message) \
   printString("["); \
-  printInt(getElapsedMilliseconds(0)); \
+  printULong(getElapsedMilliseconds(0)); \
   printString(" Process "); \
-  printInt(coroutineId(NULL)); \
+  printUInt(coroutineId(getRunningCoroutine())); \
   printString(" "); \
   printString((strrchr(__FILE__, '/') + 1)); \
   printString(":"); \
   printString(__func__); \
   printString("."); \
-  printInt(__LINE__); \
+  printULong(__LINE__); \
   printString("] "); \
   printString(message);
 
@@ -135,6 +135,12 @@ int printString_(const char *string);
 #define printString printString_
 int printInt_(int integer);
 #define printInt printInt_
+int printUInt_(unsigned int integer);
+#define printUInt printUInt_
+int printLong_(long int integer);
+#define printLong printLong_
+int printULong_(unsigned long int integer);
+#define printULong printULong_
 int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)

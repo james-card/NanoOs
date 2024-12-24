@@ -81,6 +81,39 @@ int printInt_(int integer) {
   return 0;
 }
 
+/// @fn int printUInt_(unsigned int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printUInt_(unsigned int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+
+/// @fn int printLong_(long int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printLong_(long int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+
+/// @fn int printULong_(unsigned long int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printULong_(unsigned long int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+
 /// @fn int printDouble(double floatingPointValue)
 ///
 /// @brief C wrapper around Serial.print for a double.
