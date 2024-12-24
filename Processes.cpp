@@ -655,16 +655,10 @@ int setProcessUser(UserId userId) {
 ///
 /// @return Returns the found coroutine pointer on success, NULL on failure.
 Process* getProcessByPid(unsigned int pid) {
-  STATIC_NANO_OS_MESSAGE(processMessage,
-    SCHEDULER_GET_PROCESS_BY_PID, 0, pid, true);
-  processMessageQueuePush(schedulerProcess, &processMessage);
-  processMessageWaitForDone(&processMessage, NULL);
-  Process *process = nanoOsMessageDataPointer(&processMessage, Process*);
-
-  //// Process *process = NULL;
-  //// if (pid < NANO_OS_NUM_PROCESSES) {
-  ////   process = allProcesses[pid].coroutine;
-  //// }
+  Process *process = NULL;
+  if (pid < NANO_OS_NUM_PROCESSES) {
+    process = allProcesses[pid].coroutine;
+  }
 
   return process;
 }
