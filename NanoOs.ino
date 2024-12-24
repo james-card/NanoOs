@@ -68,7 +68,7 @@ void setup() {
 void loop() {
   // Externs
   extern Coroutine *schedulerProcess;
-  extern Comessage *messages;
+  extern NanoOsMessage *nanoOsMessages;
 
   // Prototypes and externs we need that are not exported from the Processes
   // library.
@@ -85,11 +85,18 @@ void loop() {
   Coroutine *coroutine = coroutineInit(NULL, dummyProcess);
   coroutineResume(coroutine, NULL);
 
-  // Additional variables we need to allocate before going into the scheduler.
-  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  messages = messagesStorage;
+  // Initialize the scheduler's state.
+  SchedulerState schedulerState = {};
+  schedulerState.ready.name = "ready";
+  schedulerState.waiting.name = "waiting";
+  schedulerState.timedWaiting.name = "timed waiting";
+  schedulerState.free.name = "free";
+
+  // Initialize the NanoOsMessage storage.
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
 
   // Enter the scheduler.  This never returns.
-  startScheduler();
+  startScheduler(&schedulerState);
 }
 

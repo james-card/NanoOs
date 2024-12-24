@@ -1715,46 +1715,39 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 }
 
-/// @fn void startScheduler(void)
+/// @fn void startScheduler(SchedulerState *schedulerState)
 ///
 /// @brief Initialize and run the round-robin scheduler.
 ///
 /// @return This function returns no value and, in fact, never returns at all.
-__attribute__((noinline)) void startScheduler(void) {
-  // Initialize the scheduler's state.
-  SchedulerState schedulerState = {};
-  schedulerState.ready.name = "ready";
-  schedulerState.waiting.name = "waiting";
-  schedulerState.timedWaiting.name = "timed waiting";
-  schedulerState.free.name = "free";
+__attribute__((noinline)) void startScheduler(SchedulerState *schedulerState) {
+  // Initialize the static Comessage storage.
+  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  messages = messagesStorage;
 
   // Initialize the allProcesses pointer.
-  allProcesses = schedulerState.allProcesses;
-
-  // Initialize the NanoOs messages.
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
+  allProcesses = schedulerState->allProcesses;
 
   // Initialize ourself in the array of running commands.
   coroutineSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
-  schedulerState.allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].coroutine
+  schedulerState->allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].coroutine
     = schedulerProcess;
-  schedulerState.allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name
+  schedulerState->allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name
     = "scheduler";
-  schedulerState.allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId
+  schedulerState->allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId
     = ROOT_USER_ID;
 
   // Create the console process and start it.
   Coroutine *coroutine = NULL;
   coroutine = coroutineInit(NULL, runConsole);
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
-  schedulerState.allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
+  schedulerState->allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
     = NANO_OS_CONSOLE_PROCESS_ID;
-  schedulerState.allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine
+  schedulerState->allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine
     = coroutine;
-  schedulerState.allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name
+  schedulerState->allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name
     = "console";
-  schedulerState.allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId
+  schedulerState->allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId
     = ROOT_USER_ID;
   coroutineResume(coroutine, NULL);
 
@@ -1781,14 +1774,14 @@ __attribute__((noinline)) void startScheduler(void) {
   ) {
     coroutine = coroutineInit(NULL, dummyProcess);
     coroutineSetId(coroutine, ii);
-    schedulerState.allProcesses[ii].processId = ii;
-    schedulerState.allProcesses[ii].coroutine = coroutine;
+    schedulerState->allProcesses[ii].processId = ii;
+    schedulerState->allProcesses[ii].coroutine = coroutine;
   }
   printString("Coroutine stack size = ");
   printInt(ABS_DIFF(
-    ((intptr_t) schedulerState.allProcesses[
+    ((intptr_t) schedulerState->allProcesses[
       NANO_OS_FIRST_PROCESS_ID].coroutine),
-    ((intptr_t) schedulerState.allProcesses[
+    ((intptr_t) schedulerState->allProcesses[
       NANO_OS_FIRST_PROCESS_ID + 1].coroutine)
   ));
   printString(" bytes\n");
@@ -1800,17 +1793,17 @@ __attribute__((noinline)) void startScheduler(void) {
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
   coroutine = coroutineInit(NULL, runMemoryManager);
   coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  schedulerState.allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine
+  schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine
     = coroutine;
-  schedulerState.allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
+  schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
-  schedulerState.allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name
+  schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name
     = "memory manager";
-  schedulerState.allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId
+  schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId
     = ROOT_USER_ID;
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (schedulerAssignPortToPid(&schedulerState,
+    if (schedulerAssignPortToPid(schedulerState,
       ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != coroutineSuccess
     ) {
       printString(
@@ -1820,13 +1813,13 @@ __attribute__((noinline)) void startScheduler(void) {
   coroutineResume(coroutine, NULL);
 
   // Set the shells for the ports.
-  if (schedulerSetPortShell(&schedulerState,
+  if (schedulerSetPortShell(schedulerState,
     USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != coroutineSuccess
   ) {
     printString("WARNING:  Could not set shell for USB serial port.\n");
     printString("          Undefined behavior will result.\n");
   }
-  if (schedulerSetPortShell(&schedulerState,
+  if (schedulerSetPortShell(schedulerState,
     GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != coroutineSuccess
   ) {
     printString("WARNING:  Could not set shell for GPIO serial port.\n");
@@ -1835,8 +1828,8 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Clear out all the dummy processes.
   for (int ii = NANO_OS_FIRST_PROCESS_ID; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    coroutineResume(schedulerState.allProcesses[ii].coroutine, NULL);
-    schedulerState.allProcesses[ii].userId = NO_USER_ID;
+    coroutineResume(schedulerState->allProcesses[ii].coroutine, NULL);
+    schedulerState->allProcesses[ii].userId = NO_USER_ID;
   }
   // Repopulate them so that we can set their IDs correctly.
   for (ProcessId ii = NANO_OS_FIRST_PROCESS_ID;
@@ -1845,28 +1838,28 @@ __attribute__((noinline)) void startScheduler(void) {
   ) {
     coroutine = coroutineInit(NULL, dummyProcess);
     coroutineSetId(coroutine, ii);
-    schedulerState.allProcesses[ii].coroutine = coroutine;
-    schedulerState.allProcesses[ii].processId = ii;
+    schedulerState->allProcesses[ii].coroutine = coroutine;
+    schedulerState->allProcesses[ii].processId = ii;
   }
   // The scheduler will take care of cleaning them up.
 
-  processQueuePush(&schedulerState.ready,
-    &schedulerState.allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &schedulerState.allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &schedulerState.allProcesses[USB_SERIAL_PORT_SHELL_PID]);
-  processQueuePush(&schedulerState.ready,
-    &schedulerState.allProcesses[GPIO_SERIAL_PORT_SHELL_PID]);
+  processQueuePush(&schedulerState->ready,
+    &schedulerState->allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
+  processQueuePush(&schedulerState->ready,
+    &schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
+  processQueuePush(&schedulerState->ready,
+    &schedulerState->allProcesses[USB_SERIAL_PORT_SHELL_PID]);
+  processQueuePush(&schedulerState->ready,
+    &schedulerState->allProcesses[GPIO_SERIAL_PORT_SHELL_PID]);
   for (ProcessId ii = GPIO_SERIAL_PORT_SHELL_PID + 1;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    processQueuePush(&schedulerState.ready,
-      &schedulerState.allProcesses[ii]);
+    processQueuePush(&schedulerState->ready,
+      &schedulerState->allProcesses[ii]);
   }
 
   // Start our scheduler.
-  runScheduler(&schedulerState);
+  runScheduler(schedulerState);
 }
 
