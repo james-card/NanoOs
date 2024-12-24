@@ -144,12 +144,14 @@ typedef struct ProcessInfo {
 ///
 /// @brief Structure to manage an individual process queue
 ///
+/// @param name The string name of the queue for use in error messages.
 /// @param processes The array of pointers to ProcessDescriptors from the
 ///   allProcesses array.
 /// @param head The index of the head of the queue.
 /// @param tail The index of the tail of the queue.
 /// @param numElements The number of elements currently in the queue.
 typedef struct ProcessQueue {
+  const char *name;
   ProcessDescriptor *processes[SCHEDULER_NUM_PROCESSES];
   uint8_t head:4;
   uint8_t tail:4;

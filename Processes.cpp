@@ -100,6 +100,11 @@ int processQueuePush(
   if ((processQueue == NULL)
     || (processQueue->numElements >= SCHEDULER_NUM_PROCESSES)
   ) {
+    printString("ERROR!!!  Could not push process ");
+    printUInt(processDescriptor->processId);
+    printString(" onto ");
+    printString(processQueue->name);
+    printString(" queue!!!\n");
     return ENOMEM;
   }
 
@@ -1192,11 +1197,7 @@ int schedulerRunProcessCommandHandler(
     }
 
     // Put the coroutine on the ready queue.
-    if (processQueuePush(&schedulerState->ready, processDescriptor) != 0) {
-      printString("ERROR!!!  Could not push process ");
-      printUInt(processDescriptor->processId);
-      printString(" onto ready queue!!!\n");
-    }
+    processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
     if (commandEntry->shellCommand == true) {
       // Don't call stringDestroy with consoleInput because we're going to try
@@ -1290,13 +1291,7 @@ int schedulerKillProcessCommandHandler(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           comessage);
-        if (processQueuePush(
-          &schedulerState->free, &allProcesses[processId]) != 0
-        ) {
-          printString("ERROR!!!  Could not push process ");
-          printUInt(processId);
-          printString(" onto free queue!!!\n");
-        }
+        processQueuePush(&schedulerState->free, &allProcesses[processId]);
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
@@ -1639,31 +1634,13 @@ void runScheduler(SchedulerState *schedulerState) {
     }
 
     /* if (coroutineReturnValue == COROUTINE_WAIT) {
-      if (processQueuePush(&schedulerState->waiting, processDescriptor) != 0) {
-        printString("ERROR!!!  Could not push process ");
-        printUInt(processDescriptor->processId);
-        printString(" onto waiting queue!!!\n");
-      }
+      processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (coroutineReturnValue == COROUTINE_TIMEDWAIT) {
-      if (processQueuePush(
-        &schedulerState->timedWaiting, processDescriptor) != 0
-      ) {
-        printString("ERROR!!!  Could not push process ");
-        printUInt(processDescriptor->processId);
-        printString(" onto timedWaiting queue!!!\n");
-      }
+      processQueuePush(&schedulerState->timedWaiting, processDescriptor)
     } else */ if (coroutineFinished(processDescriptor->coroutine)) {
-      if (processQueuePush(&schedulerState->free, processDescriptor) != 0) {
-        printString("ERROR!!!  Could not push process ");
-        printUInt(processDescriptor->processId);
-        printString(" onto free queue!!!\n");
-      }
+      processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
-      if (processQueuePush(&schedulerState->ready, processDescriptor) != 0) {
-        printString("ERROR!!!  Could not push process ");
-        printUInt(processDescriptor->processId);
-        printString(" onto ready queue!!!\n");
-      }
+      processQueuePush(&schedulerState->ready, processDescriptor);
     }
 
     handleSchedulerMessage(schedulerState);
