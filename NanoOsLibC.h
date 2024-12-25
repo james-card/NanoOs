@@ -115,7 +115,7 @@ int timespec_get(struct timespec* spec, int base);
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
 
 
-//// #define NANO_OS_DEBUG
+#define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
@@ -184,6 +184,10 @@ int printLong_(long int integer);
 #define printLong printLong_
 int printULong_(unsigned long int integer);
 #define printULong printULong_
+int printLongLong_(long long int integer);
+#define printLongLong printLongLong_
+int printULongLong_(unsigned long long int integer);
+#define printULongLong printULongLong_
 int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
