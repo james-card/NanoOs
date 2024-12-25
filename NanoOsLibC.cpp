@@ -54,7 +54,7 @@ int timespec_get(struct timespec* spec, int base) {
   
   unsigned long now = getElapsedMilliseconds(0);
   spec->tv_sec = (time_t) (now / 1000UL);
-  spec->tv_nsec = now * 1000000UL;
+  spec->tv_nsec = (now % 1000UL) * 1000000UL;
 
   return base;
 }
@@ -109,6 +109,28 @@ int printLong_(long int integer) {
 ///
 /// @return This function always returns 0.
 int printULong_(unsigned long int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+
+/// @fn int printLongLong_(long long int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printLongLong_(long long int integer) {
+  Serial.print(integer);
+
+  return 0;
+}
+
+/// @fn int printULongLong_(unsigned long long int integer)
+///
+/// @brief C wrapper around Serial.print for an integer.
+///
+/// @return This function always returns 0.
+int printULongLong_(unsigned long long int integer) {
   Serial.print(integer);
 
   return 0;
