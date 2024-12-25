@@ -66,13 +66,10 @@ void setup() {
 // turn, means that we can never exit this function.  So, we will do all the
 // one-time setup and then run our scheduler loop from within this call.
 void loop() {
-  // Externs
-  extern Coroutine *schedulerProcess;
-  extern NanoOsMessage *nanoOsMessages;
-
   // Prototypes and externs we need that are not exported from the Processes
   // library.
   void* dummyProcess(void *args);
+  extern Coroutine *schedulerProcess;
 
   // We want the address of the first coroutine to be as close to the base as
   // possible.  Because of that, we need to create the first one before we enter
@@ -82,21 +79,13 @@ void loop() {
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
   coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
-  Coroutine *coroutine = coroutineInit(NULL, dummyProcess);
-  coroutineResume(coroutine, NULL);
-
-  // Initialize the scheduler's state.
-  SchedulerState schedulerState = {};
-  schedulerState.ready.name = "ready";
-  schedulerState.waiting.name = "waiting";
-  schedulerState.timedWaiting.name = "timed waiting";
-  schedulerState.free.name = "free";
-
-  // Initialize the NanoOsMessage storage.
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
+  (void) coroutineInit(NULL, dummyProcess);
+  // *DO NOT* call coroutineResume here.  We want the process to remain in a
+  // suspended state and *OFF* of the idle list.  If we resume it, it will go
+  // back on the idle list and we'll pick it up again for the s processes
+  // created by the scheduler.
 
   // Enter the scheduler.  This never returns.
-  startScheduler(&schedulerState);
+  startScheduler();
 }
 
