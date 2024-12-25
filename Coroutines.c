@@ -558,8 +558,8 @@ CoroutineFuncData coroutinePass(Coroutine *currentCoroutine, CoroutineFuncData a
 ///   has run to completion.  If the coroutine is not resumable, returns the
 ///   special value COROUTINE_NOT_RESUMABLE.
 void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
-  if ((targetCoroutine->guard1 != targetCoroutine)
-    || (targetCoroutine->guard2 != targetCoroutine)
+  if ((targetCoroutine->guard1 != COROUTINE_GUARD_VALUE)
+    || (targetCoroutine->guard2 != COROUTINE_GUARD_VALUE)
   ) {
     return COROUTINE_CORRUPT;
   }
@@ -851,8 +851,8 @@ Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
 void coroutineMain(void *stack) {
   ZEROINIT(Coroutine me);
   me.id = COROUTINE_ID_NOT_SET;
-  me.guard1 = &me;
-  me.guard2 = &me;
+  me.guard1 = COROUTINE_GUARD_VALUE;
+  me.guard2 = COROUTINE_GUARD_VALUE;
 #ifdef THREAD_SAFE_COROUTINES
   if (!_coroutineThreadingSupportEnabled) {
     coroutineGlobalPush(&_globalIdle, &me);

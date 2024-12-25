@@ -97,6 +97,13 @@ extern "C"
 /// provided coroutine's state has been corrupted and is not longer usable.
 #define COROUTINE_CORRUPT ((void*) ((intptr_t) -4))
 
+/// @def COROUTINE_GUARD_VALUE
+///
+/// @brief The value to set for a Coroutine's guard1 and guard2 elements and to
+/// check against in coroutineResume before a resume of a coroutine is
+/// attempted.
+#define COROUTINE_GUARD_VALUE 0x4abc4abc
+
 /// @def COROUTINE_STACK_CHUNK_SIZE
 ///
 /// @brief The size of a single chunk of the stack allocated by
@@ -284,14 +291,19 @@ typedef struct Cocondition {
 ///
 /// @brief Data structure to manage an individual coroutine.
 ///
+/// @param guard1 A well-known value to check for state corruption (stack
+///   overflow).
 /// @param nextInList Pointer to the next Coroutine in the list.
 /// @param context The jmp_buf to hold the context of the coroutine.
 /// @param id The ID of the coroutine.
 /// @param state The state of the coroutine.  (See enum above.)
 /// @param nextToLock The next coroutine to allow to lock a mutex.
+/// @param prevToLock The previous coroutine to allow to lock a mutex.
 /// @param nextToSignal The next coroutine to signal when waiting on a signal.
 /// @param prevToSignal The previous coroutine to signal when waiting on a
 ///   signal.
+/// @param resetContext The jmp_buf that holds the place on stack to jump to
+///   after a coroutine has been terminated and the value of context is reset.
 /// @param passed The CoroutineFuncData that's passed between contexts by the
 ///   coroutinePass function (on a yield or resume call).
 /// @param nextMessage A pointer to the next message that is waiting for the
@@ -301,8 +313,14 @@ typedef struct Cocondition {
 /// @param messageCondition A condition (Cocondition) that will allow for
 ///   signalling between coroutines when adding a message to the queue.
 /// @param messageLock A mutex (Comutex) to guard the message condition.
+/// @param blockingComutex A pointer to the mutex (Comutex) that the coroutine
+///   is currently waiting to lock.
+/// @param blockingCocondition A pointer to a condition (Cocondition) that the
+///   coroutine is currently waiting on to be signalled.
+/// @param guard2 A well-known value to check for state corruption (stack
+///   overflow).
 typedef struct Coroutine {
-  struct Coroutine *guard1;
+  uint32_t guard1;
   struct Coroutine *nextInList;
   jmp_buf context;
   CoroutineId id;
@@ -319,7 +337,7 @@ typedef struct Coroutine {
   Comutex messageLock;
   Comutex *blockingComutex;
   Cocondition *blockingCocondition;
-  struct Coroutine *guard2;
+  uint32_t guard2;
 } Coroutine;
 
 // Coroutine message support.
