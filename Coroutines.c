@@ -218,7 +218,7 @@ int64_t coroutinesGetNanoseconds(const struct timespec *ts) {
     ts = &timespecStorage;
   }
 
-  return (((int64_t) ts->tv_sec) * ((int64_t) 1000000000))
+  return (((int64_t) ts->tv_sec) * ((int64_t) 1000000000LL))
          + ((int64_t) ts->tv_nsec);
 }
 
@@ -1495,8 +1495,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     // Cannot honor the request.
     return coroutineError;
   }
-  int64_t now = coroutinesGetNanoseconds(NULL);
-  mtx->timeoutTime = now + coroutinesGetNanoseconds(ts);
+  mtx->timeoutTime = coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
@@ -1779,8 +1778,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     // Cannot honor the request.
     return coroutineError;
   }
-  int64_t now = coroutinesGetNanoseconds(NULL);
-  cond->timeoutTime = now + coroutinesGetNanoseconds(ts);
+  cond->timeoutTime = coroutinesGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   cond->lastYieldValue = NULL;
