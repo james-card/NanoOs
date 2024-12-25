@@ -225,7 +225,8 @@ int showInfoCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  printf("Current counter value: %u\n", counter);
+  printf("- Compile time: %s, %s\n", __DATE__, __TIME__);
+  printf("- Current counter value: %u\n", counter);
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
@@ -249,9 +250,9 @@ int showInfoCommandHandler(int argc, char **argv) {
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   myString = stringDestroy(myString);
-  fprintf(stderr, "stdin: %p\n", stdin);
-  fprintf(stderr, "stdout: %p\n", stdout);
-  fprintf(stderr, "stderr: %p\n", stderr);
+  fprintf(stderr, "- stdin: %p\n", stdin);
+  fprintf(stderr, "- stdout: %p\n", stdout);
+  fprintf(stderr, "- stderr: %p\n", stderr);
 
   return 0;
 }
