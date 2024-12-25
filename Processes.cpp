@@ -567,12 +567,6 @@ int killProcess(CoroutineId processId) {
   struct timespec ts = { 0, 0 };
   timespec_get(&ts, TIME_UTC);
   ts.tv_nsec += 100000000;
-  startDebugMessage("ts.tv_sec = ");
-  printDebug(ts.tv_sec);
-  printDebug(".\n");
-  startDebugMessage("ts.tv_nsec = ");
-  printDebug(ts.tv_nsec);
-  printDebug(".\n");
 
   int waitStatus = comessageWaitForDone(comessage, &ts);
   int returnValue = 0;
@@ -1348,7 +1342,7 @@ int schedulerKillProcessCommandHandler(
       // process's memory.  *DO NOT* mark the message as done.  The memory
       // manager will do that.
       comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
       sendComessageToCoroutine(
         schedulerState->allProcesses[
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
