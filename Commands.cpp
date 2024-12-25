@@ -249,9 +249,9 @@ int showInfoCommandHandler(int argc, char **argv) {
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   myString = stringDestroy(myString);
-  printf("stdin: %p\n", stdin);
-  printf("stdout: %p\n", stdout);
-  printf("stderr: %p\n", stderr);
+  fprintf(stderr, "stdin: %p\n", stdin);
+  fprintf(stderr, "stdout: %p\n", stdout);
+  fprintf(stderr, "stderr: %p\n", stderr);
 
   return 0;
 }
