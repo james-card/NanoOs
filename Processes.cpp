@@ -1521,36 +1521,6 @@ int schedulerSetProcessUserCommandHandler(
   return returnValue;
 }
 
-/// @fn int schedulerGetProcessByPidCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
-///
-/// @brief Get the pointer to a process given its process ID.
-///
-/// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.
-///   This will be reused for the reply.
-///
-/// @return Returns 0 on success, non-zero error code on failure.
-int schedulerGetProcessByPidCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
-) {
-  ProcessId processId = nanoOsMessageDataValue(processMessage, ProcessId);
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = 0; // NULL
-  if (processId < NANO_OS_NUM_PROCESSES) {
-    nanoOsMessage->data
-      = (intptr_t) schedulerState->allProcesses[processId].coroutine;
-  }
-
-  processMessageSetDone(processMessage);
-
-  // DO NOT release the message since the caller is waiting on the response.
-
-  return 0;
-}
-
 /// @var schedulerCommandHandlers
 ///
 /// @brief Array of function pointers for commands that are understood by the
@@ -1563,7 +1533,6 @@ int (*schedulerCommandHandlers[])(SchedulerState*, Comessage*) = {
   schedulerGetProcessInfoCommandHandler,    // SCHEDULER_GET_PROCESS_INFO
   schedulerGetProcessUserCommandHandler,    // SCHEDULER_GET_PROCESS_USER
   schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
-  schedulerGetProcessByPidCommandHandler,   // SCHEDULER_GET_PROCESS_BY_PID
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
