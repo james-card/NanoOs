@@ -23,3 +23,5 @@ This work started out as an experiment to see if I could implement an operating 
 [2024-12-15: Shell Games](2024-12-15_Shell-Games.md)
 
 [2024-12-19: Multiple Concurrent Users](2024-12-19_Multiple-Concurrent-Users.md)
+
+[2024-12-25: Process Queues](2024-12-25_Process-Queues.md)
