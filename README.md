@@ -18,6 +18,7 @@ The Coroutines library works by segmenting the main stack.  Coroutines are alloc
 
 NanoOs is a nanokernel architecture.  Specifically, what this means is that there is no distinction between user space and kernel space.  Everything is kernel space.  There's no way to have any kind of memory protection in this kind of environment.
 
+Kernel processes in NanoOs use cooperative multitasking.  That means that each process runs until it either needs something from another process or it's done with its current work.  There is no plan to change this.  User processes currently also use cooperative multitasking, but the plan is to change that to preemptive multitasking in the future so that the user processes don't have to deal with manually releasing the processor.
 
 ## Processes
 
