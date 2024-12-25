@@ -61,7 +61,7 @@ extern "C"
 ///
 /// @brief The size, in bytes, of a single console buffer.  This is the number
 /// of bytes that printf calls will have to work with.
-#define CONSOLE_BUFFER_SIZE 80
+#define CONSOLE_BUFFER_SIZE 96
 
 /// @def CONSOLE_NUM_BUFFERS
 ///
