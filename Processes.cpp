@@ -117,62 +117,6 @@ int processQueuePush(
   return 0;
 }
 
-/// @fn int processQueueRemove(
-///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
-///
-/// @brief Remove a pointer to a ProcessDescriptor from a ProcessQueue.
-///
-/// @param processQueue A pointer to a ProcessQueue to remove the pointer from.
-/// @param processDescriptor A pointer to a ProcessDescriptor to remove from the
-///   queue.
-///
-/// @return Returns 0 on success, ENOMEM on failure.
-int processQueueRemove(
-  ProcessQueue *processQueue, ProcessDescriptor *processDescriptor
-) {
-  int returnValue = EINVAL;
-  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
-    // Nothing to do.
-    return returnValue; // EINVAL
-  }
-
-  uint8_t cur = processQueue->head;
-  bool found = false;
-  for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-    if (processQueue->processes[cur] == processDescriptor) {
-      found = true;
-      break;
-    }
-
-    cur++;
-    cur %= SCHEDULER_NUM_PROCESSES;
-  }
-
-  if (found == true) {
-    returnValue = ENOERR;
-
-    // Remove it from the array.
-    for (uint8_t ii = cur;
-      ii != processQueue->tail;
-      ii = (ii + 1) % SCHEDULER_NUM_PROCESSES
-    ) {
-      processQueue->processes[ii]
-        = processQueue->processes[(ii + 1) % SCHEDULER_NUM_PROCESSES];
-    }
-
-    // Adjust the metadata.
-    processQueue->numElements--;
-    if (processQueue->tail != 0) {
-      // The usual case.
-      processQueue->tail--;
-    } else {
-      processQueue->tail = SCHEDULER_NUM_PROCESSES - 1;
-    }
-  }
-
-  return returnValue;
-}
-
 /// @fn ProcessDescriptor* processQueuePop(ProcessQueue *processQueue)
 ///
 /// @brief Pop a pointer to a ProcessDescriptor from a ProcessQueue.
@@ -193,6 +137,39 @@ ProcessDescriptor* processQueuePop(ProcessQueue *processQueue) {
   processQueue->numElements--;
 
   return processDescriptor;
+}
+
+/// @fn int processQueueRemove(
+///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
+///
+/// @brief Remove a pointer to a ProcessDescriptor from a ProcessQueue.
+///
+/// @param processQueue A pointer to a ProcessQueue to remove the pointer from.
+/// @param processDescriptor A pointer to a ProcessDescriptor to remove from the
+///   queue.
+///
+/// @return Returns 0 on success, ENOMEM on failure.
+int processQueueRemove(
+  ProcessQueue *processQueue, ProcessDescriptor *processDescriptor
+) {
+  int returnValue = EINVAL;
+  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
+    // Nothing to do.
+    return returnValue; // EINVAL
+  }
+
+  ProcessDescriptor *poppedDescriptor = NULL;
+  for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
+    poppedDescriptor = processQueuePop(processQueue);
+    if (poppedDescriptor == processDescriptor) {
+      returnValue = ENOERR;
+      break;
+    }
+    // This is not what we're looking for.  Put it back.
+    processQueuePush(processQueue, poppedDescriptor);
+  }
+
+  return returnValue;
 }
 
 /// @fn int getNumTokens(const char *input)
@@ -1381,8 +1358,8 @@ int schedulerKillProcessCommandHandler(
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
       if (comessageSetDone(comessage) != coroutineSuccess) {
-        printString("ERROR!!!  "
-          "Could not mark message done in schedulerKillProcessCommandHandler.\n");
+        printString("ERROR!!!  Could not mark message done in "
+          "schedulerKillProcessCommandHandler.\n");
       }
     }
   } else {
