@@ -1718,14 +1718,14 @@ __attribute__((noinline)) void startScheduler(void) {
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
-  coroutineResume(coroutine, NULL);
+  coroutineResume(allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine, NULL);
 
-  // The coroutine variable still points to the console coroutine.
+  // Start boot messages.
   printString("\n\n");
   printString("Main stack size = ");
   printInt(ABS_DIFF(
-    ((intptr_t) schedulerProcess),
-    ((intptr_t) coroutine)
+    ((uintptr_t) schedulerProcess),
+    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine)
   ));
   printString(" bytes\n");
   printString("schedulerState size = ");
