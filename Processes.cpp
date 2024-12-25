@@ -564,7 +564,16 @@ int killProcess(CoroutineId processId) {
   // We don't know where our message to the scheduler will be in its queue, so
   // we can't assume it will be processed immediately, but we can't wait forever
   // either.  Set a 100 ms timeout.
-  struct timespec ts = { 0, 100000000 };
+  struct timespec ts = { 0, 0 };
+  timespec_get(&ts, TIME_UTC);
+  ts.tv_nsec += 100000000;
+  startDebugMessage("ts.tv_sec = ");
+  printDebug(ts.tv_sec);
+  printDebug(".\n");
+  startDebugMessage("ts.tv_nsec = ");
+  printDebug(ts.tv_nsec);
+  printDebug(".\n");
+
   int waitStatus = comessageWaitForDone(comessage, &ts);
   int returnValue = 0;
   if (waitStatus == coroutineSuccess) {
