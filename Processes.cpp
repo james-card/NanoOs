@@ -1721,7 +1721,7 @@ __attribute__((noinline)) void startScheduler(void) {
   coroutineResume(coroutine, NULL);
 
   // The coroutine variable still points to the console coroutine.
-  printString("\n");
+  printString("\n\n");
   printString("Main stack size = ");
   printInt(ABS_DIFF(
     ((intptr_t) schedulerProcess),
