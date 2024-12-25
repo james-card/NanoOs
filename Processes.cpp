@@ -1711,7 +1711,6 @@ __attribute__((noinline)) void startScheduler(void) {
   Coroutine *coroutine = coroutineInit(NULL, runConsole);
   // Double the size of the console process stack too.
   (void) coroutineInit(NULL, dummyProcess);
-  printString("Created second throw-away process.\n");
 
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
