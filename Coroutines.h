@@ -108,7 +108,7 @@ extern "C"
 ///
 /// @brief The size of a single chunk of the stack allocated by
 /// coroutineAllocateStack.
-#define COROUTINE_STACK_CHUNK_SIZE 512
+#define COROUTINE_STACK_CHUNK_SIZE 256
 
 /// @def COROUTINE_DEFAULT_STACK_SIZE
 ///
