@@ -183,6 +183,23 @@ typedef struct SchedulerState {
   ProcessQueue free;
 } SchedulerState;
 
+/// @struct CommandDescriptor
+///
+/// @brief Container of information for launching a process.
+///
+/// @param consolePort The index of the ConsolePort the input came from.
+/// @param consoleInput The input as provided by the console.
+/// @param callingProcess The process ID of the process that is launching the
+///   command.
+/// @param schedulerState A pointer to the SchedulerState structure maintained
+///   by the scheduler.
+typedef struct CommandDescriptor {
+  int                consolePort;
+  char              *consoleInput;
+  CoroutineId  callingProcess;
+  SchedulerState    *schedulerState;
+} CommandDescriptor;
+
 /// @enum SchedulerCommand
 ///
 /// @brief Commands understood by the scheduler inter-process message handler.

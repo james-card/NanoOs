@@ -43,23 +43,6 @@
 /// @brief The process ID (PID) of the GPIO serial port shell.
 #define GPIO_SERIAL_PORT_SHELL_PID 4
 
-/// @struct CommandDescriptor
-///
-/// @brief Container of information for launching a process.
-///
-/// @param consolePort The index of the ConsolePort the input came from.
-/// @param consoleInput The input as provided by the console.
-/// @param callingProcess The process ID of the process that is launching the
-///   command.
-/// @param schedulerState A pointer to the SchedulerState structure maintained
-///   by the scheduler.
-typedef struct CommandDescriptor {
-  int                consolePort;
-  char              *consoleInput;
-  CoroutineId  callingProcess;
-  SchedulerState    *schedulerState;
-} CommandDescriptor;
-
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main coroutine that's allocated in the main loop
