@@ -213,7 +213,7 @@ void login(void) {
     fputs("Password: ", stdout);
     fgets(password, sizeof(password), stdin);
     setConsoleEcho(true);
-    fputs("\n", stdout);
+    fputs("\n\n", stdout);
 
     newlineAt = strchr(username, '\r');
     if (newlineAt == NULL) {
@@ -245,7 +245,7 @@ void login(void) {
     passwordDigest = stringDestroy(passwordDigest);
 
     if (userId == NO_USER_ID) {
-      fputs("\nLogin incorrect\n", stderr);
+      fputs("Login incorrect\n", stderr);
     }
   }
 
