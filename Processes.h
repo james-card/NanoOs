@@ -33,8 +33,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SCHEDULER_H
-#define SCHEDULER_H
+#ifndef PROCESSES_H
+#define PROCESSES_H
 
 // Custom includes
 #include "NanoOs.h"
@@ -278,4 +278,4 @@ int setProcessUser(UserId userId);
 // Console.h has to be included separately and last.
 #include "Console.h"
 
-#endif // SCHEDULER_H
+#endif // PROCESSES_H
