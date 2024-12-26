@@ -45,25 +45,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Coroutines
+// Local headers
 #include "Coroutines.h"
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-/// @def NANO_OS_NUM_PROCESSES
-///
-/// @brief The total number of concurrent processes that can be run by the OS,
-/// including the scheduler.
-///
-/// @note If this value is increased beyond 15, the number of bits used to store
-/// the owner in a MemNode in MemoryManager.cpp must be extended and the value
-/// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
-/// increased beyond 255, then the type defined by CoroutineId in
-/// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES                             8
 
 /// @def NANO_OS_STACK_SIZE
 ///
@@ -141,40 +130,6 @@ extern "C"
 #define printDebug(message) {}
 
 #endif // NANO_OS_DEBUG
-
-/// @typedef UserId
-///
-/// @brief The type to use to represent a numeric user ID.
-typedef int16_t UserId;
-
-/// @struct User
-///
-/// @param userId The numeric ID for the user.
-/// @param username The literal name of the user.
-/// @param password The SHA1 hash of the user's password.
-typedef struct User {
-  UserId        userId;
-  const char   *username;
-  const char   *password;
-} User;
-
-/// @typedef NanoOsMessageData
-///
-/// @brief Data type used in a NanoOsMessage.
-typedef unsigned long long int NanoOsMessageData;
-
-/// @struct NanoOsMessage
-///
-/// @brief A generic message that can be exchanged between processes.
-///
-/// @param func Information about the function to run, cast to an unsigned long
-///   long int.
-/// @param data Information about the data to use, cast to an unsigned long
-///   long int.
-typedef struct NanoOsMessage {
-  NanoOsMessageData  func;
-  NanoOsMessageData  data;
-} NanoOsMessage;
 
 /// @def STATIC_NANO_OS_MESSAGE
 ///

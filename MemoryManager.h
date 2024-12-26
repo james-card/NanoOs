@@ -91,43 +91,6 @@ typedef enum MemoryManagerResponse {
   NUM_MEMORY_MANAGER_RESPONSES
 } MemoryManagerResponse;
 
-/// @struct ReallocMessage
-///
-/// @brief Structure that holds the data needed to make a request to reallocate
-/// an existing pointer.
-///
-/// @param ptr The pointer to be reallocated.  If this value is NULL, new
-///   memory will be allocated.
-/// @param size The number of bytes to allocate.  If this value is 0, the memory
-///   at ptr will be freed.
-/// @param pid The ID of the process making the request.
-/// @param responseType The response type the caller is waiting for.
-typedef struct ReallocMessage {
-  void *ptr;
-  size_t size;
-  CoroutineId pid;
-  int responseType;
-} ReallocMessage;
-
-/// @struct MemoryManagerState
-///
-/// @brief State metadata the memory manager process uses for allocations and
-/// deallocations.
-///
-/// @parm mallocBuffer A pointer to the first character of the buffer to
-///   allocate memory from.
-/// @param mallocNext A pointer to the next free piece of memory.
-/// @param mallocStart The numeric value of the first address available to
-///   allocate memory from.
-/// @param mallocEnd The numeric value of the last address available to allocate
-///   memory from.
-typedef struct MemoryManagerState {
-  char *mallocBuffer;
-  char *mallocNext;
-  uintptr_t mallocStart;
-  uintptr_t mallocEnd;
-} MemoryManagerState;
-
 // Function prototypes
 void* runMemoryManager(void *args);
 
@@ -135,25 +98,25 @@ void memoryManagerFree(void *ptr);
 #ifdef free
 #undef free
 #endif // free
-#define free memoryManagerFree
+#define free(ptr) memoryManagerFree(ptr)
 
 void* memoryManagerRealloc(void *ptr, size_t size);
 #ifdef realloc
 #undef realloc
 #endif // realloc
-#define realloc memoryManagerRealloc
+#define realloc(ptr, size) memoryManagerRealloc(ptr, size)
 
 void* memoryManagerMalloc(size_t size);
 #ifdef malloc
 #undef malloc
 #endif // malloc
-#define malloc memoryManagerMalloc
+#define malloc(size) memoryManagerMalloc(size)
 
 void* memoryManagerCalloc(size_t nmemb, size_t size);
 #ifdef calloc
 #undef calloc
 #endif // calloc
-#define calloc memoryManagerCalloc
+#define calloc(nmemb, size) memoryManagerCalloc(nmemb, size)
 
 size_t getFreeMemory(void);
 int assignMemory(void *ptr, CoroutineId pid);

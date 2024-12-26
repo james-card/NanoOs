@@ -50,30 +50,6 @@ extern "C"
 {
 #endif
 
-/// @typedef CommandFunction
-///
-/// @brief Type definition for the function signature that NanoOs commands must
-/// have.
-typedef int (*CommandFunction)(int argc, char **argv);
-
-/// @struct CommandEntry
-///
-/// @brief Descriptor for a command that can be looked up and run by the
-/// handleCommand function.
-///
-/// @param name The textual name of the command.
-/// @param func A function pointer to the process that will be spawned to
-///   execute the command.
-/// @param shellCommand Whether this is a process that should replace the shell
-///   process slot (true) or run in a separate slot (false).
-/// @param help A one-line summary of what this command does.
-typedef struct CommandEntry {
-  const char      *name;
-  CommandFunction  func;
-  bool             shellCommand;
-  const char      *help;
-} CommandEntry;
-
 // Exported support functions
 int handleCommand(int consolePort, char *consoleInput);
 

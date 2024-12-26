@@ -57,23 +57,6 @@ extern "C"
 /// has external confirmation that the system is still running.
 #define LED_CYCLE_TIME_MS 2000
 
-/// @def CONSOLE_BUFFER_SIZE
-///
-/// @brief The size, in bytes, of a single console buffer.  This is the number
-/// of bytes that printf calls will have to work with.
-#define CONSOLE_BUFFER_SIZE 128
-
-/// @def CONSOLE_NUM_BUFFERS
-///
-/// @brief The number of console buffers that will be allocated within the main
-/// console process's stack.
-#define CONSOLE_NUM_BUFFERS  4
-
-/// @def CONSOLE_NUM_PORTS
-///
-/// @brief The number of console supports supported.
-#define CONSOLE_NUM_PORTS 2
-
 /// @def USB_SERIAL_PORT
 ///
 /// Index into ConsoleState.conslePorts for the USB serial port.
@@ -129,92 +112,6 @@ typedef enum ConsoleResponse {
   CONSOLE_RETURNING_INPUT,
   NUM_CONSOLE_RESPONSES
 } ConsleResponse;
-
-/// @struct ConsoleBuffer
-///
-/// @brief Definition of a single console buffer that may be returned to a
-/// sender of a CONSOLE_GET_BUFFER command via a CONSOLE_RETURNING_BUFFER
-/// response.
-///
-/// @param inUse Whether or not this buffer is in use by a process.  Set by the
-///   consoleGetBuffer function when getting a buffer for a caller and cleared
-///   by the caller when no longer being used.
-/// @param buffer The array of CONSOLE_BUFFER_SIZE characters that the calling
-///   process can use.
-typedef struct ConsoleBuffer {
-  bool inUse;
-  char buffer[CONSOLE_BUFFER_SIZE];
-} ConsoleBuffer;
-
-/// @struct ConsolePort
-///
-/// @brief Descriptor for a single console port that can be used for input from
-/// a user.
-///
-/// @param consoleBuffer A pointer to the ConsoleBuffer used to buffer input
-///   from the user.
-/// @param consoleIndex An index into the buffer provided by consoleBuffer of
-///   the next position to read a byte into.
-/// @param owner The ID of the process that currently owns the console port.
-/// @param shell The ID of the process that serves as the console port's shell.
-/// @param waitingForInput Whether or not the owning process is currently
-///   waiting for input from the user.
-/// @param readByte A pointer to the non-blocking function that will attempt to
-///   read a byte of input from the user.
-/// @param echo Whether or not the data read from the port should be echoed back
-///   to the port.
-/// @param printString A pointer to the function that will print a string of
-///   output to the console port.
-typedef struct ConsolePort {
-  ConsoleBuffer      *consoleBuffer;
-  unsigned char       consoleIndex;
-  CoroutineId         owner;
-  CoroutineId         shell;
-  bool                waitingForInput;
-  int               (*readByte)(ConsolePort *consolePort);
-  bool                echo;
-  int               (*printString)(const char *string);
-} ConsolePort;
-
-/// @struct ConsoleState
-///
-/// @brief State maintained by the main console process and passed to the inter-
-/// process command handlers.
-///
-/// @param consolePorts The array of ConsolePorts that will be polled for input
-///   from the user.
-/// @param consoleBuffers The array of ConsoleBuffers that can be used by
-///   the console ports for input and by processes for output.
-typedef struct ConsoleState {
-  ConsolePort consolePorts[CONSOLE_NUM_PORTS];
-  // consoleBuffers needs to come at the end.
-  ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
-} ConsoleState;
-
-/// @struct ConsolePortPidAssociation
-///
-/// @brief Structure to associate a console port with a process ID.  This
-/// information is used in a CONSOLE_ASSIGN_PORT command.
-///
-/// @param consolePort The index into the consolePorts array of a ConsoleState
-///   object.
-/// @param processId The process ID associated with the port.
-typedef struct ConsolePortPidAssociation {
-  uint8_t           consolePort;
-  CoroutineId processId;
-} ConsolePortPidAssociation;
-
-/// @union ConsolePortPidUnion
-///
-/// @brief Union of a ConsolePortPidAssociation and a NanoOsMessageData to
-/// allow for easy conversion between the two.
-///
-/// @param consolePortPidAssociation The ConsolePortPidAssociation part.
-/// @param nanoOsMessageData The NanoOsMessageData part.
-typedef union ConsolePortPidUnion {
-  ConsolePortPidAssociation consolePortPidAssociation;
-  NanoOsMessageData         nanoOsMessageData;
-} ConsolePortPidUnion;
 
 // Support functions
 void releaseConsole(void);

@@ -44,29 +44,6 @@ extern "C"
 {
 #endif
 
-/// @def SCHEDULER_NUM_PROCESSES
-///
-/// @brief The number of processes managed by the scheduler.  This is one fewer
-/// than the total number of processes managed by NanoOs since the scheduler is
-/// a process.
-#define SCHEDULER_NUM_PROCESSES (NANO_OS_NUM_PROCESSES - 1)
-
-/// @typedef Process
-///
-/// @brief Definition of the Process object used by the OS.
-typedef Coroutine Process;
-
-/// @typedef ProcessId
-///
-/// @brief Definition of the type to use for a process ID.
-typedef CoroutineId ProcessId;
-
-/// @typedef ProcessMessage
-///
-/// @brief Definition of the ProcessMessage object that processes will use for
-/// inter-process communication.
-typedef Comessage ProcessMessage;
-
 /// @def getRunningProcess
 ///
 /// @brief Function macro to get the pointer to the currently running Process
@@ -102,109 +79,6 @@ typedef Comessage ProcessMessage;
 /// queue.
 #define processMessageQueuePush(process, message) \
   comessageQueuePush(process, message)
-
-/// @struct ProcessDescriptor
-///
-/// @brief Descriptor for a running process.
-///
-/// @param name The name of the command as stored in its CommandEntry or as
-///   set by the scheduler at launch.
-/// @param coroutine A pointer to the Coroutine instance that manages the
-///   running command's execution state.
-/// @param 
-/// @param userId The numerical ID of the user that is running the process.
-typedef struct ProcessDescriptor {
-  const char *name;
-  Coroutine  *coroutine;
-  ProcessId   processId;
-  UserId      userId;
-} ProcessDescriptor;
-
-/// @struct ProcessInfoElement
-///
-/// @brief Information about a running process that is exportable to a user
-/// process.
-///
-/// @param pid The numerical ID of the process.
-/// @param name The name of the process.
-/// @param userId The UserId of the user that owns the process.
-typedef struct ProcessInfoElement {
-  int pid;
-  const char *name;
-  UserId userId;
-} ProcessInfoElement;
-
-/// @struct ProcessInfo
-///
-/// @brief The object that's populated and returned by a getProcessInfo call.
-///
-/// @param numProcesses The number of elements in the processes array.
-/// @param processes The array of ProcessInfoElements that describe the
-///   processes.
-typedef struct ProcessInfo {
-  uint8_t numProcesses;
-  ProcessInfoElement processes[1];
-} ProcessInfo;
-
-/// @struct ProcessQueue
-///
-/// @brief Structure to manage an individual process queue
-///
-/// @param name The string name of the queue for use in error messages.
-/// @param processes The array of pointers to ProcessDescriptors from the
-///   allProcesses array.
-/// @param head The index of the head of the queue.
-/// @param tail The index of the tail of the queue.
-/// @param numElements The number of elements currently in the queue.
-typedef struct ProcessQueue {
-  const char *name;
-  ProcessDescriptor *processes[SCHEDULER_NUM_PROCESSES];
-  uint8_t head:4;
-  uint8_t tail:4;
-  uint8_t numElements:4;
-} ProcessQueue;
-
-/// @struct SchedulerState
-///
-/// @brief State data used by the scheduler.
-///
-/// @param allProcesses Array that will hold the metadata for every process,
-///   including the scheduler.
-/// @param ready Queue of processes that are allocated and not waiting on
-///   anything but not currently running.  This queue never includes the
-///   scheduler process.
-/// @param waiting Queue of processes that are waiting on a mutex or condition
-///   with an infinite timeout.  This queue never includes the scheduler
-///   process.
-/// @param timedWaiting Queue of processes that are waiting on a mutex or
-///   condition with a defined timeout.  This queue never includes the scheduler
-///   process.
-/// @param free Queue of processes that are free within the allProcesses
-///   array.
-typedef struct SchedulerState {
-  ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
-  ProcessQueue ready;
-  ProcessQueue waiting;
-  ProcessQueue timedWaiting;
-  ProcessQueue free;
-} SchedulerState;
-
-/// @struct CommandDescriptor
-///
-/// @brief Container of information for launching a process.
-///
-/// @param consolePort The index of the ConsolePort the input came from.
-/// @param consoleInput The input as provided by the console.
-/// @param callingProcess The process ID of the process that is launching the
-///   command.
-/// @param schedulerState A pointer to the SchedulerState structure maintained
-///   by the scheduler.
-typedef struct CommandDescriptor {
-  int                consolePort;
-  char              *consoleInput;
-  CoroutineId  callingProcess;
-  SchedulerState    *schedulerState;
-} CommandDescriptor;
 
 /// @enum SchedulerCommand
 ///
