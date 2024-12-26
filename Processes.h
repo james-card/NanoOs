@@ -5,7 +5,7 @@
 ///
 /// @file              Processes.h
 ///
-/// @brief             Process scheduler functionality for NanoOs.
+/// @brief             Process functionality for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2024 James Card
