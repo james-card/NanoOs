@@ -620,7 +620,7 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   if (!coroutineRunning(coroutine)) {
     // Can't send to a non-resumable coroutine.
     printString("ERROR!!!  Could not send message from process ");
-    printInt(processId(NULL));
+    printInt(processId(getRunningProcess()));
     printString("\n");
     if (coroutine == NULL) {
       printString("ERROR!!!  Coroutine is NULL\n");
