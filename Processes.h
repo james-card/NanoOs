@@ -67,6 +67,12 @@ typedef CoroutineId ProcessId;
 /// inter-process communication.
 typedef Comessage ProcessMessage;
 
+/// @def getRunningProcess
+///
+/// @brief Function macro to get the pointer to the currently running Process
+/// object.
+#define getRunningProcess() getRunningCoroutine()
+
 /// @def processId
 ///
 /// @brief Function macro to get the numeric ProcessId given a pointer to a
@@ -256,7 +262,7 @@ typedef enum SchedulerResponse {
 
 // Exported functionality
 void* startCommand(void *args);
-void startScheduler(SchedulerState *schedulerState);
+void startScheduler(void);
 Process* getProcessByPid(unsigned int pid);
 int sendComessageToCoroutine(
   Coroutine *coroutine, Comessage *comessage);
