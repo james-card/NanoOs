@@ -966,6 +966,10 @@ void coroutineAllocateStack256(int stackSize, void *topOfStack);
 void coroutineAllocateStack512(int stackSize, void *topOfStack);
 void coroutineAllocateStack1024(int stackSize, void *topOfStack);
 
+/// @def allocateNextStackChunk
+///
+/// @brief Common macro for determining which stack allocation function to call
+/// next and calling it.
 #define allocateNextStackChunk(stackSize, topOfStack) \
   if (topOfStack == NULL) { \
     topOfStack = stack; \
