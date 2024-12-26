@@ -193,6 +193,16 @@ UserId getUserIdByUsername(const char *username) {
   return userId;
 }
 
+/// @def USERNAME_BUFFER_SIZE
+///
+/// @brief Size to use for the username buffer in the login function.
+#define USERNAME_BUFFER_SIZE 50
+
+/// @def PASSWORD_BUFFER_SIZE
+///
+/// @brief Size to use for the password buffer in the login function.
+#define PASSWORD_BUFFER_SIZE 50
+
 /// @fn void login(void)
 ///
 /// @brief Authenticate a user for login.  Sets the owner of the current process
@@ -202,16 +212,16 @@ UserId getUserIdByUsername(const char *username) {
 void login(void) {
   UserId userId = NO_USER_ID;
 
-  char username[50];
-  char password[96];
+  char *username = (char*) malloc(USERNAME_BUFFER_SIZE);
+  char *password = (char*) malloc(PASSWORD_BUFFER_SIZE);
   char *newlineAt = NULL;
 
   while (userId == NO_USER_ID) {
     fputs("login: ", stdout);
-    fgets(username, sizeof(username), stdin);
+    fgets(username, USERNAME_BUFFER_SIZE, stdin);
     setConsoleEcho(false);
     fputs("Password: ", stdout);
-    fgets(password, sizeof(password), stdin);
+    fgets(password, PASSWORD_BUFFER_SIZE, stdin);
     setConsoleEcho(true);
     fputs("\n\n", stdout);
 
@@ -248,6 +258,9 @@ void login(void) {
       fputs("Login incorrect\n", stderr);
     }
   }
+
+  username = stringDestroy(username);
+  password = stringDestroy(password);
 
   if (setProcessUser(userId) != 0) {
     fputs("WARNING:  "
