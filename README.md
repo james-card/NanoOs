@@ -12,7 +12,7 @@ My first priority was getting a system that would support multiple concurrent pr
 
 Stacks for the processes have to be tiny.  In the current implementation, each process has a 320-byte stack configured for it.  Fortunately, the Nano Every uses an 8-bit processor, so variables are also small.  Function calls don't consume much stack space because the values pushed onto the stack are so small.
 
-The Coroutines library works by segmenting the main stack.  Coroutines are allocated by putting a Coroutine object at the top of each process's stack, so the total size consumed between processes is larger than the size of the stack that's configured.  There's also some additional space allocated due to the way the requested amount of space is broken into chunks.  As of the time of this writing (26-Dec-2024), the stack plus Coroutine object size is 463 bytes when a 320-byte stack is specified.  With this configuration, in 6 KB of RAM, NanoOs can support 8 concurrent processes.
+The Coroutines library works by segmenting the main stack.  Coroutines are allocated by putting a Coroutine object at the top of each process's stack, so the total size consumed between processes is larger than the size of the stack that's configured.  There's also some additional space allocated due to the way the requested amount of space is broken into chunks.  As of the time of this writing (26-Dec-2024), the stack plus Coroutine object size is 453 bytes when a 320-byte stack is specified.  With this configuration, in 6 KB of RAM, NanoOs can support 8 concurrent processes.
 
 ## Architecture
 
