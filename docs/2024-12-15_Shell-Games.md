@@ -1,4 +1,4 @@
-# 2024-12-15 - Shell Games
+# 15-Dec-2024 - Shell Games
 
 I spent about a day and a half after my last post developing a shell process that could launch a new process.  The first thing I had to figure out was how the shell would spawn a new process in such a way that it could take ownership of the console that the shell was using.  It obviously didn't make any sense for more than one process to be connected to stdin at a time, so working out this transfer was the first major hill to get over.
 
