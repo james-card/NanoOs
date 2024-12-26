@@ -446,7 +446,7 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
 /// @param Returns the previous head of the list.
 void coroutineTssPush(tss_t* list, Coroutine* coroutine) {
   if ((list != NULL) && (coroutine != NULL)) {
-    coroutine->next = (Coroutine*) tss_get(*list);
+    coroutine->nextInList = (Coroutine*) tss_get(*list);
     tss_set(*list, coroutine);
   }
 }
@@ -463,8 +463,8 @@ Coroutine* coroutineTssPop(tss_t* list) {
 
   if (list != NULL) {
     coroutine = (Coroutine*) tss_get(*list);
-    tss_set(*list, coroutine->next);
-    coroutine->next = NULL;
+    tss_set(*list, coroutine->nextInList);
+    coroutine->nextInList = NULL;
   }
 
   return coroutine;
