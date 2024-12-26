@@ -255,7 +255,11 @@ typedef enum SchedulerResponse {
 #define stringDestroy(string) ((char*) (free((void*) string), NULL))
 
 // Exported functionality
+void* startCommand(void *args);
 void startScheduler(SchedulerState *schedulerState);
+Process* getProcessByPid(unsigned int pid);
+int sendComessageToCoroutine(
+  Coroutine *coroutine, Comessage *comessage);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
 Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToPid(int pid, int type,
