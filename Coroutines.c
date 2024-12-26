@@ -137,7 +137,7 @@
 #include <stdio.h> // For error messages
 
 // Prototype forward declarations for mutual recursion.
-void coroutineAllocateStack(int stackSize, void *topOfStack);
+void coroutineAllocateStack(int stackSize);
 void coroutineMain(void *stack);
 
 /// @def ZEROINIT
@@ -721,7 +721,7 @@ Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
   if ((idle == NULL) && (!setjmp(running->context))) {
     // We've just been called from the calling function and need to create a
     // new Coroutine instance, including its stack.
-    coroutineAllocateStack(stackSize, NULL);
+    coroutineAllocateStack(stackSize);
   }
   // Either there was an idle coroutine on the idle list or we just returned
   // from coroutineMain (called by coroutineAllocateStack).  Either way, the Coroutine
@@ -898,7 +898,7 @@ void coroutineMain(void *stack) {
   }
 #endif
   if (!setjmp(running->context)) {
-    coroutineAllocateStack(stackSize, NULL);
+    coroutineAllocateStack(stackSize);
   }
 
   if (setjmp(running->resetContext)) {
@@ -960,24 +960,105 @@ void coroutineMain(void *stack) {
   }
 }
 
-/// void coroutineAllocateStack(int stackSize, void *topOfStack)
+void coroutineAllocateStack64(int stackSize, void *topOfStack);
+void coroutineAllocateStack128(int stackSize, void *topOfStack);
+void coroutineAllocateStack256(int stackSize, void *topOfStack);
+void coroutineAllocateStack512(int stackSize, void *topOfStack);
+void coroutineAllocateStack1024(int stackSize, void *topOfStack);
+
+#define allocateNextStackChunk(stackSize, topOfStack) \
+  if (topOfStack == NULL) { \
+    topOfStack = stack; \
+  } \
+   \
+  stackSize -= sizeof(stack); \
+  if (stackSize >= 1024) { \
+    coroutineAllocateStack1024(stackSize, topOfStack); \
+  } else if (stackSize >= 512) { \
+    coroutineAllocateStack512(stackSize, topOfStack); \
+  } else if (stackSize >= 256) { \
+    coroutineAllocateStack256(stackSize, topOfStack); \
+  } else if (stackSize >= 128) { \
+    coroutineAllocateStack128(stackSize, topOfStack); \
+  } else if (stackSize >= 64) { \
+    coroutineAllocateStack64(stackSize, topOfStack); \
+  } \
+   \
+  coroutineMain(topOfStack)
+
+/// void coroutineAllocateStack64(int stackSize, void *topOfStack)
+///
+/// @brief Allocate 64 bytes for the current stack.
+///
+/// @return This function returns no value.
+void coroutineAllocateStack64(int stackSize, void *topOfStack) {
+  ZEROINIT(char stack[64]);
+
+  allocateNextStackChunk(stackSize, topOfStack);
+}
+
+/// void coroutineAllocateStack128(int stackSize, void *topOfStack)
+///
+/// @brief Allocate 128 bytes for the current stack.
+///
+/// @return This function returns no value.
+void coroutineAllocateStack128(int stackSize, void *topOfStack) {
+  ZEROINIT(char stack[128]);
+
+  allocateNextStackChunk(stackSize, topOfStack);
+}
+
+/// void coroutineAllocateStack256(int stackSize, void *topOfStack)
+///
+/// @brief Allocate 256 bytes for the current stack.
+///
+/// @return This function returns no value.
+void coroutineAllocateStack256(int stackSize, void *topOfStack) {
+  ZEROINIT(char stack[256]);
+
+  allocateNextStackChunk(stackSize, topOfStack);
+}
+
+/// void coroutineAllocateStack512(int stackSize, void *topOfStack)
+///
+/// @brief Allocate 512 bytes for the current stack.
+///
+/// @return This function returns no value.
+void coroutineAllocateStack512(int stackSize, void *topOfStack) {
+  ZEROINIT(char stack[512]);
+
+  allocateNextStackChunk(stackSize, topOfStack);
+}
+
+/// void coroutineAllocateStack1024(int stackSize, void *topOfStack)
+///
+/// @brief Allocate 1024 bytes for the current stack.
+///
+/// @return This function returns no value.
+void coroutineAllocateStack1024(int stackSize, void *topOfStack) {
+  ZEROINIT(char stack[1024]);
+
+  allocateNextStackChunk(stackSize, topOfStack);
+}
+
+/// void coroutineAllocateStack(int stackSize)
 ///
 /// @brief Allocate space for the current stack to grow before creating the
 /// initial stack frame for the next coroutine.
 ///
 /// @return This function returns no value.
-void coroutineAllocateStack(int stackSize, void *topOfStack) {
-  ZEROINIT(char stack[COROUTINE_STACK_CHUNK_SIZE]);
-  
-  if (topOfStack == NULL) {
-    topOfStack = stack;
+void coroutineAllocateStack(int stackSize) {
+  if (stackSize >= 1024) {
+    coroutineAllocateStack1024(stackSize, NULL);
+  } else if (stackSize >= 512) {
+    coroutineAllocateStack512(stackSize, NULL);
+  } else if (stackSize >= 256) {
+    coroutineAllocateStack256(stackSize, NULL);
+  } else if (stackSize >= 128) {
+    coroutineAllocateStack128(stackSize, NULL);
+  } else if (stackSize >= 64) {
+    coroutineAllocateStack64(stackSize, NULL);
   }
-  
-  if (stackSize > COROUTINE_STACK_CHUNK_SIZE) {
-    coroutineAllocateStack(stackSize - COROUTINE_STACK_CHUNK_SIZE, topOfStack);
-  }
-  
-  coroutineMain(topOfStack);
 }
 
 /// @fn int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes)
