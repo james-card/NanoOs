@@ -63,58 +63,61 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 255, then the type defined by CoroutineId in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES                             8
+#define NANO_OS_NUM_PROCESSES               8
 
 /// @def NANO_OS_STACK_SIZE
 ///
 /// @brief The minimum size for an individual process's stack.  Actual size will
 /// be slightly larger than this.  This value needs to be a multiple of 
 /// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
-#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 5)
+#define NANO_OS_STACK_SIZE                 512
+#if ((NANO_OS_STACK_SIZE % COROUTINE_STACK_CHUNK_SIZE) != 0)
+#error "NANO_OS_STACK_SIZE must be a multiple of COROUTINE_STACK_CHUNK_SIZE."
+#endif
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
 /// @brief The total number of inter-process messages that will be available
 /// for use by processes.
-#define NANO_OS_NUM_MESSAGES                              7
+#define NANO_OS_NUM_MESSAGES                 7
 
 /// @def NANO_OS_SCHEDULER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that is reserved for the
 /// scheduler.
-#define NANO_OS_SCHEDULER_PROCESS_ID                      0
+#define NANO_OS_SCHEDULER_PROCESS_ID         0
 
 /// @def NANO_OS_CONSOLE_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that will run the console.  This
 /// must be the lowest value after the scheduler process (i.e. 1).
-#define NANO_OS_CONSOLE_PROCESS_ID                        1
+#define NANO_OS_CONSOLE_PROCESS_ID           1
 
 /// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process.
-#define NANO_OS_MEMORY_MANAGER_PROCESS_ID                 2
+#define NANO_OS_MEMORY_MANAGER_PROCESS_ID    2
 
 /// @def NANO_OS_FIRST_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process, i.e. the first ID
 /// after the last system process ID.
-#define NANO_OS_FIRST_PROCESS_ID                          3
+#define NANO_OS_FIRST_PROCESS_ID             3
 
 /// @def NANO_OS_VERSION
 ///
 /// @brief The version string for NanoOs
-#define NANO_OS_VERSION                             "0.1.0"
+#define NANO_OS_VERSION "0.1.0"
 
 /// @def ROOT_USER_ID
 ///
 /// @brief The numerical ID of the root user.
-#define ROOT_USER_ID                                      0
+#define ROOT_USER_ID 0
 
 /// @def NO_USER_ID
 ///
 /// @brief The numerical value that indicates that a process is not owned.
-#define NO_USER_ID                                       -1
+#define NO_USER_ID -1
 
 /// @def floatToInts
 ///

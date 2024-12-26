@@ -863,7 +863,7 @@ void* runConsole(void *args) {
   while (1) {
     ledToggle();
 
-    for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
