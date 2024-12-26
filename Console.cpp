@@ -830,12 +830,12 @@ void* runConsole(void *args) {
   memset(&consoleState, 0, sizeof(ConsoleState));
   Comessage *schedulerMessage = NULL;
 
-  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
+  for (uint8_t ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
     consoleState.consoleBuffers[ii].inUse = false;
   }
 
   // For each console port, use the console buffer at the corresponding index.
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     consoleState.consolePorts[ii].consoleBuffer
       = &consoleState.consoleBuffers[ii];
     consoleState.consolePorts[ii].consoleBuffer->inUse = true;
@@ -863,7 +863,7 @@ void* runConsole(void *args) {
   while (1) {
     ledToggle();
 
-    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
