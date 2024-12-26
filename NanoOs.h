@@ -118,6 +118,11 @@ extern "C"
   (int) number, \
   ABS((int) (number * raiseUInt(10, precision))) % raiseUInt(10, precision)
 
+/// @def stringDestroy
+///
+/// @brief Convenience macro for the common operation of destroying a string.
+#define stringDestroy(string) ((char*) (free((void*) string), NULL))
+
 #ifdef NANO_OS_DEBUG
 
 /// @def printDebug

@@ -26,7 +26,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
-#include "NanoOs.h"
+#include "Scheduler.h"
 
 // The setup function runs once when you press reset or power the board.  This
 // is to be used for Arduino-specific setup.  *ANYTHING* that requires use of

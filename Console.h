@@ -39,8 +39,9 @@
 #include <stdarg.h>
 
 // Custom includes
-#include "NanoOs.h"
 #include "Coroutines.h"
+#include "NanoOs.h"
+#include "Scheduler.h"
 
 #ifndef CONSOLE_H
 #define CONSOLE_H

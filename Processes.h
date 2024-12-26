@@ -80,27 +80,6 @@ extern "C"
 #define processMessageQueuePush(process, message) \
   comessageQueuePush(process, message)
 
-/// @enum SchedulerCommand
-///
-/// @brief Commands understood by the scheduler inter-process message handler.
-typedef enum SchedulerCommand {
-  SCHEDULER_RUN_PROCESS,
-  SCHEDULER_KILL_PROCESS,
-  SCHEDULER_GET_NUM_RUNNING_PROCESSES,
-  SCHEDULER_GET_PROCESS_INFO,
-  SCHEDULER_GET_PROCESS_USER,
-  SCHEDULER_SET_PROCESS_USER,
-  NUM_SCHEDULER_COMMANDS
-} SchedulerCommand;
-
-/// @enum SchedulerResponse
-///
-/// @brief Responses the scheduler may send to a command.
-typedef enum SchedulerResponse {
-  SCHEDULER_PROCESS_COMPLETE,
-  NUM_SCHEDULER_RESPONSES
-} SchedulerResponse;
-
 /// @def nanoOsMessageFuncValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
@@ -129,15 +108,8 @@ typedef enum SchedulerResponse {
 #define nanoOsMessageDataPointer(msg, type) \
   ((type) nanoOsMessageDataValue((msg), intptr_t))
 
-/// @def stringDestroy
-///
-/// @brief Convenience macro for the common operation of destroying a string.
-#define stringDestroy(string) ((char*) (free((void*) string), NULL))
-
 // Exported functionality
 void* startCommand(void *args);
-void startScheduler(void);
-Process* getProcessByPid(unsigned int pid);
 int sendComessageToCoroutine(
   Coroutine *coroutine, Comessage *comessage);
 int sendComessageToPid(unsigned int pid, Comessage *comessage);
@@ -154,8 +126,5 @@ int setProcessUser(UserId userId);
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-// Console.h has to be included separately and last.
-#include "Console.h"
 
 #endif // PROCESSES_H
