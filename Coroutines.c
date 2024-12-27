@@ -984,7 +984,7 @@ void coroutineAllocateStack1024(int stackSize, void *topOfStack);
     coroutineAllocateStack256(stackSize, topOfStack); \
   } else if (stackSize >= 128) { \
     coroutineAllocateStack128(stackSize, topOfStack); \
-  } else if (stackSize >= 64) { \
+  } else if (stackSize >   0) { \
     coroutineAllocateStack64(stackSize, topOfStack); \
   } \
    \
