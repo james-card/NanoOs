@@ -26,4 +26,4 @@ This work started out as an experiment to see if I could implement an operating 
 
 [2024-12-25: Process Queues](2024-12-25_Process-Queues.md)
 
-[2024-12-26: Reclaiming Memory.md](2024-12-26_Reclaiming-Memory.md)
+[2024-12-26: Reclaiming Memory](2024-12-26_Reclaiming-Memory.md)
