@@ -96,6 +96,26 @@ extern "C"
 #define processMessageQueuePush(process, message) \
   comessageQueuePush(process, message)
 
+// Process message accessors
+#define processMessageType(processMessagePointer) \
+  comessageType(processMessagePointer)
+#define processMessageData(processMessagePointer) \
+  comessageData(processMessagePointer)
+#define processMessageSize(processMessagePointer) \
+  comessageSize(processMessagePointer)
+#define processMessageWaiting(processMessagePointer) \
+  comessageWaiting(processMessagePointer)
+#define processMessageDone(processMessagePointer) \
+  comessageDone(processMessagePointer)
+#define processMessageInUse(processMessagePointer) \
+  comessageInUse(processMessagePointer)
+#define processMessageFrom(processMessagePointer) \
+  comessageFrom(processMessagePointer)
+#define processMessageTo(processMessagePointer) \
+  comessageTo(processMessagePointer)
+#define processMessageConfigured(processMessagePointer) \
+  comessageConfigured(processMessagePointer)
+
 /// @def nanoOsMessageFuncValue
 ///
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
