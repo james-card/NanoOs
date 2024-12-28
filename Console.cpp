@@ -1184,7 +1184,7 @@ char* consoleWaitForInput(void) {
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WAIT_FOR_INPUT,
     /* func= */ 0, /* data= */ 0, true);
 
-  ProcessMessage *response = comessageWaitForReplyWithType(sent, true,
+  ProcessMessage *response = processMessageWaitForReplyWithType(sent, true,
     CONSOLE_RETURNING_INPUT, NULL);
   char *returnValue = nanoOsMessageDataPointer(response, char*);
   processMessageRelease(response);
@@ -1319,8 +1319,8 @@ int getOwnedConsolePort(void) {
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
-  // in comessageWaitForReplyWithType.
-  ProcessMessage *reply = comessageWaitForReplyWithType(
+  // in processMessageWaitForReplyWithType.
+  ProcessMessage *reply = processMessageWaitForReplyWithType(
     sent, /* releaseAfterDone= */ false,
     CONSOLE_RETURNING_PORT, NULL);
 
@@ -1342,8 +1342,8 @@ int setConsoleEcho(bool desiredEchoState) {
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
-  // in comessageWaitForReplyWithType.
-  ProcessMessage *reply = comessageWaitForReplyWithType(
+  // in processMessageWaitForReplyWithType.
+  ProcessMessage *reply = processMessageWaitForReplyWithType(
     sent, /* releaseAfterDone= */ false,
     CONSOLE_RETURNING_PORT, NULL);
 

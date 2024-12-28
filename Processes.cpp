@@ -445,7 +445,7 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
 void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts) {
   void *returnValue = NULL;
 
-  ProcessMessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
+  ProcessMessage *incoming = processMessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
     if (processMessageRelease(incoming) != coroutineSuccess) {

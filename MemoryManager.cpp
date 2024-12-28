@@ -661,7 +661,7 @@ size_t getFreeMemory(void) {
     return returnValue;
   }
   
-  ProcessMessage *response = comessageWaitForReplyWithType(&sent, false,
+  ProcessMessage *response = processMessageWaitForReplyWithType(&sent, false,
     MEMORY_MANAGER_RETURNING_FREE_MEMORY, NULL);
   returnValue = processMessageSize(response);
   
@@ -695,7 +695,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
     return returnValue; // NULL
   }
   
-  ProcessMessage *response = comessageWaitForReplyWithType(sent, false,
+  ProcessMessage *response = processMessageWaitForReplyWithType(sent, false,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
   if (response == NULL) {
     // Something is wrong.  Fail.
