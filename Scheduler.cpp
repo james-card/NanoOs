@@ -745,7 +745,7 @@ int schedulerRunProcessCommandHandler(
   commandDescriptor->schedulerState = schedulerState;
   char *consoleInput = commandDescriptor->consoleInput;
   int consolePort = commandDescriptor->consolePort;
-  Coroutine *caller = processMessageFrom(processMessage);
+  ProcessHandle caller = processMessageFrom(processMessage);
   
   // Find an open slot.
   ProcessDescriptor *processDescriptor = NULL;

@@ -298,7 +298,7 @@ int sendProcessMessageToProcess(
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage) {
-  Coroutine *coroutine = schedulerGetProcessByPid(pid);
+  ProcessHandle coroutine = schedulerGetProcessByPid(pid);
 
   // If coroutine is NULL, it will be detected as not running by
   // sendProcessMessageToProcess, so there's no real point in checking for NULL
@@ -327,7 +327,7 @@ ProcessMessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-/// @fn ProcessMessage* sendNanoOsMessageToProcess(Coroutine *coroutine, int type,
+/// @fn ProcessMessage* sendNanoOsMessageToProcess(ProcessHandle coroutine, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
@@ -342,7 +342,7 @@ ProcessMessage* getAvailableMessage(void) {
 ///   destination process.
 ///
 /// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
-ProcessMessage* sendNanoOsMessageToProcess(Coroutine *coroutine, int type,
+ProcessMessage* sendNanoOsMessageToProcess(ProcessHandle coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   ProcessMessage *processMessage = NULL;
