@@ -789,7 +789,7 @@ int schedulerRunProcessCommandHandler(
     processDescriptor->userId
       = schedulerState->allProcesses[processId(caller)].userId;
 
-    if (coroutineCreate(&processDescriptor->processHandle,
+    if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
     ) {
       printString(
@@ -1230,7 +1230,7 @@ void runScheduler(SchedulerState *schedulerState) {
     ) {
       // Restart the shell.
       printString("Restarting USB shell.\n");
-      if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
+      if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
         printString(
@@ -1242,7 +1242,7 @@ void runScheduler(SchedulerState *schedulerState) {
     ) {
       // Restart the shell.
       printString("Restarting GPIO shell.\n");
-      if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
+      if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
         printString(
@@ -1299,7 +1299,7 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Create the console process.
   ProcessHandle processHandle = 0;
-  if (coroutineCreate(&processHandle, runConsole, NULL) != processSuccess) {
+  if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
   coroutineSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
@@ -1311,7 +1311,7 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Double the size of the console's stack.
   processHandle = 0;
-  if (coroutineCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
+  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
     printString("Could not double console process's stack.\n");
   }
 
@@ -1347,7 +1347,7 @@ __attribute__((noinline)) void startScheduler(void) {
     ii++
   ) {
     processHandle = 0;
-    if (coroutineCreate(&processHandle,
+    if (processCreate(&processHandle,
       dummyProcess, NULL) != processSuccess
     ) {
       printString("Could not create process ");
@@ -1380,7 +1380,7 @@ __attribute__((noinline)) void startScheduler(void) {
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
   processHandle = 0;
-  if (coroutineCreate(&processHandle,
+  if (processCreate(&processHandle,
     runMemoryManager, NULL) != processSuccess
   ) {
     printString("Could not create memory manager process.\n");
