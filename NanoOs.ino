@@ -81,7 +81,9 @@ void loop() {
   coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
   // Create but *DO NOT* resume one dummy process.  This will double the size of
   // the main stack.
-  (void) coroutineInit(NULL, dummyProcess);
+  if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
+    printString("Could not double scheduler process's stack size.\n");
+  }
 
   // Enter the scheduler.  This never returns.
   startScheduler();

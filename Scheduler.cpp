@@ -473,7 +473,9 @@ int schedulerRunProcessCommandHandler(
     processDescriptor->userId
       = schedulerState->allProcesses[coroutineId(caller)].userId;
 
-    if (coroutineInit(processDescriptor->coroutine, startCommand) == NULL) {
+    if (coroutineCreate(&processDescriptor->coroutine, startCommand, comessage)
+      == coroutineError
+    ) {
       printString("ERROR!!!  Could not configure coroutine for new command.\n");
     }
     if (assignMemory(consoleInput, processDescriptor->processId) != 0) {
@@ -489,9 +491,7 @@ int schedulerRunProcessCommandHandler(
 
     processDescriptor->name = commandEntry->name;
 
-    coroutineResume(processDescriptor->coroutine, comessage);
     returnValue = 0;
-
     if (schedulerAssignPortToPid(schedulerState,
       consolePort, processDescriptor->processId) != coroutineSuccess
     ) {
@@ -909,16 +909,24 @@ void runScheduler(SchedulerState *schedulerState) {
       && (coroutineRunning(processDescriptor->coroutine) == false)
     ) {
       // Restart the shell.
-      if (coroutineInit(processDescriptor->coroutine, runShell) == NULL) {
-        printString("ERROR!!!  Could not configure coroutine for shell.\n");
+      printString("Restarting USB shell.\n");
+      if (coroutineCreate(&processDescriptor->coroutine, runShell, NULL)
+          == coroutineError
+      ) {
+        printString(
+          "ERROR!!!  Could not configure coroutine for USB shell.\n");
       }
       processDescriptor->name = "USB shell";
     } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
       && (coroutineRunning(processDescriptor->coroutine) == false)
     ) {
       // Restart the shell.
-      if (coroutineInit(processDescriptor->coroutine, runShell) == NULL) {
-        printString("ERROR!!!  Could not configure coroutine for shell.\n");
+      printString("Restarting GPIO shell.\n");
+      if (coroutineCreate(&processDescriptor->coroutine, runShell, NULL)
+        == coroutineError
+      ) {
+        printString(
+          "ERROR!!!  Could not configure coroutine for GPIO shell.\n");
       }
       processDescriptor->name = "GPIO shell";
     }
@@ -969,17 +977,27 @@ __attribute__((noinline)) void startScheduler(void) {
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
 
-  // Create the console process and start it.
-  Coroutine *coroutine = coroutineInit(NULL, runConsole);
-  // Double the size of the console's stack.
-  (void) coroutineInit(NULL, dummyProcess);
+  // Create the console process.
+  Coroutine *coroutine = 0;
+  if (coroutineCreate(&coroutine, runConsole, NULL) != coroutineSuccess) {
+    printString("Could not create console process.\n");
+  }
   coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
     = NANO_OS_CONSOLE_PROCESS_ID;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
-  coroutineResume(coroutine, NULL);
+
+  // Double the size of the console's stack.
+  coroutine = 0;
+  if (coroutineCreate(&coroutine, dummyProcess, NULL) != coroutineSuccess) {
+    printString("Could not double console process's stack.\n");
+  }
+
+  // Start the console by calling coroutineResume.
+  coroutineResume(
+    allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine, NULL);
 
   printString("\n");
   printString("Main stack size = ");
@@ -1008,12 +1026,24 @@ __attribute__((noinline)) void startScheduler(void) {
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    coroutine = coroutineInit(NULL, dummyProcess);
+    coroutine = 0;
+    if (coroutineCreate(&coroutine, dummyProcess, NULL) != coroutineSuccess) {
+      printString("Could not create process ");
+      printInt(ii);
+      printString(".\n");
+    }
     coroutineSetId(coroutine, ii);
     allProcesses[ii].processId = ii;
     allProcesses[ii].coroutine = coroutine;
     allProcesses[ii].userId = NO_USER_ID;
   }
+  printString("Console stack size = ");
+  printInt(ABS_DIFF(
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].coroutine),
+    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine))
+    - sizeof(Coroutine)
+  );
+  printString(" bytes\n");
   printString("Coroutine stack size = ");
   printInt(ABS_DIFF(
     ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].coroutine),
@@ -1027,13 +1057,21 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
-  coroutine = coroutineInit(NULL, runMemoryManager);
+  coroutine = 0;
+  if (coroutineCreate(&coroutine, runMemoryManager, NULL) != coroutineSuccess) {
+    printString("Could not create memory manager process.\n");
+  }
   coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine = coroutine;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId = ROOT_USER_ID;
+
+  // Start the memory manager by calling coroutineResume.
+  coroutineResume(
+    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine, NULL);
+
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (schedulerAssignPortToPid(&schedulerState,
@@ -1043,7 +1081,6 @@ __attribute__((noinline)) void startScheduler(void) {
         "WARNING:  Could not assign console port to memory manager.\n");
     }
   }
-  coroutineResume(coroutine, NULL);
 
   // Set the shells for the ports.
   if (schedulerSetPortShell(&schedulerState,
@@ -1065,11 +1102,7 @@ __attribute__((noinline)) void startScheduler(void) {
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[USB_SERIAL_PORT_SHELL_PID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[GPIO_SERIAL_PORT_SHELL_PID]);
-  for (ProcessId ii = GPIO_SERIAL_PORT_SHELL_PID + 1;
+  for (ProcessId ii = NANO_OS_FIRST_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {

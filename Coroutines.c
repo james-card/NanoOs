@@ -665,14 +665,14 @@ void* coroutineYield(void *arg) {
 
 /// @fn Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func)
 ///
-/// @brief The coroutine constructor function.
+/// @brief The coroutine initialization function.
 ///
 /// @details Initialize a coroutine that will run func(). The coroutine starts
-/// off suspended.  When it is first resumed, the argument to coroutineResume()
-/// is passed to func().  If func() returns, its return value is returned by
-/// coroutineResume() as if the coroutine yielded, except that the coroutine is
-/// then no longer resumable and may be discarded (*NOT* freed since its
-/// allocation is on the stack and not the heap).
+/// off suspended.  The 'arg' argument provided to this function will be passed
+/// to func() on the first call to coroutineResume.  If func() returns, its
+/// return value is returned by coroutineResume() as if the coroutine yielded,
+/// except that the coroutine is then no longer resumable and may be discarded
+/// (*NOT* freed since its allocation is on the stack and not the heap).
 ///
 /// On the first invocation there are no idle coroutines, so fork the first one,
 /// which will immediately yield back to us after becoming idle. When there are
@@ -683,9 +683,12 @@ void* coroutineYield(void *arg) {
 ///   of creating a new one.  If this parameter is NULL, one from the idle list
 ///   will be used.  If the list is empty then a new one will be created.
 /// @param func The coroutine function to run.
+/// @param arg The initial argument to pass into the coroutine.
 ///
 /// @return Returns a newly-initialized Coroutine on success, NULL on failure.
-Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
+Coroutine* coroutineInit(Coroutine *userCoroutine,
+  CoroutineFunction func, void *arg
+) {
   CoroutineFuncData funcData;
   funcData.func = func;
   if (funcData.data == NULL) {
@@ -812,7 +815,42 @@ Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func) {
   configuredCoroutine->prevToLock = NULL;
   configuredCoroutine->blockingComutex = NULL;
 
+  coroutineResume(configuredCoroutine, arg);
+
   return configuredCoroutine;
+}
+
+/// @fn int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg)
+///
+/// @brief Coroutine constructor.  This either creates and initializes a new
+/// coroutine or pulls one off the idle list and initializes it.
+/// After the coroutine is initialized with the provided function,
+/// coroutineResume is called with the provided argument to pass the arugment
+/// into the 
+///
+/// @note This is mostly for compatibility with thrd_create in the C threads
+/// specification.
+///
+/// @param coroutine A pointer to a Coroutine pointer to initialize if this call
+///   is successful.  If *coroutine is non-NULL, the coroutine pointed to will
+///   be reinitialized.  Otherwise, a Coroutine object will be pulled off the
+///   idle list or created and then initialized.
+/// @param func A function pointer to the function to run as a coroutine.
+/// @param arg The initial argument to pass into the coroutine.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg) {
+  if (coroutine == NULL)  {
+    return coroutineError;
+  }
+
+  Coroutine *newCoroutine = coroutineInit(*coroutine, func, arg);
+  if (newCoroutine == NULL) {
+    return coroutineError;
+  }
+  *coroutine = newCoroutine;
+
+  return coroutineSuccess;
 }
 
 /// void coroutineMain(void *stack)
@@ -922,6 +960,9 @@ void coroutineMain(void *stack) {
     // coroutineYield will set our state to BLOCKED on call and RUNNING on
     // return.
     void* callingArgument = coroutineYield(&me);
+
+    // Yield again and wait to be resumed by the caller of coroutineInit.
+    coroutineYield(NULL);
 
     // Call the target function with the calling argument.
     void* ret = func(callingArgument);
