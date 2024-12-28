@@ -42,11 +42,11 @@
 ///   message.
 /// @param message The formatted string message to print.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int consolePrintMessage(
   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
 ) {
-  int returnValue = coroutineSuccess;
+  int returnValue = processSuccess;
   ProcessId owner = processId(processMessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
@@ -64,7 +64,7 @@ int consolePrintMessage(
     printString("\" from non-owning process ");
     printInt(owner);
     printString("\n");
-    returnValue = coroutineError;
+    returnValue = processError;
   }
 
   return returnValue;
@@ -79,7 +79,7 @@ int consolePrintMessage(
 /// @return This function returns no value.
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (processMessageWaiting(inputMessage) == false) {
-    if (processMessageRelease(inputMessage) != coroutineSuccess) {
+    if (processMessageRelease(inputMessage) != processSuccess) {
       Serial.print("ERROR!!!  Could not release inputMessage from ");
       Serial.print(__func__);
       Serial.print("\n");
@@ -243,7 +243,7 @@ void consoleGetBufferCommandHandler(
     processMessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
       nanoOsMessage, sizeof(*nanoOsMessage), true);
     if (processMessageQueuePush(processMessageFrom(inputMessage), returnMessage)
-      != coroutineSuccess
+      != processSuccess
     ) {
       returnValue->inUse = false;
     }
@@ -648,15 +648,15 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 ///   returned.
 /// @param consoleInput A copy of the input that was captured from the console.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int consoleSendInputToProcess(ProcessId processId, char *consoleInput) {
-  int returnValue = coroutineSuccess;
+  int returnValue = processSuccess;
 
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     processId, CONSOLE_RETURNING_INPUT,
     /* func= */ 0, (intptr_t) consoleInput, false);
   if (processMessage == NULL) {
-    returnValue = coroutineError;
+    returnValue = processError;
   }
 
   return returnValue;
@@ -880,7 +880,7 @@ void* runConsole(void *args) {
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
-          if (handleCommand(ii, bufferCopy) == coroutineSuccess) {
+          if (handleCommand(ii, bufferCopy) == processSuccess) {
             // If the command has already returned or wrote to the console
             // before its first yield, we may need to display its output.
             // Handle the next next message in our queue just in case.
@@ -956,7 +956,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
 
     // We want to make sure the handler is done processing the message before
     // we wait for a reply.  Do a blocking wait.
-    if (processMessageWaitForDone(processMessage, NULL) != coroutineSuccess) {
+    if (processMessageWaitForDone(processMessage, NULL) != processSuccess) {
       // Something is wrong.  Bail.
       break; // will return returnValue, which is NULL
     }

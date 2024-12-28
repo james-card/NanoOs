@@ -288,13 +288,13 @@ int memoryManagerReallocCommandHandler(
   // client side correctly.
   processMessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  if (processMessageQueuePush(from, response) != coroutineSuccess) {
+  if (processMessageQueuePush(from, response) != processSuccess) {
     returnValue = -1;
   }
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
-  if (processMessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != processSuccess) {
     returnValue = -1;
   }
   
@@ -321,7 +321,7 @@ int memoryManagerFreeCommandHandler(
 
   void *ptr = nanoOsMessageDataPointer(incoming, void*);
   localFree(memoryManagerState, ptr);
-  if (processMessageRelease(incoming) != coroutineSuccess) {
+  if (processMessageRelease(incoming) != processSuccess) {
     printString("ERROR!!!  "
       "Could not release message from memoryManagerFreeCommandHandler.\n");
     returnValue = -1;
@@ -359,13 +359,13 @@ int memoryManagerGetFreeMemoryCommandHandler(
   // client side correctly.
   processMessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
     NULL, dynamicMemorySize, true);
-  if (processMessageQueuePush(from, response) != coroutineSuccess) {
+  if (processMessageQueuePush(from, response) != processSuccess) {
     returnValue = -1;
   }
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
-  if (processMessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != processSuccess) {
     returnValue = -1;
   }
   
@@ -403,7 +403,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   }
   
   // The client is waiting on us.  Mark the message as done.
-  if (processMessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != processSuccess) {
     printString("ERROR!!!  Could not mark message done in "
       "memoryManagerFreeProcessMemoryCommandHandler.\n");
     returnValue = -1;
@@ -655,7 +655,7 @@ size_t getFreeMemory(void) {
   processMessageInit(&sent, MEMORY_MANAGER_GET_FREE_MEMORY, NULL, 0, true);
   
   if (sendProcessMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
-    != coroutineSuccess
+    != processSuccess
   ) {
     // Nothing more we can do.
     return returnValue;

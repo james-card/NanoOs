@@ -197,20 +197,20 @@ void* dummyProcess(void *args) {
 /// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerSendProcessMessageToProcess(
   ProcessHandle processHandle, ProcessMessage *processMessage
 ) {
-  int returnValue = coroutineSuccess;
+  int returnValue = processSuccess;
   if (processHandle == NULL) {
     printString(
       "ERROR:  Attempt to send scheduler processMessage to NULL process handle.\n");
-    returnValue = coroutineError;
+    returnValue = processError;
     return returnValue;
   } else if (processMessage == NULL) {
     printString(
       "ERROR:  Attempt to send NULL scheduler processMessage to process handle.\n");
-    returnValue = coroutineError;
+    returnValue = processError;
     return returnValue;
   }
   // processMessage->from would normally be set when we do a processMessageQueuePush.
@@ -222,7 +222,7 @@ int schedulerSendProcessMessageToProcess(
   void *coroutineReturnValue = coroutineResume(processHandle, processMessage);
   if (coroutineReturnValue == COROUTINE_CORRUPT) {
     printString("ERROR:  Called process is corrupted!!!\n");
-    returnValue = coroutineError;
+    returnValue = processError;
     return returnValue;
   }
 
@@ -230,7 +230,7 @@ int schedulerSendProcessMessageToProcess(
     // This is our only indication from the called process that something went
     // wrong.  Return an error status here.
     printString("ERROR:  Called process did not mark sent message done.\n");
-    returnValue = coroutineError;
+    returnValue = processError;
   }
 
   return returnValue;
@@ -247,7 +247,7 @@ int schedulerSendProcessMessageToProcess(
 /// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
   unsigned int pid, ProcessMessage *processMessage
 ) {
@@ -275,7 +275,7 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 /// @param waiting Whether or not the sender is waiting on a response from the
 ///   destination process.
 ///
-/// @return Returns coroutineSuccess on success, a different process status
+/// @return Returns processSuccess on success, a different process status
 /// on failure.
 int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
   int type, NanoOsMessageData func, NanoOsMessageData data
@@ -315,20 +315,20 @@ int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
 /// @param data The data to send to the destination process, cast to a
 ///   NanoOsMessageData.
 ///
-/// @return Returns coroutineSuccess on success, a different process status
+/// @return Returns processSuccess on success, a different process status
 /// on failure.
 int schedulerSendNanoOsMessageToPid(
   SchedulerState *schedulerState,
   int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data
 ) {
-  int returnValue = coroutineError;
+  int returnValue = processError;
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
     printString("ERROR!!!  ");
     printInt(pid);
     printString(" is not a valid PID.\n");
-    return returnValue; // coroutineError
+    return returnValue; // processError
   }
 
   ProcessHandle processHandle = schedulerState->allProcesses[pid].processHandle;
@@ -348,7 +348,7 @@ int schedulerSendNanoOsMessageToPid(
 /// @param consolePort The ID of the consolePort to assign.
 /// @param owner The ID of the process to assign the port to.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerAssignPortToPid(
   SchedulerState *schedulerState,
   uint8_t consolePort, ProcessId owner
@@ -376,18 +376,18 @@ int schedulerAssignPortToPid(
 /// @param consolePort The ID of the consolePort to set the shell for.
 /// @param shell The ID of the shell process for the port.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerSetPortShell(
   SchedulerState *schedulerState,
   uint8_t consolePort, ProcessId shell
 ) {
-  int returnValue = coroutineError;
+  int returnValue = processError;
 
   if (shell >= NANO_OS_NUM_PROCESSES) {
     printString("ERROR:  schedulerSetPortShell called with invalid shell PID ");
     printInt(shell);
     printString("\n");
-    return returnValue; // coroutineError
+    return returnValue; // processError
   }
 
   ConsolePortPidUnion consolePortPidUnion;
@@ -408,15 +408,15 @@ int schedulerSetPortShell(
 ///
 /// @param processId The ID of the process to notify.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerNotifyProcessComplete(ProcessId processId) {
   if (sendNanoOsMessageToPid(processId,
     SCHEDULER_PROCESS_COMPLETE, 0, 0, false) == NULL
   ) {
-    return coroutineError;
+    return processError;
   }
 
-  return coroutineSuccess;
+  return processSuccess;
 }
 
 /// @fn int schedulerWaitForProcessComplete(void)
@@ -424,18 +424,18 @@ int schedulerNotifyProcessComplete(ProcessId processId) {
 /// @brief Wait for another process to send us a message indicating that a
 /// process is complete.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int schedulerWaitForProcessComplete(void) {
   ProcessMessage *doneMessage
     = processMessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
   if (doneMessage == NULL) {
-    return coroutineError;
+    return processError;
   }
 
   // We don't need any data from the message.  Just release it.
   processMessageRelease(doneMessage);
 
-  return coroutineSuccess;
+  return processSuccess;
 }
 
 /// @fn ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout)
@@ -450,7 +450,7 @@ int schedulerWaitForProcessComplete(void) {
 /// value of a ProcessId type, so it's used here as the return type.
 ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
   ProcessMessage *processMessage = NULL;
-  int waitStatus = coroutineSuccess;
+  int waitStatus = processSuccess;
   ProcessId numProcessDescriptors = 0;
 
   processMessage = sendNanoOsMessageToPid(
@@ -462,8 +462,8 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
   }
 
   waitStatus = processMessageWaitForDone(processMessage, timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
+  if (waitStatus != processSuccess) {
+    if (waitStatus == processTimedout) {
       printf("Command to get the number of running processes timed out.\n");
     } else {
       printf("Command to get the number of running processes failed.\n");
@@ -481,7 +481,7 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
   }
 
 releaseMessage:
-  if (processMessageRelease(processMessage) != coroutineSuccess) {
+  if (processMessageRelease(processMessage) != processSuccess) {
     printf("ERROR!!!  Could not release message sent to scheduler for "
       "getting the number of running processes.\n");
   }
@@ -498,7 +498,7 @@ exit:
 /// @return Returns a populated, dynamically-allocated ProcessInfo object on
 /// success, NULL on failure.
 ProcessInfo* schedulerGetProcessInfo(void) {
-  int waitStatus = coroutineSuccess;
+  int waitStatus = processSuccess;
 
   // We don't know where our messages to the scheduler will be in its queue, so
   // we can't assume they will be processed immediately, but we can't wait
@@ -542,8 +542,8 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   }
 
   waitStatus = processMessageWaitForDone(processMessage, &timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
+  if (waitStatus != processSuccess) {
+    if (waitStatus == processTimedout) {
       printf("Command to get process information timed out.\n");
     } else {
       printf("Command to get process information failed.\n");
@@ -588,7 +588,7 @@ int schedulerKillProcess(ProcessId processId) {
 
   int waitStatus = processMessageWaitForDone(processMessage, &ts);
   int returnValue = 0;
-  if (waitStatus == coroutineSuccess) {
+  if (waitStatus == processSuccess) {
     NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
@@ -599,14 +599,14 @@ int schedulerKillProcess(ProcessId processId) {
     }
   } else {
     returnValue = 1;
-    if (waitStatus == coroutineTimedout) {
+    if (waitStatus == processTimedout) {
       printf("Command to kill PID %d timed out.\n", processId);
     } else {
       printf("Command to kill PID %d failed.\n", processId);
     }
   }
 
-  if (processMessageRelease(processMessage) != coroutineSuccess) {
+  if (processMessageRelease(processMessage) != processSuccess) {
     returnValue = 1;
     printf("ERROR!!!  "
       "Could not release message sent to scheduler for kill command.\n");
@@ -790,7 +790,7 @@ int schedulerRunProcessCommandHandler(
       = schedulerState->allProcesses[processId(caller)].userId;
 
     if (coroutineCreate(&processDescriptor->processHandle,
-      startCommand, processMessage) == coroutineError
+      startCommand, processMessage) == processError
     ) {
       printString(
         "ERROR!!!  Could not configure process handle for new command.\n");
@@ -810,7 +810,7 @@ int schedulerRunProcessCommandHandler(
 
     returnValue = 0;
     if (schedulerAssignPortToPid(schedulerState,
-      consolePort, processDescriptor->processId) != coroutineSuccess
+      consolePort, processDescriptor->processId) != processSuccess
     ) {
       printString("WARNING:  Could not assign console port to process.\n");
     }
@@ -837,7 +837,7 @@ int schedulerRunProcessCommandHandler(
         SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
       consoleInput = stringDestroy(consoleInput);
       free(commandDescriptor); commandDescriptor = NULL;
-      if (processMessageRelease(processMessage) != coroutineSuccess) {
+      if (processMessageRelease(processMessage) != processSuccess) {
         printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
@@ -910,7 +910,7 @@ int schedulerKillProcessCommandHandler(
         processMessage);
 
       if (coroutineTerminate(allProcesses[processId].processHandle, NULL)
-        == coroutineSuccess
+        == processSuccess
       ) {
         allProcesses[processId].name = NULL;
         allProcesses[processId].userId = NO_USER_ID;
@@ -919,7 +919,7 @@ int schedulerKillProcessCommandHandler(
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
-        if (processMessageSetDone(processMessage) != coroutineSuccess) {
+        if (processMessageSetDone(processMessage) != processSuccess) {
           printString("ERROR!!!  Could not mark message done in "
             "schedulerKillProcessCommandHandler.\n");
         }
@@ -941,7 +941,7 @@ int schedulerKillProcessCommandHandler(
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
-      if (processMessageSetDone(processMessage) != coroutineSuccess) {
+      if (processMessageSetDone(processMessage) != processSuccess) {
         printString("ERROR!!!  Could not mark message done in "
           "schedulerKillProcessCommandHandler.\n");
       }
@@ -949,7 +949,7 @@ int schedulerKillProcessCommandHandler(
   } else {
     // Tell the caller that we've failed.
     nanoOsMessage->data = EINVAL; // Invalid argument
-    if (processMessageSetDone(processMessage) != coroutineSuccess) {
+    if (processMessageSetDone(processMessage) != processSuccess) {
       printString("ERROR!!!  "
         "Could not mark message done in schedulerKillProcessCommandHandler.\n");
     }
@@ -1136,7 +1136,7 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
     SchedulerCommand messageType = (SchedulerCommand) processMessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
-      if (processMessageRelease(message) != coroutineSuccess) {
+      if (processMessageRelease(message) != processSuccess) {
         printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
@@ -1231,7 +1231,7 @@ void runScheduler(SchedulerState *schedulerState) {
       // Restart the shell.
       printString("Restarting USB shell.\n");
       if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
-          == coroutineError
+          == processError
       ) {
         printString(
           "ERROR!!!  Could not configure process for USB shell.\n");
@@ -1243,7 +1243,7 @@ void runScheduler(SchedulerState *schedulerState) {
       // Restart the shell.
       printString("Restarting GPIO shell.\n");
       if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
-        == coroutineError
+        == processError
       ) {
         printString(
           "ERROR!!!  Could not configure process for GPIO shell.\n");
@@ -1299,7 +1299,7 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Create the console process.
   ProcessHandle processHandle = 0;
-  if (coroutineCreate(&processHandle, runConsole, NULL) != coroutineSuccess) {
+  if (coroutineCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
   coroutineSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
@@ -1311,7 +1311,7 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Double the size of the console's stack.
   processHandle = 0;
-  if (coroutineCreate(&processHandle, dummyProcess, NULL) != coroutineSuccess) {
+  if (coroutineCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
     printString("Could not double console process's stack.\n");
   }
 
@@ -1348,7 +1348,7 @@ __attribute__((noinline)) void startScheduler(void) {
   ) {
     processHandle = 0;
     if (coroutineCreate(&processHandle,
-      dummyProcess, NULL) != coroutineSuccess
+      dummyProcess, NULL) != processSuccess
     ) {
       printString("Could not create process ");
       printInt(ii);
@@ -1381,7 +1381,7 @@ __attribute__((noinline)) void startScheduler(void) {
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
   processHandle = 0;
   if (coroutineCreate(&processHandle,
-    runMemoryManager, NULL) != coroutineSuccess
+    runMemoryManager, NULL) != processSuccess
   ) {
     printString("Could not create memory manager process.\n");
   }
@@ -1399,7 +1399,7 @@ __attribute__((noinline)) void startScheduler(void) {
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (schedulerAssignPortToPid(&schedulerState,
-      ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != coroutineSuccess
+      ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != processSuccess
     ) {
       printString(
         "WARNING:  Could not assign console port to memory manager.\n");
@@ -1408,13 +1408,13 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Set the shells for the ports.
   if (schedulerSetPortShell(&schedulerState,
-    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != coroutineSuccess
+    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
     printString("WARNING:  Could not set shell for USB serial port.\n");
     printString("          Undefined behavior will result.\n");
   }
   if (schedulerSetPortShell(&schedulerState,
-    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != coroutineSuccess
+    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
     printString("WARNING:  Could not set shell for GPIO serial port.\n");
     printString("          Undefined behavior will result.\n");

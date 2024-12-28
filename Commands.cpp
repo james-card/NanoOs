@@ -508,7 +508,7 @@ CommandEntry* getCommandEntryFromInput(char *consoleInput) {
 ///
 /// @return This function returns no value.
 int handleCommand(int consolePort, char *consoleInput) {
-  int returnValue = coroutineSuccess;
+  int returnValue = processSuccess;
   CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
@@ -521,7 +521,7 @@ int handleCommand(int consolePort, char *consoleInput) {
     // we can't use a blocking call here.  Use the non-blocking printString
     // instead.
     free(consoleInput); consoleInput = NULL;
-    returnValue = coroutineError;
+    returnValue = processError;
   }
 
   return returnValue;

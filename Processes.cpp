@@ -201,7 +201,7 @@ void* startCommand(void *args) {
     printString(consoleInput);
     printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
-    if (processMessageRelease(processMessage) != coroutineSuccess) {
+    if (processMessageRelease(processMessage) != processSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -240,7 +240,7 @@ void* startCommand(void *args) {
     // This command DID replace a shell process.  We need to release the
     // message that was sent because there's no shell that is waiting to
     // release it.
-    if (processMessageRelease(processMessage) != coroutineSuccess) {
+    if (processMessageRelease(processMessage) != processSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -272,14 +272,14 @@ void* startCommand(void *args) {
 /// @param processMessage A pointer to the message to send to the destination
 ///   coroutine.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int sendProcessMessageToProcess(
   ProcessHandle processHandle, ProcessMessage *processMessage
 ) {
-  int returnValue = coroutineSuccess;
+  int returnValue = processSuccess;
   if ((processHandle == NULL) || (processMessage == NULL)) {
     // Invalid.
-    returnValue = coroutineError;
+    returnValue = processError;
     return returnValue;
   }
 
@@ -296,7 +296,7 @@ int sendProcessMessageToProcess(
 /// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns processSuccess on success, processError on failure.
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage) {
   ProcessHandle coroutine = schedulerGetProcessByPid(pid);
 
@@ -376,8 +376,8 @@ ProcessMessage* sendNanoOsMessageToProcess(ProcessHandle coroutine, int type,
   processMessageInit(processMessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendProcessMessageToProcess(coroutine, processMessage) != coroutineSuccess) {
-    if (processMessageRelease(processMessage) != coroutineSuccess) {
+  if (sendProcessMessageToProcess(coroutine, processMessage) != processSuccess) {
+    if (processMessageRelease(processMessage) != processSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToProcess.\n");
     }
@@ -448,7 +448,7 @@ void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *
   ProcessMessage *incoming = processMessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
-    if (processMessageRelease(incoming) != coroutineSuccess) {
+    if (processMessageRelease(incoming) != processSuccess) {
       printString("ERROR!!!  "
         "Could not release incoming message from waitForDataMessage.\n");
     }
