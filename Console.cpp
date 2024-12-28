@@ -78,7 +78,7 @@ int consolePrintMessage(
 ///
 /// @return This function returns no value.
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
-  if (comessageWaiting(inputMessage) == false) {
+  if (processMessageWaiting(inputMessage) == false) {
     if (processMessageRelease(inputMessage) != coroutineSuccess) {
       Serial.print("ERROR!!!  Could not release inputMessage from ");
       Serial.print(__func__);
