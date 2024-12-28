@@ -147,8 +147,7 @@ extern "C"
   ProcessMessage variableName = {}; \
   __nanoOsMessage.func = funcValue; \
   __nanoOsMessage.data = dataValue; \
-  __nanoOsMessage.comessage = &variableName; \
-  comessageInit( \
+  processMessageInit( \
     &variableName, type, &__nanoOsMessage, sizeof(__nanoOsMessage), waiting)
 
 // Support functions
