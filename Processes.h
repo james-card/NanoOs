@@ -56,6 +56,11 @@ extern "C"
 /// Process object.
 #define processId(process) coroutineId(process)
 
+/// @def processYield
+///
+/// @brief Call to yield the processor to another process.
+#define processYield() ((void) coroutineYield(NULL))
+
 /// @def processMessageData
 ///
 /// @brief Function macro to get the data pointer out of a process message.
