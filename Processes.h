@@ -56,6 +56,13 @@ extern "C"
 #define processCreate(processHandle, func, arg) \
   coroutineCreate(processHandle, func, arg)
 
+/// @def processRunning
+///
+/// @brief Function macro to determine whether or not a given process is
+/// currentlyrunning.
+#define processRunning(processHandle) \
+  coroutineRunning(processHandle)
+
 /// @def processId
 ///
 /// @brief Function macro to get the numeric ProcessId given a pointer to a
