@@ -641,7 +641,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consoleInput = consoleInput;
   commandDescriptor->consolePort = consolePort;
-  commandDescriptor->callingProcess = processId(getRunningCoroutine());
+  commandDescriptor->callingProcess = processId(getRunningProcess());
 
   ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,

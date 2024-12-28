@@ -683,7 +683,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  reallocMessage.pid = processId(getRunningCoroutine());
+  reallocMessage.pid = processId(getRunningProcess());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
   ProcessMessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
@@ -786,7 +786,7 @@ int assignMemory(void *ptr, ProcessId pid) {
   int returnValue = 0;
   
   if ((ptr != NULL)
-    && (processId(getRunningCoroutine()) == NANO_OS_SCHEDULER_PROCESS_ID)
+    && (processId(getRunningProcess()) == NANO_OS_SCHEDULER_PROCESS_ID)
   ) {
     memNode(ptr)->owner = pid;
   } else if (ptr != NULL) {

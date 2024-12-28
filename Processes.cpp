@@ -226,7 +226,7 @@ void* startCommand(void *args) {
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if (commandDescriptor->callingProcess != processId(getRunningCoroutine())) {
+  if (commandDescriptor->callingProcess != processId(getRunningProcess())) {
     // This command did NOT replace a shell process.
     releaseConsole();
     if (backgroundProcess == false) {
@@ -235,7 +235,7 @@ void* startCommand(void *args) {
       schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
     }
     commandDescriptor->schedulerState->allProcesses[
-      processId(getRunningCoroutine())].userId = NO_USER_ID;
+      processId(getRunningProcess())].userId = NO_USER_ID;
   } else {
     // This command DID replace a shell process.  We need to release the
     // message that was sent because there's no shell that is waiting to
