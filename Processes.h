@@ -84,6 +84,12 @@ extern "C"
 #define processMessageWaitForDone(processMessage, ts) \
   comessageWaitForDone(processMessage, ts)
 
+/// @def processMessageWaitForReplyWithType
+///
+/// @brief Function macro to wait on a reply to a message with a specified type.
+#define processMessageWaitForReplyWithType(sent, releaseAfterDone, type, ts) \
+  comessageWaitForReplyWithType(sent, releaseAfterDone, type, ts)
+
 /// @def processMessageQueueWaitForType
 ///
 /// @brief Function macro to wait for a message of a specific type to be pushed
