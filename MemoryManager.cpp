@@ -281,7 +281,7 @@ int memoryManagerReallocCommandHandler(
   reallocMessage->ptr = clientReturnValue;
   reallocMessage->size = memNode(clientReturnValue)->size;
   
-  Coroutine *from = comessageFrom(incoming);
+  Coroutine *from = processMessageFrom(incoming);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   
   // We need to mark waiting as true here so that processMessageSetDone signals the
@@ -351,7 +351,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
 
   int returnValue = 0;
   
-  Coroutine *from = comessageFrom(incoming);
+  Coroutine *from = processMessageFrom(incoming);
   uintptr_t dynamicMemorySize = (uintptr_t) memoryManagerState->mallocNext
     - memoryManagerState->mallocEnd + 1;
   
@@ -391,7 +391,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
 ) {
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
-  if (processId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
+  if (processId(processMessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
     ProcessId pid = nanoOsMessageDataValue(incoming, ProcessId);
     localFreeProcessMemory(memoryManagerState, pid);
     nanoOsMessage->data = 0;

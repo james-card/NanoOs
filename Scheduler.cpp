@@ -745,7 +745,7 @@ int schedulerRunProcessCommandHandler(
   commandDescriptor->schedulerState = schedulerState;
   char *consoleInput = commandDescriptor->consoleInput;
   int consolePort = commandDescriptor->consolePort;
-  Coroutine *caller = comessageFrom(comessage);
+  Coroutine *caller = processMessageFrom(comessage);
   
   // Find an open slot.
   ProcessDescriptor *processDescriptor = NULL;
@@ -874,7 +874,7 @@ int schedulerKillProcessCommandHandler(
     SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
   UserId callingUserId
-    = allProcesses[processId(comessageFrom(comessage))].userId;
+    = allProcesses[processId(processMessageFrom(comessage))].userId;
   ProcessId processId
     = nanoOsMessageDataValue(comessage, ProcessId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -1052,7 +1052,7 @@ int schedulerGetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  ProcessId processId = processId(comessageFrom(comessage));
+  ProcessId processId = processId(processMessageFrom(comessage));
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   if (processId < NANO_OS_NUM_PROCESSES) {
     nanoOsMessage->data = schedulerState->allProcesses[processId].userId;
@@ -1082,7 +1082,7 @@ int schedulerSetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  ProcessId processId = processId(comessageFrom(comessage));
+  ProcessId processId = processId(processMessageFrom(comessage));
   UserId userId = nanoOsMessageDataValue(comessage, UserId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = -1;
