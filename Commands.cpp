@@ -230,7 +230,7 @@ int showInfoCommandHandler(int argc, char **argv) {
   printf("- Current counter value: %u\n", counter);
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
-  printf("- sizeof(Comessage): %u\n", sizeof(Comessage));
+  printf("- sizeof(ProcessMessage): %u\n", sizeof(ProcessMessage));
 
   char *myString = (char*) malloc(16);
   strcpy(myString, "Hello, world!!!");

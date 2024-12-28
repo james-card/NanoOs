@@ -254,7 +254,7 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 /******************* End Custom Memory Management Functions *******************/
 
 /// @fn int memoryManagerReallocCommandHandler(
-///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///   MemoryManagerState *memoryManagerState, ProcessMessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_REALLOC command.  Extracts the
 /// ReallocMessage from the message and passes the parameters to localRealloc.
@@ -267,10 +267,10 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerReallocCommandHandler(
-  MemoryManagerState *memoryManagerState, Comessage *incoming
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) {
   // We're going to reuse the incoming message as the outgoing message.
-  Comessage *response = incoming;
+  ProcessMessage *response = incoming;
 
   int returnValue = 0;
   ReallocMessage *reallocMessage
@@ -302,7 +302,7 @@ int memoryManagerReallocCommandHandler(
 }
 
 /// @fn int memoryManagerFreeCommandHandler(
-///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///   MemoryManagerState *memoryManagerState, ProcessMessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_FREE command.  Extracts the
 /// pointer to free from the message and then calls localFree.
@@ -315,7 +315,7 @@ int memoryManagerReallocCommandHandler(
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerFreeCommandHandler(
-  MemoryManagerState *memoryManagerState, Comessage *incoming
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) {
   int returnValue = 0;
 
@@ -331,7 +331,7 @@ int memoryManagerFreeCommandHandler(
 }
 
 /// @fn int memoryManagerGetFreeMemoryCommandHandler(
-///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///   MemoryManagerState *memoryManagerState, ProcessMessage *incoming)
 ///
 /// @brief Command handler for MEMORY_MANAGER_GET_FREE_MEMORY.  Gets the amount
 /// of free dynamic memory left in the system.
@@ -344,10 +344,10 @@ int memoryManagerFreeCommandHandler(
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerGetFreeMemoryCommandHandler(
-  MemoryManagerState *memoryManagerState, Comessage *incoming
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) {
   // We're going to reuse the incoming message as the outgoing message.
-  Comessage *response = incoming;
+  ProcessMessage *response = incoming;
 
   int returnValue = 0;
   
@@ -373,7 +373,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
 }
 
 /// @fn int memoryManagerFreeProcessMemoryCommandHandler(
-///   MemoryManagerState *memoryManagerState, Comessage *incoming)
+///   MemoryManagerState *memoryManagerState, ProcessMessage *incoming)
 ///
 /// @brief Command handler for a MEMORY_MANAGER_FREE_PROCESS_MEMORY command.
 /// Extracts the process ID from the message and then calls
@@ -387,7 +387,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
 ///
 /// @return Returns 0 on success, error code on failure.
 int memoryManagerFreeProcessMemoryCommandHandler(
-  MemoryManagerState *memoryManagerState, Comessage *incoming
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) {
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
@@ -417,7 +417,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
 /// @brief Array of function pointers for handlers for commands that are
 /// understood by this library.
 int (*memoryManagerCommandHandlers[])(
-  MemoryManagerState *memoryManagerState, Comessage *incoming
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) = {
   memoryManagerReallocCommandHandler,       // MEMORY_MANAGER_REALLOC
   memoryManagerFreeCommandHandler,          // MEMORY_MANAGER_FREE
@@ -438,7 +438,7 @@ int (*memoryManagerCommandHandlers[])(
 ///
 /// @return This function returns no value.
 void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
-  Comessage *comessage = comessageQueuePop();
+  ProcessMessage *comessage = comessageQueuePop();
   while (comessage != NULL) {
     MemoryManagerCommand messageType
       = (MemoryManagerCommand) comessageType(comessage);
@@ -598,7 +598,7 @@ void* runMemoryManager(void *args) {
   printConsole("\n");
   
   MemoryManagerState memoryManagerState;
-  Comessage *schedulerMessage = NULL;
+  ProcessMessage *schedulerMessage = NULL;
   jmp_buf returnBuffer;
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
@@ -615,7 +615,7 @@ void* runMemoryManager(void *args) {
   releaseConsole();
   
   while (1) {
-    schedulerMessage = (Comessage*) coroutineYield(NULL);
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to process.  This
       // is not the expected case, but it's the priority case, so we need to
@@ -650,18 +650,18 @@ void* runMemoryManager(void *args) {
 size_t getFreeMemory(void) {
   size_t returnValue = 0;
   
-  Comessage sent;
+  ProcessMessage sent;
   memset(&sent, 0, sizeof(sent));
   comessageInit(&sent, MEMORY_MANAGER_GET_FREE_MEMORY, NULL, 0, true);
   
-  if (sendComessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
+  if (sendProcessMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
     != coroutineSuccess
   ) {
     // Nothing more we can do.
     return returnValue;
   }
   
-  Comessage *response = comessageWaitForReplyWithType(&sent, false,
+  ProcessMessage *response = comessageWaitForReplyWithType(&sent, false,
     MEMORY_MANAGER_RETURNING_FREE_MEMORY, NULL);
   returnValue = comessageSize(response);
   
@@ -686,7 +686,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   reallocMessage.pid = coroutineId(getRunningCoroutine());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
-  Comessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+  ProcessMessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
     MEMORY_MANAGER_REALLOC, /* func= */ 0, (NanoOsMessageData) &reallocMessage,
     true);
   
@@ -695,7 +695,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
     return returnValue; // NULL
   }
   
-  Comessage *response = comessageWaitForReplyWithType(sent, false,
+  ProcessMessage *response = comessageWaitForReplyWithType(sent, false,
     MEMORY_MANAGER_RETURNING_POINTER, NULL);
   if (response == NULL) {
     // Something is wrong.  Fail.

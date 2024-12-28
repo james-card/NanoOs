@@ -32,7 +32,7 @@
 #include "Commands.h"
 
 /// @fn int consolePrintMessage(
-///   ConsoleState *consoleState, Comessage *inputMessage, const char *message)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message)
 ///
 /// @brief Print a message to all console ports that are owned by a process.
 ///
@@ -44,7 +44,7 @@
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int consolePrintMessage(
-  ConsoleState *consoleState, Comessage *inputMessage, const char *message
+  ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
 ) {
   int returnValue = coroutineSuccess;
   CoroutineId owner = coroutineId(comessageFrom(inputMessage));
@@ -70,14 +70,14 @@ int consolePrintMessage(
   return returnValue;
 }
 
-/// @fn void consoleMessageCleanup(Comessage *inputMessage)
+/// @fn void consoleMessageCleanup(ProcessMessage *inputMessage)
 ///
-/// @brief Release an input Comessage if there are no waiters for the message.
+/// @brief Release an input ProcessMessage if there are no waiters for the message.
 ///
-/// @param inputMessage A pointer to the Comessage to cleanup.
+/// @param inputMessage A pointer to the ProcessMessage to cleanup.
 ///
 /// @return This function returns no value.
-void consoleMessageCleanup(Comessage *inputMessage) {
+void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (comessageWaiting(inputMessage) == false) {
     if (comessageRelease(inputMessage) != coroutineSuccess) {
       Serial.print("ERROR!!!  Could not release inputMessage from ");
@@ -88,19 +88,19 @@ void consoleMessageCleanup(Comessage *inputMessage) {
 }
 
 /// @fn void consoleWriteValueCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_WRITE_VALUE command.
 ///
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  Unused by this function.
-/// @param inputMessage A pointer to the Comessage that was received from the
+/// @param inputMessage A pointer to the ProcessMessage that was received from the
 ///   process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
 void consoleWriteValueCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   char staticBuffer[19]; // max length of a 64-bit value is 18 digits plus NULL.
   ConsoleValueType valueType
@@ -200,7 +200,7 @@ void consoleWriteValueCommandHandler(
 }
 
 /// @fn void consoleGetBufferCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_GET_BUFFER command.  Gets a free
 /// buffer from the provided ConsoleState and replies to the message sender with
@@ -209,7 +209,7 @@ void consoleWriteValueCommandHandler(
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  The buffers in this state will be searched for
 ///   something available to return to the message sender.
-/// @param inputMessage A pointer to the Comessage that was received from the
+/// @param inputMessage A pointer to the ProcessMessage that was received from the
 ///   process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
@@ -218,12 +218,12 @@ void consoleWriteValueCommandHandler(
 /// sender's queue with the free buffer on success.  On failure, the
 /// inputMessage is marked as done but no response is sent.
 void consoleGetBufferCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *returnValue = NULL;
   // We're going to reuse the input message as the return message.
-  Comessage *returnMessage = inputMessage;
+  ProcessMessage *returnMessage = inputMessage;
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) comessageData(returnMessage);
   nanoOsMessage->func = 0;
@@ -258,20 +258,20 @@ void consoleGetBufferCommandHandler(
 }
 
 /// @fn void consoleWriteBufferCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Command handler for the CONSOLE_WRITE_BUFFER command.  Writes the
 /// contents of the sent buffer to the console and then clears its inUse flag.
 ///
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  Unused by this function.
-/// @param inputMessage A pointer to the Comessage that was received from the
+/// @param inputMessage A pointer to the ProcessMessage that was received from the
 ///   process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
 void consoleWriteBufferCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   (void) consoleState;
 
@@ -291,20 +291,20 @@ void consoleWriteBufferCommandHandler(
 }
 
 /// @fn void consleSetPortShellCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Set the designated shell process ID for a port.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
 ///   that will associate the port with the process if this function succeeds.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
 void consleSetPortShellCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.nanoOsMessageData
@@ -332,20 +332,20 @@ void consleSetPortShellCommandHandler(
 }
 
 /// @fn void consoleAssignPortCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Assign a console port to a running process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
 ///   that will associate the port with the process if this function succeeds.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
 void consoleAssignPortCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.nanoOsMessageData
@@ -373,17 +373,17 @@ void consoleAssignPortCommandHandler(
 }
 
 /// @fn void consoleReleasePortCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Release all the ports currently owned by a process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///
 /// @return This function returns no value.
 void consoleReleasePortCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   CoroutineId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
@@ -409,7 +409,7 @@ void consoleReleasePortCommandHandler(
 }
 
 /// @fn void consoleGetOwnedPortCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Get the first port currently owned by a process.
 ///
@@ -420,15 +420,15 @@ void consoleReleasePortCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///
 /// @return This function returns no value.
 void consoleGetOwnedPortCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   CoroutineId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
-  Comessage *returnMessage = inputMessage;
+  ProcessMessage *returnMessage = inputMessage;
 
   int ownedPort = -1;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
@@ -444,7 +444,7 @@ void consoleGetOwnedPortCommandHandler(
   nanoOsMessage->data = (intptr_t) ownedPort;
   comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  sendComessageToPid(owner, inputMessage);
+  sendProcessMessageToPid(owner, inputMessage);
 
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -453,22 +453,22 @@ void consoleGetOwnedPortCommandHandler(
 }
 
 /// @fn void consoleSetEchoCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Set whether or not input is echoed back to all console ports owned
 /// by a process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///
 /// @return This function returns no value.
 void consoleSetEchoCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   CoroutineId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
-  Comessage *returnMessage = inputMessage;
+  ProcessMessage *returnMessage = inputMessage;
   bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) comessageData(returnMessage);
@@ -492,7 +492,7 @@ void consoleSetEchoCommandHandler(
 
   comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  sendComessageToPid(owner, inputMessage);
+  sendProcessMessageToPid(owner, inputMessage);
   comessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
@@ -500,17 +500,17 @@ void consoleSetEchoCommandHandler(
 }
 
 /// @fn void consoleWaitForInputCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Wait for input from any of the console ports owned by a process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///
 /// @return This function returns no value.
 void consoleWaitForInputCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   CoroutineId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
@@ -536,17 +536,17 @@ void consoleWaitForInputCommandHandler(
 }
 
 /// @fn void consoleReleasePidPortCommandHandler(
-///   ConsoleState *consoleState, Comessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Release all the ports currently owned by a process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the Comessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received command.
 ///
 /// @return This function returns no value.
 void consoleReleasePidPortCommandHandler(
-  ConsoleState *consoleState, Comessage *inputMessage
+  ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   CoroutineId sender = coroutineId(comessageFrom(inputMessage));
   if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
@@ -559,20 +559,20 @@ void consoleReleasePidPortCommandHandler(
   CoroutineId owner
     = nanoOsMessageDataValue(inputMessage, CoroutineId);
   ConsolePort *consolePorts = consoleState->consolePorts;
-  Comessage *comessage
-    = nanoOsMessageFuncPointer(inputMessage, Comessage*);
+  ProcessMessage *comessage
+    = nanoOsMessageFuncPointer(inputMessage, ProcessMessage*);
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = consolePorts[ii].shell;
-      // NOTE:  By calling sendComessageToPid from within the for loop, we run
+      // NOTE:  By calling sendProcessMessageToPid from within the for loop, we run
       // the risk of sending the same message to multiple shells.  That's
       // irrelevant in this case since nothing is waiting for the message and
       // all the shells will release the message.  In reality, one process
       // almost never owns multiple ports.  The only exception is during boot.
       if (owner != consolePorts[ii].shell) {
-        sendComessageToPid(consolePorts[ii].shell, comessage);
+        sendProcessMessageToPid(consolePorts[ii].shell, comessage);
       } else {
         // The scheduler is telling us to free the console's port.  That means
         // the shell is being killed and restarted.  It won't be able to
@@ -600,7 +600,7 @@ void consoleReleasePidPortCommandHandler(
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
-void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
+void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
   consoleWriteValueCommandHandler,     // CONSOLE_WRITE_VALUE
   consoleGetBufferCommandHandler,      // CONSOLE_GET_BUFFER
   consoleWriteBufferCommandHandler,    // CONSOLE_WRITE_BUFFER
@@ -622,7 +622,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, Comessage*) = {
 ///
 /// @return This function returns no value.
 void handleConsoleMessages(ConsoleState *consoleState) {
-  Comessage *message = comessageQueuePop();
+  ProcessMessage *message = comessageQueuePop();
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) comessageType(message);
     if (messageType >= NUM_CONSOLE_COMMANDS) {
@@ -652,7 +652,7 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 int consoleSendInputToProcess(CoroutineId processId, char *consoleInput) {
   int returnValue = coroutineSuccess;
 
-  Comessage *comessage = sendNanoOsMessageToPid(
+  ProcessMessage *comessage = sendNanoOsMessageToPid(
     processId, CONSOLE_RETURNING_INPUT,
     /* func= */ 0, (intptr_t) consoleInput, false);
   if (comessage == NULL) {
@@ -827,7 +827,7 @@ void* runConsole(void *args) {
   int byteRead = -1;
   ConsoleState consoleState;
   memset(&consoleState, 0, sizeof(ConsoleState));
-  Comessage *schedulerMessage = NULL;
+  ProcessMessage *schedulerMessage = NULL;
 
   for (uint8_t ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
     consoleState.consoleBuffers[ii].inUse = false;
@@ -906,7 +906,7 @@ void* runConsole(void *args) {
       }
     }
 
-    schedulerMessage = (Comessage*) coroutineYield(NULL);
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
 
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to process.  This
@@ -948,7 +948,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
-    Comessage *comessage = sendNanoOsMessageToPid(
+    ProcessMessage *comessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
     if (comessage == NULL) {
       break; // will return returnValue, which is NULL
@@ -1002,7 +1002,7 @@ int consoleFPuts(const char *s, FILE *stream) {
   (void) stream;
   int returnValue = 0;
 
-  Comessage *comessage = sendNanoOsMessageToPid(
+  ProcessMessage *comessage = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     CONSOLE_VALUE_STRING, (intptr_t) s, true);
   comessageWaitForDone(comessage, NULL);
@@ -1054,7 +1054,7 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, false);
   } else if (stream == stderr) {
-    Comessage *comessage = sendNanoOsMessageToPid(
+    ProcessMessage *comessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, true);
     comessageWaitForDone(comessage, NULL);
@@ -1180,11 +1180,11 @@ int printConsole(const char *message) {
 /// @return Returns a pointer to the input retrieved on success, NULL on
 /// failure.
 char* consoleWaitForInput(void) {
-  Comessage *sent = sendNanoOsMessageToPid(
+  ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WAIT_FOR_INPUT,
     /* func= */ 0, /* data= */ 0, true);
 
-  Comessage *response = comessageWaitForReplyWithType(sent, true,
+  ProcessMessage *response = comessageWaitForReplyWithType(sent, true,
     CONSOLE_RETURNING_INPUT, NULL);
   char *returnValue = nanoOsMessageDataPointer(response, char*);
   comessageRelease(response);
@@ -1314,13 +1314,13 @@ void releaseConsole(void) {
 /// @return Returns the numerical index of the console port the process owns on
 /// success, -1 on failure.
 int getOwnedConsolePort(void) {
-  Comessage *sent = sendNanoOsMessageToPid(
+  ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
   // in comessageWaitForReplyWithType.
-  Comessage *reply = comessageWaitForReplyWithType(
+  ProcessMessage *reply = comessageWaitForReplyWithType(
     sent, /* releaseAfterDone= */ false,
     CONSOLE_RETURNING_PORT, NULL);
 
@@ -1337,13 +1337,13 @@ int getOwnedConsolePort(void) {
 /// @return Returns 0 if the echo state was set for the current process's
 /// ports, -1 on failure.
 int setConsoleEcho(bool desiredEchoState) {
-  Comessage *sent = sendNanoOsMessageToPid(
+  ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_ECHO_PORT,
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
   // in comessageWaitForReplyWithType.
-  Comessage *reply = comessageWaitForReplyWithType(
+  ProcessMessage *reply = comessageWaitForReplyWithType(
     sent, /* releaseAfterDone= */ false,
     CONSOLE_RETURNING_PORT, NULL);
 

@@ -110,13 +110,13 @@ extern "C"
 
 // Exported functionality
 void* startCommand(void *args);
-int sendComessageToCoroutine(
-  Coroutine *coroutine, Comessage *comessage);
-int sendComessageToPid(unsigned int pid, Comessage *comessage);
-Comessage* getAvailableMessage(void);
-Comessage* sendNanoOsMessageToPid(int pid, int type,
+int sendProcessMessageToCoroutine(
+  Coroutine *coroutine, ProcessMessage *comessage);
+int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage);
+ProcessMessage* getAvailableMessage(void);
+ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
-void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
+void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts);
 
 #ifdef __cplusplus
 } // extern "C"

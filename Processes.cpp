@@ -32,7 +32,7 @@
 #include "Processes.h"
 #include "Scheduler.h"
 
-extern Comessage *messages;
+extern ProcessMessage *messages;
 extern NanoOsMessage *nanoOsMessages;
 
 /// @fn int getNumTokens(const char *input)
@@ -179,7 +179,7 @@ void* startCommand(void *args) {
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
   coroutineYield(NULL);
-  Comessage *comessage = (Comessage*) args;
+  ProcessMessage *comessage = (ProcessMessage*) args;
   if (comessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
     return (void*) ((intptr_t) -1);
@@ -261,10 +261,10 @@ void* startCommand(void *args) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/// @fn int sendComessageToCoroutine(
-///   Coroutine *coroutine, Comessage *comessage)
+/// @fn int sendProcessMessageToCoroutine(
+///   Coroutine *coroutine, ProcessMessage *comessage)
 ///
-/// @brief Get an available Comessage, populate it with the specified data, and
+/// @brief Get an available ProcessMessage, populate it with the specified data, and
 /// push it onto a destination coroutine's queue.
 ///
 /// @param coroutine A pointer to the destination coroutine to send the message
@@ -273,8 +273,8 @@ void* startCommand(void *args) {
 ///   coroutine.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int sendComessageToCoroutine(
-  Coroutine *coroutine, Comessage *comessage
+int sendProcessMessageToCoroutine(
+  Coroutine *coroutine, ProcessMessage *comessage
 ) {
   int returnValue = coroutineSuccess;
   if ((coroutine == NULL) || (comessage == NULL)) {
@@ -288,7 +288,7 @@ int sendComessageToCoroutine(
   return returnValue;
 }
 
-/// @fn int sendComessageToPid(unsigned int pid, Comessage *comessage)
+/// @fn int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage)
 ///
 /// @brief Look up a coroutine by its PID and send a message to it.
 ///
@@ -297,23 +297,23 @@ int sendComessageToCoroutine(
 ///   process.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int sendComessageToPid(unsigned int pid, Comessage *comessage) {
+int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage) {
   Coroutine *coroutine = schedulerGetProcessByPid(pid);
 
   // If coroutine is NULL, it will be detected as not running by
-  // sendComessageToCoroutine, so there's no real point in checking for NULL
+  // sendProcessMessageToCoroutine, so there's no real point in checking for NULL
   // here.
-  return sendComessageToCoroutine(coroutine, comessage);
+  return sendProcessMessageToCoroutine(coroutine, comessage);
 }
 
-/// Comessage* getAvailableMessage(void)
+/// ProcessMessage* getAvailableMessage(void)
 ///
 /// @brief Get a message from the messages array that is not in use.
 ///
 /// @return Returns a pointer to the available message on success, NULL if there
 /// was no available message in the array.
-Comessage* getAvailableMessage(void) {
-  Comessage *availableMessage = NULL;
+ProcessMessage* getAvailableMessage(void) {
+  ProcessMessage *availableMessage = NULL;
 
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
@@ -327,7 +327,7 @@ Comessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-/// @fn Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+/// @fn ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
@@ -341,11 +341,11 @@ Comessage* getAvailableMessage(void) {
 /// @param waiting Whether or not the sender is waiting on a response from the
 ///   destination process.
 ///
-/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
-Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+/// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
+ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  Comessage *comessage = NULL;
+  ProcessMessage *comessage = NULL;
   if (!coroutineRunning(coroutine)) {
     // Can't send to a non-resumable coroutine.
     printString("ERROR!!!  Could not send message from process ");
@@ -376,7 +376,7 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   comessageInit(comessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendComessageToCoroutine(coroutine, comessage) != coroutineSuccess) {
+  if (sendProcessMessageToCoroutine(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToCoroutine.\n");
@@ -387,7 +387,7 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   return comessage;
 }
 
-/// @fn Comessage* sendNanoOsMessageToPid(int pid, int type,
+/// @fn ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its PID. Looks
@@ -403,11 +403,11 @@ Comessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 /// @param waiting Whether or not the sender is waiting on a response from the
 ///   destination process.
 ///
-/// @return Returns a pointer to the sent Comessage on success, NULL on failure.
-Comessage* sendNanoOsMessageToPid(int pid, int type,
+/// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
+ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  Comessage *comessage = NULL;
+  ProcessMessage *comessage = NULL;
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
     printString("ERROR!!!  ");
@@ -428,12 +428,12 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
 }
 
 /// @fn void* waitForDataMessage(
-///   Comessage *sent, int type, const struct timespec *ts)
+///   ProcessMessage *sent, int type, const struct timespec *ts)
 ///
 /// @brief Wait for a reply to a previously-sent message and get the data from
 /// it.  The provided message will be released when the reply is received.
 ///
-/// @param sent A pointer to a previously-sent Comessage the calling function is
+/// @param sent A pointer to a previously-sent ProcessMessage the calling function is
 ///   waiting on a reply to.
 /// @param type The type of message expected to be sent as a response.
 /// @param ts A pointer to a struct timespec with the future time at which to
@@ -442,10 +442,10 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
 ///
 /// @return Returns a pointer to the data member of the received message on
 /// success, NULL on failure.
-void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts) {
+void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts) {
   void *returnValue = NULL;
 
-  Comessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
+  ProcessMessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
     if (comessageRelease(incoming) != coroutineSuccess) {

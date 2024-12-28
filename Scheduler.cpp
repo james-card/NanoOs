@@ -53,7 +53,7 @@ ProcessHandle schedulerProcess = NULL;
 ///
 /// @brief pointer to the array of coroutine messages that will be stored in the
 /// main loop function's stack.
-Comessage *messages = NULL;
+ProcessMessage *messages = NULL;
 
 /// @var nanoOsMessages
 ///
@@ -186,10 +186,10 @@ void* dummyProcess(void *args) {
   return NULL;
 }
 
-/// @fn int schedulerSendComessageToCoroutine(
-///   Coroutine *coroutine, Comessage *comessage)
+/// @fn int schedulerSendProcessMessageToCoroutine(
+///   Coroutine *coroutine, ProcessMessage *comessage)
 ///
-/// @brief Get an available Comessage, populate it with the specified data, and
+/// @brief Get an available ProcessMessage, populate it with the specified data, and
 /// push it onto a destination coroutine's queue.
 ///
 /// @param coroutine A pointer to the destination coroutine to send the message
@@ -198,8 +198,8 @@ void* dummyProcess(void *args) {
 ///   coroutine.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int schedulerSendComessageToCoroutine(
-  Coroutine *coroutine, Comessage *comessage
+int schedulerSendProcessMessageToCoroutine(
+  Coroutine *coroutine, ProcessMessage *comessage
 ) {
   int returnValue = coroutineSuccess;
   if (coroutine == NULL) {
@@ -236,8 +236,8 @@ int schedulerSendComessageToCoroutine(
   return returnValue;
 }
 
-/// @fn int schedulerSendComessageToPid(SchedulerState *schedulerState,
-///   unsigned int pid, Comessage *comessage)
+/// @fn int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
+///   unsigned int pid, ProcessMessage *comessage)
 ///
 /// @brief Look up a coroutine by its PID and send a message to it.
 ///
@@ -248,16 +248,16 @@ int schedulerSendComessageToCoroutine(
 ///   process.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int schedulerSendComessageToPid(SchedulerState *schedulerState,
-  unsigned int pid, Comessage *comessage
+int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
+  unsigned int pid, ProcessMessage *comessage
 ) {
   (void) schedulerState;
 
   Coroutine *coroutine = schedulerGetProcessByPid(pid);
   // If coroutine is NULL, it will be detected as not running by
-  // schedulerSendComessageToCoroutine, so there's no real point in checking for
+  // schedulerSendProcessMessageToCoroutine, so there's no real point in checking for
   // NULL here.
-  return schedulerSendComessageToCoroutine(coroutine, comessage);
+  return schedulerSendProcessMessageToCoroutine(coroutine, comessage);
 }
 
 /// @fn int schedulerSendNanoOsMessageToCoroutine(
@@ -280,7 +280,7 @@ int schedulerSendComessageToPid(SchedulerState *schedulerState,
 int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data
 ) {
-  Comessage comessage;
+  ProcessMessage comessage;
   memset(&comessage, 0, sizeof(comessage));
   NanoOsMessage nanoOsMessage;
 
@@ -291,7 +291,7 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   // the waiting parameter to true here.
   comessageInit(&comessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
-  int returnValue = schedulerSendComessageToCoroutine(coroutine, &comessage);
+  int returnValue = schedulerSendProcessMessageToCoroutine(coroutine, &comessage);
 
   return returnValue;
 }
@@ -425,7 +425,7 @@ int schedulerNotifyProcessComplete(ProcessId processId) {
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerWaitForProcessComplete(void) {
-  Comessage *doneMessage
+  ProcessMessage *doneMessage
     = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
   if (doneMessage == NULL) {
     return coroutineError;
@@ -448,7 +448,7 @@ int schedulerWaitForProcessComplete(void) {
 /// There is no way for the number of running processes to exceed the maximum
 /// value of a ProcessId type, so it's used here as the return type.
 ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
-  Comessage *comessage = NULL;
+  ProcessMessage *comessage = NULL;
   int waitStatus = coroutineSuccess;
   ProcessId numProcessDescriptors = 0;
 
@@ -532,7 +532,7 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   // ProcessInfoElements it can populated.
   processInfo->numProcesses = numProcessDescriptors;
 
-  Comessage *comessage = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID,
+  ProcessMessage *comessage = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID,
     SCHEDULER_GET_PROCESS_INFO, /* func= */ 0, (intptr_t) processInfo, true);
 
   if (comessage == NULL) {
@@ -570,7 +570,7 @@ exit:
 ///
 /// @return Returns 0 on success, 1 on failure.
 int schedulerKillProcess(CoroutineId processId) {
-  Comessage *comessage = sendNanoOsMessageToPid(
+  ProcessMessage *comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
     (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
   if (comessage == NULL) {
@@ -642,7 +642,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
   commandDescriptor->consolePort = consolePort;
   commandDescriptor->callingProcess = coroutineId(getRunningCoroutine());
 
-  Comessage *sent = sendNanoOsMessageToPid(
+  ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
     (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
     true);
@@ -670,7 +670,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
 /// -1 on failure.
 UserId schedulerGetProcessUser(void) {
   UserId userId = -1;
-  Comessage *comessage
+  ProcessMessage *comessage
     = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
     /* func= */ 0, /* data= */ 0, true);
@@ -693,7 +693,7 @@ UserId schedulerGetProcessUser(void) {
 /// @return Returns 0 on success, -1 on failure.
 int schedulerSetProcessUser(UserId userId) {
   int returnValue = -1;
-  Comessage *comessage
+  ProcessMessage *comessage
     = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_SET_PROCESS_USER,
     /* func= */ 0, /* data= */ userId, true);
@@ -717,18 +717,18 @@ int schedulerSetProcessUser(UserId userId) {
 // Scheduler command handlers
 
 /// @fn int schedulerRunProcessCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Run a process in an appropriate process slot.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received that contains
+/// @param comessage A pointer to the ProcessMessage that was received that contains
 ///   the information about the process to run and how to run it.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerRunProcessCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   static int returnValue = 0;
   if (comessage == NULL) {
@@ -847,22 +847,22 @@ int schedulerRunProcessCommandHandler(
 }
 
 /// @fn int schedulerKillProcessCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Kill a process identified by its process ID.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received that contains
+/// @param comessage A pointer to the ProcessMessage that was received that contains
 ///   the information about the process to kill.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerKillProcessCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
 
-  Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
+  ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
   if (schedulerProcessCompleteMessage == NULL) {
     // We have to have a message to send to unblock the console.  Fail and try
     // again later.
@@ -902,7 +902,7 @@ int schedulerKillProcessCommandHandler(
       // manager will do that.
       comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
-      sendComessageToCoroutine(
+      sendProcessMessageToCoroutine(
         schedulerState->allProcesses[
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
         comessage);
@@ -959,18 +959,18 @@ int schedulerKillProcessCommandHandler(
 }
 
 /// @fn int schedulerGetNumProcessDescriptorsCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received.  This will be
+/// @param comessage A pointer to the ProcessMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerGetNumProcessDescriptorsCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
 
@@ -992,19 +992,19 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 }
 
 /// @fn int schedulerGetProcessInfoCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Fill in a provided array with information about the currently-running
 /// processes.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received.  This will be
+/// @param comessage A pointer to the ProcessMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerGetProcessInfoCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
 
@@ -1036,18 +1036,18 @@ int schedulerGetProcessInfoCommandHandler(
 }
 
 /// @fn int schedulerGetProcessUserCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received.  This will be
+/// @param comessage A pointer to the ProcessMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerGetProcessUserCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
   CoroutineId processId = coroutineId(comessageFrom(comessage));
@@ -1066,18 +1066,18 @@ int schedulerGetProcessUserCommandHandler(
 }
 
 /// @fn int schedulerSetProcessUserCommandHandler(
-///   SchedulerState *schedulerState, Comessage *comessage)
+///   SchedulerState *schedulerState, ProcessMessage *comessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param comessage A pointer to the Comessage that was received.  This will be
+/// @param comessage A pointer to the ProcessMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerSetProcessUserCommandHandler(
-  SchedulerState *schedulerState, Comessage *comessage
+  SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
   CoroutineId processId = coroutineId(comessageFrom(comessage));
@@ -1107,7 +1107,7 @@ int schedulerSetProcessUserCommandHandler(
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
-int (*schedulerCommandHandlers[])(SchedulerState*, Comessage*) = {
+int (*schedulerCommandHandlers[])(SchedulerState*, ProcessMessage*) = {
   schedulerRunProcessCommandHandler,        // SCHEDULER_RUN_PROCESS
   schedulerKillProcessCommandHandler,       // SCHEDULER_KILL_PROCESS
   // SCHEDULER_GET_NUM_RUNNING_PROCESSES:
@@ -1129,7 +1129,7 @@ int (*schedulerCommandHandlers[])(SchedulerState*, Comessage*) = {
 /// @return This function returns no value.
 void handleSchedulerMessage(SchedulerState *schedulerState) {
   static int lastReturnValue = 0;
-  Comessage *message = comessageQueuePop();
+  ProcessMessage *message = comessageQueuePop();
   if (message != NULL) {
     SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
@@ -1185,7 +1185,7 @@ void runScheduler(SchedulerState *schedulerState) {
       processDescriptor->userId = NO_USER_ID;
       processDescriptor->coroutine->state = COROUTINE_STATE_NOT_RUNNING;
 
-      Comessage *schedulerProcessCompleteMessage = getAvailableMessage();
+      ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
       if (schedulerProcessCompleteMessage != NULL) {
         schedulerSendNanoOsMessageToPid(
           schedulerState,
@@ -1201,7 +1201,7 @@ void runScheduler(SchedulerState *schedulerState) {
         continue;
       }
 
-      Comessage *memoryManagerFreeProcessMemoryMessage = getAvailableMessage();
+      ProcessMessage *memoryManagerFreeProcessMemoryMessage = getAvailableMessage();
       if (memoryManagerFreeProcessMemoryMessage != NULL) {
         NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(
           memoryManagerFreeProcessMemoryMessage);
@@ -1209,7 +1209,7 @@ void runScheduler(SchedulerState *schedulerState) {
         comessageInit(memoryManagerFreeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-        sendComessageToCoroutine(
+        sendProcessMessageToCoroutine(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
           memoryManagerFreeProcessMemoryMessage);
@@ -1275,8 +1275,8 @@ __attribute__((noinline)) void startScheduler(void) {
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
 
-  // Initialize the static Comessage storage.
-  Comessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  // Initialize the static ProcessMessage storage.
+  ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
 
   // Initialize the NanoOsMessage storage.
@@ -1327,7 +1327,7 @@ __attribute__((noinline)) void startScheduler(void) {
   printInt(sizeof(SchedulerState));
   printString(" bytes\n");
   printString("messagesStorage size = ");
-  printInt(sizeof(Comessage) * NANO_OS_NUM_MESSAGES);
+  printInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
   printString(" bytes\n");
   printString("nanoOsMessagesStorage size = ");
   printInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
