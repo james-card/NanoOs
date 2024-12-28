@@ -124,15 +124,15 @@ typedef unsigned long long int NanoOsMessageData;
 ///
 /// @param name The name of the command as stored in its CommandEntry or as
 ///   set by the scheduler at launch.
-/// @param coroutine A pointer to the Coroutine instance that manages the
-///   running command's execution state.
+/// @param process A ProcessHandle that manages the running command's execution
+///   state.
 /// @param 
 /// @param userId The numerical ID of the user that is running the process.
 typedef struct ProcessDescriptor {
-  const char *name;
-  Coroutine  *coroutine;
-  ProcessId   processId;
-  UserId      userId;
+  const char    *name;
+  ProcessHandle  processHandle;
+  ProcessId      processId;
+  UserId         userId;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement

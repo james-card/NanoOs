@@ -45,20 +45,20 @@
 
 /// @var schedulerProcess
 ///
-/// @brief Pointer to the main coroutine that's allocated in the main loop
+/// @brief Pointer to the main process object that's allocated in the main loop
 /// function.
 ProcessHandle schedulerProcess = NULL;
 
 /// @var messages
 ///
-/// @brief pointer to the array of coroutine messages that will be stored in the
-/// main loop function's stack.
+/// @brief Pointer to the array of process messages that will be stored in the
+/// scheduler function's stack.
 ProcessMessage *messages = NULL;
 
 /// @var nanoOsMessages
 ///
 /// @brief Pointer to the array of NanoOsMessages that will be stored in the
-/// main loop function's stack.
+/// scheduler function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
 /// @var allProcesses
@@ -161,11 +161,11 @@ int processQueueRemove(
 ///
 /// @param pid The integer ID for the process.
 ///
-/// @return Returns the found coroutine pointer on success, NULL on failure.
+/// @return Returns the found process handle on success, NULL on failure.
 ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
   ProcessHandle process = NULL;
   if (pid < NANO_OS_NUM_PROCESSES) {
-    process = allProcesses[pid].coroutine;
+    process = allProcesses[pid].processHandle;
   }
 
   printDebugStackDepth();
@@ -187,29 +187,29 @@ void* dummyProcess(void *args) {
 }
 
 /// @fn int schedulerSendProcessMessageToCoroutine(
-///   Coroutine *coroutine, ProcessMessage *comessage)
+///   ProcessHandle processHandle, ProcessMessage *comessage)
 ///
-/// @brief Get an available ProcessMessage, populate it with the specified data, and
-/// push it onto a destination coroutine's queue.
+/// @brief Get an available ProcessMessage, populate it with the specified data,
+/// and push it onto a destination process's queue.
 ///
-/// @param coroutine A pointer to the destination coroutine to send the message
-///   to.
+/// @param processHandle A ProcessHandle to the destination process to send the
+///   message to.
 /// @param comessage A pointer to the message to send to the destination
-///   coroutine.
+///   process.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerSendProcessMessageToCoroutine(
-  Coroutine *coroutine, ProcessMessage *comessage
+  ProcessHandle processHandle, ProcessMessage *comessage
 ) {
   int returnValue = coroutineSuccess;
-  if (coroutine == NULL) {
+  if (processHandle == NULL) {
     printString(
-      "ERROR:  Attempt to send scheduler comessage to NULL coroutine.\n");
+      "ERROR:  Attempt to send scheduler comessage to NULL process handle.\n");
     returnValue = coroutineError;
     return returnValue;
   } else if (comessage == NULL) {
     printString(
-      "ERROR:  Attempt to send NULL scheduler comessage to coroutine.\n");
+      "ERROR:  Attempt to send NULL scheduler comessage to process handle.\n");
     returnValue = coroutineError;
     return returnValue;
   }
@@ -219,17 +219,17 @@ int schedulerSendProcessMessageToCoroutine(
   // scheduler will fail.
   comessage->from = schedulerProcess;
 
-  void *coroutineReturnValue = coroutineResume(coroutine, comessage);
+  void *coroutineReturnValue = coroutineResume(processHandle, comessage);
   if (coroutineReturnValue == COROUTINE_CORRUPT) {
-    printString("ERROR:  Called coroutine is corrupted!!!\n");
+    printString("ERROR:  Called process is corrupted!!!\n");
     returnValue = coroutineError;
     return returnValue;
   }
 
   if (comessageDone(comessage) != true) {
-    // This is our only indication from the called coroutine that something went
+    // This is our only indication from the called process that something went
     // wrong.  Return an error status here.
-    printString("ERROR:  Called coroutine did not mark sent message done.\n");
+    printString("ERROR:  Called process did not mark sent message done.\n");
     returnValue = coroutineError;
   }
 
@@ -239,7 +239,7 @@ int schedulerSendProcessMessageToCoroutine(
 /// @fn int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 ///   unsigned int pid, ProcessMessage *comessage)
 ///
-/// @brief Look up a coroutine by its PID and send a message to it.
+/// @brief Look up a process by its PID and send a message to it.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
@@ -253,15 +253,15 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 ) {
   (void) schedulerState;
 
-  Coroutine *coroutine = schedulerGetProcessByPid(pid);
-  // If coroutine is NULL, it will be detected as not running by
-  // schedulerSendProcessMessageToCoroutine, so there's no real point in checking for
-  // NULL here.
-  return schedulerSendProcessMessageToCoroutine(coroutine, comessage);
+  ProcessHandle processHandle = schedulerGetProcessByPid(pid);
+  // If processHandle is NULL, it will be detected as not running by
+  // schedulerSendProcessMessageToCoroutine, so there's no real point in
+  //  checking for NULL here.
+  return schedulerSendProcessMessageToCoroutine(processHandle, comessage);
 }
 
 /// @fn int schedulerSendNanoOsMessageToCoroutine(
-///   Coroutine *coroutine, int type,
+///   ProcessHandle processHandle, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
@@ -275,10 +275,10 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 /// @param waiting Whether or not the sender is waiting on a response from the
 ///   destination process.
 ///
-/// @return Returns coroutineSuccess on success, a different coroutine status
+/// @return Returns coroutineSuccess on success, a different process status
 /// on failure.
-int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
-  NanoOsMessageData func, NanoOsMessageData data
+int schedulerSendNanoOsMessageToCoroutine(ProcessHandle processHandle,
+  int type, NanoOsMessageData func, NanoOsMessageData data
 ) {
   ProcessMessage comessage;
   memset(&comessage, 0, sizeof(comessage));
@@ -291,7 +291,8 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   // the waiting parameter to true here.
   comessageInit(&comessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
-  int returnValue = schedulerSendProcessMessageToCoroutine(coroutine, &comessage);
+  int returnValue = schedulerSendProcessMessageToCoroutine(
+    processHandle, &comessage);
 
   return returnValue;
 }
@@ -314,7 +315,7 @@ int schedulerSendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 /// @param data The data to send to the destination process, cast to a
 ///   NanoOsMessageData.
 ///
-/// @return Returns coroutineSuccess on success, a different coroutine status
+/// @return Returns coroutineSuccess on success, a different process status
 /// on failure.
 int schedulerSendNanoOsMessageToPid(
   SchedulerState *schedulerState,
@@ -330,9 +331,9 @@ int schedulerSendNanoOsMessageToPid(
     return returnValue; // coroutineError
   }
 
-  Coroutine *coroutine = schedulerState->allProcesses[pid].coroutine;
+  ProcessHandle processHandle = schedulerState->allProcesses[pid].processHandle;
   returnValue = schedulerSendNanoOsMessageToCoroutine(
-    coroutine, type, func, data);
+    processHandle, type, func, data);
   return returnValue;
 }
 
@@ -788,10 +789,11 @@ int schedulerRunProcessCommandHandler(
     processDescriptor->userId
       = schedulerState->allProcesses[coroutineId(caller)].userId;
 
-    if (coroutineCreate(&processDescriptor->coroutine, startCommand, comessage)
-      == coroutineError
+    if (coroutineCreate(&processDescriptor->processHandle,
+      startCommand, comessage) == coroutineError
     ) {
-      printString("ERROR!!!  Could not configure coroutine for new command.\n");
+      printString(
+        "ERROR!!!  Could not configure process handle for new command.\n");
     }
     if (assignMemory(consoleInput, processDescriptor->processId) != 0) {
       printString(
@@ -814,7 +816,7 @@ int schedulerRunProcessCommandHandler(
     }
 
     if (commandEntry->shellCommand == false) {
-      // Put the coroutine on the ready queue.
+      // Put the process on the ready queue.
       processQueuePush(&schedulerState->ready, processDescriptor);
     }
     // else we replaced the running process and it's already on the ready queue.
@@ -879,7 +881,7 @@ int schedulerKillProcessCommandHandler(
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
-    && (coroutineRunning(allProcesses[processId].coroutine))
+    && (coroutineRunning(allProcesses[processId].processHandle))
   ) {
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
@@ -904,10 +906,10 @@ int schedulerKillProcessCommandHandler(
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
       sendProcessMessageToCoroutine(
         schedulerState->allProcesses[
-          NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
+          NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         comessage);
 
-      if (coroutineTerminate(allProcesses[processId].coroutine, NULL)
+      if (coroutineTerminate(allProcesses[processId].processHandle, NULL)
         == coroutineSuccess
       ) {
         allProcesses[processId].name = NULL;
@@ -978,7 +980,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    if (coroutineRunning(schedulerState->allProcesses[ii].coroutine)) {
+    if (coroutineRunning(schedulerState->allProcesses[ii].processHandle)) {
       numProcessDescriptors++;
     }
   }
@@ -1014,9 +1016,9 @@ int schedulerGetProcessInfoCommandHandler(
   ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (coroutineRunning(schedulerState->allProcesses[ii].coroutine)) {
+    if (coroutineRunning(schedulerState->allProcesses[ii].processHandle)) {
       processes[idx].pid
-        = (int) coroutineId(schedulerState->allProcesses[ii].coroutine);
+        = (int) coroutineId(schedulerState->allProcesses[ii].processHandle);
       processes[idx].name = schedulerState->allProcesses[ii].name;
       processes[idx].userId = schedulerState->allProcesses[ii].userId;
       idx++;
@@ -1174,16 +1176,17 @@ void runScheduler(SchedulerState *schedulerState) {
 
   while (1) {
     processDescriptor = processQueuePop(&schedulerState->ready);
-    coroutineReturnValue = coroutineResume(processDescriptor->coroutine, NULL);
+    coroutineReturnValue
+      = coroutineResume(processDescriptor->processHandle, NULL);
     if (coroutineReturnValue == COROUTINE_CORRUPT) {
-      printString("ERROR!!!  Coroutine corruption detected!!!\n");
-      printString("          Removing coroutine ");
+      printString("ERROR!!!  Process corruption detected!!!\n");
+      printString("          Removing process.");
       printInt(processDescriptor->processId);
       printString(" from process queues.\n");
 
       processDescriptor->name = NULL;
       processDescriptor->userId = NO_USER_ID;
-      processDescriptor->coroutine->state = COROUTINE_STATE_NOT_RUNNING;
+      processDescriptor->processHandle->state = COROUTINE_STATE_NOT_RUNNING;
 
       ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
       if (schedulerProcessCompleteMessage != NULL) {
@@ -1211,7 +1214,7 @@ void runScheduler(SchedulerState *schedulerState) {
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
         sendProcessMessageToCoroutine(
           schedulerState->allProcesses[
-            NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine,
+            NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
           memoryManagerFreeProcessMemoryMessage);
       } else {
         printString("WARNING:  Could not allocate "
@@ -1223,27 +1226,27 @@ void runScheduler(SchedulerState *schedulerState) {
 
     // Check the shells and restart them if needed.
     if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
-      && (coroutineRunning(processDescriptor->coroutine) == false)
+      && (coroutineRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
       printString("Restarting USB shell.\n");
-      if (coroutineCreate(&processDescriptor->coroutine, runShell, NULL)
+      if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
           == coroutineError
       ) {
         printString(
-          "ERROR!!!  Could not configure coroutine for USB shell.\n");
+          "ERROR!!!  Could not configure process for USB shell.\n");
       }
       processDescriptor->name = "USB shell";
     } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
-      && (coroutineRunning(processDescriptor->coroutine) == false)
+      && (coroutineRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
       printString("Restarting GPIO shell.\n");
-      if (coroutineCreate(&processDescriptor->coroutine, runShell, NULL)
+      if (coroutineCreate(&processDescriptor->processHandle, runShell, NULL)
         == coroutineError
       ) {
         printString(
-          "ERROR!!!  Could not configure coroutine for GPIO shell.\n");
+          "ERROR!!!  Could not configure process for GPIO shell.\n");
       }
       processDescriptor->name = "GPIO shell";
     }
@@ -1252,7 +1255,7 @@ void runScheduler(SchedulerState *schedulerState) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (coroutineReturnValue == COROUTINE_TIMEDWAIT) {
       processQueuePush(&schedulerState->timedWaiting, processDescriptor)
-    } else */ if (coroutineFinished(processDescriptor->coroutine)) {
+    } else */ if (coroutineFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
       processQueuePush(&schedulerState->ready, processDescriptor);
@@ -1290,37 +1293,37 @@ __attribute__((noinline)) void startScheduler(void) {
   coroutineSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].coroutine = schedulerProcess;
+  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
 
   // Create the console process.
-  Coroutine *coroutine = 0;
-  if (coroutineCreate(&coroutine, runConsole, NULL) != coroutineSuccess) {
+  ProcessHandle processHandle = 0;
+  if (coroutineCreate(&processHandle, runConsole, NULL) != coroutineSuccess) {
     printString("Could not create console process.\n");
   }
-  coroutineSetId(coroutine, NANO_OS_CONSOLE_PROCESS_ID);
+  coroutineSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
     = NANO_OS_CONSOLE_PROCESS_ID;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine = coroutine;
+  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
 
   // Double the size of the console's stack.
-  coroutine = 0;
-  if (coroutineCreate(&coroutine, dummyProcess, NULL) != coroutineSuccess) {
+  processHandle = 0;
+  if (coroutineCreate(&processHandle, dummyProcess, NULL) != coroutineSuccess) {
     printString("Could not double console process's stack.\n");
   }
 
   // Start the console by calling coroutineResume.
   coroutineResume(
-    allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine, NULL);
+    allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
 
   printString("\n");
   printString("Main stack size = ");
   printInt(ABS_DIFF(
     ((intptr_t) schedulerProcess),
-    ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine)
+    ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
   ));
   printString(" bytes\n");
   printString("schedulerState size = ");
@@ -1343,28 +1346,30 @@ __attribute__((noinline)) void startScheduler(void) {
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    coroutine = 0;
-    if (coroutineCreate(&coroutine, dummyProcess, NULL) != coroutineSuccess) {
+    processHandle = 0;
+    if (coroutineCreate(&processHandle,
+      dummyProcess, NULL) != coroutineSuccess
+    ) {
       printString("Could not create process ");
       printInt(ii);
       printString(".\n");
     }
-    coroutineSetId(coroutine, ii);
+    coroutineSetId(processHandle, ii);
     allProcesses[ii].processId = ii;
-    allProcesses[ii].coroutine = coroutine;
+    allProcesses[ii].processHandle = processHandle;
     allProcesses[ii].userId = NO_USER_ID;
   }
   printString("Console stack size = ");
   printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].coroutine),
-    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].coroutine))
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].processHandle),
+    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
   printString("Coroutine stack size = ");
   printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].coroutine),
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID + 1].coroutine))
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].processHandle),
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID + 1].processHandle))
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
@@ -1374,12 +1379,14 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
-  coroutine = 0;
-  if (coroutineCreate(&coroutine, runMemoryManager, NULL) != coroutineSuccess) {
+  processHandle = 0;
+  if (coroutineCreate(&processHandle,
+    runMemoryManager, NULL) != coroutineSuccess
+  ) {
     printString("Could not create memory manager process.\n");
   }
-  coroutineSetId(coroutine, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine = coroutine;
+  coroutineSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
@@ -1387,7 +1394,7 @@ __attribute__((noinline)) void startScheduler(void) {
 
   // Start the memory manager by calling coroutineResume.
   coroutineResume(
-    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].coroutine, NULL);
+    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle, NULL);
 
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
