@@ -68,7 +68,16 @@ typedef enum SchedulerResponse {
 
 // Exported functionality
 void startScheduler(void);
-ProcessHandle getProcessByPid(unsigned int pid);
+ProcessHandle schedulerGetProcessByPid(unsigned int pid);
+int schedulerNotifyProcessComplete(ProcessId processId);
+int schedulerWaitForProcessComplete(void);
+ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout);
+ProcessInfo* schedulerGetProcessInfo(void);
+int schedulerKillProcess(CoroutineId processId);
+int schedulerRunProcess(
+  CommandEntry *commandEntry, char *consoleInput, int consolePort);
+UserId schedulerGetProcessUser(void);
+int schedulerSetProcessUser(UserId userId);
 
 #ifdef __cplusplus
 } // extern "C"

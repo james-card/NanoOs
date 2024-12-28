@@ -29,6 +29,7 @@
 /// @file
 
 #include "Commands.h"
+#include "Scheduler.h"
 
 // Defined at the bottom of this file:
 extern CommandEntry commands[];
@@ -53,7 +54,7 @@ int psCommandHandler(int argc, char **argv) {
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
 
-  ProcessInfo *processInfo = getProcessInfo();
+  ProcessInfo *processInfo = schedulerGetProcessInfo();
   if (processInfo != NULL) {
     uint8_t numRunningProcesses = processInfo->numProcesses;
     ProcessInfoElement *processes = processInfo->processes;
@@ -94,7 +95,7 @@ int killCommandHandler(int argc, char **argv) {
   }
   CoroutineId processId = (CoroutineId) strtol(argv[1], NULL, 10);
 
-  int returnValue = killProcess(processId);
+  int returnValue = schedulerKillProcess(processId);
 
   return returnValue;
 }
@@ -438,7 +439,7 @@ int logoutCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  if (setProcessUser(NO_USER_ID) != 0) {
+  if (schedulerSetProcessUser(NO_USER_ID) != 0) {
     fputs("WARNING:  Could not clear owner of current process.\n", stderr);
   }
 
@@ -511,7 +512,7 @@ int handleCommand(int consolePort, char *consoleInput) {
   CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (runProcess(commandEntry, consoleInput, consolePort) != 0) {
+    if (schedulerRunProcess(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
@@ -543,13 +544,13 @@ void* runShell(void *args) {
     consolePort = getOwnedConsolePort();
   }
 
-  if (getProcessUser() < 0) {
+  if (schedulerGetProcessUser() < 0) {
     printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n\n",
       consolePort);
     login();
   }
 
-  UserId processUserId = getProcessUser();
+  UserId processUserId = schedulerGetProcessUser();
   const char *prompt = "$";
   if (processUserId == ROOT_USER_ID) {
     prompt = "#";
@@ -575,7 +576,7 @@ void* runShell(void *args) {
     size_t bufferLength = strlen(commandBuffer);
     char *consoleInput = (char*) malloc(bufferLength + 1);
     strcpy(consoleInput, commandBuffer);
-    if (runProcess(commandEntry, consoleInput, consolePort) != 0) {
+    if (schedulerRunProcess(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
     }
   }

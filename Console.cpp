@@ -561,7 +561,6 @@ void consoleReleasePidPortCommandHandler(
   ConsolePort *consolePorts = consoleState->consolePorts;
   Comessage *comessage
     = nanoOsMessageFuncPointer(inputMessage, Comessage*);
-  comessageInit(comessage, SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {

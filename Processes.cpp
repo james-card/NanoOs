@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "Processes.h"
+#include "Scheduler.h"
 
 extern Comessage *messages;
 extern NanoOsMessage *nanoOsMessages;
@@ -217,8 +218,7 @@ void* startCommand(void *args) {
       if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
         backgroundProcess = true;
         releaseConsole();
-        sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-          SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+        schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
       }
     }
   }
@@ -232,8 +232,7 @@ void* startCommand(void *args) {
     if (backgroundProcess == false) {
       // The caller is still running and waiting to be told it can resume.
       // Notify it via a message.
-      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-        SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+      schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
     }
     commandDescriptor->schedulerState->allProcesses[
       coroutineId(getRunningCoroutine())].userId = NO_USER_ID;
@@ -254,276 +253,6 @@ void* startCommand(void *args) {
   free(argv); argv = NULL;
 
   return (void*) ((intptr_t) returnValue);
-}
-
-/// @fn ProcessInfo* getProcessInfo(void)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to get information about the running processes.
-///
-/// @return Returns a pointer to the dynamically-allocated ProcessInfo object
-/// on success, NULL on failure.
-ProcessInfo* getProcessInfo(void) {
-  Comessage *comessage = NULL;
-  int waitStatus = coroutineSuccess;
-  ProcessInfo *processInfo = NULL;
-  NanoOsMessage *nanoOsMessage = NULL;
-  uint8_t numProcessDescriptores = 0;
-
-  // We don't know where our messages to the scheduler will be in its queue, so
-  // we can't assume they will be processed immediately, but we can't wait
-  // forever either.  Set a 100 ms timeout.
-  struct timespec timeout = { 0, 100000000 };
-
-  // Because the scheduler runs on the main coroutine, it doesn't have the
-  // ability to yield.  That means it can't do anything that requires a
-  // synchronus message exchange, i.e. allocating memory.  So, we need to
-  // allocate memory from the current process and then pass that back to the
-  // scheduler to populate.  That means we first need to know how many processes
-  // are running so that we know how much space to allocate.  So, get that
-  // first.
-  comessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
-    (NanoOsMessageData) 0, (NanoOsMessageData) 0, false);
-  if (comessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
-    goto exit;
-  }
-
-  waitStatus = comessageWaitForDone(comessage, &timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to get the number of running commands timed out.\n");
-    } else {
-      printf("Command to get the number of running commands failed.\n");
-    }
-
-    // Without knowing how many processes there are, we can't continue.  Bail.
-    goto releaseMessage;
-  }
-
-  numProcessDescriptores = nanoOsMessageDataValue(comessage, CoroutineId);
-  if (numProcessDescriptores == 0) {
-    printf("ERROR:  Number of running processes returned from the "
-      "scheduler is 0.\n");
-    goto releaseMessage;
-  }
-
-  // We need numProcessDescriptores rows.
-  processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
-    + ((numProcessDescriptores - 1) * sizeof(ProcessInfoElement)));
-  if (processInfo == NULL) {
-    printf(
-      "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
-  }
-
-  // It is possible, although unlikely, that an additional process is started
-  // between the time we made the call above and the time that our message gets
-  // handled below.  We allocated our return value based upon the size that was
-  // returned above and, if we're not careful, it will be possible to overflow
-  // the array.  Initialize processInfo->numProcesses so that
-  // schedulerGetProcessInfoCommandHandler knows the maximum number of
-  // ProcessInfoElements it can populated.
-  processInfo->numProcesses = numProcessDescriptores;
-  nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) processInfo);
-  if (comessageInit(comessage, SCHEDULER_GET_PROCESS_INFO,
-    nanoOsMessage, sizeof(NanoOsMessage), /* waiting= */ true)
-    != coroutineSuccess
-  ) {
-    printf(
-      "ERROR:  Could not initialize message to send to get process info.\n");
-    goto freeMemory;
-  }
-
-  if (sendComessageToPid(NANO_OS_SCHEDULER_PROCESS_ID, comessage)
-    != coroutineSuccess
-  ) {
-    printf("ERROR:  Could not send scheduler message to get process info.\n");
-    goto freeMemory;
-  }
-
-  waitStatus = comessageWaitForDone(comessage, &timeout);
-  if (waitStatus != coroutineSuccess) {
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to get process information timed out.\n");
-    } else {
-      printf("Command to get process information failed.\n");
-    }
-
-    // Without knowing the data for the processes, we can't display them.  Bail.
-    goto freeMemory;
-  }
-
-  goto releaseMessage;
-
-freeMemory:
-  free(processInfo); processInfo = NULL;
-
-releaseMessage:
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    printf("ERROR!!!  Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
-  }
-
-exit:
-  return processInfo;
-}
-
-/// @fn int killProcess(CoroutineId processId)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to kill a running process.
-///
-/// @param processId The ID of the process to kill.
-///
-/// @return Returns 0 on success, 1 on failure.
-int killProcess(CoroutineId processId) {
-  Comessage *comessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
-    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
-  if (comessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
-    return 1;
-  }
-
-  // We don't know where our message to the scheduler will be in its queue, so
-  // we can't assume it will be processed immediately, but we can't wait forever
-  // either.  Set a 100 ms timeout.
-  struct timespec ts = { 0, 0 };
-  timespec_get(&ts, TIME_UTC);
-  ts.tv_nsec += 100000000;
-
-  int waitStatus = comessageWaitForDone(comessage, &ts);
-  int returnValue = 0;
-  if (waitStatus == coroutineSuccess) {
-    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
-    returnValue = nanoOsMessage->data;
-    if (returnValue == 0) {
-      printf("Process terminated.\n");
-    } else {
-      printf("Process termination returned status \"%s\".\n",
-        nanoOsStrError(returnValue));
-    }
-  } else {
-    returnValue = 1;
-    if (waitStatus == coroutineTimedout) {
-      printf("Command to kill PID %d timed out.\n", processId);
-    } else {
-      printf("Command to kill PID %d failed.\n", processId);
-    }
-  }
-
-  if (comessageRelease(comessage) != coroutineSuccess) {
-    returnValue = 1;
-    printf("ERROR!!!  "
-      "Could not release message sent to scheduler for kill command.\n");
-  }
-
-  return returnValue;
-}
-
-/// @fn int runProcess(CommandEntry *commandEntry,
-///   char *consoleInput, int consolePort)
-///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to start a process.
-///
-/// @param commandEntry A pointer to the CommandEntry that describes the command
-///   to run.
-/// @param consoleInput The raw consoleInput that was captured for the command
-///   line.
-/// @param consolePort The index of the console port the process is being
-///   launched from.
-///
-/// @return Returns 0 on success, 1 on failure.
-int runProcess(CommandEntry *commandEntry,
-  char *consoleInput, int consolePort
-) {
-  int returnValue = 1;
-  CommandDescriptor *commandDescriptor
-    = (CommandDescriptor*) malloc(sizeof(CommandDescriptor));
-  if (commandDescriptor == NULL) {
-    printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
-    return returnValue; // 1
-  }
-  commandDescriptor->consoleInput = consoleInput;
-  commandDescriptor->consolePort = consolePort;
-  commandDescriptor->callingProcess = coroutineId(getRunningCoroutine());
-
-  Comessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-    (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
-    true);
-  if (sent == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
-    return returnValue; // 1
-  }
-
-  Comessage *doneMessage
-    = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
-  // We don't need any data from the message.  Just release it.
-  comessageRelease(doneMessage);
-  if (comessageDone(sent) == false) {
-    // The called process was killed.  We need to release the sent message on
-    // its behalf.
-    comessageRelease(sent);
-  }
-
-  returnValue = 0;
-  return returnValue;
-}
-
-/// @fn UserId getProcessUser(void)
-///
-/// @brief Get the ID of the user running the current process.
-///
-/// @return Returns the ID of the user running the current process on success,
-/// -1 on failure.
-UserId getProcessUser(void) {
-  UserId userId = -1;
-  Comessage *comessage
-    = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
-    /* func= */ 0, /* data= */ 0, true);
-  if (comessage == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
-    return userId; // -1
-  }
-
-  comessageWaitForDone(comessage, NULL);
-  userId = nanoOsMessageDataValue(comessage, UserId);
-  comessageRelease(comessage);
-
-  return userId;
-}
-
-/// @fn int setProcessUser(UserId userId)
-///
-/// @brief Set the user ID of the current process to the specified user ID.
-///
-/// @return Returns 0 on success, -1 on failure.
-int setProcessUser(UserId userId) {
-  int returnValue = -1;
-  Comessage *comessage
-    = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_SET_PROCESS_USER,
-    /* func= */ 0, /* data= */ userId, true);
-  if (comessage == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
-    return returnValue; // -1
-  }
-
-  comessageWaitForDone(comessage, NULL);
-  returnValue = nanoOsMessageDataValue(comessage, int);
-  comessageRelease(comessage);
-
-  if (returnValue != 0) {
-    printf("Scheduler returned \"%s\" for setProcessUser.\n",
-      nanoOsStrError(returnValue));
-  }
-
-  return returnValue;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -569,7 +298,7 @@ int sendComessageToCoroutine(
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int sendComessageToPid(unsigned int pid, Comessage *comessage) {
-  Coroutine *coroutine = getProcessByPid(pid);
+  Coroutine *coroutine = schedulerGetProcessByPid(pid);
 
   // If coroutine is NULL, it will be detected as not running by
   // sendComessageToCoroutine, so there's no real point in checking for NULL
@@ -687,7 +416,7 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
     return comessage; // NULL
   }
 
-  ProcessHandle process = getProcessByPid(pid);
+  ProcessHandle process = schedulerGetProcessByPid(pid);
   comessage
     = sendNanoOsMessageToCoroutine(process, type, func, data, waiting);
   if (comessage == NULL) {

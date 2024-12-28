@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "NanoOs.h"
+#include "Scheduler.h"
 
 // Externs
 extern User users[];
@@ -262,7 +263,7 @@ void login(void) {
   username = stringDestroy(username);
   password = stringDestroy(password);
 
-  if (setProcessUser(userId) != 0) {
+  if (schedulerSetProcessUser(userId) != 0) {
     fputs("WARNING:  "
       "Could not set owner of current process to authenticated user.\n",
       stderr);

@@ -117,11 +117,6 @@ Comessage* getAvailableMessage(void);
 Comessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(Comessage *sent, int type, const struct timespec *ts);
-ProcessInfo* getProcessInfo(void);
-int killProcess(CoroutineId processId);
-int runProcess(CommandEntry *commandEntry, char *consoleInput, int consolePort);
-UserId getProcessUser(void);
-int setProcessUser(UserId userId);
 
 #ifdef __cplusplus
 } // extern "C"
