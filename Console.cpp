@@ -624,7 +624,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
 void handleConsoleMessages(ConsoleState *consoleState) {
   ProcessMessage *message = processMessageQueuePop();
   while (message != NULL) {
-    ConsoleCommand messageType = (ConsoleCommand) comessageType(message);
+    ConsoleCommand messageType = (ConsoleCommand) processMessageType(message);
     if (messageType >= NUM_CONSOLE_COMMANDS) {
       // Invalid.
       message = processMessageQueuePop();
@@ -913,7 +913,7 @@ void* runConsole(void *args) {
       // is not the expected case, but it's the priority case, so we need to
       // list it first.
       ConsoleCommand messageType
-        = (ConsoleCommand) comessageType(schedulerMessage);
+        = (ConsoleCommand) processMessageType(schedulerMessage);
       if (messageType < NUM_CONSOLE_COMMANDS) {
         consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
       } else {

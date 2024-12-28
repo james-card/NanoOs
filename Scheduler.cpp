@@ -1133,7 +1133,7 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
   static int lastReturnValue = 0;
   ProcessMessage *message = processMessageQueuePop();
   if (message != NULL) {
-    SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
+    SchedulerCommand messageType = (SchedulerCommand) processMessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
       if (processMessageRelease(message) != coroutineSuccess) {

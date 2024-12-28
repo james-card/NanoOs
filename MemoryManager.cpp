@@ -441,7 +441,7 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
   ProcessMessage *comessage = processMessageQueuePop();
   while (comessage != NULL) {
     MemoryManagerCommand messageType
-      = (MemoryManagerCommand) comessageType(comessage);
+      = (MemoryManagerCommand) processMessageType(comessage);
     if (messageType >= NUM_MEMORY_MANAGER_COMMANDS) {
       comessage = processMessageQueuePop();
       continue;
@@ -621,7 +621,7 @@ void* runMemoryManager(void *args) {
       // is not the expected case, but it's the priority case, so we need to
       // list it first.
       MemoryManagerCommand messageType
-        = (MemoryManagerCommand) comessageType(schedulerMessage);
+        = (MemoryManagerCommand) processMessageType(schedulerMessage);
       if (messageType < NUM_MEMORY_MANAGER_COMMANDS) {
         memoryManagerCommandHandlers[messageType](
           &memoryManagerState, schedulerMessage);
