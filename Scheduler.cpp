@@ -1131,7 +1131,7 @@ int (*schedulerCommandHandlers[])(SchedulerState*, ProcessMessage*) = {
 /// @return This function returns no value.
 void handleSchedulerMessage(SchedulerState *schedulerState) {
   static int lastReturnValue = 0;
-  ProcessMessage *message = comessageQueuePop();
+  ProcessMessage *message = processMessageQueuePop();
   if (message != NULL) {
     SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {

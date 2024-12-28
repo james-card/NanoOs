@@ -622,17 +622,17 @@ void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
 ///
 /// @return This function returns no value.
 void handleConsoleMessages(ConsoleState *consoleState) {
-  ProcessMessage *message = comessageQueuePop();
+  ProcessMessage *message = processMessageQueuePop();
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) comessageType(message);
     if (messageType >= NUM_CONSOLE_COMMANDS) {
       // Invalid.
-      message = comessageQueuePop();
+      message = processMessageQueuePop();
       continue;
     }
 
     consoleCommandHandlers[messageType](consoleState, message);
-    message = comessageQueuePop();
+    message = processMessageQueuePop();
   }
 
   return;
