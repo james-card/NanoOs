@@ -663,7 +663,7 @@ size_t getFreeMemory(void) {
   
   ProcessMessage *response = comessageWaitForReplyWithType(&sent, false,
     MEMORY_MANAGER_RETURNING_FREE_MEMORY, NULL);
-  returnValue = comessageSize(response);
+  returnValue = processMessageSize(response);
   
   return returnValue;
 }
