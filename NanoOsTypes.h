@@ -82,6 +82,13 @@ extern "C"
 /// @brief The number of console supports supported.
 #define CONSOLE_NUM_PORTS 2
 
+// Process status values
+#define processSuccess  coroutineSuccess
+#define processBusy     coroutineBusy
+#define processError    coroutineError
+#define processNomem    coroutineNomem
+#define processTimedout coroutineTimedout
+
 // Primitive types
 
 /// @typedef Process
