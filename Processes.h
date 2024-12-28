@@ -69,6 +69,12 @@ extern "C"
 /// Process object.
 #define processId(process) coroutineId(process)
 
+/// @def processSetId
+///
+/// @brief Function macro to set the ID of a created process.
+#define processSetId(processHandle, id) \
+  coroutineSetId(processHandle, id)
+
 /// @def processYield
 ///
 /// @brief Call to yield the processor to another process.
