@@ -61,6 +61,12 @@ extern "C"
 /// @brief Call to yield the processor to another process.
 #define processYield() ((void) coroutineYield(NULL))
 
+/// @def processMessageInit
+///
+/// @brief Function macro to initialize a process message.
+#define processMessageInit(processMessage, type, data, size, waiting) \
+  comessageInit(processMessage, type, data, size, waiting)
+
 /// @def processMessageData
 ///
 /// @brief Function macro to get the data pointer out of a process message.
