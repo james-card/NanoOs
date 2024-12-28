@@ -201,7 +201,7 @@ static ComutexUnlockCallback _globalComutexUnlockCallback = NULL;
 /// @brief Global callback to call when a cocondition is signalled.
 static CoconditionSignalCallback _globalCoconditionSignalCallback = NULL;
 
-/// @fn int64_t coroutinesGetNanoseconds(const struct timespec *ts)
+/// @fn int64_t coroutineGetNanoseconds(const struct timespec *ts)
 ///
 /// @brief Convert the time in a timespec to a raw number of nanoseconds.
 ///
@@ -210,7 +210,7 @@ static CoconditionSignalCallback _globalCoconditionSignalCallback = NULL;
 ///
 /// @return Returns the number of nanoseconds since midnight, Jan 1, 1970
 /// represented by the timespec.
-int64_t coroutinesGetNanoseconds(const struct timespec *ts) {
+int64_t coroutineGetNanoseconds(const struct timespec *ts) {
   struct timespec timespecStorage = { 0, 0 };
 
   if (ts == NULL) {
@@ -1580,7 +1580,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
     // Cannot honor the request.
     return coroutineError;
   }
-  mtx->timeoutTime = coroutinesGetNanoseconds(ts);
+  mtx->timeoutTime = coroutineGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   mtx->lastYieldValue = NULL;
@@ -1623,7 +1623,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
   int returnValue = comutexTryLock(mtx);
   running->blockingComutex = mtx;
   while (returnValue != coroutineSuccess) {
-    if (coroutinesGetNanoseconds(NULL) > mtx->timeoutTime) {
+    if (coroutineGetNanoseconds(NULL) > mtx->timeoutTime) {
       returnValue = coroutineTimedout;
       break;
     }
@@ -1863,7 +1863,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     // Cannot honor the request.
     return coroutineError;
   }
-  cond->timeoutTime = coroutinesGetNanoseconds(ts);
+  cond->timeoutTime = coroutineGetNanoseconds(ts);
 
   // Clear the lastYieldValue before we do anything else.
   cond->lastYieldValue = NULL;
@@ -1904,7 +1904,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
     cond->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
 
     if (((cond->numSignals == 0) || (cond->head != running))
-      && (coroutinesGetNanoseconds(NULL) > cond->timeoutTime)
+      && (coroutineGetNanoseconds(NULL) > cond->timeoutTime)
     ) {
       returnValue = coroutineTimedout;
       break;

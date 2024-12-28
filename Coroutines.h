@@ -381,7 +381,7 @@ typedef struct Comessage {
 } Comessage;
 
 // Support functions
-int64_t coroutinesGetNanoseconds(const struct timespec *ts);
+int64_t coroutineGetNanoseconds(const struct timespec *ts);
 
 /// @def coroutineResumable(coroutinePointer)
 ///
