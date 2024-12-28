@@ -162,8 +162,8 @@ extern "C"
 // Exported functionality
 void* startCommand(void *args);
 int sendProcessMessageToProcess(
-  ProcessHandle processHandle, ProcessMessage *comessage);
-int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage);
+  ProcessHandle processHandle, ProcessMessage *processMessage);
+int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage);
 ProcessMessage* getAvailableMessage(void);
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
