@@ -186,7 +186,7 @@ void* dummyProcess(void *args) {
   return NULL;
 }
 
-/// @fn int schedulerSendProcessMessageToCoroutine(
+/// @fn int schedulerSendProcessMessageToProcess(
 ///   ProcessHandle processHandle, ProcessMessage *processMessage)
 ///
 /// @brief Get an available ProcessMessage, populate it with the specified data,
@@ -198,7 +198,7 @@ void* dummyProcess(void *args) {
 ///   process.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int schedulerSendProcessMessageToCoroutine(
+int schedulerSendProcessMessageToProcess(
   ProcessHandle processHandle, ProcessMessage *processMessage
 ) {
   int returnValue = coroutineSuccess;
@@ -255,12 +255,12 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 
   ProcessHandle processHandle = schedulerGetProcessByPid(pid);
   // If processHandle is NULL, it will be detected as not running by
-  // schedulerSendProcessMessageToCoroutine, so there's no real point in
+  // schedulerSendProcessMessageToProcess, so there's no real point in
   //  checking for NULL here.
-  return schedulerSendProcessMessageToCoroutine(processHandle, processMessage);
+  return schedulerSendProcessMessageToProcess(processHandle, processMessage);
 }
 
-/// @fn int schedulerSendNanoOsMessageToCoroutine(
+/// @fn int schedulerSendNanoOsMessageToProcess(
 ///   ProcessHandle processHandle, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
 ///
@@ -277,7 +277,7 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 ///
 /// @return Returns coroutineSuccess on success, a different process status
 /// on failure.
-int schedulerSendNanoOsMessageToCoroutine(ProcessHandle processHandle,
+int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
   int type, NanoOsMessageData func, NanoOsMessageData data
 ) {
   ProcessMessage processMessage;
@@ -291,7 +291,7 @@ int schedulerSendNanoOsMessageToCoroutine(ProcessHandle processHandle,
   // the waiting parameter to true here.
   processMessageInit(&processMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
-  int returnValue = schedulerSendProcessMessageToCoroutine(
+  int returnValue = schedulerSendProcessMessageToProcess(
     processHandle, &processMessage);
 
   return returnValue;
@@ -304,7 +304,7 @@ int schedulerSendNanoOsMessageToCoroutine(ProcessHandle processHandle,
 ///
 /// @brief Send a NanoOsMessage to another process identified by its PID. Looks
 /// up the process's Coroutine by its PID and then calls
-/// schedulerSendNanoOsMessageToCoroutine.
+/// schedulerSendNanoOsMessageToProcess.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintainted by
 ///   the scheduler.
@@ -332,7 +332,7 @@ int schedulerSendNanoOsMessageToPid(
   }
 
   ProcessHandle processHandle = schedulerState->allProcesses[pid].processHandle;
-  returnValue = schedulerSendNanoOsMessageToCoroutine(
+  returnValue = schedulerSendNanoOsMessageToProcess(
     processHandle, type, func, data);
   return returnValue;
 }

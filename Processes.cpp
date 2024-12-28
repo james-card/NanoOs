@@ -327,7 +327,7 @@ ProcessMessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-/// @fn ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+/// @fn ProcessMessage* sendNanoOsMessageToProcess(Coroutine *coroutine, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
@@ -342,7 +342,7 @@ ProcessMessage* getAvailableMessage(void) {
 ///   destination process.
 ///
 /// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
-ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
+ProcessMessage* sendNanoOsMessageToProcess(Coroutine *coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   ProcessMessage *processMessage = NULL;
@@ -379,7 +379,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   if (sendProcessMessageToProcess(coroutine, processMessage) != coroutineSuccess) {
     if (processMessageRelease(processMessage) != coroutineSuccess) {
       printString("ERROR!!!  "
-        "Could not release message from sendNanoOsMessageToCoroutine.\n");
+        "Could not release message from sendNanoOsMessageToProcess.\n");
     }
     processMessage = NULL;
   }
@@ -392,7 +392,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 ///
 /// @brief Send a NanoOsMessage to another process identified by its PID. Looks
 /// up the process's Coroutine by its PID and then calls
-/// sendNanoOsMessageToCoroutine.
+/// sendNanoOsMessageToProcess.
 ///
 /// @param pid The process ID of the destination process.
 /// @param type The type of the message to send to the destination process.
@@ -418,7 +418,7 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
 
   ProcessHandle process = schedulerGetProcessByPid(pid);
   processMessage
-    = sendNanoOsMessageToCoroutine(process, type, func, data, waiting);
+    = sendNanoOsMessageToProcess(process, type, func, data, waiting);
   if (processMessage == NULL) {
     printString("ERROR!!!  Could not send NanoOs message to process ");
     printInt(pid);
