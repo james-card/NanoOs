@@ -261,11 +261,11 @@ void* startCommand(void *args) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/// @fn int sendProcessMessageToCoroutine(
-///   Coroutine *coroutine, ProcessMessage *comessage)
+/// @fn int sendProcessMessageToProcess(
+///   ProcessHandle processHandle, ProcessMessage *comessage)
 ///
-/// @brief Get an available ProcessMessage, populate it with the specified data, and
-/// push it onto a destination coroutine's queue.
+/// @brief Get an available ProcessMessage, populate it with the specified data,
+/// and push it onto a destination coroutine's queue.
 ///
 /// @param coroutine A pointer to the destination coroutine to send the message
 ///   to.
@@ -273,17 +273,17 @@ void* startCommand(void *args) {
 ///   coroutine.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int sendProcessMessageToCoroutine(
-  Coroutine *coroutine, ProcessMessage *comessage
+int sendProcessMessageToProcess(
+  ProcessHandle processHandle, ProcessMessage *comessage
 ) {
   int returnValue = coroutineSuccess;
-  if ((coroutine == NULL) || (comessage == NULL)) {
+  if ((processHandle == NULL) || (comessage == NULL)) {
     // Invalid.
     returnValue = coroutineError;
     return returnValue;
   }
 
-  returnValue = comessageQueuePush(coroutine, comessage) != coroutineSuccess;
+  returnValue = comessageQueuePush(processHandle, comessage);
 
   return returnValue;
 }
@@ -301,9 +301,9 @@ int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage) {
   Coroutine *coroutine = schedulerGetProcessByPid(pid);
 
   // If coroutine is NULL, it will be detected as not running by
-  // sendProcessMessageToCoroutine, so there's no real point in checking for NULL
+  // sendProcessMessageToProcess, so there's no real point in checking for NULL
   // here.
-  return sendProcessMessageToCoroutine(coroutine, comessage);
+  return sendProcessMessageToProcess(coroutine, comessage);
 }
 
 /// ProcessMessage* getAvailableMessage(void)
@@ -376,7 +376,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   comessageInit(comessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendProcessMessageToCoroutine(coroutine, comessage) != coroutineSuccess) {
+  if (sendProcessMessageToProcess(coroutine, comessage) != coroutineSuccess) {
     if (comessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToCoroutine.\n");

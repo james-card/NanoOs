@@ -904,7 +904,7 @@ int schedulerKillProcessCommandHandler(
       // manager will do that.
       comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
-      sendProcessMessageToCoroutine(
+      sendProcessMessageToProcess(
         schedulerState->allProcesses[
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         comessage);
@@ -1212,7 +1212,7 @@ void runScheduler(SchedulerState *schedulerState) {
         comessageInit(memoryManagerFreeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-        sendProcessMessageToCoroutine(
+        sendProcessMessageToProcess(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
           memoryManagerFreeProcessMemoryMessage);

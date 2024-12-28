@@ -110,8 +110,8 @@ extern "C"
 
 // Exported functionality
 void* startCommand(void *args);
-int sendProcessMessageToCoroutine(
-  Coroutine *coroutine, ProcessMessage *comessage);
+int sendProcessMessageToProcess(
+  ProcessHandle processHandle, ProcessMessage *comessage);
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage);
 ProcessMessage* getAvailableMessage(void);
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
