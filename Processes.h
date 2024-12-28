@@ -67,11 +67,6 @@ extern "C"
 #define processMessageInit(processMessage, type, data, size, waiting) \
   comessageInit(processMessage, type, data, size, waiting)
 
-/// @def processMessageData
-///
-/// @brief Function macro to get the data pointer out of a process message.
-#define processMessageData(processMessage) comessageData(processMessage)
-
 /// @def processMessageSetDone
 ///
 /// @brief Function macro to set a process message to the 'done' state.
@@ -102,6 +97,13 @@ extern "C"
 /// queue.
 #define processMessageQueuePush(process, message) \
   comessageQueuePush(process, message)
+
+/// @def processMessageQueuePop
+///
+/// @brief Function macro to pop a process message from the running process's
+/// message queue.
+#define processMessageQueuePop() \
+  comessageQueuePop()
 
 // Process message accessors
 #define processMessageType(processMessagePointer) \
