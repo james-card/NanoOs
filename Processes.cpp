@@ -369,7 +369,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
     comessage = getAvailableMessage();
   }
 
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
   nanoOsMessage->func = func;
   nanoOsMessage->data = data;
 

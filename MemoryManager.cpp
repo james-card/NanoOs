@@ -282,7 +282,7 @@ int memoryManagerReallocCommandHandler(
   reallocMessage->size = memNode(clientReturnValue)->size;
   
   Coroutine *from = processMessageFrom(incoming);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(incoming);
   
   // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
@@ -390,7 +390,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   MemoryManagerState *memoryManagerState, ProcessMessage *incoming
 ) {
   int returnValue = 0;
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(incoming);
   if (processId(processMessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
     ProcessId pid = nanoOsMessageDataValue(incoming, ProcessId);
     localFreeProcessMemory(memoryManagerState, pid);

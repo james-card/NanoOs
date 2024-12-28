@@ -589,7 +589,7 @@ int schedulerKillProcess(ProcessId processId) {
   int waitStatus = processMessageWaitForDone(comessage, &ts);
   int returnValue = 0;
   if (waitStatus == coroutineSuccess) {
-    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
       printf("Process terminated.\n");
@@ -877,7 +877,7 @@ int schedulerKillProcessCommandHandler(
     = allProcesses[processId(processMessageFrom(comessage))].userId;
   ProcessId processId
     = nanoOsMessageDataValue(comessage, ProcessId);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
@@ -976,7 +976,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 ) {
   int returnValue = 0;
 
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
@@ -1053,7 +1053,7 @@ int schedulerGetProcessUserCommandHandler(
 ) {
   int returnValue = 0;
   ProcessId processId = processId(processMessageFrom(comessage));
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
   if (processId < NANO_OS_NUM_PROCESSES) {
     nanoOsMessage->data = schedulerState->allProcesses[processId].userId;
   } else {
@@ -1084,7 +1084,7 @@ int schedulerSetProcessUserCommandHandler(
   int returnValue = 0;
   ProcessId processId = processId(processMessageFrom(comessage));
   UserId userId = nanoOsMessageDataValue(comessage, UserId);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
   nanoOsMessage->data = -1;
 
   if (processId < NANO_OS_NUM_PROCESSES) {
@@ -1206,7 +1206,7 @@ void runScheduler(SchedulerState *schedulerState) {
 
       ProcessMessage *memoryManagerFreeProcessMemoryMessage = getAvailableMessage();
       if (memoryManagerFreeProcessMemoryMessage != NULL) {
-        NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(
+        NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(
           memoryManagerFreeProcessMemoryMessage);
         nanoOsMessage->data = processDescriptor->processId;
         processMessageInit(memoryManagerFreeProcessMemoryMessage,

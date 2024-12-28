@@ -225,7 +225,7 @@ void consoleGetBufferCommandHandler(
   // We're going to reuse the input message as the return message.
   ProcessMessage *returnMessage = inputMessage;
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) comessageData(returnMessage);
+    = (NanoOsMessage*) processMessageData(returnMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (intptr_t) NULL;
 
@@ -439,7 +439,7 @@ void consoleGetOwnedPortCommandHandler(
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) comessageData(returnMessage);
+    = (NanoOsMessage*) processMessageData(returnMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (intptr_t) ownedPort;
   processMessageInit(returnMessage, CONSOLE_RETURNING_PORT,
@@ -471,7 +471,7 @@ void consoleSetEchoCommandHandler(
   ProcessMessage *returnMessage = inputMessage;
   bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) comessageData(returnMessage);
+    = (NanoOsMessage*) processMessageData(returnMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = 0;
 
