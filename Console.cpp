@@ -242,7 +242,7 @@ void consoleGetBufferCommandHandler(
     nanoOsMessage->data = (intptr_t) returnValue;
     processMessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
       nanoOsMessage, sizeof(*nanoOsMessage), true);
-    if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
+    if (processMessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
     ) {
       returnValue->inUse = false;

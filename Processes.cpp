@@ -283,7 +283,7 @@ int sendProcessMessageToProcess(
     return returnValue;
   }
 
-  returnValue = comessageQueuePush(processHandle, comessage);
+  returnValue = processMessageQueuePush(processHandle, comessage);
 
   return returnValue;
 }

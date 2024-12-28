@@ -288,7 +288,7 @@ int memoryManagerReallocCommandHandler(
   // client side correctly.
   processMessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  if (comessageQueuePush(from, response) != coroutineSuccess) {
+  if (processMessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
   }
   
@@ -359,7 +359,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
   // client side correctly.
   processMessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
     NULL, dynamicMemorySize, true);
-  if (comessageQueuePush(from, response) != coroutineSuccess) {
+  if (processMessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
   }
   

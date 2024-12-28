@@ -213,7 +213,7 @@ int schedulerSendProcessMessageToCoroutine(
     returnValue = coroutineError;
     return returnValue;
   }
-  // comessage->from would normally be set when we do a comessageQueuePush.
+  // comessage->from would normally be set when we do a processMessageQueuePush.
   // We're not using that mechanism here, so we have to do it manually.  If we
   // don't do this, then commands that validate that the message came from the
   // scheduler will fail.
@@ -1154,7 +1154,7 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
         printString("Scheduler command handler failed.\n");
         printString("Pushing message back onto our own queue.\n");
       }
-      comessageQueuePush(NULL, message);
+      processMessageQueuePush(NULL, message);
     }
     lastReturnValue = returnValue;
   }
