@@ -529,7 +529,7 @@ int handleCommand(int consolePort, char *consoleInput) {
 
 /// @fn void* runShell(void *args)
 ///
-/// @brief Coroutine function for interactive user shell.
+/// @brief Process function for interactive user shell.
 ///
 /// @param args Any arguments passed by the scheduler.  Ignored by this
 ///   function.
