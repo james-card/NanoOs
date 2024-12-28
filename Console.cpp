@@ -193,7 +193,7 @@ void consoleWriteValueCommandHandler(
     consolePrintMessage(consoleState, inputMessage, message);
   }
 
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -253,7 +253,7 @@ void consoleGetBufferCommandHandler(
   // call, so mark the input message handled.  This is a synchronous call and
   // the caller is waiting on our response, so *DO NOT* release it.  The caller
   // is responsible for releasing it when they've received the response.
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   return;
 }
 
@@ -284,7 +284,7 @@ void consoleWriteBufferCommandHandler(
     }
     consoleBuffer->inUse = false;
   }
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -317,13 +317,13 @@ void consleSetPortShellCommandHandler(
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     consoleState->consolePorts[consolePort].shell = processId;
-    comessageSetDone(inputMessage);
+    processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
-    // *DON'T* call comessageRelease or comessageSetDone here.  The lack of the
+    // *DON'T* call comessageRelease or processMessageSetDone here.  The lack of the
     // message being done will indicate to the caller that there was a problem
     // servicing the command.
   }
@@ -358,13 +358,13 @@ void consoleAssignPortCommandHandler(
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     consoleState->consolePorts[consolePort].owner = processId;
-    comessageSetDone(inputMessage);
+    processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
-    // *DON'T* call comessageRelease or comessageSetDone here.  The lack of the
+    // *DON'T* call comessageRelease or processMessageSetDone here.  The lack of the
     // message being done will indicate to the caller that there was a problem
     // servicing the command.
   }
@@ -402,7 +402,7 @@ void consoleReleasePortCommandHandler(
     printString("\n");
   }
 
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -446,7 +446,7 @@ void consoleGetOwnedPortCommandHandler(
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   sendProcessMessageToPid(owner, inputMessage);
 
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -493,7 +493,7 @@ void consoleSetEchoCommandHandler(
   comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   sendProcessMessageToPid(owner, inputMessage);
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -529,7 +529,7 @@ void consoleWaitForInputCommandHandler(
     printString("\n");
   }
 
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;
@@ -551,7 +551,7 @@ void consoleReleasePidPortCommandHandler(
   ProcessId sender = coroutineId(comessageFrom(inputMessage));
   if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
     // Sender is not the scheduler.  We will ignore this.
-    comessageSetDone(inputMessage);
+    processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
     return;
   }
@@ -590,7 +590,7 @@ void consoleReleasePidPortCommandHandler(
     comessageRelease(comessage);
   }
 
-  comessageSetDone(inputMessage);
+  processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
   return;

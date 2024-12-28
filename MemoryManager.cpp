@@ -284,7 +284,7 @@ int memoryManagerReallocCommandHandler(
   Coroutine *from = comessageFrom(incoming);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   
-  // We need to mark waiting as true here so that comessageSetDone signals the
+  // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
   comessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
@@ -294,7 +294,7 @@ int memoryManagerReallocCommandHandler(
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
-  if (comessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != coroutineSuccess) {
     returnValue = -1;
   }
   
@@ -355,7 +355,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
   uintptr_t dynamicMemorySize = (uintptr_t) memoryManagerState->mallocNext
     - memoryManagerState->mallocEnd + 1;
   
-  // We need to mark waiting as true here so that comessageSetDone signals the
+  // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
   comessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
     NULL, dynamicMemorySize, true);
@@ -365,7 +365,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
   
   // The client is waiting on us.  Mark the incoming message done now.  Do *NOT*
   // release it since the client is still using it.
-  if (comessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != coroutineSuccess) {
     returnValue = -1;
   }
   
@@ -403,7 +403,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   }
   
   // The client is waiting on us.  Mark the message as done.
-  if (comessageSetDone(incoming) != coroutineSuccess) {
+  if (processMessageSetDone(incoming) != coroutineSuccess) {
     printString("ERROR!!!  Could not mark message done in "
       "memoryManagerFreeProcessMemoryCommandHandler.\n");
     returnValue = -1;

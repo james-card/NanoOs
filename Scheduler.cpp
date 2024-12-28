@@ -919,7 +919,7 @@ int schedulerKillProcessCommandHandler(
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
-        if (comessageSetDone(comessage) != coroutineSuccess) {
+        if (processMessageSetDone(comessage) != coroutineSuccess) {
           printString("ERROR!!!  Could not mark message done in "
             "schedulerKillProcessCommandHandler.\n");
         }
@@ -941,7 +941,7 @@ int schedulerKillProcessCommandHandler(
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
-      if (comessageSetDone(comessage) != coroutineSuccess) {
+      if (processMessageSetDone(comessage) != coroutineSuccess) {
         printString("ERROR!!!  Could not mark message done in "
           "schedulerKillProcessCommandHandler.\n");
       }
@@ -949,7 +949,7 @@ int schedulerKillProcessCommandHandler(
   } else {
     // Tell the caller that we've failed.
     nanoOsMessage->data = EINVAL; // Invalid argument
-    if (comessageSetDone(comessage) != coroutineSuccess) {
+    if (processMessageSetDone(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not mark message done in schedulerKillProcessCommandHandler.\n");
     }
@@ -986,7 +986,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
   }
   nanoOsMessage->data = numProcessDescriptors;
 
-  comessageSetDone(comessage);
+  processMessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
@@ -1030,7 +1030,7 @@ int schedulerGetProcessInfoCommandHandler(
   // idx.
   processInfo->numProcesses = idx;
 
-  comessageSetDone(comessage);
+  processMessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
@@ -1060,7 +1060,7 @@ int schedulerGetProcessUserCommandHandler(
     nanoOsMessage->data = -1;
   }
 
-  comessageSetDone(comessage);
+  processMessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
@@ -1098,7 +1098,7 @@ int schedulerSetProcessUserCommandHandler(
     }
   }
 
-  comessageSetDone(comessage);
+  processMessageSetDone(comessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
