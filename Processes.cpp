@@ -346,7 +346,7 @@ ProcessMessage* sendNanoOsMessageToProcess(ProcessHandle coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   ProcessMessage *processMessage = NULL;
-  if (!coroutineRunning(coroutine)) {
+  if (!processRunning(coroutine)) {
     // Can't send to a non-resumable coroutine.
     printString("ERROR!!!  Could not send message from process ");
     printInt(processId(getRunningProcess()));

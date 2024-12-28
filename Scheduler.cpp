@@ -881,7 +881,7 @@ int schedulerKillProcessCommandHandler(
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
-    && (coroutineRunning(allProcesses[processId].processHandle))
+    && (processRunning(allProcesses[processId].processHandle))
   ) {
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
@@ -980,7 +980,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    if (coroutineRunning(schedulerState->allProcesses[ii].processHandle)) {
+    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
       numProcessDescriptors++;
     }
   }
@@ -1016,7 +1016,7 @@ int schedulerGetProcessInfoCommandHandler(
   ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (coroutineRunning(schedulerState->allProcesses[ii].processHandle)) {
+    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
       processes[idx].pid
         = (int) processId(schedulerState->allProcesses[ii].processHandle);
       processes[idx].name = schedulerState->allProcesses[ii].name;
@@ -1226,7 +1226,7 @@ void runScheduler(SchedulerState *schedulerState) {
 
     // Check the shells and restart them if needed.
     if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
-      && (coroutineRunning(processDescriptor->processHandle) == false)
+      && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
       printString("Restarting USB shell.\n");
@@ -1238,7 +1238,7 @@ void runScheduler(SchedulerState *schedulerState) {
       }
       processDescriptor->name = "USB shell";
     } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
-      && (coroutineRunning(processDescriptor->processHandle) == false)
+      && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
       printString("Restarting GPIO shell.\n");
