@@ -217,7 +217,7 @@ typedef struct SchedulerState {
 typedef struct CommandDescriptor {
   int                consolePort;
   char              *consoleInput;
-  CoroutineId  callingProcess;
+  ProcessId         callingProcess;
   SchedulerState    *schedulerState;
 } CommandDescriptor;
 
@@ -277,8 +277,8 @@ typedef struct ConsoleBuffer {
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleIndex;
-  CoroutineId         owner;
-  CoroutineId         shell;
+  ProcessId           owner;
+  ProcessId           shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
   bool                echo;
@@ -310,7 +310,7 @@ typedef struct ConsoleState {
 /// @param processId The process ID associated with the port.
 typedef struct ConsolePortPidAssociation {
   uint8_t           consolePort;
-  CoroutineId processId;
+  ProcessId         processId;
 } ConsolePortPidAssociation;
 
 /// @union ConsolePortPidUnion
@@ -339,7 +339,7 @@ typedef union ConsolePortPidUnion {
 typedef struct ReallocMessage {
   void *ptr;
   size_t size;
-  CoroutineId pid;
+  ProcessId pid;
   int responseType;
 } ReallocMessage;
 

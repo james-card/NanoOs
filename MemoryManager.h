@@ -119,7 +119,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size);
 #define calloc(nmemb, size) memoryManagerCalloc(nmemb, size)
 
 size_t getFreeMemory(void);
-int assignMemory(void *ptr, CoroutineId pid);
+int assignMemory(void *ptr, ProcessId pid);
 
 
 #ifdef __cplusplus

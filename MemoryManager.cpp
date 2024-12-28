@@ -46,7 +46,7 @@
 typedef struct MemNode {
   struct MemNode    *prev;
   size_t             size:12;
-  CoroutineId  owner:4;
+  ProcessId  owner:4;
 } MemNode;
 
 /// @def memNode
@@ -76,7 +76,7 @@ extern "C"
 #endif
 
 /// @fn void localFreeProcessMemory(
-///   MemoryManagerState *memoryManagerState, CoroutineId pid)
+///   MemoryManagerState *memoryManagerState, ProcessId pid)
 ///
 /// @brief Free *ALL* the memory owned by a process given its process ID.
 ///
@@ -87,7 +87,7 @@ extern "C"
 ///
 /// @return This function always succeeds and returns no value.
 void localFreeProcessMemory(
-  MemoryManagerState *memoryManagerState, CoroutineId pid
+  MemoryManagerState *memoryManagerState, ProcessId pid
 ) {
   void *ptr = memoryManagerState->mallocNext;
   
@@ -152,7 +152,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 }
 
 /// @fn void* localRealloc(MemoryManagerState *memoryManagerState,
-///   void *ptr, size_t size, CoroutineId pid)
+///   void *ptr, size_t size, ProcessId pid)
 ///
 /// @brief Reallocate a provided pointer to a new size.
 ///
@@ -168,7 +168,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or on free.
 void* localRealloc(MemoryManagerState *memoryManagerState,
-  void *ptr, size_t size, CoroutineId pid
+  void *ptr, size_t size, ProcessId pid
 ) {
   char *charPointer = (char*) ptr;
   char *returnValue = NULL;
@@ -392,7 +392,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
   if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
-    CoroutineId pid = nanoOsMessageDataValue(incoming, CoroutineId);
+    ProcessId pid = nanoOsMessageDataValue(incoming, ProcessId);
     localFreeProcessMemory(memoryManagerState, pid);
     nanoOsMessage->data = 0;
   } else {
@@ -771,7 +771,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
   return returnValue;
 }
 
-/// @fn int assignMemory(void *ptr, CoroutineId pid)
+/// @fn int assignMemory(void *ptr, ProcessId pid)
 ///
 /// @brief Assign ownership of a piece of memory to a specified process.
 ///
@@ -782,7 +782,7 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
 /// @param pid The ID of the process to assign the memory to.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int assignMemory(void *ptr, CoroutineId pid) {
+int assignMemory(void *ptr, ProcessId pid) {
   int returnValue = 0;
   
   if ((ptr != NULL)

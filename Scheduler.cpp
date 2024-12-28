@@ -338,7 +338,7 @@ int schedulerSendNanoOsMessageToPid(
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
-///   uint8_t consolePort, CoroutineId owner)
+///   uint8_t consolePort, ProcessId owner)
 ///
 /// @brief Assign a console port to a process ID.
 ///
@@ -350,7 +350,7 @@ int schedulerSendNanoOsMessageToPid(
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerAssignPortToPid(
   SchedulerState *schedulerState,
-  uint8_t consolePort, CoroutineId owner
+  uint8_t consolePort, ProcessId owner
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.consolePortPidAssociation.consolePort
@@ -366,7 +366,7 @@ int schedulerAssignPortToPid(
 
 /// @fn int schedulerSetPortShell(
 ///   SchedulerState *schedulerState,
-///   uint8_t consolePort, CoroutineId shell)
+///   uint8_t consolePort, ProcessId shell)
 ///
 /// @brief Assign a console port to a process ID.
 ///
@@ -378,7 +378,7 @@ int schedulerAssignPortToPid(
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerSetPortShell(
   SchedulerState *schedulerState,
-  uint8_t consolePort, CoroutineId shell
+  uint8_t consolePort, ProcessId shell
 ) {
   int returnValue = coroutineError;
 
@@ -561,7 +561,7 @@ exit:
   return processInfo;
 }
 
-/// @fn int schedulerKillProcess(CoroutineId processId)
+/// @fn int schedulerKillProcess(ProcessId processId)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
 /// to kill a running process.
@@ -569,7 +569,7 @@ exit:
 /// @param processId The ID of the process to kill.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int schedulerKillProcess(CoroutineId processId) {
+int schedulerKillProcess(ProcessId processId) {
   ProcessMessage *comessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
     (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
@@ -873,8 +873,8 @@ int schedulerKillProcessCommandHandler(
 
   UserId callingUserId
     = allProcesses[coroutineId(comessageFrom(comessage))].userId;
-  CoroutineId processId
-    = nanoOsMessageDataValue(comessage, CoroutineId);
+  ProcessId processId
+    = nanoOsMessageDataValue(comessage, ProcessId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
@@ -1050,7 +1050,7 @@ int schedulerGetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  CoroutineId processId = coroutineId(comessageFrom(comessage));
+  ProcessId processId = coroutineId(comessageFrom(comessage));
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   if (processId < NANO_OS_NUM_PROCESSES) {
     nanoOsMessage->data = schedulerState->allProcesses[processId].userId;
@@ -1080,7 +1080,7 @@ int schedulerSetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  CoroutineId processId = coroutineId(comessageFrom(comessage));
+  ProcessId processId = coroutineId(comessageFrom(comessage));
   UserId userId = nanoOsMessageDataValue(comessage, UserId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = -1;

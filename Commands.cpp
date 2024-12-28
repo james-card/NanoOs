@@ -93,7 +93,7 @@ int killCommandHandler(int argc, char **argv) {
     printf("\n");
     return 1;
   }
-  CoroutineId processId = (CoroutineId) strtol(argv[1], NULL, 10);
+  ProcessId processId = (ProcessId) strtol(argv[1], NULL, 10);
 
   int returnValue = schedulerKillProcess(processId);
 

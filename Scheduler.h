@@ -73,7 +73,7 @@ int schedulerNotifyProcessComplete(ProcessId processId);
 int schedulerWaitForProcessComplete(void);
 ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout);
 ProcessInfo* schedulerGetProcessInfo(void);
-int schedulerKillProcess(CoroutineId processId);
+int schedulerKillProcess(ProcessId processId);
 int schedulerRunProcess(
   CommandEntry *commandEntry, char *consoleInput, int consolePort);
 UserId schedulerGetProcessUser(void);

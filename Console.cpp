@@ -47,7 +47,7 @@ int consolePrintMessage(
   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
 ) {
   int returnValue = coroutineSuccess;
-  CoroutineId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -313,7 +313,7 @@ void consleSetPortShellCommandHandler(
     = &consolePortPidUnion.consolePortPidAssociation;
 
   uint8_t consolePort = consolePortPidAssociation->consolePort;
-  CoroutineId processId = consolePortPidAssociation->processId;
+  ProcessId processId = consolePortPidAssociation->processId;
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     consoleState->consolePorts[consolePort].shell = processId;
@@ -354,7 +354,7 @@ void consoleAssignPortCommandHandler(
     = &consolePortPidUnion.consolePortPidAssociation;
 
   uint8_t consolePort = consolePortPidAssociation->consolePort;
-  CoroutineId processId = consolePortPidAssociation->processId;
+  ProcessId processId = consolePortPidAssociation->processId;
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     consoleState->consolePorts[consolePort].owner = processId;
@@ -385,7 +385,7 @@ void consoleAssignPortCommandHandler(
 void consoleReleasePortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  CoroutineId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -426,7 +426,7 @@ void consoleReleasePortCommandHandler(
 void consoleGetOwnedPortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  CoroutineId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *returnMessage = inputMessage;
 
@@ -466,7 +466,7 @@ void consoleGetOwnedPortCommandHandler(
 void consoleSetEchoCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  CoroutineId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *returnMessage = inputMessage;
   bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
@@ -512,7 +512,7 @@ void consoleSetEchoCommandHandler(
 void consoleWaitForInputCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  CoroutineId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = coroutineId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -548,7 +548,7 @@ void consoleWaitForInputCommandHandler(
 void consoleReleasePidPortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  CoroutineId sender = coroutineId(comessageFrom(inputMessage));
+  ProcessId sender = coroutineId(comessageFrom(inputMessage));
   if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
     // Sender is not the scheduler.  We will ignore this.
     comessageSetDone(inputMessage);
@@ -556,8 +556,8 @@ void consoleReleasePidPortCommandHandler(
     return;
   }
 
-  CoroutineId owner
-    = nanoOsMessageDataValue(inputMessage, CoroutineId);
+  ProcessId owner
+    = nanoOsMessageDataValue(inputMessage, ProcessId);
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *comessage
     = nanoOsMessageFuncPointer(inputMessage, ProcessMessage*);
@@ -639,7 +639,7 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 }
 
 /// @fn int consoleSendInputToProcess(
-///   CoroutineId processId, char *consoleInput)
+///   ProcessId processId, char *consoleInput)
 ///
 /// @brief Send input captured from a console port to a process that's waiting
 /// for it.
@@ -649,7 +649,7 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 /// @param consoleInput A copy of the input that was captured from the console.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int consoleSendInputToProcess(CoroutineId processId, char *consoleInput) {
+int consoleSendInputToProcess(ProcessId processId, char *consoleInput) {
   int returnValue = coroutineSuccess;
 
   ProcessMessage *comessage = sendNanoOsMessageToPid(
