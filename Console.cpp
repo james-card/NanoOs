@@ -966,7 +966,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
     // we don't want an infinite timeout to waitForDataMessage, we want zero
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
-    comessage = comessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+    comessage = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
     if (comessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.

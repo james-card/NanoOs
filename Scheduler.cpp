@@ -427,7 +427,7 @@ int schedulerNotifyProcessComplete(ProcessId processId) {
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int schedulerWaitForProcessComplete(void) {
   ProcessMessage *doneMessage
-    = comessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
+    = processMessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
   if (doneMessage == NULL) {
     return coroutineError;
   }
