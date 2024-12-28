@@ -559,7 +559,7 @@ void consoleReleasePidPortCommandHandler(
   ProcessId owner
     = nanoOsMessageDataValue(inputMessage, ProcessId);
   ConsolePort *consolePorts = consoleState->consolePorts;
-  ProcessMessage *comessage
+  ProcessMessage *processMessage
     = nanoOsMessageFuncPointer(inputMessage, ProcessMessage*);
 
   bool portFound = false;
@@ -572,13 +572,13 @@ void consoleReleasePidPortCommandHandler(
       // all the shells will release the message.  In reality, one process
       // almost never owns multiple ports.  The only exception is during boot.
       if (owner != consolePorts[ii].shell) {
-        sendProcessMessageToPid(consolePorts[ii].shell, comessage);
+        sendProcessMessageToPid(consolePorts[ii].shell, processMessage);
       } else {
         // The scheduler is telling us to free the console's port.  That means
         // the shell is being killed and restarted.  It won't be able to
         // receive the message if we send it, so we need to go ahead and
         // release it.
-        processMessageRelease(comessage);
+        processMessageRelease(processMessage);
       }
       portFound = true;
     }
@@ -587,7 +587,7 @@ void consoleReleasePidPortCommandHandler(
   if (portFound == false) {
     // The process doesn't own any ports.  Release the message to prevent a
     // message leak.
-    processMessageRelease(comessage);
+    processMessageRelease(processMessage);
   }
 
   processMessageSetDone(inputMessage);
@@ -652,10 +652,10 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 int consoleSendInputToProcess(ProcessId processId, char *consoleInput) {
   int returnValue = coroutineSuccess;
 
-  ProcessMessage *comessage = sendNanoOsMessageToPid(
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
     processId, CONSOLE_RETURNING_INPUT,
     /* func= */ 0, (intptr_t) consoleInput, false);
-  if (comessage == NULL) {
+  if (processMessage == NULL) {
     returnValue = coroutineError;
   }
 
@@ -948,15 +948,15 @@ ConsoleBuffer* consoleGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
-    ProcessMessage *comessage = sendNanoOsMessageToPid(
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
-    if (comessage == NULL) {
+    if (processMessage == NULL) {
       break; // will return returnValue, which is NULL
     }
 
     // We want to make sure the handler is done processing the message before
     // we wait for a reply.  Do a blocking wait.
-    if (processMessageWaitForDone(comessage, NULL) != coroutineSuccess) {
+    if (processMessageWaitForDone(processMessage, NULL) != coroutineSuccess) {
       // Something is wrong.  Bail.
       break; // will return returnValue, which is NULL
     }
@@ -966,16 +966,16 @@ ConsoleBuffer* consoleGetBuffer(void) {
     // we don't want an infinite timeout to waitForDataMessage, we want zero
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
-    comessage = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
-    if (comessage == NULL) {
+    processMessage = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+    if (processMessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
-      processMessageRelease(comessage);
+      processMessageRelease(processMessage);
       break; // will return returnValue, which is NULL
     }
 
-    returnValue = nanoOsMessageDataPointer(comessage, ConsoleBuffer*);
-    processMessageRelease(comessage);
+    returnValue = nanoOsMessageDataPointer(processMessage, ConsoleBuffer*);
+    processMessageRelease(processMessage);
     if (returnValue == NULL) {
       // Yield control to give the console a chance to get done processing the
       // buffers that are in use.
@@ -1002,11 +1002,11 @@ int consoleFPuts(const char *s, FILE *stream) {
   (void) stream;
   int returnValue = 0;
 
-  ProcessMessage *comessage = sendNanoOsMessageToPid(
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     CONSOLE_VALUE_STRING, (intptr_t) s, true);
-  processMessageWaitForDone(comessage, NULL);
-  processMessageRelease(comessage);
+  processMessageWaitForDone(processMessage, NULL);
+  processMessageRelease(processMessage);
 
   return returnValue;
 }
@@ -1054,11 +1054,11 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, false);
   } else if (stream == stderr) {
-    ProcessMessage *comessage = sendNanoOsMessageToPid(
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, true);
-    processMessageWaitForDone(comessage, NULL);
-    processMessageRelease(comessage);
+    processMessageWaitForDone(processMessage, NULL);
+    processMessageRelease(processMessage);
   }
 
   return returnValue;

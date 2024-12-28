@@ -438,18 +438,18 @@ int (*memoryManagerCommandHandlers[])(
 ///
 /// @return This function returns no value.
 void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
-  ProcessMessage *comessage = processMessageQueuePop();
-  while (comessage != NULL) {
+  ProcessMessage *processMessage = processMessageQueuePop();
+  while (processMessage != NULL) {
     MemoryManagerCommand messageType
-      = (MemoryManagerCommand) processMessageType(comessage);
+      = (MemoryManagerCommand) processMessageType(processMessage);
     if (messageType >= NUM_MEMORY_MANAGER_COMMANDS) {
-      comessage = processMessageQueuePop();
+      processMessage = processMessageQueuePop();
       continue;
     }
     
-    memoryManagerCommandHandlers[messageType](memoryManagerState, comessage);
+    memoryManagerCommandHandlers[messageType](memoryManagerState, processMessage);
     
-    comessage = processMessageQueuePop();
+    processMessage = processMessageQueuePop();
   }
   
   return;

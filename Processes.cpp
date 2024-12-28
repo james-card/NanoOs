@@ -179,8 +179,8 @@ void* startCommand(void *args) {
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
   processYield();
-  ProcessMessage *comessage = (ProcessMessage*) args;
-  if (comessage == NULL) {
+  ProcessMessage *processMessage = (ProcessMessage*) args;
+  if (processMessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
     return (void*) ((intptr_t) -1);
   }
@@ -188,9 +188,9 @@ void* startCommand(void *args) {
   int argc = 0;
   char **argv = NULL;
   CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(comessage, CommandEntry*);
+    = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(comessage, CommandDescriptor*);
+    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
 
   argv = parseArgs(consoleInput, &argc);
@@ -201,7 +201,7 @@ void* startCommand(void *args) {
     printString(consoleInput);
     printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
-    if (processMessageRelease(comessage) != coroutineSuccess) {
+    if (processMessageRelease(processMessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -240,7 +240,7 @@ void* startCommand(void *args) {
     // This command DID replace a shell process.  We need to release the
     // message that was sent because there's no shell that is waiting to
     // release it.
-    if (processMessageRelease(comessage) != coroutineSuccess) {
+    if (processMessageRelease(processMessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -262,48 +262,48 @@ void* startCommand(void *args) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @fn int sendProcessMessageToProcess(
-///   ProcessHandle processHandle, ProcessMessage *comessage)
+///   ProcessHandle processHandle, ProcessMessage *processMessage)
 ///
 /// @brief Get an available ProcessMessage, populate it with the specified data,
 /// and push it onto a destination coroutine's queue.
 ///
 /// @param coroutine A pointer to the destination coroutine to send the message
 ///   to.
-/// @param comessage A pointer to the message to send to the destination
+/// @param processMessage A pointer to the message to send to the destination
 ///   coroutine.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int sendProcessMessageToProcess(
-  ProcessHandle processHandle, ProcessMessage *comessage
+  ProcessHandle processHandle, ProcessMessage *processMessage
 ) {
   int returnValue = coroutineSuccess;
-  if ((processHandle == NULL) || (comessage == NULL)) {
+  if ((processHandle == NULL) || (processMessage == NULL)) {
     // Invalid.
     returnValue = coroutineError;
     return returnValue;
   }
 
-  returnValue = processMessageQueuePush(processHandle, comessage);
+  returnValue = processMessageQueuePush(processHandle, processMessage);
 
   return returnValue;
 }
 
-/// @fn int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage)
+/// @fn int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage)
 ///
 /// @brief Look up a coroutine by its PID and send a message to it.
 ///
 /// @param pid The ID of the process to send the message to.
-/// @param comessage A pointer to the message to send to the destination
+/// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int sendProcessMessageToPid(unsigned int pid, ProcessMessage *comessage) {
+int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage) {
   Coroutine *coroutine = schedulerGetProcessByPid(pid);
 
   // If coroutine is NULL, it will be detected as not running by
   // sendProcessMessageToProcess, so there's no real point in checking for NULL
   // here.
-  return sendProcessMessageToProcess(coroutine, comessage);
+  return sendProcessMessageToProcess(coroutine, processMessage);
 }
 
 /// ProcessMessage* getAvailableMessage(void)
@@ -345,7 +345,7 @@ ProcessMessage* getAvailableMessage(void) {
 ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  ProcessMessage *comessage = NULL;
+  ProcessMessage *processMessage = NULL;
   if (!coroutineRunning(coroutine)) {
     // Can't send to a non-resumable coroutine.
     printString("ERROR!!!  Could not send message from process ");
@@ -360,31 +360,31 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
       printInt(coroutine->state);
       printString("\n");
     }
-    return comessage; // NULL
+    return processMessage; // NULL
   }
 
-  comessage = getAvailableMessage();
-  while (comessage == NULL) {
+  processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
     processYield();
-    comessage = getAvailableMessage();
+    processMessage = getAvailableMessage();
   }
 
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(comessage);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->func = func;
   nanoOsMessage->data = data;
 
-  processMessageInit(comessage, type,
+  processMessageInit(processMessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendProcessMessageToProcess(coroutine, comessage) != coroutineSuccess) {
-    if (processMessageRelease(comessage) != coroutineSuccess) {
+  if (sendProcessMessageToProcess(coroutine, processMessage) != coroutineSuccess) {
+    if (processMessageRelease(processMessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToCoroutine.\n");
     }
-    comessage = NULL;
+    processMessage = NULL;
   }
 
-  return comessage;
+  return processMessage;
 }
 
 /// @fn ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
@@ -407,24 +407,24 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  ProcessMessage *comessage = NULL;
+  ProcessMessage *processMessage = NULL;
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
     printString("ERROR!!!  ");
     printInt(pid);
     printString(" is not a valid PID.\n");
-    return comessage; // NULL
+    return processMessage; // NULL
   }
 
   ProcessHandle process = schedulerGetProcessByPid(pid);
-  comessage
+  processMessage
     = sendNanoOsMessageToCoroutine(process, type, func, data, waiting);
-  if (comessage == NULL) {
+  if (processMessage == NULL) {
     printString("ERROR!!!  Could not send NanoOs message to process ");
     printInt(pid);
     printString("\n");
   }
-  return comessage;
+  return processMessage;
 }
 
 /// @fn void* waitForDataMessage(
