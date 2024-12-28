@@ -87,7 +87,7 @@ extern "C"
 /// @typedef Process
 ///
 /// @brief Definition of the Process object used by the OS.
-typedef Coroutine Process;
+typedef Coroutine* Process;
 
 /// @typedef ProcessId
 ///

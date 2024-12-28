@@ -155,15 +155,15 @@ int processQueueRemove(
   return returnValue;
 }
 
-/// @fn Process* getProcessByPid(unsigned int pid)
+/// @fn Process getProcessByPid(unsigned int pid)
 ///
 /// @brief Look up a croutine for a running command given its process ID.
 ///
 /// @param pid The integer ID for the process.
 ///
 /// @return Returns the found coroutine pointer on success, NULL on failure.
-Process* getProcessByPid(unsigned int pid) {
-  Process *process = NULL;
+Process getProcessByPid(unsigned int pid) {
+  Process process = NULL;
   if (pid < NANO_OS_NUM_PROCESSES) {
     process = allProcesses[pid].coroutine;
   }

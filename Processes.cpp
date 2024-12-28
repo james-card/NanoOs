@@ -687,7 +687,7 @@ Comessage* sendNanoOsMessageToPid(int pid, int type,
     return comessage; // NULL
   }
 
-  Process *process = getProcessByPid(pid);
+  Process process = getProcessByPid(pid);
   comessage
     = sendNanoOsMessageToCoroutine(process, type, func, data, waiting);
   if (comessage == NULL) {
