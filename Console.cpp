@@ -47,7 +47,7 @@ int consolePrintMessage(
   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
 ) {
   int returnValue = coroutineSuccess;
-  ProcessId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = processId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -385,7 +385,7 @@ void consoleAssignPortCommandHandler(
 void consoleReleasePortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ProcessId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = processId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -426,7 +426,7 @@ void consoleReleasePortCommandHandler(
 void consoleGetOwnedPortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ProcessId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = processId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *returnMessage = inputMessage;
 
@@ -466,7 +466,7 @@ void consoleGetOwnedPortCommandHandler(
 void consoleSetEchoCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ProcessId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = processId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *returnMessage = inputMessage;
   bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
@@ -512,7 +512,7 @@ void consoleSetEchoCommandHandler(
 void consoleWaitForInputCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ProcessId owner = coroutineId(comessageFrom(inputMessage));
+  ProcessId owner = processId(comessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
@@ -548,7 +548,7 @@ void consoleWaitForInputCommandHandler(
 void consoleReleasePidPortCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ProcessId sender = coroutineId(comessageFrom(inputMessage));
+  ProcessId sender = processId(comessageFrom(inputMessage));
   if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
     // Sender is not the scheduler.  We will ignore this.
     processMessageSetDone(inputMessage);

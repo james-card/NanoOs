@@ -391,7 +391,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
 ) {
   int returnValue = 0;
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(incoming);
-  if (coroutineId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
+  if (processId(comessageFrom(incoming)) == NANO_OS_SCHEDULER_PROCESS_ID) {
     ProcessId pid = nanoOsMessageDataValue(incoming, ProcessId);
     localFreeProcessMemory(memoryManagerState, pid);
     nanoOsMessage->data = 0;
@@ -683,7 +683,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  reallocMessage.pid = coroutineId(getRunningCoroutine());
+  reallocMessage.pid = processId(getRunningCoroutine());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
   ProcessMessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
@@ -786,7 +786,7 @@ int assignMemory(void *ptr, ProcessId pid) {
   int returnValue = 0;
   
   if ((ptr != NULL)
-    && (coroutineId(getRunningCoroutine()) == NANO_OS_SCHEDULER_PROCESS_ID)
+    && (processId(getRunningCoroutine()) == NANO_OS_SCHEDULER_PROCESS_ID)
   ) {
     memNode(ptr)->owner = pid;
   } else if (ptr != NULL) {

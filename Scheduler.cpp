@@ -641,7 +641,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
   }
   commandDescriptor->consoleInput = consoleInput;
   commandDescriptor->consolePort = consolePort;
-  commandDescriptor->callingProcess = coroutineId(getRunningCoroutine());
+  commandDescriptor->callingProcess = processId(getRunningCoroutine());
 
   ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
@@ -752,7 +752,7 @@ int schedulerRunProcessCommandHandler(
   if (commandEntry->shellCommand == true) {
     // Not the normal case but the priority case, so handle it first.  We're
     // going to kill the caller and reuse its process slot.
-    processDescriptor = &schedulerState->allProcesses[coroutineId(caller)];
+    processDescriptor = &schedulerState->allProcesses[processId(caller)];
 
     // Protect the relevant memory from deletion below.
     if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
@@ -787,7 +787,7 @@ int schedulerRunProcessCommandHandler(
 
   if (processDescriptor != NULL) {
     processDescriptor->userId
-      = schedulerState->allProcesses[coroutineId(caller)].userId;
+      = schedulerState->allProcesses[processId(caller)].userId;
 
     if (coroutineCreate(&processDescriptor->processHandle,
       startCommand, comessage) == coroutineError
@@ -874,7 +874,7 @@ int schedulerKillProcessCommandHandler(
     SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
   UserId callingUserId
-    = allProcesses[coroutineId(comessageFrom(comessage))].userId;
+    = allProcesses[processId(comessageFrom(comessage))].userId;
   ProcessId processId
     = nanoOsMessageDataValue(comessage, ProcessId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -1018,7 +1018,7 @@ int schedulerGetProcessInfoCommandHandler(
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
     if (coroutineRunning(schedulerState->allProcesses[ii].processHandle)) {
       processes[idx].pid
-        = (int) coroutineId(schedulerState->allProcesses[ii].processHandle);
+        = (int) processId(schedulerState->allProcesses[ii].processHandle);
       processes[idx].name = schedulerState->allProcesses[ii].name;
       processes[idx].userId = schedulerState->allProcesses[ii].userId;
       idx++;
@@ -1052,7 +1052,7 @@ int schedulerGetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  ProcessId processId = coroutineId(comessageFrom(comessage));
+  ProcessId processId = processId(comessageFrom(comessage));
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   if (processId < NANO_OS_NUM_PROCESSES) {
     nanoOsMessage->data = schedulerState->allProcesses[processId].userId;
@@ -1082,7 +1082,7 @@ int schedulerSetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *comessage
 ) {
   int returnValue = 0;
-  ProcessId processId = coroutineId(comessageFrom(comessage));
+  ProcessId processId = processId(comessageFrom(comessage));
   UserId userId = nanoOsMessageDataValue(comessage, UserId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
   nanoOsMessage->data = -1;
