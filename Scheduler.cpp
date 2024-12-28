@@ -1290,7 +1290,7 @@ __attribute__((noinline)) void startScheduler(void) {
   allProcesses = schedulerState.allProcesses;
 
   // Initialize ourself in the array of running commands.
-  coroutineSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
+  processSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
@@ -1302,7 +1302,7 @@ __attribute__((noinline)) void startScheduler(void) {
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
-  coroutineSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
+  processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
     = NANO_OS_CONSOLE_PROCESS_ID;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
@@ -1354,7 +1354,7 @@ __attribute__((noinline)) void startScheduler(void) {
       printInt(ii);
       printString(".\n");
     }
-    coroutineSetId(processHandle, ii);
+    processSetId(processHandle, ii);
     allProcesses[ii].processId = ii;
     allProcesses[ii].processHandle = processHandle;
     allProcesses[ii].userId = NO_USER_ID;
@@ -1385,7 +1385,7 @@ __attribute__((noinline)) void startScheduler(void) {
   ) {
     printString("Could not create memory manager process.\n");
   }
-  coroutineSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  processSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
