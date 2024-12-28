@@ -70,12 +70,14 @@ extern "C"
 /// @def processMessageSetDone
 ///
 /// @brief Function macro to set a process message to the 'done' state.
-#define processMessageSetDone(processMessage) comessageSetDone(processMessage)
+#define processMessageSetDone(processMessage) \
+  comessageSetDone(processMessage)
 
 /// @def processMessageRelease
 ///
 /// @brief Function macro to release a process message.
-#define processMessageRelease(processMessage) comessageRelease(processMessage)
+#define processMessageRelease(processMessage) \
+  comessageRelease(processMessage)
 
 /// @def processMessageWaitForDone
 ///
