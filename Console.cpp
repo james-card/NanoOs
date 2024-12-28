@@ -240,7 +240,7 @@ void consoleGetBufferCommandHandler(
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
     nanoOsMessage->data = (intptr_t) returnValue;
-    comessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
+    processMessageInit(returnMessage, CONSOLE_RETURNING_BUFFER,
       nanoOsMessage, sizeof(*nanoOsMessage), true);
     if (comessageQueuePush(comessageFrom(inputMessage), returnMessage)
       != coroutineSuccess
@@ -442,7 +442,7 @@ void consoleGetOwnedPortCommandHandler(
     = (NanoOsMessage*) comessageData(returnMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (intptr_t) ownedPort;
-  comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
+  processMessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   sendProcessMessageToPid(owner, inputMessage);
 
@@ -490,7 +490,7 @@ void consoleSetEchoCommandHandler(
     nanoOsMessage->data = (intptr_t) -1;
   }
 
-  comessageInit(returnMessage, CONSOLE_RETURNING_PORT,
+  processMessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   sendProcessMessageToPid(owner, inputMessage);
   processMessageSetDone(inputMessage);

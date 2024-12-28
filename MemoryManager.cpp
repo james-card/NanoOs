@@ -286,7 +286,7 @@ int memoryManagerReallocCommandHandler(
   
   // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
-  comessageInit(response, reallocMessage->responseType,
+  processMessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
@@ -357,7 +357,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
   
   // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
-  comessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
+  processMessageInit(response, MEMORY_MANAGER_RETURNING_FREE_MEMORY,
     NULL, dynamicMemorySize, true);
   if (comessageQueuePush(from, response) != coroutineSuccess) {
     returnValue = -1;
@@ -652,7 +652,7 @@ size_t getFreeMemory(void) {
   
   ProcessMessage sent;
   memset(&sent, 0, sizeof(sent));
-  comessageInit(&sent, MEMORY_MANAGER_GET_FREE_MEMORY, NULL, 0, true);
+  processMessageInit(&sent, MEMORY_MANAGER_GET_FREE_MEMORY, NULL, 0, true);
   
   if (sendProcessMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, &sent)
     != coroutineSuccess

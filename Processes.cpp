@@ -318,7 +318,7 @@ ProcessMessage* getAvailableMessage(void) {
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (messages[ii].inUse == false) {
       availableMessage = &messages[ii];
-      comessageInit(availableMessage, 0,
+      processMessageInit(availableMessage, 0,
         &nanoOsMessages[ii], sizeof(nanoOsMessages[ii]), false);
       break;
     }
@@ -373,7 +373,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
   nanoOsMessage->func = func;
   nanoOsMessage->data = data;
 
-  comessageInit(comessage, type,
+  processMessageInit(comessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
   if (sendProcessMessageToProcess(coroutine, comessage) != coroutineSuccess) {

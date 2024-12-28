@@ -289,7 +289,7 @@ int schedulerSendNanoOsMessageToCoroutine(ProcessHandle processHandle,
 
   // These messages are always waiting for done from the caller, so hardcode
   // the waiting parameter to true here.
-  comessageInit(&comessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
+  processMessageInit(&comessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
   int returnValue = schedulerSendProcessMessageToCoroutine(
     processHandle, &comessage);
@@ -870,7 +870,7 @@ int schedulerKillProcessCommandHandler(
     // again later.
     return EBUSY;
   }
-  comessageInit(schedulerProcessCompleteMessage,
+  processMessageInit(schedulerProcessCompleteMessage,
     SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
 
   UserId callingUserId
@@ -902,7 +902,7 @@ int schedulerKillProcessCommandHandler(
       // Forward the message on to the memory manager to have it clean up the
       // process's memory.  *DO NOT* mark the message as done.  The memory
       // manager will do that.
-      comessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+      processMessageInit(comessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
       sendProcessMessageToProcess(
         schedulerState->allProcesses[
@@ -1209,7 +1209,7 @@ void runScheduler(SchedulerState *schedulerState) {
         NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(
           memoryManagerFreeProcessMemoryMessage);
         nanoOsMessage->data = processDescriptor->processId;
-        comessageInit(memoryManagerFreeProcessMemoryMessage,
+        processMessageInit(memoryManagerFreeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
         sendProcessMessageToProcess(
