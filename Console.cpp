@@ -956,7 +956,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
 
     // We want to make sure the handler is done processing the message before
     // we wait for a reply.  Do a blocking wait.
-    if (comessageWaitForDone(comessage, NULL) != coroutineSuccess) {
+    if (processMessageWaitForDone(comessage, NULL) != coroutineSuccess) {
       // Something is wrong.  Bail.
       break; // will return returnValue, which is NULL
     }
@@ -1005,7 +1005,7 @@ int consoleFPuts(const char *s, FILE *stream) {
   ProcessMessage *comessage = sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     CONSOLE_VALUE_STRING, (intptr_t) s, true);
-  comessageWaitForDone(comessage, NULL);
+  processMessageWaitForDone(comessage, NULL);
   processMessageRelease(comessage);
 
   return returnValue;
@@ -1057,7 +1057,7 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
     ProcessMessage *comessage = sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, true);
-    comessageWaitForDone(comessage, NULL);
+    processMessageWaitForDone(comessage, NULL);
     processMessageRelease(comessage);
   }
 

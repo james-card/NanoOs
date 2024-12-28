@@ -461,7 +461,7 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
     goto exit;
   }
 
-  waitStatus = comessageWaitForDone(comessage, timeout);
+  waitStatus = processMessageWaitForDone(comessage, timeout);
   if (waitStatus != coroutineSuccess) {
     if (waitStatus == coroutineTimedout) {
       printf("Command to get the number of running processes timed out.\n");
@@ -541,7 +541,7 @@ ProcessInfo* schedulerGetProcessInfo(void) {
     goto freeMemory;
   }
 
-  waitStatus = comessageWaitForDone(comessage, &timeout);
+  waitStatus = processMessageWaitForDone(comessage, &timeout);
   if (waitStatus != coroutineSuccess) {
     if (waitStatus == coroutineTimedout) {
       printf("Command to get process information timed out.\n");
@@ -586,7 +586,7 @@ int schedulerKillProcess(ProcessId processId) {
   timespec_get(&ts, TIME_UTC);
   ts.tv_nsec += 100000000;
 
-  int waitStatus = comessageWaitForDone(comessage, &ts);
+  int waitStatus = processMessageWaitForDone(comessage, &ts);
   int returnValue = 0;
   if (waitStatus == coroutineSuccess) {
     NanoOsMessage *nanoOsMessage = (NanoOsMessage*) comessageData(comessage);
@@ -680,7 +680,7 @@ UserId schedulerGetProcessUser(void) {
     return userId; // -1
   }
 
-  comessageWaitForDone(comessage, NULL);
+  processMessageWaitForDone(comessage, NULL);
   userId = nanoOsMessageDataValue(comessage, UserId);
   processMessageRelease(comessage);
 
@@ -703,7 +703,7 @@ int schedulerSetProcessUser(UserId userId) {
     return returnValue; // -1
   }
 
-  comessageWaitForDone(comessage, NULL);
+  processMessageWaitForDone(comessage, NULL);
   returnValue = nanoOsMessageDataValue(comessage, int);
   processMessageRelease(comessage);
 
