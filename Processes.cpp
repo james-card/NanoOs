@@ -201,7 +201,7 @@ void* startCommand(void *args) {
     printString(consoleInput);
     printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
-    if (comessageRelease(comessage) != coroutineSuccess) {
+    if (processMessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -240,7 +240,7 @@ void* startCommand(void *args) {
     // This command DID replace a shell process.  We need to release the
     // message that was sent because there's no shell that is waiting to
     // release it.
-    if (comessageRelease(comessage) != coroutineSuccess) {
+    if (processMessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from handleSchedulerMessage "
         "for invalid message type.\n");
@@ -377,7 +377,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
   if (sendProcessMessageToProcess(coroutine, comessage) != coroutineSuccess) {
-    if (comessageRelease(comessage) != coroutineSuccess) {
+    if (processMessageRelease(comessage) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release message from sendNanoOsMessageToCoroutine.\n");
     }
@@ -448,7 +448,7 @@ void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *
   ProcessMessage *incoming = comessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
-    if (comessageRelease(incoming) != coroutineSuccess) {
+    if (processMessageRelease(incoming) != coroutineSuccess) {
       printString("ERROR!!!  "
         "Could not release incoming message from waitForDataMessage.\n");
     }

@@ -79,7 +79,7 @@ int consolePrintMessage(
 /// @return This function returns no value.
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (comessageWaiting(inputMessage) == false) {
-    if (comessageRelease(inputMessage) != coroutineSuccess) {
+    if (processMessageRelease(inputMessage) != coroutineSuccess) {
       Serial.print("ERROR!!!  Could not release inputMessage from ");
       Serial.print(__func__);
       Serial.print("\n");
@@ -323,7 +323,7 @@ void consleSetPortShellCommandHandler(
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
-    // *DON'T* call comessageRelease or processMessageSetDone here.  The lack of the
+    // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
     // message being done will indicate to the caller that there was a problem
     // servicing the command.
   }
@@ -364,7 +364,7 @@ void consoleAssignPortCommandHandler(
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
-    // *DON'T* call comessageRelease or processMessageSetDone here.  The lack of the
+    // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
     // message being done will indicate to the caller that there was a problem
     // servicing the command.
   }
@@ -578,7 +578,7 @@ void consoleReleasePidPortCommandHandler(
         // the shell is being killed and restarted.  It won't be able to
         // receive the message if we send it, so we need to go ahead and
         // release it.
-        comessageRelease(comessage);
+        processMessageRelease(comessage);
       }
       portFound = true;
     }
@@ -587,7 +587,7 @@ void consoleReleasePidPortCommandHandler(
   if (portFound == false) {
     // The process doesn't own any ports.  Release the message to prevent a
     // message leak.
-    comessageRelease(comessage);
+    processMessageRelease(comessage);
   }
 
   processMessageSetDone(inputMessage);
@@ -970,12 +970,12 @@ ConsoleBuffer* consoleGetBuffer(void) {
     if (comessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
-      comessageRelease(comessage);
+      processMessageRelease(comessage);
       break; // will return returnValue, which is NULL
     }
 
     returnValue = nanoOsMessageDataPointer(comessage, ConsoleBuffer*);
-    comessageRelease(comessage);
+    processMessageRelease(comessage);
     if (returnValue == NULL) {
       // Yield control to give the console a chance to get done processing the
       // buffers that are in use.
@@ -1006,7 +1006,7 @@ int consoleFPuts(const char *s, FILE *stream) {
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     CONSOLE_VALUE_STRING, (intptr_t) s, true);
   comessageWaitForDone(comessage, NULL);
-  comessageRelease(comessage);
+  processMessageRelease(comessage);
 
   return returnValue;
 }
@@ -1058,7 +1058,7 @@ int consoleVFPrintf(FILE *stream, const char *format, va_list args) {
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
       0, (intptr_t) consoleBuffer, true);
     comessageWaitForDone(comessage, NULL);
-    comessageRelease(comessage);
+    processMessageRelease(comessage);
   }
 
   return returnValue;
@@ -1187,7 +1187,7 @@ char* consoleWaitForInput(void) {
   ProcessMessage *response = comessageWaitForReplyWithType(sent, true,
     CONSOLE_RETURNING_INPUT, NULL);
   char *returnValue = nanoOsMessageDataPointer(response, char*);
-  comessageRelease(response);
+  processMessageRelease(response);
 
   return returnValue;
 }
@@ -1325,7 +1325,7 @@ int getOwnedConsolePort(void) {
     CONSOLE_RETURNING_PORT, NULL);
 
   int returnValue = nanoOsMessageDataValue(reply, int);
-  comessageRelease(reply);
+  processMessageRelease(reply);
 
   return returnValue;
 }
@@ -1348,7 +1348,7 @@ int setConsoleEcho(bool desiredEchoState) {
     CONSOLE_RETURNING_PORT, NULL);
 
   int returnValue = nanoOsMessageDataValue(reply, int);
-  comessageRelease(reply);
+  processMessageRelease(reply);
 
   return returnValue;
 }

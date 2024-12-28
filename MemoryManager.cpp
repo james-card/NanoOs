@@ -321,7 +321,7 @@ int memoryManagerFreeCommandHandler(
 
   void *ptr = nanoOsMessageDataPointer(incoming, void*);
   localFree(memoryManagerState, ptr);
-  if (comessageRelease(incoming) != coroutineSuccess) {
+  if (processMessageRelease(incoming) != coroutineSuccess) {
     printString("ERROR!!!  "
       "Could not release message from memoryManagerFreeCommandHandler.\n");
     returnValue = -1;
@@ -705,7 +705,7 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   // The handler set the pointer back in the structure we sent it, so grab it
   // out of the structure we already have.
   returnValue = reallocMessage.ptr;
-  comessageRelease(sent);
+  processMessageRelease(sent);
   
   return returnValue;
 }

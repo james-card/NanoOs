@@ -433,7 +433,7 @@ int schedulerWaitForProcessComplete(void) {
   }
 
   // We don't need any data from the message.  Just release it.
-  comessageRelease(doneMessage);
+  processMessageRelease(doneMessage);
 
   return coroutineSuccess;
 }
@@ -481,7 +481,7 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
   }
 
 releaseMessage:
-  if (comessageRelease(comessage) != coroutineSuccess) {
+  if (processMessageRelease(comessage) != coroutineSuccess) {
     printf("ERROR!!!  Could not release message sent to scheduler for "
       "getting the number of running processes.\n");
   }
@@ -606,7 +606,7 @@ int schedulerKillProcess(ProcessId processId) {
     }
   }
 
-  if (comessageRelease(comessage) != coroutineSuccess) {
+  if (processMessageRelease(comessage) != coroutineSuccess) {
     returnValue = 1;
     printf("ERROR!!!  "
       "Could not release message sent to scheduler for kill command.\n");
@@ -656,7 +656,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
   if (comessageDone(sent) == false) {
     // The called process was killed.  We need to release the sent message on
     // its behalf.
-    comessageRelease(sent);
+    processMessageRelease(sent);
   }
 
   returnValue = 0;
@@ -682,7 +682,7 @@ UserId schedulerGetProcessUser(void) {
 
   comessageWaitForDone(comessage, NULL);
   userId = nanoOsMessageDataValue(comessage, UserId);
-  comessageRelease(comessage);
+  processMessageRelease(comessage);
 
   return userId;
 }
@@ -705,7 +705,7 @@ int schedulerSetProcessUser(UserId userId) {
 
   comessageWaitForDone(comessage, NULL);
   returnValue = nanoOsMessageDataValue(comessage, int);
-  comessageRelease(comessage);
+  processMessageRelease(comessage);
 
   if (returnValue != 0) {
     printf("Scheduler returned \"%s\" for setProcessUser.\n",
@@ -837,7 +837,7 @@ int schedulerRunProcessCommandHandler(
         SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
       consoleInput = stringDestroy(consoleInput);
       free(commandDescriptor); commandDescriptor = NULL;
-      if (comessageRelease(comessage) != coroutineSuccess) {
+      if (processMessageRelease(comessage) != coroutineSuccess) {
         printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
@@ -1136,7 +1136,7 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
     SchedulerCommand messageType = (SchedulerCommand) comessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
-      if (comessageRelease(message) != coroutineSuccess) {
+      if (processMessageRelease(message) != coroutineSuccess) {
         printString("ERROR!!!  "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
