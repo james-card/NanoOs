@@ -178,7 +178,7 @@ void* startCommand(void *args) {
   // The scheduler is suspended because of the coroutineResume at the start
   // of this call.  So, we need to immediately yield and put ourselves back in
   // the round-robin array.
-  coroutineYield(NULL);
+  processYield();
   ProcessMessage *comessage = (ProcessMessage*) args;
   if (comessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
@@ -365,7 +365,7 @@ ProcessMessage* sendNanoOsMessageToCoroutine(Coroutine *coroutine, int type,
 
   comessage = getAvailableMessage();
   while (comessage == NULL) {
-    coroutineYield(NULL);
+    processYield();
     comessage = getAvailableMessage();
   }
 

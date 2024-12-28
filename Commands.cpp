@@ -206,7 +206,7 @@ int runCounterCommandHandler(int argc, char **argv) {
 
   while (1) {
     counter++;
-    coroutineYield(NULL);
+    processYield();
   }
 
   return 0;
@@ -540,7 +540,7 @@ void* runShell(void *args) {
   char commandBuffer[CONSOLE_BUFFER_SIZE];
   int consolePort = getOwnedConsolePort();
   while (consolePort < 0) {
-    coroutineYield(NULL);
+    processYield();
     consolePort = getOwnedConsolePort();
   }
 

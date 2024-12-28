@@ -979,7 +979,7 @@ ConsoleBuffer* consoleGetBuffer(void) {
     if (returnValue == NULL) {
       // Yield control to give the console a chance to get done processing the
       // buffers that are in use.
-      coroutineYield(NULL);
+      processYield();
     }
   }
 
@@ -1304,7 +1304,7 @@ void releaseConsole(void) {
   // instead.
   sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
     /* func= */ 0, /* data= */ 0, false);
-  coroutineYield(NULL);
+  processYield();
 }
 
 /// @fn int getOwnedConsolePort(void)
