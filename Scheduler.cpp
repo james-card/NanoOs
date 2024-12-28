@@ -47,7 +47,7 @@
 ///
 /// @brief Pointer to the main coroutine that's allocated in the main loop
 /// function.
-Coroutine *schedulerProcess = NULL;
+ProcessHandle schedulerProcess = NULL;
 
 /// @var messages
 ///
@@ -155,15 +155,15 @@ int processQueueRemove(
   return returnValue;
 }
 
-/// @fn Process getProcessByPid(unsigned int pid)
+/// @fn ProcessHandle getProcessByPid(unsigned int pid)
 ///
 /// @brief Look up a croutine for a running command given its process ID.
 ///
 /// @param pid The integer ID for the process.
 ///
 /// @return Returns the found coroutine pointer on success, NULL on failure.
-Process getProcessByPid(unsigned int pid) {
-  Process process = NULL;
+ProcessHandle getProcessByPid(unsigned int pid) {
+  ProcessHandle process = NULL;
   if (pid < NANO_OS_NUM_PROCESSES) {
     process = allProcesses[pid].coroutine;
   }

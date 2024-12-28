@@ -68,7 +68,7 @@ typedef enum SchedulerResponse {
 
 // Exported functionality
 void startScheduler(void);
-Process getProcessByPid(unsigned int pid);
+ProcessHandle getProcessByPid(unsigned int pid);
 
 #ifdef __cplusplus
 } // extern "C"

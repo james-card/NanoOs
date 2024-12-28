@@ -69,7 +69,7 @@ void loop() {
   // Prototypes and externs we need that are not exported from the other
   // library.
   void* dummyProcess(void *args);
-  extern Process schedulerProcess;
+  extern ProcessHandle schedulerProcess;
 
   // We want the address of the first coroutine to be as close to the base as
   // possible.  Because of that, we need to create the first one before we enter
