@@ -50,6 +50,12 @@ extern "C"
 /// object.
 #define getRunningProcess() getRunningCoroutine()
 
+/// @def processCreate
+///
+/// @brief Function macro to launch a new process.
+#define processCreate(processHandle, func, arg) \
+  coroutineCreate(processHandle, func, arg)
+
 /// @def processId
 ///
 /// @brief Function macro to get the numeric ProcessId given a pointer to a
