@@ -226,7 +226,7 @@ int schedulerSendProcessMessageToCoroutine(
     return returnValue;
   }
 
-  if (comessageDone(comessage) != true) {
+  if (processMessageDone(comessage) != true) {
     // This is our only indication from the called process that something went
     // wrong.  Return an error status here.
     printString("ERROR:  Called process did not mark sent message done.\n");
@@ -653,7 +653,7 @@ int schedulerRunProcess(CommandEntry *commandEntry,
   }
   schedulerWaitForProcessComplete();
 
-  if (comessageDone(sent) == false) {
+  if (processMessageDone(sent) == false) {
     // The called process was killed.  We need to release the sent message on
     // its behalf.
     processMessageRelease(sent);
