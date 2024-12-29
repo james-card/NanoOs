@@ -717,7 +717,7 @@ exit:
 int schedulerKillProcess(ProcessId processId) {
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
-    (NanoOsMessageData) 0, (NanoOsMessageData) processId, false);
+    (NanoOsMessageData) 0, (NanoOsMessageData) processId, true);
   if (processMessage == NULL) {
     printf("ERROR!!!  Could not communicate with scheduler.\n");
     return 1;
@@ -733,7 +733,8 @@ int schedulerKillProcess(ProcessId processId) {
   int waitStatus = processMessageWaitForDone(processMessage, &ts);
   int returnValue = 0;
   if (waitStatus == processSuccess) {
-    NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
+    NanoOsMessage *nanoOsMessage
+      = (NanoOsMessage*) processMessageData(processMessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
       printf("Process terminated.\n");
@@ -921,7 +922,7 @@ int schedulerRunProcessCommandHandler(
     processTerminate(caller);
 
     // We don't want to wait for the memory manager to release the memory.  Make
-    // it do it immediately.  We need to do this before we kill the process.
+    // it do it immediately.
     if (schedulerSendNanoOsMessageToPid(
       schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
       MEMORY_MANAGER_FREE_PROCESS_MEMORY,
