@@ -895,12 +895,12 @@ int schedulerRunProcessCommandHandler(
     // Not the normal case but the priority case, so handle it first.  We're
     // going to kill the caller and reuse its process slot.
     processDescriptor = &schedulerState->allProcesses[processId(caller)];
-    // We don't know which processes queue the descriptor is on.  All we know is
-    // that it is *NOT* on the free queue.  Remove it from whatever other queue
-    // it's on.
-    processQueueRemove(&schedulerState->ready, processDescriptor);
-    processQueueRemove(&schedulerState->waiting, processDescriptor);
-    processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
+    // The process should be blocked in processMessageQueueWaitForType waiting
+    // on a condition with an infinite timeout.  So, it *SHOULD* be on the
+    // waiting queue.  Take no chances, though.
+    processQueueRemove(&schedulerState->waiting, processDescriptor)
+    || processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+    || processQueueRemove(&schedulerState->ready, processDescriptor);
 
     // Protect the relevant memory from deletion below.
     if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
