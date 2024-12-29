@@ -202,6 +202,7 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
         processQueuePush(&schedulerState->ready, poppedDescriptor);
         return;
       }
+      processQueuePush(processQueue, poppedDescriptor);
     }
 
     if (processQueue == &schedulerState->waiting) {
@@ -269,6 +270,7 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
           processQueuePush(&schedulerState->ready, poppedDescriptor);
           goto endOfLoop;
         }
+        processQueuePush(processQueue, poppedDescriptor);
       }
 
       if (processQueue == &schedulerState->waiting) {
@@ -1393,7 +1395,7 @@ void runScheduler(SchedulerState *schedulerState) {
     /* if (processReturnValue == COROUTINE_WAIT) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
-      processQueuePush(&schedulerState->timedWaiting, processDescriptor)
+      processQueuePush(&schedulerState->timedWaiting, processDescriptor);
     } else */ if (processFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
