@@ -67,7 +67,7 @@ typedef enum SchedulerResponse {
 } SchedulerResponse;
 
 // Exported functionality
-void startScheduler(void);
+void startScheduler(SchedulerState **coroutineStatePointer);
 ProcessHandle schedulerGetProcessByPid(unsigned int pid);
 int schedulerNotifyProcessComplete(ProcessId processId);
 int schedulerWaitForProcessComplete(void);

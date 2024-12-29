@@ -1264,18 +1264,23 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 }
 
-/// @fn void startScheduler(void)
+/// @fn void startScheduler(SchedulerState **coroutineStatePointer)
 ///
 /// @brief Initialize and run the round-robin scheduler.
 ///
 /// @return This function returns no value and, in fact, never returns at all.
-__attribute__((noinline)) void startScheduler(void) {
+__attribute__((noinline)) void startScheduler(
+  SchedulerState **coroutineStatePointer
+) {
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {};
   schedulerState.ready.name = "ready";
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
+
+  // Initialize the pointer that was used to configure coroutines.
+  *coroutineStatePointer = &schedulerState;
 
   // Initialize the static ProcessMessage storage.
   ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};

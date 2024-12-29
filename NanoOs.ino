@@ -71,6 +71,9 @@ void loop() {
   void* dummyProcess(void *args);
   extern ProcessHandle schedulerProcess;
 
+  // SchedulerState pointer that we will have to populate in startScheduler.
+  SchedulerState *coroutineStatePointer = NULL;
+
   // We want the address of the first coroutine to be as close to the base as
   // possible.  Because of that, we need to create the first one before we enter
   // the scheduler.  That means we need to allocate the main coroutine here,
@@ -78,7 +81,8 @@ void loop() {
   // scheduler.
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
-  coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE, NULL, NULL, NULL);
+  coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE,
+    &coroutineStatePointer, NULL, NULL);
   // Create but *DO NOT* resume one dummy process.  This will double the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
@@ -86,6 +90,6 @@ void loop() {
   }
 
   // Enter the scheduler.  This never returns.
-  startScheduler();
+  startScheduler(&coroutineStatePointer);
 }
 
