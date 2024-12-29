@@ -169,6 +169,7 @@ int processQueueRemove(
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
+  return;
   if ((stateData == NULL) || (comutex == NULL)) {
     // We can't work like this.  Bail.
     return;
@@ -239,6 +240,7 @@ ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
+  return;
   if ((stateData == NULL) || (cocondition == NULL)) {
     // We can't work like this.  Bail.
     return;
@@ -310,7 +312,7 @@ ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
     process = allProcesses[pid].processHandle;
   }
 
-  printDebugStackDepth();
+  //// printDebugStackDepth();
 
   return process;
 }
@@ -899,9 +901,9 @@ int schedulerRunProcessCommandHandler(
     // on a condition with an infinite timeout.  So, it *SHOULD* be on the
     // waiting queue.  Take no chances, though.
     (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
-      == 0)
-    || processQueueRemove(&schedulerState->ready, processDescriptor);
+      || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+        == 0)
+      || processQueueRemove(&schedulerState->ready, processDescriptor);
 
     // Protect the relevant memory from deletion below.
     if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
@@ -1023,7 +1025,8 @@ int schedulerKillProcessCommandHandler(
     = allProcesses[processId(processMessageFrom(processMessage))].userId;
   ProcessId processId
     = nanoOsMessageDataValue(processMessage, ProcessId);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
 
   if ((processId >= NANO_OS_FIRST_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
@@ -1033,6 +1036,24 @@ int schedulerKillProcessCommandHandler(
       || (callingUserId == ROOT_USER_ID)
     ) {
       ProcessDescriptor *processDescriptor = &allProcesses[processId];
+      // Regardless of whether or not we succeed at terminating it, we have
+      // to remove it from its queue.  We don't know which queue it's on,
+      // though.  The fact that we're killing it makes it likely that it's hung.
+      // The most likely reason is that it's waiting on something with an
+      // infinite timeout, so it's most likely to be on the waiting queue.  The
+      // second most likely reason is that it's in an infinite loop, so the
+      // ready queue is the second-most-likely place it could be.  The least-
+      // likely place for it to be would be the timed waiting queue with a very
+      // long timeout.  So, attempt to remove from the queues in that order.
+      if ((processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+      || (processQueueRemove(&schedulerState->ready, processDescriptor) == 0)
+      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+      ) {
+        startDebugMessage("Successfully removed killed process from queue.\n");
+      } else {
+        startDebugMessage("Did *NOT* remove killed process from queue.\n");
+      }
+
       // Tell the console to release the port for us.  We will forward it
       // the message we acquired above, which it will use to send to the
       // correct shell to unblock it.  We need to do this before terminating
@@ -1062,9 +1083,28 @@ int schedulerKillProcessCommandHandler(
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
-        processQueuePush(&schedulerState->free, processDescriptor);
+        int pushRv = 0;
+        if ((processId != USB_SERIAL_PORT_SHELL_PID)
+          && (processId != GPIO_SERIAL_PORT_SHELL_PID)
+        ) {
+          // The expected case.
+          pushRv = processQueuePush(&schedulerState->free, processDescriptor);
+        } else {
+          // The killed process is a shell command.  The scheduler is
+          // responsible for detecting that it's not running and restarting it.
+          // However, the scheduler only ever pops anything from the ready
+          // queue.  So, push this back onto the ready queue instead of the free
+          // queue this time.
+          pushRv = processQueuePush(&schedulerState->ready, processDescriptor);
+        }
+        startDebugMessage("Pushing onto free queue returned status ");
+        printDebug(nanoOsStrError(pushRv));
+        printDebug(".\n");
       } else {
         // Tell the caller that we've failed.
+        startDebugMessage("Could not terminate process ");
+        printDebug(processId);
+        printDebug(".\n");
         nanoOsMessage->data = 1;
         if (processMessageSetDone(processMessage) != processSuccess) {
           printString("ERROR!!!  Could not mark message done in "
@@ -1075,19 +1115,6 @@ int schedulerKillProcessCommandHandler(
         // If we couldn't terminate it, it's not valid to try and reuse it for
         // another process.
       }
-
-      // Regardless of whether or not we succeeded at terminating it, we have
-      // to remove it from its queue.  We don't know which queue it's on,
-      // though.  The fact that we're killing it makes it likely that it's hung.
-      // The most likely reason is that it's waiting on something with an
-      // infinite timeout, so it's most likely to be on the waiting queue.  The
-      // second most likely reason is that it's in an infinite loop, so the
-      // ready queue is the second-most-likely place it could be.  The least-
-      // likely place for it to be would be the timed waiting queue with a very
-      // long timeout.  So, attempt to remove from the queues in that order.
-      (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-      || (processQueueRemove(&schedulerState->ready, processDescriptor) == 0)
-      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
@@ -1284,7 +1311,8 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
   static int lastReturnValue = 0;
   ProcessMessage *message = processMessageQueuePop();
   if (message != NULL) {
-    SchedulerCommand messageType = (SchedulerCommand) processMessageType(message);
+    SchedulerCommand messageType
+      = (SchedulerCommand) processMessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
       if (processMessageRelease(message) != processSuccess) {
@@ -1295,8 +1323,14 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
       return;
     }
 
+    startDebugMessage("Calling command handler ");
+    printDebug(messageType);
+    printDebug(".\n");
     int returnValue = schedulerCommandHandlers[messageType](
       schedulerState, message);
+    startDebugMessage("Returned from calling command handler ");
+    printDebug(messageType);
+    printDebug(".\n");
     if (returnValue != 0) {
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
@@ -1305,7 +1339,7 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
         printString("Scheduler command handler failed.\n");
         printString("Pushing message back onto our own queue.\n");
       }
-      processMessageQueuePush(NULL, message);
+      processMessageQueuePush(getRunningProcess(), message);
     }
     lastReturnValue = returnValue;
   }
@@ -1373,7 +1407,7 @@ void runScheduler(SchedulerState *schedulerState) {
       = coroutineResume(processDescriptor->processHandle, NULL);
     if (processReturnValue == COROUTINE_CORRUPT) {
       printString("ERROR!!!  Process corruption detected!!!\n");
-      printString("          Removing process.");
+      printString("          Removing process ");
       printInt(processDescriptor->processId);
       printString(" from process queues.\n");
 
@@ -1422,6 +1456,7 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
+      startDebugMessage("Restarting USB shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
@@ -1433,6 +1468,7 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
+      startDebugMessage("Restarting GPIO shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
@@ -1442,11 +1478,11 @@ void runScheduler(SchedulerState *schedulerState) {
       processDescriptor->name = "GPIO shell";
     }
 
-    if (processReturnValue == COROUTINE_WAIT) {
+    /* if (processReturnValue == COROUTINE_WAIT) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
       processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-    } else if (processFinished(processDescriptor->processHandle)) {
+    } else */ if (processFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
       processQueuePush(&schedulerState->ready, processDescriptor);
