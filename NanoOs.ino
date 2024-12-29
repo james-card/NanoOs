@@ -70,6 +70,8 @@ void loop() {
   // library.
   void* dummyProcess(void *args);
   extern ProcessHandle schedulerProcess;
+  extern ComutexUnlockCallback comutexUnlockCallbackPointer;
+  extern CoconditionSignalCallback coconditionSignalCallbackPointer;
 
   // SchedulerState pointer that we will have to populate in startScheduler.
   SchedulerState *coroutineStatePointer = NULL;
@@ -81,8 +83,12 @@ void loop() {
   // scheduler.
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
-  coroutineConfig(&_mainCoroutine, NANO_OS_STACK_SIZE,
-    &coroutineStatePointer, NULL, NULL);
+  coroutineConfig(
+    &_mainCoroutine,
+    NANO_OS_STACK_SIZE,
+    &coroutineStatePointer,
+    &comutexUnlockCallbackPointer,
+    &coconditionSignalCallbackPointer);
   // Create but *DO NOT* resume one dummy process.  This will double the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {

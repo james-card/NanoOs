@@ -155,6 +155,69 @@ int processQueueRemove(
   return returnValue;
 }
 
+/// @fn void comutexUnlockCallback(void *stateData, Comutex *comutex)
+///
+/// @brief Function to be called when a mutex (Comutex) is unlocked.
+///
+/// @param stateData The coroutine state pointer provided when coroutineConfig
+///   was called.
+/// @param comutex A pointer to the Comutex object that has been unlocked.  At
+///   the time this callback is called, the mutex has been unlocked but its
+///   coroutine pointer has not been cleared.
+///
+/// @return This function returns no value, but if the head of the Comutex's
+/// lock queue is found in one of the waiting queues, it is removed from the
+/// waiting queue and pushed onto the ready queue.
+void comutexUnlockCallback(void *stateData, Comutex *comutex) {
+  if ((stateData == NULL) || (comutex == NULL)) {
+    // We can't work like this.  Bail.
+    return;
+  } else if (comutex->head == NULL) {
+    // This should be impossible.  If it happens, though, there's no point in
+    // the rest of the function, so bail.
+    return;
+  }
+
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
+  if (schedulerState == NULL) {
+    // This won't fly either.  Bail.
+    return;
+  }
+}
+ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
+
+/// @fn void coconditionSignalCallback(
+///   void *stateData, Cocondition *cocondition)
+///
+/// @brief Function to be called when a condition (Cocondition) is signalled.
+///
+/// @param stateData The coroutine state pointer provided when coroutineConfig
+///   was called.
+/// @param cocondition A pointer to the Cocondition object that has been
+///   signalled.
+///
+/// @return This function returns no value, but if the head of the Cocondition's
+/// signal queue is found in one of the waiting queues, it is removed from the
+/// waiting queue and pushed onto the ready queue.
+void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
+  if ((stateData == NULL) || (cocondition == NULL)) {
+    // We can't work like this.  Bail.
+    return;
+  } else if (cocondition->head == NULL) {
+    // This should be impossible.  If it happens, though, there's no point in
+    // the rest of the function, so bail.
+    return;
+  }
+
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
+  if (schedulerState == NULL) {
+    // This won't fly either.  Bail.
+    return;
+  }
+}
+CoconditionSignalCallback coconditionSignalCallbackPointer
+  = coconditionSignalCallback;
+
 /// @fn ProcessHandle schedulerGetProcessByPid(unsigned int pid)
 ///
 /// @brief Look up a croutine for a running command given its process ID.
