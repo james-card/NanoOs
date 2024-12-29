@@ -642,6 +642,7 @@ exit:
 /// @return Returns a populated, dynamically-allocated ProcessInfo object on
 /// success, NULL on failure.
 ProcessInfo* schedulerGetProcessInfo(void) {
+  ProcessMessage *processMessage = NULL;
   int waitStatus = processSuccess;
 
   // We don't know where our messages to the scheduler will be in its queue, so
@@ -666,6 +667,7 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   if (processInfo == NULL) {
     printf(
       "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
+    goto exit;
   }
 
   // It is possible, although unlikely, that an additional process is started
@@ -677,7 +679,8 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   // ProcessInfoElements it can populated.
   processInfo->numProcesses = numProcessDescriptors;
 
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID,
+  processMessage
+    = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID,
     SCHEDULER_GET_PROCESS_INFO, /* func= */ 0, (intptr_t) processInfo, true);
 
   if (processMessage == NULL) {
@@ -694,10 +697,21 @@ ProcessInfo* schedulerGetProcessInfo(void) {
     }
 
     // Without knowing the data for the processes, we can't display them.  Bail.
-    goto freeMemory;
+    goto releaseMessage;
   }
 
-  goto exit;
+  if (processMessageRelease(processMessage) != processSuccess) {
+    printf("ERROR!!!  Could not release message sent to scheduler for "
+      "getting the number of running processes.\n");
+  }
+
+  return processInfo;
+
+releaseMessage:
+  if (processMessageRelease(processMessage) != processSuccess) {
+    printf("ERROR!!!  Could not release message sent to scheduler for "
+      "getting the number of running processes.\n");
+  }
 
 freeMemory:
   free(processInfo); processInfo = NULL;
