@@ -48,7 +48,8 @@ extern "C"
 ///
 /// @brief Function macro to get the pointer to the currently running Process
 /// object.
-#define getRunningProcess() getRunningCoroutine()
+#define getRunningProcess() \
+  getRunningCoroutine()
 
 /// @def processCreate
 ///
@@ -65,9 +66,15 @@ extern "C"
 
 /// @def processId
 ///
-/// @brief Function macro to get the numeric ProcessId given a pointer to a
-/// Process object.
-#define processId(process) coroutineId(process)
+/// @brief Function macro to get the numeric ProcessId given its handle.
+#define processId(processHandle) \
+  coroutineId(processHandle)
+
+/// @def processState
+///
+/// @brief Function macro to get the state of a process given its handle.
+#define processState(processHandle) \
+  coroutineState(processHandle)
 
 /// @def processSetId
 ///
@@ -78,7 +85,14 @@ extern "C"
 /// @def processYield
 ///
 /// @brief Call to yield the processor to another process.
-#define processYield() ((void) coroutineYield(NULL))
+#define processYield() \
+  ((void) coroutineYield(NULL))
+
+/// @def processTerminate
+///
+/// @brief Function macro to terminate a running process.
+#define processTerminate(processHandle) \
+  coroutineTerminate(processHandle, NULL)
 
 /// @def processMessageInit
 ///
