@@ -898,8 +898,9 @@ int schedulerRunProcessCommandHandler(
     // The process should be blocked in processMessageQueueWaitForType waiting
     // on a condition with an infinite timeout.  So, it *SHOULD* be on the
     // waiting queue.  Take no chances, though.
-    processQueueRemove(&schedulerState->waiting, processDescriptor)
-    || processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+    (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+      == 0)
     || processQueueRemove(&schedulerState->ready, processDescriptor);
 
     // Protect the relevant memory from deletion below.
@@ -1031,6 +1032,7 @@ int schedulerKillProcessCommandHandler(
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
     ) {
+      ProcessDescriptor *processDescriptor = &allProcesses[processId];
       // Tell the console to release the port for us.  We will forward it
       // the message we acquired above, which it will use to send to the
       // correct shell to unblock it.  We need to do this before terminating
@@ -1054,13 +1056,13 @@ int schedulerKillProcessCommandHandler(
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         processMessage);
 
-      if (processTerminate(allProcesses[processId].processHandle)
+      if (processTerminate(processDescriptor->processHandle)
         == processSuccess
       ) {
-        allProcesses[processId].name = NULL;
-        allProcesses[processId].userId = NO_USER_ID;
+        processDescriptor->name = NULL;
+        processDescriptor->userId = NO_USER_ID;
 
-        processQueuePush(&schedulerState->free, &allProcesses[processId]);
+        processQueuePush(&schedulerState->free, processDescriptor);
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
@@ -1075,14 +1077,17 @@ int schedulerKillProcessCommandHandler(
       }
 
       // Regardless of whether or not we succeeded at terminating it, we have
-      // to remove it from the ready queue.
-      if (processQueueRemove(
-        &schedulerState->ready, &allProcesses[processId]) != 0
-      ) {
-        printString("ERROR!!!  Could not remove process ");
-        printInt(processId);
-        printString(" from ready queue!!!");
-      }
+      // to remove it from its queue.  We don't know which queue it's on,
+      // though.  The fact that we're killing it makes it likely that it's hung.
+      // The most likely reason is that it's waiting on something with an
+      // infinite timeout, so it's most likely to be on the waiting queue.  The
+      // second most likely reason is that it's in an infinite loop, so the
+      // ready queue is the second-most-likely place it could be.  The least-
+      // likely place for it to be would be the timed waiting queue with a very
+      // long timeout.  So, attempt to remove from the queues in that order.
+      (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+      || (processQueueRemove(&schedulerState->ready, processDescriptor) == 0)
+      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
