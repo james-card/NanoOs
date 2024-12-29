@@ -216,6 +216,11 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
 
   return;
 }
+
+/// @var comutexUnlockCallbackPointer
+///
+/// @brief Function pointer for comutexUnlockCallback, the address of which will
+/// be passed to coroutineConfig.
 ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 
 /// @fn void coconditionSignalCallback(
@@ -282,6 +287,11 @@ endOfLoop:
 
   return;
 }
+
+/// @var coconditionSignalCallbackPointer
+///
+/// @brief Function pointer for coconditionSignalCallback, the address of which
+/// will be passed to coroutineConfig.
 CoconditionSignalCallback coconditionSignalCallbackPointer
   = coconditionSignalCallback;
 
