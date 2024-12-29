@@ -169,7 +169,6 @@ int processQueueRemove(
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
-  return;
   if ((stateData == NULL) || (comutex == NULL)) {
     // We can't work like this.  Bail.
     return;
@@ -240,7 +239,6 @@ ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
-  return;
   if ((stateData == NULL) || (cocondition == NULL)) {
     // We can't work like this.  Bail.
     return;
@@ -1473,11 +1471,11 @@ void runScheduler(SchedulerState *schedulerState) {
       processDescriptor->name = "GPIO shell";
     }
 
-    /* if (processReturnValue == COROUTINE_WAIT) {
+    if (processReturnValue == COROUTINE_WAIT) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
       processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-    } else */ if (processFinished(processDescriptor->processHandle)) {
+    } else if (processFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
       processQueuePush(&schedulerState->ready, processDescriptor);
