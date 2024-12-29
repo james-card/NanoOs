@@ -249,27 +249,35 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
   }
 
   ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = &schedulerState->waiting;
-  while (1) {
-    // See note above about using a member element in a for loop.
-    for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-      poppedDescriptor = processQueuePop(processQueue);
-      if (poppedDescriptor->processHandle == cocondition->head) {
-        // We found the process that will get the lock next.  Push it onto the
-        // ready queue and exit.
-        processQueuePush(&schedulerState->ready, poppedDescriptor);
-        return;
+  ProcessQueue *processQueue = NULL;
+
+  ProcessHandle cur = cocondition->head;
+  for (int ii = 0; (ii < cocondition->numSignals) && (cur != NULL); ii++) {
+    processQueue = &schedulerState->waiting;
+    while (1) {
+      // See note above about using a member element in a for loop.
+      for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
+        poppedDescriptor = processQueuePop(processQueue);
+        if (poppedDescriptor->processHandle == cur) {
+          // We found the process that will get the lock next.  Push it onto the
+          // ready queue and exit.
+          processQueuePush(&schedulerState->ready, poppedDescriptor);
+          goto endOfLoop;
+        }
+      }
+
+      if (processQueue == &schedulerState->waiting) {
+        // We searched the entire waiting queue and found nothing.  Try the
+        // timed waiting queue.
+        processQueue = &schedulerState->timedWaiting;
+      } else {
+        // We've searched all the queues and found nothing.  We're done.
+        break;
       }
     }
 
-    if (processQueue == &schedulerState->waiting) {
-      // We searched the entire waiting queue and found nothing.  Try the timed
-      // waiting queue.
-      processQueue = &schedulerState->timedWaiting;
-    } else {
-      // We've searched all the queues and found nothing.  We're done.
-      break;
-    }
+endOfLoop:
+    cur = cur->nextToSignal;
   }
 
   return;
