@@ -1123,6 +1123,12 @@ int schedulerKillProcessCommandHandler(
         printString("ERROR!!!  Could not mark message done in "
           "schedulerKillProcessCommandHandler.\n");
       }
+      if (processMessageRelease(schedulerProcessCompleteMessage)
+        != processSuccess
+      ) {
+        printString("ERROR!!!  "
+          "Could not release schedulerProcessCompleteMessage.\n");
+      }
     }
   } else {
     // Tell the caller that we've failed.
@@ -1130,6 +1136,12 @@ int schedulerKillProcessCommandHandler(
     if (processMessageSetDone(processMessage) != processSuccess) {
       printString("ERROR!!!  "
         "Could not mark message done in schedulerKillProcessCommandHandler.\n");
+    }
+    if (processMessageRelease(schedulerProcessCompleteMessage)
+      != processSuccess
+    ) {
+      printString("ERROR!!!  "
+        "Could not release schedulerProcessCompleteMessage.\n");
     }
   }
 
