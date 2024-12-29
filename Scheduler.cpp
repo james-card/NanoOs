@@ -312,7 +312,7 @@ ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
     process = allProcesses[pid].processHandle;
   }
 
-  //// printDebugStackDepth();
+  printDebugStackDepth();
 
   return process;
 }
@@ -1060,14 +1060,9 @@ int schedulerKillProcessCommandHandler(
       // ready queue is the second-most-likely place it could be.  The least-
       // likely place for it to be would be the timed waiting queue with a very
       // long timeout.  So, attempt to remove from the queues in that order.
-      if ((processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+      (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
       || (processQueueRemove(&schedulerState->ready, processDescriptor) == 0)
-      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
-      ) {
-        startDebugMessage("Successfully removed killed process from queue.\n");
-      } else {
-        startDebugMessage("Did *NOT* remove killed process from queue.\n");
-      }
+      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
 
       // Tell the console to release the port for us.  We will forward it
       // the message we acquired above, which it will use to send to the
@@ -1098,28 +1093,21 @@ int schedulerKillProcessCommandHandler(
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
-        int pushRv = 0;
         if ((processId != USB_SERIAL_PORT_SHELL_PID)
           && (processId != GPIO_SERIAL_PORT_SHELL_PID)
         ) {
           // The expected case.
-          pushRv = processQueuePush(&schedulerState->free, processDescriptor);
+          processQueuePush(&schedulerState->free, processDescriptor);
         } else {
           // The killed process is a shell command.  The scheduler is
           // responsible for detecting that it's not running and restarting it.
           // However, the scheduler only ever pops anything from the ready
           // queue.  So, push this back onto the ready queue instead of the free
           // queue this time.
-          pushRv = processQueuePush(&schedulerState->ready, processDescriptor);
+          processQueuePush(&schedulerState->ready, processDescriptor);
         }
-        startDebugMessage("Pushing onto free queue returned status ");
-        printDebug(nanoOsStrError(pushRv));
-        printDebug(".\n");
       } else {
         // Tell the caller that we've failed.
-        startDebugMessage("Could not terminate process ");
-        printDebug(processId);
-        printDebug(".\n");
         nanoOsMessage->data = 1;
         if (processMessageSetDone(processMessage) != processSuccess) {
           printString("ERROR!!!  Could not mark message done in "
@@ -1338,14 +1326,8 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
       return;
     }
 
-    startDebugMessage("Calling command handler ");
-    printDebug(messageType);
-    printDebug(".\n");
     int returnValue = schedulerCommandHandlers[messageType](
       schedulerState, message);
-    startDebugMessage("Returned from calling command handler ");
-    printDebug(messageType);
-    printDebug(".\n");
     if (returnValue != 0) {
       // Processing the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
@@ -1471,7 +1453,6 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      startDebugMessage("Restarting USB shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
@@ -1483,7 +1464,6 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      startDebugMessage("Restarting GPIO shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
