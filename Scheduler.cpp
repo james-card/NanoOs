@@ -168,11 +168,11 @@ int processQueueRemove(
 /// @return This function returns no value, but if the head of the Comutex's
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
-void comutexUnlockCallback(void *stateData, Comutex *comutex) {
-  if ((stateData == NULL) || (comutex == NULL)) {
+void comutexUnlockCallback(void *stateData, Comutex *coroutineObj) {
+  if ((stateData == NULL) || (coroutineObj == NULL)) {
     // We can't work like this.  Bail.
     return;
-  } else if (comutex->head == NULL) {
+  } else if (coroutineObj->head == NULL) {
     // This should be impossible.  If it happens, though, there's no point in
     // the rest of the function, so bail.
     return;
@@ -183,6 +183,38 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
     // This won't fly either.  Bail.
     return;
   }
+
+  ProcessDescriptor *poppedDescriptor = NULL;
+  ProcessQueue *processQueue = &schedulerState->waiting;
+  while (1) {
+    // NOTE:  It's bad practice to use a member element that's being updated
+    // in the loop in the stop condition of a for loop.  But, (a) we're in a
+    // very memory constrained environment and we need to avoid using any
+    // variables we don't need and (b) the value remains constant between
+    // iterations of the loop until we find what we're looking for.  However,
+    // once we find what we're looking for, we exit the loop anyway, so it's
+    // irrelevant.
+    for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
+      poppedDescriptor = processQueuePop(processQueue);
+      if (poppedDescriptor->processHandle == coroutineObj->head) {
+        // We found the process that will get the lock next.  Push it onto the
+        // ready queue and exit.
+        processQueuePush(&schedulerState->ready, poppedDescriptor);
+        return;
+      }
+    }
+
+    if (processQueue == &schedulerState->waiting) {
+      // We searched the entire waiting queue and found nothing.  Try the timed
+      // waiting queue.
+      processQueue = &schedulerState->timedWaiting;
+    } else {
+      // We've searched all the queues and found nothing.  We're done.
+      break;
+    }
+  }
+
+  return;
 }
 ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 
@@ -194,16 +226,17 @@ ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 /// @param stateData The coroutine state pointer provided when coroutineConfig
 ///   was called.
 /// @param cocondition A pointer to the Cocondition object that has been
-///   signalled.
+///   signalled.  At the time this callback is called, the number of signals has
+///   been set to the number of waiters that will be signalled.
 ///
 /// @return This function returns no value, but if the head of the Cocondition's
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
-void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
-  if ((stateData == NULL) || (cocondition == NULL)) {
+void coconditionSignalCallback(void *stateData, Cocondition *coroutineObj) {
+  if ((stateData == NULL) || (coroutineObj == NULL)) {
     // We can't work like this.  Bail.
     return;
-  } else if (cocondition->head == NULL) {
+  } else if (coroutineObj->head == NULL) {
     // This should be impossible.  If it happens, though, there's no point in
     // the rest of the function, so bail.
     return;
@@ -214,6 +247,32 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
     // This won't fly either.  Bail.
     return;
   }
+
+  ProcessDescriptor *poppedDescriptor = NULL;
+  ProcessQueue *processQueue = &schedulerState->waiting;
+  while (1) {
+    // See note above about using a member element in a for loop.
+    for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
+      poppedDescriptor = processQueuePop(processQueue);
+      if (poppedDescriptor->processHandle == coroutineObj->head) {
+        // We found the process that will get the lock next.  Push it onto the
+        // ready queue and exit.
+        processQueuePush(&schedulerState->ready, poppedDescriptor);
+        return;
+      }
+    }
+
+    if (processQueue == &schedulerState->waiting) {
+      // We searched the entire waiting queue and found nothing.  Try the timed
+      // waiting queue.
+      processQueue = &schedulerState->timedWaiting;
+    } else {
+      // We've searched all the queues and found nothing.  We're done.
+      break;
+    }
+  }
+
+  return;
 }
 CoconditionSignalCallback coconditionSignalCallbackPointer
   = coconditionSignalCallback;
