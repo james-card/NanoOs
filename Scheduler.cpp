@@ -1305,6 +1305,48 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
   return;
 }
 
+/// @fn void checkForTimeouts(SchedulerState *schedulerState)
+///
+/// @brief Check for anything that's timed out on the timedWaiting queue.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler process.
+///
+/// @return This function returns no value.
+void checkForTimeouts(SchedulerState *schedulerState) {
+  ProcessQueue *timedWaiting = &schedulerState->timedWaiting;
+  uint8_t numElements = timedWaiting->numElements;
+  int64_t now = coroutineGetNanoseconds(NULL);
+
+  for (uint8_t ii = 0; ii < numElements; ii++) {
+    ProcessDescriptor *poppedDescriptor = processQueuePop(timedWaiting);
+    Comutex *blockingComutex
+      = poppedDescriptor->processHandle->blockingComutex;
+    Cocondition *blockingCocondition
+      = poppedDescriptor->processHandle->blockingCocondition;
+
+    if (blockingComutex != NULL) {
+      if ((blockingComutex->timeoutTime != 0)
+        && (now >= blockingComutex->timeoutTime)
+      ) {
+        processQueuePush(&schedulerState->ready, poppedDescriptor);
+        continue;
+      }
+    } else if (blockingCocondition != NULL) {
+      if ((blockingCocondition->timeoutTime != 0)
+        && (now >= blockingCocondition->timeoutTime)
+      ) {
+        processQueuePush(&schedulerState->ready, poppedDescriptor);
+        continue;
+      }
+    }
+
+    processQueuePush(timedWaiting, poppedDescriptor);
+  }
+
+  return;
+}
+
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
 /// @brief Run the main scheduler loop.
@@ -1347,21 +1389,21 @@ void runScheduler(SchedulerState *schedulerState) {
         continue;
       }
 
-      ProcessMessage *memoryManagerFreeProcessMemoryMessage = getAvailableMessage();
-      if (memoryManagerFreeProcessMemoryMessage != NULL) {
+      ProcessMessage *freeProcessMemoryMessage = getAvailableMessage();
+      if (freeProcessMemoryMessage != NULL) {
         NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(
-          memoryManagerFreeProcessMemoryMessage);
+          freeProcessMemoryMessage);
         nanoOsMessage->data = processDescriptor->processId;
-        processMessageInit(memoryManagerFreeProcessMemoryMessage,
+        processMessageInit(freeProcessMemoryMessage,
           MEMORY_MANAGER_FREE_PROCESS_MEMORY,
           nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
         sendProcessMessageToProcess(
           schedulerState->allProcesses[
             NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-          memoryManagerFreeProcessMemoryMessage);
+          freeProcessMemoryMessage);
       } else {
         printString("WARNING:  Could not allocate "
-          "memoryManagerFreeProcessMemoryMessage.  Memory leak.\n");
+          "freeProcessMemoryMessage.  Memory leak.\n");
       }
 
       continue;
@@ -1402,6 +1444,7 @@ void runScheduler(SchedulerState *schedulerState) {
       processQueuePush(&schedulerState->ready, processDescriptor);
     }
 
+    checkForTimeouts(schedulerState);
     handleSchedulerMessage(schedulerState);
   }
 }
