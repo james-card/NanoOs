@@ -963,11 +963,8 @@ int schedulerRunProcessCommandHandler(
       printString("WARNING:  Could not assign console port to process.\n");
     }
 
-    if (commandEntry->shellCommand == false) {
-      // Put the process on the ready queue.
-      processQueuePush(&schedulerState->ready, processDescriptor);
-    }
-    // else we replaced the running process and it's already on the ready queue.
+    // Put the process on the ready queue.
+    processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
     if (commandEntry->shellCommand == true) {
       // Don't call stringDestroy with consoleInput because we're going to try
@@ -1440,11 +1437,11 @@ void runScheduler(SchedulerState *schedulerState) {
       processDescriptor->name = "GPIO shell";
     }
 
-    /* if (processReturnValue == COROUTINE_WAIT) {
+    if (processReturnValue == COROUTINE_WAIT) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
     } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
       processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-    } else */ if (processFinished(processDescriptor->processHandle)) {
+    } else if (processFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
       processQueuePush(&schedulerState->ready, processDescriptor);
