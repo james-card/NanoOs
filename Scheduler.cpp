@@ -1230,7 +1230,6 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      printString("Restarting USB shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
@@ -1242,7 +1241,6 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      printString("Restarting GPIO shell.\n");
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
