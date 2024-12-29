@@ -168,11 +168,11 @@ int processQueueRemove(
 /// @return This function returns no value, but if the head of the Comutex's
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
-void comutexUnlockCallback(void *stateData, Comutex *coroutineObj) {
-  if ((stateData == NULL) || (coroutineObj == NULL)) {
+void comutexUnlockCallback(void *stateData, Comutex *comutex) {
+  if ((stateData == NULL) || (comutex == NULL)) {
     // We can't work like this.  Bail.
     return;
-  } else if (coroutineObj->head == NULL) {
+  } else if (comutex->head == NULL) {
     // This should be impossible.  If it happens, though, there's no point in
     // the rest of the function, so bail.
     return;
@@ -196,7 +196,7 @@ void comutexUnlockCallback(void *stateData, Comutex *coroutineObj) {
     // irrelevant.
     for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
       poppedDescriptor = processQueuePop(processQueue);
-      if (poppedDescriptor->processHandle == coroutineObj->head) {
+      if (poppedDescriptor->processHandle == comutex->head) {
         // We found the process that will get the lock next.  Push it onto the
         // ready queue and exit.
         processQueuePush(&schedulerState->ready, poppedDescriptor);
