@@ -176,7 +176,7 @@ ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
 /// @fn void* dummyProcess(void *args)
 ///
 /// @brief Dummy process that's loaded at startup to prepopulate the process
-/// array with coroutines.
+/// array with processes.
 ///
 /// @param args Any arguments passed to this function.  Ignored.
 ///
@@ -219,8 +219,8 @@ int schedulerSendProcessMessageToProcess(
   // scheduler will fail.
   processMessage->from = schedulerProcess;
 
-  void *coroutineReturnValue = coroutineResume(processHandle, processMessage);
-  if (coroutineReturnValue == COROUTINE_CORRUPT) {
+  void *processReturnValue = coroutineResume(processHandle, processMessage);
+  if (processReturnValue == COROUTINE_CORRUPT) {
     printString("ERROR:  Called process is corrupted!!!\n");
     returnValue = processError;
     return returnValue;
@@ -767,7 +767,7 @@ int schedulerRunProcessCommandHandler(
     }
 
     // Kill and clear out the calling process.
-    coroutineTerminate(caller, NULL);
+    processTerminate(caller);
 
     // We don't want to wait for the memory manager to release the memory.  Make
     // it do it immediately.  We need to do this before we kill the process.
@@ -909,7 +909,7 @@ int schedulerKillProcessCommandHandler(
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         processMessage);
 
-      if (coroutineTerminate(allProcesses[processId].processHandle, NULL)
+      if (processTerminate(allProcesses[processId].processHandle)
         == processSuccess
       ) {
         allProcesses[processId].name = NULL;
@@ -976,7 +976,8 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 ) {
   int returnValue = 0;
 
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
@@ -1171,14 +1172,14 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
 ///
 /// @return This function returns no value and, in fact, never returns at all.
 void runScheduler(SchedulerState *schedulerState) {
-  void *coroutineReturnValue = NULL;
+  void *processReturnValue = NULL;
   ProcessDescriptor *processDescriptor = NULL;
 
   while (1) {
     processDescriptor = processQueuePop(&schedulerState->ready);
-    coroutineReturnValue
+    processReturnValue
       = coroutineResume(processDescriptor->processHandle, NULL);
-    if (coroutineReturnValue == COROUTINE_CORRUPT) {
+    if (processReturnValue == COROUTINE_CORRUPT) {
       printString("ERROR!!!  Process corruption detected!!!\n");
       printString("          Removing process.");
       printInt(processDescriptor->processId);
@@ -1251,11 +1252,11 @@ void runScheduler(SchedulerState *schedulerState) {
       processDescriptor->name = "GPIO shell";
     }
 
-    /* if (coroutineReturnValue == COROUTINE_WAIT) {
+    /* if (processReturnValue == COROUTINE_WAIT) {
       processQueuePush(&schedulerState->waiting, processDescriptor);
-    } else if (coroutineReturnValue == COROUTINE_TIMEDWAIT) {
+    } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
       processQueuePush(&schedulerState->timedWaiting, processDescriptor)
-    } else */ if (coroutineFinished(processDescriptor->processHandle)) {
+    } else */ if (processFinished(processDescriptor->processHandle)) {
       processQueuePush(&schedulerState->free, processDescriptor);
     } else { // Process is still running.
       processQueuePush(&schedulerState->ready, processDescriptor);

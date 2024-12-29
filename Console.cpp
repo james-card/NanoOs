@@ -1299,7 +1299,7 @@ int consoleScanf(const char *format, ...) {
 /// @return This function returns no value.
 void releaseConsole(void) {
   // releaseConsole is sometimes called from within handleCommand, which runs
-  // from within the console coroutine.  That means we can't do blocking prints
+  // from within the console process.  That means we can't do blocking prints
   // from this function.  i.e. We can't use printf here.  Use printConsole
   // instead.
   sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_PORT,
