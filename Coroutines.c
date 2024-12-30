@@ -827,7 +827,7 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
 /// coroutine or pulls one off the idle list and initializes it.
 /// After the coroutine is initialized with the provided function,
 /// coroutineResume is called with the provided argument to pass the arugment
-/// into the 
+/// into the coroutine.
 ///
 /// @note This is mostly for compatibility with thrd_create in the C threads
 /// specification.
