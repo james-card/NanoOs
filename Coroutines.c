@@ -664,7 +664,7 @@ void* coroutineYield(void *arg) {
   return returnValue;
 }
 
-/// @fn Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func)
+/// @fn Coroutine* coroutineInit(Coroutine *userCoroutine, CoroutineFunction func, void *arg)
 ///
 /// @brief The coroutine initialization function.
 ///
