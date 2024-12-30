@@ -417,7 +417,8 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
   if (status != thrd_success) {
     fprintf(stderr,
       "Could not set _tssComutexUnlockCallback to %p in "
-      "coroutineInitializeThreadMetadata.\n", &_globalComutexUnlockCallback);
+      "coroutineInitializeThreadMetadata.\n",
+      (void*) &_globalComutexUnlockCallback);
     return false;
   }
   status = tss_set(
@@ -428,7 +429,7 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
     fprintf(stderr,
       "Could not set _tssCoconditionSignalCallback to %p in "
       "coroutineInitializeThreadMetadata.\n",
-      &_globalCoconditionSignalCallback);
+      (void*) &_globalCoconditionSignalCallback);
     return false;
   }
 
