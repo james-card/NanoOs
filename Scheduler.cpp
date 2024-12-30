@@ -68,43 +68,6 @@ NanoOsMessage *nanoOsMessages = NULL;
 /// in order to do lookups from process IDs to process object pointers.
 static ProcessDescriptor *allProcesses = NULL;
 
-static bool preemptiveTimerRunning = false;
-
-const uint16_t NUM_PREEMPTIVE_CLOCK_TICKS = 640; // about 20 milliseconds
-
-void startPreemptiveTimer(void) {
-  preemptiveTimerRunning = true;
-  TCB0.INTCTRL = TCB_CAPT_bm;             // Enable capture interrupt
-  TCB0.CNT = 0;                           // Reset counter
-  TCB0.CCMP = NUM_PREEMPTIVE_CLOCK_TICKS; // Set desired period
-  TCB0.INTFLAGS = TCB_CAPT_bm;            // Clear any pending interrupt
-  // Enable timer with desired clock source
-  TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
-
-  return;
-}
-
-void cancelPreemptiveTimer(void) {
-  TCB0.CTRLA &= ~TCB_ENABLE_bm; // Disable timer
-  TCB0.INTFLAGS = TCB_CAPT_bm;  // Clear interrupt flag
-  preemptiveTimerRunning = false;
-
-  return;
-}
-
-ISR(TCB0_INT_vect) {
-  //// printString("Interrupt called from process ");
-  //// printInt(processId(getRunningProcess()));
-  //// printString(".\n");
-  cancelPreemptiveTimer();
-
-  if (getRunningProcess() != schedulerProcess) {
-    processYield();
-  }
-
-  return;
-}
-
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
 ///
@@ -206,26 +169,23 @@ int processQueueRemove(
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
-  bool reenablePreemptiveTimer = preemptiveTimerRunning;
-  cancelPreemptiveTimer();
-  
   SchedulerState *schedulerState = NULL;
   ProcessDescriptor *poppedDescriptor = NULL;
   ProcessQueue *processQueue = NULL;
   
   if ((stateData == NULL) || (comutex == NULL)) {
     // We can't work like this.  Bail.
-    goto exit;
+    return;
   } else if (comutex->head == NULL) {
     // This should be impossible.  If it happens, though, there's no point in
     // the rest of the function, so bail.
-    goto exit;
+    return;
   }
 
   schedulerState = *((SchedulerState**) stateData);
   if (schedulerState == NULL) {
     // This won't fly either.  Bail.
-    goto exit;
+    return;
   }
 
   processQueue = &schedulerState->waiting;
@@ -243,7 +203,7 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
         // We found the process that will get the lock next.  Push it onto the
         // ready queue and exit.
         processQueuePush(&schedulerState->ready, poppedDescriptor);
-        goto exit;
+        return;
       }
       processQueuePush(processQueue, poppedDescriptor);
     }
@@ -258,10 +218,6 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
     }
   }
 
-exit:
-  if (reenablePreemptiveTimer == true) {
-    startPreemptiveTimer();
-  }
   return;
 }
 
@@ -286,9 +242,6 @@ ComutexUnlockCallback comutexUnlockCallbackPointer = comutexUnlockCallback;
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
-  bool reenablePreemptiveTimer = preemptiveTimerRunning;
-  cancelPreemptiveTimer();
-  
   SchedulerState *schedulerState = NULL;
   ProcessDescriptor *poppedDescriptor = NULL;
   ProcessQueue *processQueue = NULL;
@@ -296,17 +249,17 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
 
   if ((stateData == NULL) || (cocondition == NULL)) {
     // We can't work like this.  Bail.
-    goto exit;
+    return;
   } else if (cocondition->head == NULL) {
     // This should be impossible.  If it happens, though, there's no point in
     // the rest of the function, so bail.
-    goto exit;
+    return;
   }
 
   schedulerState = *((SchedulerState**) stateData);
   if (schedulerState == NULL) {
     // This won't fly either.  Bail.
-    goto exit;
+    return;
   }
 
   cur = cocondition->head;
@@ -339,10 +292,6 @@ endOfLoop:
     cur = cur->nextToSignal;
   }
 
-exit:
-  if (reenablePreemptiveTimer == true) {
-    startPreemptiveTimer();
-  }
   return;
 }
 
@@ -366,7 +315,7 @@ ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
     process = allProcesses[pid].processHandle;
   }
 
-  printDebugStackDepth();
+  //// printDebugStackDepth();
 
   return process;
 }
@@ -1466,12 +1415,8 @@ void runScheduler(SchedulerState *schedulerState) {
 
   while (1) {
     processDescriptor = processQueuePop(&schedulerState->ready);
-    if (processDescriptor->processId >= NANO_OS_FIRST_PROCESS_ID) {
-      startPreemptiveTimer();
-    }
     processReturnValue
       = coroutineResume(processDescriptor->processHandle, NULL);
-    cancelPreemptiveTimer();
 
     if (processReturnValue == COROUTINE_CORRUPT) {
       printString("ERROR!!!  Process corruption detected!!!\n");
@@ -1531,6 +1476,7 @@ void runScheduler(SchedulerState *schedulerState) {
           "ERROR!!!  Could not configure process for USB shell.\n");
       }
       processDescriptor->name = "USB shell";
+      coroutineResume(processDescriptor->processHandle, NULL);
     } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
@@ -1542,6 +1488,7 @@ void runScheduler(SchedulerState *schedulerState) {
           "ERROR!!!  Could not configure process for GPIO shell.\n");
       }
       processDescriptor->name = "GPIO shell";
+      coroutineResume(processDescriptor->processHandle, NULL);
     }
 
     if (processReturnValue == COROUTINE_WAIT) {
