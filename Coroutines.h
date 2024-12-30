@@ -127,22 +127,22 @@ extern "C"
 
 /// @def COROUTINE_ID_TYPE_int64_t_int64_t
 ///
-/// @brief Define that gets matched when CoroutineId is an int64_t.
+/// @brief Define that gets matched when CoroutineId is an uint64_t.
 #define COROUTINE_ID_TYPE_uint64_t_uint64_t 1
 
 /// @def COROUTINE_ID_TYPE_int32_t_int32_t
 ///
-/// @brief Define that gets matched when CoroutineId is an int32_t.
+/// @brief Define that gets matched when CoroutineId is an uint32_t.
 #define COROUTINE_ID_TYPE_uint32_t_uint32_t 1
 
 /// @def COROUTINE_ID_TYPE_int16_t_int16_t
 ///
-/// @brief Define that gets matched when CoroutineId is an int16_t.
+/// @brief Define that gets matched when CoroutineId is an uint16_t.
 #define COROUTINE_ID_TYPE_uint16_t_uint16_t 1
 
 /// @def COROUTINE_ID_TYPE_int8_t_int8_t
 ///
-/// @brief Define that gets matched when CoroutineId is an int8_t.
+/// @brief Define that gets matched when CoroutineId is an uint8_t.
 #define COROUTINE_ID_TYPE_uint8_t_uint8_t   1
 
 /// @def EXPAND_COROUTINE_ID_TYPE
