@@ -924,6 +924,8 @@ int schedulerRunProcessCommandHandler(
 
     // Kill and clear out the calling process.
     processTerminate(caller);
+    processSetId(
+      processDescriptor->processHandle, processDescriptor->processId);
 
     // We don't want to wait for the memory manager to release the memory.  Make
     // it do it immediately.
@@ -1080,6 +1082,8 @@ int schedulerKillProcessCommandHandler(
       if (processTerminate(processDescriptor->processHandle)
         == processSuccess
       ) {
+        processSetId(
+          processDescriptor->processHandle, processDescriptor->processId);
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
