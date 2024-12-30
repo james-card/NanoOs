@@ -45,6 +45,13 @@ void setup() {
 
   digitalWrite(LED_BUILTIN, HIGH);
 
+  // Configure TCB0 for single shot operation
+  // Access timer registers directly - no special include needed
+  TCB0.CTRLB = TCB_CNTMODE_SINGLE_gc; // Single shot mode
+  //// TCB0.CCMP = 32768;                  // Set time period (32.768kHz clock)
+  //// TCB0.INTCTRL = TCB_CAPT_bm;         // Enable capture interrupt
+  // Note: Don't enable timer yet - will be enabled when needed
+
   // Initialize stdin, stdout, and stderr to something we can at least tell the
   // difference between.
   stdin  = (FILE*) ((intptr_t) 0x0);
