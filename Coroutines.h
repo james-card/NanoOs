@@ -422,8 +422,8 @@ int64_t coroutineGetNanoseconds(const struct timespec *ts);
 
 // Coroutine function prototypes.  Doxygen inline in source file.
 int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
-  ComutexUnlockCallback *comutexUnlockCallback,
-  CoconditionSignalCallback *coconditionSignalCallback
+  ComutexUnlockCallback comutexUnlockCallback,
+  CoconditionSignalCallback coconditionSignalCallback
 );
 Coroutine* coroutineInit(Coroutine *userCoroutine,
   CoroutineFunction func, void *arg);

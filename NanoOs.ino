@@ -45,13 +45,6 @@ void setup() {
 
   digitalWrite(LED_BUILTIN, HIGH);
 
-  // Configure TCB0 for single shot operation
-  // Access timer registers directly - no special include needed
-  TCB0.CTRLB = TCB_CNTMODE_SINGLE_gc; // Single shot mode
-  //// TCB0.CCMP = 32768;                  // Set time period (32.768kHz clock)
-  //// TCB0.INTCTRL = TCB_CAPT_bm;         // Enable capture interrupt
-  // Note: Don't enable timer yet - will be enabled when needed
-
   // Initialize stdin, stdout, and stderr to something we can at least tell the
   // difference between.
   stdin  = (FILE*) ((intptr_t) 0x0);
@@ -76,9 +69,9 @@ void loop() {
   // Prototypes and externs we need that are not exported from the other
   // library.
   void* dummyProcess(void *args);
+  void comutexUnlockCallback(void *stateData, Comutex *comutex);
+  void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
   extern ProcessHandle schedulerProcess;
-  extern ComutexUnlockCallback comutexUnlockCallbackPointer;
-  extern CoconditionSignalCallback coconditionSignalCallbackPointer;
 
   // SchedulerState pointer that we will have to populate in startScheduler.
   SchedulerState *coroutineStatePointer = NULL;
@@ -94,8 +87,8 @@ void loop() {
     &_mainCoroutine,
     NANO_OS_STACK_SIZE,
     &coroutineStatePointer,
-    &comutexUnlockCallbackPointer,
-    &coconditionSignalCallbackPointer);
+    comutexUnlockCallback,
+    coconditionSignalCallback);
   // Create but *DO NOT* resume one dummy process.  This will double the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
