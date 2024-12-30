@@ -206,7 +206,7 @@ int runCounterCommandHandler(int argc, char **argv) {
 
   while (1) {
     counter++;
-    //// processYield();
+    processYield();
   }
 
   return 0;
