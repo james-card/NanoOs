@@ -344,11 +344,11 @@ void coroutineSetupThreadMetadata(void) {
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssStateData.\n");
   }
-  status = tss_create(&_tssComutexUnlockCallback, NULL);
+  status = tss_create(&_tssComutexUnlockCallback, free);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssComutexUnlockCallback.\n");
   }
-  status = tss_create(&_tssCoconditionSignalCallback, NULL);
+  status = tss_create(&_tssCoconditionSignalCallback, free);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssCoconditionSignalCallback.\n");
   }
@@ -1399,12 +1399,19 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
     }
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
     tss_set(_tssStateData, stateData);
-    ComutexUnlockCallback *comutexUnlockCallbackPointer
-      = (ComutexUnlockCallback*) malloc(sizeof(ComutexUnlockCallback));
-    CoconditionSignalCallback *coconditionSignalCallbackPointer
-      = (CoconditionSignalCallback*) malloc(sizeof(CoconditionSignalCallback));
-    tss_set(_tssComutexUnlockCallback, comutexUnlockCallbackPointer);
-    tss_set(_tssCoconditionSignalCallback, coconditionSignalCallbackPointer);
+    if (comutexUnlockCallback != NULL) {
+      ComutexUnlockCallback *comutexUnlockCallbackPointer
+        = (ComutexUnlockCallback*) malloc(sizeof(ComutexUnlockCallback));
+      *comutexUnlockCallbackPointer = comutexUnlockCallback;
+      tss_set(_tssComutexUnlockCallback, comutexUnlockCallbackPointer);
+    }
+    if (coconditionSignalCallback != NULL) {
+      CoconditionSignalCallback *coconditionSignalCallbackPointer
+        = (CoconditionSignalCallback*)
+          malloc(sizeof(CoconditionSignalCallback));
+      *coconditionSignalCallbackPointer = coconditionSignalCallback;
+      tss_set(_tssCoconditionSignalCallback, coconditionSignalCallbackPointer);
+    }
   }
 #endif // THREAD_SAFE_COROUTINES
   if (first != NULL) {
