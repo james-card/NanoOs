@@ -412,7 +412,7 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
   }
   status = tss_set(
     _tssComutexUnlockCallback,
-    &_globalComutexUnlockCallback
+    NULL
   );
   if (status != thrd_success) {
     fprintf(stderr,
@@ -423,7 +423,7 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
   }
   status = tss_set(
     _tssCoconditionSignalCallback,
-    &_globalCoconditionSignalCallback
+    NULL
   );
   if (status != thrd_success) {
     fprintf(stderr,
