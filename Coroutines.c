@@ -1580,7 +1580,7 @@ int comutexUnlock(Comutex *mtx) {
         // coroutineInitializeThreadMetadata this time since we did that above.
         stateData = tss_get(_tssStateData);
         ComutexUnlockCallback *possibleCallback
-          = tss_get(_tssComutexUnlockCallback);
+          = (ComutexUnlockCallback*) tss_get(_tssComutexUnlockCallback);
         if (possibleCallback != NULL) {
           comutexUnlockCallback = *possibleCallback;
         }
@@ -1797,7 +1797,7 @@ int coconditionBroadcast(Cocondition *cond) {
       if (coroutineInitializeThreadMetadata(NULL)) {
         stateData = tss_get(_tssStateData);
         CoconditionSignalCallback *possibleCallback
-          = tss_get(_tssCoconditionSignalCallback);
+          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
         if (possibleCallback != NULL) {
           coconditionSignalCallback = *possibleCallback;
         }
@@ -1880,7 +1880,7 @@ int coconditionSignal(Cocondition *cond) {
       if (coroutineInitializeThreadMetadata(NULL)) {
         stateData = tss_get(_tssStateData);
         CoconditionSignalCallback *possibleCallback
-          = tss_get(_tssCoconditionSignalCallback);
+          = (CoconditionSignalCallback*) tss_get(_tssCoconditionSignalCallback);
         if (possibleCallback != NULL) {
           coconditionSignalCallback = *possibleCallback;
         }
