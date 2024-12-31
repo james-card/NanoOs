@@ -16,21 +16,21 @@ The Coroutines library works by segmenting the main stack.  Coroutines are alloc
 
 ## Architecture
 
-NanoOs is a nanokernel architecture.  Specifically, what this means is that there is no distinction between user space and kernel space.  Everything is kernel space.  There's no way to have any kind of memory protection in this kind of environment.
+NanoOs is a nanokernel architecture and there is no distinction between user space and kernel space.  Everything is kernel space.  There's no way to have any kind of memory protection in this kind of environment.
 
-Kernel processes in NanoOs use cooperative multitasking.  That means that each process runs until it either needs something from another process or it's done with its current work.  There is no plan to change this.  User processes currently also use cooperative multitasking, but the plan is to change that to preemptive multitasking in the future so that the user processes don't have to deal with manually releasing the processor.
+Processes in NanoOs use cooperative multitasking.  That means that each process runs until it either needs something from another process or it's done with its current work.  Preemptive multitasking is not feasible with the current libraries and hardware.
 
 ## Processes
 
 One implication of the nanokernel arhitecture is that there basically is no kernel.  The system is really a collection of processes that communicate with each other in order to accomplish their work.  Each process has a specific task it is responsible for.  When a process needs something from another process, it sends a message to the designated process.  If it needs a response, it blocks waiting for a reply before continuing.
 
-As mentioned, the current implementation supports up to 8 concurrent processes, however other configurations (with smaller stacks) are possible.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more than 15 processes is possible, but would require modification of some constants and data structures within the operating system.
+As mentioned, the current implementation supports up to 8 concurrent processes.  The metadata in the dynamic memory manager limits the number of concurrent processes to 15.  Support for more than 15 processes would require modification of some constants and data structures within the operating system.
 
 ### Kernel Processes
 
 Currently, the following processes are always present and running:
 
-1. The Scheduler - A round-robin scheduler
+1. The Scheduler - A multi-queue, round-robin scheduler
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
 
@@ -38,7 +38,7 @@ These processes work together to provide the basic kernel-level functionality.  
 
 ### The Shell and Shell Processes
 
-NanoOs has a very simple command line shell.  The shell is not considered one of the special kernel processes.
+NanoOs has a very simple command line shell.  The shells are not considered one of the special kernel processes.
 
 One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  This is of special concern for processes that need to do process maintenance such as listing running processes or killing a process.  If the shell always launches a command in a new process slot, all slots can be consumed with user processes and process maintenance will become impossible.
 
