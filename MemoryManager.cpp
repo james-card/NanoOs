@@ -473,7 +473,8 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
 void initializeGlobals(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, char *stack
 ) {
-  extern int __heap_start, *__brkval;
+  extern int __heap_start;
+  extern char *__brkval;
   char mallocBufferStart = '\0';
   
   memoryManagerState->mallocBuffer = &mallocBufferStart;
