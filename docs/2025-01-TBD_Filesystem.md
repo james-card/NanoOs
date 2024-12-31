@@ -1,0 +1,21 @@
+# TBD-Jan-2025 - Filesystem
+
+As I mentioned, my next priority was being able to access files on a MicroSD card.  I had already found a tutorial for how to get that to work and purchased the recommended card reader.  However, I really needed to solder in the pin connectors to my board so that I could properly use my breadboard to connect to the reader.  My soldering pencil was still on its way, so I started working on the software part of this.
+
+The tutorial I was working from used the Arduino's built-in SD library.  OK.  Step 1:  Include the requisite SD.h header and see what happens.  Ho...  ly...  cow...  That one include alone increased the flash consumed by 5,930 bytes and the RAM consumed by 683 bytes.  It consumed so much RAM that there wasn't enough dynamic memory left for login authentication anymore.  The system was completely unusable!  Aaaaahhhhhh!!!!!!!!
+
+OK...  Breathe.  I quickly revised the login algorithm (again) to split memory between stack and dynamic memory instead of trying to be all one way or all the other way.  That allowed me to login again.  Conserving some dynamic memory is a good change in general, so that's goodness.  Still, though, the sytem was now running with only 636 bytes of total dynamic memory.  Of that, only 396 was actually usable because each shell uses some in order to login and parse a command line.  And, if all that wasn't bad enough, because of the way the dynamic memory is allocated and freed, I could only successfully login once.  The second time around, there wasn't enough memory available.  So, I made a second change to how memory was managed during login to allow for more than one login.
+
+RAM usage, however, was only part of the problem and, arguably, perhaps the smaller one.  The increase in flash usage meant that my sketch was now consuming 49,141 of 49,152 maximum bytes.  So, there was no way to add *ANYTHING* with things the way they were.  I did have plans to remove some of the unnecessary example commands as part of my next round of work, but with that much storage taken up, I wasn't sure that would make any difference.  Something had to give here.
+
+So, time for a web search.  Now, I have had extremely bad luck with most AI chatbots for the kind of work I do.  They seem to be pretty good at writing English papers, but pretty poor at embedded programming.  A friend of mine, however, suggested that I try [Claude](claude.ai).  I had given it a few practice problems and found that it performed better than the others, so I decided to see if it could help me with this issue.  I started by asking it why including SD.h had had such a dramatic impact on memory usage.  Its answer was that using the library linked in a global object that had, among other things, a 512-byte buffer to manage the contents of blocks.  No way around it and not left up to the user to decide how to manage it.  Fantastic...
+
+Claude went on, however, to suggest that I could look at the SdFat library as a possible replacement for the regular SD library.  It said it could be installed from the IDE's library manager.  Well, what did I have to lose?  I installed the library and included the SdFat.h header to see how things looked.  The answer?  Relative to baseline, it caused an increased usage of 14 bytes of RAM and 2,250 bytes of flash.  Still more than I would like, but definitely *MUCH* better and more workable.
+
+The downside was that this was not the end of the answer, though.  Unlike the SD library which declared an instance of its state on behalf of the programmer, the SdFat library required an object to be explicitly declared.  And, the size of the object?  636 bytes.  Some - but not much - improvement over the 683 bytes of state in the SD library.
+
+There was, however, one saving grace about this, though.  The fact that it was a variable that I had to declare myself meant that I could declare it as part of a process instead of the global address space.  I had already intended to sacrifice one process slot to construct a filesystem process.  636 bytes is too large for a single process's stack, but I could use my back-to-back process trick again and git the filesystem process two slots.  So, I would still lose some memory, but a lot less than if the whole state object had to be declared outside of a running process.
+
+To be continued...
+
+[Table of Contents](.)
