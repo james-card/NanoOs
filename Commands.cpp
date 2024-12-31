@@ -231,6 +231,9 @@ int showInfoCommandHandler(int argc, char **argv) {
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
   printf("- sizeof(ProcessMessage): %u\n", sizeof(ProcessMessage));
+  printf("- sizeof(SdFat): %u\n", sizeof(SdFat));
+  printf("- sizeof(FatFile): %u\n", sizeof(FatFile));
+  printf("\n");
 
   char *myString = (char*) malloc(16);
   strcpy(myString, "Hello, world!!!");
@@ -251,6 +254,8 @@ int showInfoCommandHandler(int argc, char **argv) {
   printf("- Sescond strlen(myString): %u\n", strlen(myString));
   printf("- Dynamic memory left: %d\n", getFreeMemory());
   myString = stringDestroy(myString);
+  printf("\n");
+
   fprintf(stderr, "- stdin: %p\n", stdin);
   fprintf(stderr, "- stdout: %p\n", stdout);
   fprintf(stderr, "- stderr: %p\n", stderr);
