@@ -39,6 +39,7 @@
 // Arduino includes
 #include <Arduino.h>
 #include <HardwareSerial.h>
+#include <SdFat.h>
 
 // Standard C includes
 #include <limits.h>
