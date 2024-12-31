@@ -181,12 +181,12 @@ UserId getUserIdByUsername(const char *username) {
 /// @def USERNAME_BUFFER_SIZE
 ///
 /// @brief Size to use for the username buffer in the login function.
-#define USERNAME_BUFFER_SIZE 50
+#define USERNAME_BUFFER_SIZE 16
 
 /// @def PASSWORD_BUFFER_SIZE
 ///
 /// @brief Size to use for the password buffer in the login function.
-#define PASSWORD_BUFFER_SIZE 50
+#define PASSWORD_BUFFER_SIZE 16
 
 /// @fn void login(void)
 ///
@@ -197,8 +197,8 @@ UserId getUserIdByUsername(const char *username) {
 void login(void) {
   UserId userId = NO_USER_ID;
 
-  char *username = (char*) malloc(USERNAME_BUFFER_SIZE);
-  char *password = (char*) malloc(PASSWORD_BUFFER_SIZE);
+  char username[USERNAME_BUFFER_SIZE];
+  char password[PASSWORD_BUFFER_SIZE];
   char *newlineAt = NULL;
 
   while (userId == NO_USER_ID) {
@@ -243,9 +243,6 @@ void login(void) {
       fputs("Login incorrect\n", stderr);
     }
   }
-
-  username = stringDestroy(username);
-  password = stringDestroy(password);
 
   if (schedulerSetProcessUser(userId) != 0) {
     fputs("WARNING:  "
