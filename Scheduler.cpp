@@ -1035,7 +1035,7 @@ int schedulerKillProcessCommandHandler(
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
 
-  if ((processId >= NANO_OS_FIRST_PROCESS_ID)
+  if ((processId >= NANO_OS_FIRST_USER_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
     && (processRunning(allProcesses[processId].processHandle))
   ) {
@@ -1579,7 +1579,7 @@ __attribute__((noinline)) void startScheduler(
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
-  for (ProcessId ii = NANO_OS_FIRST_PROCESS_ID;
+  for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
@@ -1598,15 +1598,15 @@ __attribute__((noinline)) void startScheduler(
   }
   printString("Console stack size = ");
   printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].processHandle),
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
     ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
   printString("Coroutine stack size = ");
   printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_PROCESS_ID + 1].processHandle))
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
+    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
@@ -1663,7 +1663,7 @@ __attribute__((noinline)) void startScheduler(
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
-  for (ProcessId ii = NANO_OS_FIRST_PROCESS_ID;
+  for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
