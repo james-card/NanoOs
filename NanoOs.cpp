@@ -94,38 +94,28 @@ unsigned int raiseUInt(unsigned int x, unsigned int y) {
 /// @return Returns the a pointer to computed hexadecimal digest on success,
 /// NULL on failure.
 char* getHexDigest(const char *inputString) {
-  uint8_t *digest = NULL;
+  uint8_t digest[20];
   char *hexDigest = NULL;
   uint32_t *working = NULL;
-  uint8_t *dataTail = NULL;
+  uint8_t dataTail[128];
 
   if (inputString == NULL) {
     fputs("ERROR:  No inputString supplied to getHexDigest.\n", stderr);
     goto exit;
   }
 
-  digest = (uint8_t*) malloc(20);
-  if (digest == NULL) {
-    fputs("ERROR:  Could not allocate digest.\n", stderr);
-    goto exit;
-  }
-
   working = (uint32_t*) calloc(1, 80 * sizeof(uint32_t));
   if (working == NULL) {
     fputs("ERROR:  Could not allocate working.\n", stderr);
-    goto freeDigest;
+    goto exit;
   }
 
-  dataTail = (uint8_t*) calloc(1, 128);
-  if (dataTail == NULL) {
-    fputs("ERROR:  Could not allocate dataTail.\n", stderr);
-    goto freeWorking;
-  }
+  memset(dataTail, 0, sizeof(dataTail));
 
   hexDigest = (char*) malloc(41);
   if (hexDigest == NULL) {
     fputs("ERROR:  Could not allocate hexDigest.\n", stderr);
-    goto freeDataTail;
+    goto freeWorking;
   }
 
   if (sha1Digest(digest, hexDigest, (uint8_t*) inputString, strlen(inputString),
@@ -135,19 +125,13 @@ char* getHexDigest(const char *inputString) {
     goto freeHexDigest;
   }
 
-  goto freeDataTail;
+  goto freeWorking;
 
 freeHexDigest:
   hexDigest = stringDestroy(hexDigest);
 
-freeDataTail:
-  free(dataTail); dataTail = NULL;
-
 freeWorking:
   free(working); working = NULL;
-
-freeDigest:
-  free(digest); digest = NULL;
 
 exit:
   return hexDigest;
