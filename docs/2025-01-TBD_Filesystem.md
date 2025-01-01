@@ -1,6 +1,6 @@
 # TBD-Jan-2025 - Filesystem
 
-As I mentioned, my next priority was being able to access files on a MicroSD card.  I had already found a tutorial for how to get that to work and purchased the recommended card reader.  However, I really needed to solder in the pin connectors to my board so that I could properly use my breadboard to connect to the reader.  My soldering pencil was still on its way, so I started working on the software part of this.
+I started working on being able to access files on a MicroSD card right after my work on preemptive multitasking.  I had already found a tutorial for how to get that to work and purchased the recommended card reader.  However, I really needed to solder in the pin connectors to my board so that I could properly use my breadboard to connect to the reader.  My soldering pencil was still on its way, so I started working on the software part of this.
 
 The tutorial I was working from used the Arduino's built-in SD library.  OK.  Step 1:  Include the requisite SD.h header and see what happens.  Ho...  ly...  cow...  That one include alone increased the flash consumed by 5,930 bytes and the RAM consumed by 683 bytes.  It consumed so much RAM that there wasn't enough dynamic memory left for login authentication anymore.  The system was completely unusable!  Aaaaahhhhhh!!!!!!!!
 
@@ -22,6 +22,14 @@ Testing out the changes, though, I noticed something when I logged in and got a 
 
 I then realized the mistake I had made.  Since my recent changes reducing the stack sizes, the stacks of the shell processes were too small to accommodate *ANY* character arrays declared locally.  Using dynamic memory was a must.  So, it was a darn good thing that I found an alternative to the SD library becauase I wouldn't be able to even login if I had to use it!
 
-To be continued...
+OK, logins fixed, it was time to arrange a process.  I started a new library for the filesystem functionality to live in, created a main loop for it, and made the scheduler start it.  So far so good.  Then, I declared an instance of the SdFat SdFat variable from within the process function.  To my horror, this made the OS take up even more flash.  Finally, I made the process function call the begin function.  This pushed the code usage over the limit.  *sigh...*
+
+So, I removed my largest example command from the commands library.  That brought the flash usage down to about 92%.  Bad, but usable at least.  And I could login and confirm that everything remained functional and that the filesystem process was running.  So, at least that much works.
+
+The lack of available flash storage is a huge problem, though.  My goal here is to be able to support commands compiled to Web Assembly.  That means I need to develop a mechanism to be able to interpret Web Assembly binaries.  At the moment, I only have 3,563 bytes to do that in.  It's not likely I'll be successful with that little space available.  Long term, my goal is to be able to remove the commands library entirely.  Until then, I at least have to have the shell itself and, the ps command, and the kill command available.
+
+I'm probably looking at having to write my own library to interface with the file system on the SD card.  From the perspective of writing an OS, that's a good thing because it will force me to develop a proper driver layer.  From the standpoint of being able to make actual progress on being able to run arbitrary commands, it's a pain in the rear.
+
+So, I press on.  I'll have to see how far I can get with this infrastructure before having to stop and develop my own drivers and hardware abstraction layer.  To be continued...
 
 [Table of Contents](.)
