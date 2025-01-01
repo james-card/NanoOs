@@ -36,7 +36,17 @@
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
 #define PIN_SD_CS 4
 
-void *runFilesystem(void *args) {
+/// @fn void* runFilesystem(void *args)
+///
+/// @brief Process entry-point for the filesystem process.  Sets up and
+/// configures access to the SD card reader and then enters an infinite loop
+/// for processing commands.
+///
+/// @param args Any arguments to this function, cast to a void*.  Currently
+///   ignored by this function.
+///
+/// @return This function never returns, but would return NULL if it did.
+void* runFilesystem(void *args) {
   (void) args;
 
   FilesystemState filesystemState;
