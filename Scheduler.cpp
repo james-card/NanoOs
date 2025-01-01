@@ -1579,6 +1579,27 @@ __attribute__((noinline)) void startScheduler(
   printInt(sizeof(ConsoleState));
   printString(" bytes\n");
 
+  // Create the filesystem process.
+  processHandle = 0;
+  if (processCreate(&processHandle, runFilesystem, NULL) != processSuccess) {
+    printString("Could not start filesystem process.\n");
+  }
+  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
+    = NANO_OS_FILESYSTEM_PROCESS_ID;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+
+  processHandle = 0;
+  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
+    printString("Could not double filesystem process's stack.\n");
+  }
+
+  // Start the filesystem process by calling coroutineResume.
+  coroutineResume(
+    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle, NULL);
+
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
