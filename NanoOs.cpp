@@ -97,7 +97,7 @@ char* getHexDigest(const char *inputString) {
   uint8_t digest[20];
   char *hexDigest = NULL;
   uint32_t *working = NULL;
-  uint8_t dataTail[128];
+  uint8_t *dataTail = NULL;
 
   if (inputString == NULL) {
     fputs("ERROR:  No inputString supplied to getHexDigest.\n", stderr);
@@ -110,12 +110,16 @@ char* getHexDigest(const char *inputString) {
     goto exit;
   }
 
-  memset(dataTail, 0, sizeof(dataTail));
+  dataTail = (uint8_t*) calloc(1, 128);
+  if (dataTail == NULL) {
+    fputs("ERROR:  Could not allocate dataTail.\n", stderr);
+    goto freeWorking;
+  }
 
   hexDigest = (char*) malloc(41);
   if (hexDigest == NULL) {
     fputs("ERROR:  Could not allocate hexDigest.\n", stderr);
-    goto freeWorking;
+    goto freeDataTail;
   }
 
   if (sha1Digest(digest, hexDigest, (uint8_t*) inputString, strlen(inputString),
@@ -125,10 +129,13 @@ char* getHexDigest(const char *inputString) {
     goto freeHexDigest;
   }
 
-  goto freeWorking;
+  goto freeDataTail;
 
 freeHexDigest:
   hexDigest = stringDestroy(hexDigest);
+
+freeDataTail:
+  free(dataTail); dataTail = NULL;
 
 freeWorking:
   free(working); working = NULL;
