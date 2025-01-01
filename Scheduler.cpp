@@ -883,6 +883,10 @@ OutputPipe* schedulerGetOutputPipe(FILE *stream) {
   ) {
     returnValue =
       &allProcesses[processId(getRunningProcess())].outputPipes[pipeIndex - 1];
+  } else {
+    printString("ERROR:  Received request for unknown stream ");
+    printInt((intptr_t) stream);
+    printString(".\n");
   }
 
   return returnValue;
@@ -1491,6 +1495,14 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[0].processId
+        = NANO_OS_CONSOLE_PROCESS_ID;
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[0].messageType
+        = CONSOLE_WRITE_BUFFER;
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[1].processId
+        = NANO_OS_CONSOLE_PROCESS_ID;
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[1].messageType
+        = CONSOLE_WRITE_BUFFER;
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
@@ -1503,6 +1515,14 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[0].processId
+        = NANO_OS_CONSOLE_PROCESS_ID;
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[0].messageType
+        = CONSOLE_WRITE_BUFFER;
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[1].processId
+        = NANO_OS_CONSOLE_PROCESS_ID;
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[1].messageType
+        = CONSOLE_WRITE_BUFFER;
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
@@ -1564,6 +1584,14 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
+
+  // Initialize all the kernel process output pipes.
+  for (ProcessId ii = 0; ii < NANO_OS_FIRST_USER_PROCESS_ID; ii++) {
+    allProcesses[ii].outputPipes[0].processId = NANO_OS_CONSOLE_PROCESS_ID;
+    allProcesses[ii].outputPipes[0].messageType = CONSOLE_WRITE_BUFFER;
+    allProcesses[ii].outputPipes[1].processId = NANO_OS_CONSOLE_PROCESS_ID;
+    allProcesses[ii].outputPipes[1].messageType = CONSOLE_WRITE_BUFFER;
+  }
 
   // Create the console process.
   ProcessHandle processHandle = 0;
