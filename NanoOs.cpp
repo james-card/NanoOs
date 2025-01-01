@@ -36,6 +36,28 @@
 extern User users[];
 extern const int NUM_USERS;
 
+/// @fn ProcessId getNumPipes(const char *commandLine)
+///
+/// @brief Get the number of pipes in a commandLine.
+///
+/// @param commandLine The command line as read in from a console port.
+///
+/// @return Returns the number of pipe characters found in the command line.
+ProcessId getNumPipes(const char *commandLine) {
+  ProcessId numPipes = 0;
+  const char *pipeAt = NULL;
+
+  do {
+    pipeAt = strchr(commandLine, '|');
+    if (pipeAt != NULL) {
+      numPipes++;
+      commandLine = pipeAt + 1;
+    }
+  } while (pipeAt != NULL);
+
+  return numPipes;
+}
+
 /// @fn void timespecFromDelay(struct timespec *ts, long int delayMs)
 ///
 /// @brief Initialize the value of a struct timespec with a time in the future
