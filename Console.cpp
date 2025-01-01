@@ -1065,16 +1065,31 @@ ConsoleBuffer* consoleGetBuffer(void) {
 /// @return This function always returns 0.
 int consoleFPuts(const char *s, FILE *stream) {
   (void) stream;
-  int returnValue = 0;
+  int returnValue = -1;
+  ConsoleBuffer *consoleBuffer = consoleGetBuffer();
+  if (consoleBuffer == NULL) {
+    // Nothing we can do.
+    return returnValue;
+  }
 
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
-    CONSOLE_VALUE_STRING, (intptr_t) s, true);
-  processMessageWaitForDone(processMessage, NULL);
-  processMessageRelease(processMessage);
+  returnValue = 0;
+  strncpy(consoleBuffer->buffer, s, CONSOLE_BUFFER_SIZE);
+
+  if (stream == stdout) {
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      0, (intptr_t) consoleBuffer, false);
+  } else if (stream == stderr) {
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      0, (intptr_t) consoleBuffer, true);
+    processMessageWaitForDone(processMessage, NULL);
+    processMessageRelease(processMessage);
+  }
 
   return returnValue;
 }
+
 
 /// @fn int consolePuts(const char *s)
 ///
