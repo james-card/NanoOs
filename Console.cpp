@@ -652,7 +652,7 @@ void consoleReleaseBufferCommandHandler(
   // call, so mark the input message handled.  This is a synchronous call and
   // the caller is waiting on our response, so *DO NOT* release it.  The caller
   // is responsible for releasing it when they've received the response.
-  processMessageSetDone(inputMessage);
+  processMessageRelease(inputMessage);
   return;
 }
 
@@ -699,22 +699,25 @@ void handleConsoleMessages(ConsoleState *consoleState) {
 }
 
 /// @fn int consoleSendInputToProcess(
-///   ProcessId processId, char *consoleInput)
+///   ProcessId processId, ConsoleBuffer *consoleBuffer)
 ///
 /// @brief Send input captured from a console port to a process that's waiting
 /// for it.
 ///
 /// @param processId The ID of the process that's waiting for input to be
 ///   returned.
-/// @param consoleInput A copy of the input that was captured from the console.
+/// @param consoleBuffer A pointer to a ConsoleBuffer that contains a copy of
+///   the user's input.
 ///
 /// @return Returns processSuccess on success, processError on failure.
-int consoleSendInputToProcess(ProcessId processId, char *consoleInput) {
+int consoleSendInputToProcess(
+  ProcessId processId, ConsoleBuffer *consoleBuffer
+) {
   int returnValue = processSuccess;
 
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     processId, CONSOLE_RETURNING_INPUT,
-    /* func= */ 0, (intptr_t) consoleInput, false);
+    /* func= */ 0, (intptr_t) consoleBuffer, false);
   if (processMessage == NULL) {
     returnValue = processError;
   }
@@ -951,12 +954,13 @@ void* runConsole(void *args) {
           }
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
-          char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
-          memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
+          ConsoleBuffer *consoleBuffer
+            = getAvailableConsoleBuffer(&consoleState);
+          memcpy(consoleBuffer->buffer, consolePort->consoleBuffer->buffer,
             consolePort->consoleIndex);
-          bufferCopy[consolePort->consoleIndex] = '\0';
+          consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
-          consoleSendInputToProcess(consolePort->owner, bufferCopy);
+          consoleSendInputToProcess(consolePort->owner, consoleBuffer);
           consolePort->waitingForInput = false;
         } else {
           // Console port is owned but owning process is not waiting for input.
@@ -1026,7 +1030,8 @@ ConsoleBuffer* consoleGetBuffer(void) {
     // we don't want an infinite timeout to waitForDataMessage, we want zero
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
-    processMessage = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+    processMessage
+      = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
     if (processMessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
@@ -1246,8 +1251,17 @@ char* consoleWaitForInput(void) {
 
   ProcessMessage *response = processMessageWaitForReplyWithType(sent, true,
     CONSOLE_RETURNING_INPUT, NULL);
-  char *returnValue = nanoOsMessageDataPointer(response, char*);
+  ConsoleBuffer *consoleBuffer
+    = nanoOsMessageDataPointer(response, ConsoleBuffer*);
+  char *returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
+  strcpy(returnValue, consoleBuffer->buffer);
+
+  // Release the buffer.
   processMessageRelease(response);
+
+  sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+    /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
 
   return returnValue;
 }
