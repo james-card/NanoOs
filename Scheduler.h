@@ -39,6 +39,7 @@
 // Custom includes
 #include "NanoOs.h"
 #include "Console.h"
+#include "Filesystem.h"
 
 #ifdef __cplusplus
 extern "C"
