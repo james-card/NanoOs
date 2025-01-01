@@ -1064,7 +1064,6 @@ ConsoleBuffer* consoleGetBuffer(void) {
 ///
 /// @return This function always returns 0.
 int consoleFPuts(const char *s, FILE *stream) {
-  (void) stream;
   int returnValue = -1;
   ConsoleBuffer *consoleBuffer = consoleGetBuffer();
   if (consoleBuffer == NULL) {
