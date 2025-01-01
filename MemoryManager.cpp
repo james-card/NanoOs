@@ -687,7 +687,8 @@ void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
   reallocMessage.pid = processId(getRunningProcess());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
-  ProcessMessage *sent = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+  ProcessMessage *sent
+    = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
     MEMORY_MANAGER_REALLOC, /* func= */ 0, (NanoOsMessageData) &reallocMessage,
     true);
   
