@@ -36,6 +36,9 @@
 #ifndef NANO_OS_TYPES_H
 #define NANO_OS_TYPES_H
 
+// Arduino includes
+#include <SdFat.h>
+
 // Custom includes
 #include "Coroutines.h"
 
@@ -389,6 +392,16 @@ typedef struct NanoOsMessage {
   NanoOsMessageData  func;
   NanoOsMessageData  data;
 } NanoOsMessage;
+
+/// @struct FilesystemState
+///
+/// @brief State metadata the filesystem process uses to provide access to
+/// files.
+///
+/// @param sdFat An SdFat object as defined by the SdFat library.
+typedef struct FilesystemState {
+  SdFat sdFat;
+} FilesystemState;
 
 #ifdef __cplusplus
 } // extern "C"
