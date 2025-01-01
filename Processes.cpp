@@ -211,15 +211,13 @@ void* startCommand(void *args) {
   }
 
   bool backgroundProcess = false;
-  if (commandEntry->shellCommand == false) {
-    char *ampersandAt = strchr(argv[argc - 1], '&');
-    if (ampersandAt != NULL) {
-      ampersandAt++;
-      if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
-        backgroundProcess = true;
-        releaseConsole();
-        schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
-      }
+  char *ampersandAt = strchr(argv[argc - 1], '&');
+  if (ampersandAt != NULL) {
+    ampersandAt++;
+    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+      backgroundProcess = true;
+      releaseConsole();
+      schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
     }
   }
 

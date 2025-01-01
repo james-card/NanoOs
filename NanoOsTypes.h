@@ -236,13 +236,10 @@ typedef struct CommandDescriptor {
 /// @param name The textual name of the command.
 /// @param func A function pointer to the process that will be spawned to
 ///   execute the command.
-/// @param shellCommand Whether this is a process that should replace the shell
-///   process slot (true) or run in a separate slot (false).
 /// @param help A one-line summary of what this command does.
 typedef struct CommandEntry {
   const char      *name;
   CommandFunction  func;
-  bool             shellCommand;
   const char      *help;
 } CommandEntry;
 

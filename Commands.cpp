@@ -602,73 +602,61 @@ CommandEntry commands[] = {
   {
     .name = "convertTemp",
     .func = convertTempCommandHandler,
-    .shellCommand = false,
     .help = "Convert temperatures between scales."
   },
   {
     .name = "echo",
     .func = echoCommandHandler,
-    .shellCommand = false,
     .help = "Echo a string back to the console."
   },
   {
     .name = "echoSomething",
     .func = echoSomethingCommandHandler,
-    .shellCommand = false,
     .help = "Echo the word \"Something\" back to the console."
   },
   {
     .name = "exit",
     .func = logoutCommandHandler,
-    .shellCommand = true,
     .help = "Exit the current shell."
   },
   {
     .name = "help",
     .func = helpCommandHandler,
-    .shellCommand = false,
     .help = "Print this help message."
   },
   {
     .name = "kill",
     .func = killCommandHandler,
-    .shellCommand = true,
     .help = "Kill a running process."
   },
   {
     .name = "logout",
     .func = logoutCommandHandler,
-    .shellCommand = true,
     .help = "Logout of the system."
   },
   {
     .name = "ps",
     .func = psCommandHandler,
-    .shellCommand = true,
     .help = "List the running processes."
   },
   {
     .name = "runCounter",
     .func = runCounterCommandHandler,
-    .shellCommand = false,
     .help = "Increment a counter in a while loop."
   },
   {
     .name = "sha1Sum",
     .func = sha1SumCommandHandler,
-    .shellCommand = false,
     .help = "Compute the SHA1 sum of a value."
   },
   {
     .name = "showInfo",
     .func = showInfoCommandHandler,
-    .shellCommand = false,
     .help = "Show various pieces of information about the system."
   },
   {
     .name = "ver",
     .func = verCommandHandler,
-    .shellCommand = false,
     .help = "Show the version of the operating system."
   },
 };

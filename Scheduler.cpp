@@ -896,11 +896,20 @@ int schedulerRunProcessCommandHandler(
   int consolePort = commandDescriptor->consolePort;
   ProcessHandle caller = processMessageFrom(processMessage);
   
+  bool backgroundProcess = false;
+  char *ampersandAt = strchr(consoleInput, '&');
+  if (ampersandAt != NULL) {
+    ampersandAt++;
+    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+      backgroundProcess = true;
+    }
+  }
+
   // Find an open slot.
   ProcessDescriptor *processDescriptor = NULL;
-  if (commandEntry->shellCommand == true) {
-    // Not the normal case but the priority case, so handle it first.  We're
-    // going to kill the caller and reuse its process slot.
+  if (backgroundProcess == false) {
+    // Task is a foreground process.  We're going to kill the caller and reuse
+    // its process slot.
     processDescriptor = &schedulerState->allProcesses[processId(caller)];
     // The process should be blocked in processMessageQueueWaitForType waiting
     // on a condition with an infinite timeout.  So, it *SHOULD* be on the
@@ -940,6 +949,7 @@ int schedulerRunProcessCommandHandler(
       printString("Memory leak.\n");
     }
   } else {
+    // Task is a background process.  Get a process off the free queue.
     processDescriptor = processQueuePop(&schedulerState->free);
   }
 
@@ -976,27 +986,20 @@ int schedulerRunProcessCommandHandler(
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
-    if (commandEntry->shellCommand == true) {
-      // Don't call stringDestroy with consoleInput because we're going to try
-      // this command again in a bit.
-      returnValue = EBUSY;
-    } else {
-      // This is a user process, not a system process, so the user is just out
-      // of luck.  *DO NOT* set returnValue to a non-zero value here as that
-      // would result in an infinite loop.
-      //
-      // printf sends synchronous messages to the console, which we can't do.
-      // Use the non-blocking printString instead.
-      printString("Out of process slots to launch process.\n");
-      sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-        SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
-      consoleInput = stringDestroy(consoleInput);
-      free(commandDescriptor); commandDescriptor = NULL;
-      if (processMessageRelease(processMessage) != processSuccess) {
-        printString("ERROR!!!  "
-          "Could not release message from handleSchedulerMessage "
-          "for invalid message type.\n");
-      }
+    // *DO NOT* set returnValue to a non-zero value here as that would result
+    // in an infinite loop.
+    //
+    // printf sends synchronous messages to the console, which we can't do.
+    // Use the non-blocking printString instead.
+    printString("Out of process slots to launch process.\n");
+    sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+      SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
+    consoleInput = stringDestroy(consoleInput);
+    free(commandDescriptor); commandDescriptor = NULL;
+    if (processMessageRelease(processMessage) != processSuccess) {
+      printString("ERROR!!!  "
+        "Could not release message from handleSchedulerMessage "
+        "for invalid message type.\n");
     }
   }
   
