@@ -878,7 +878,9 @@ OutputPipe* schedulerGetOutputPipe(FILE *stream) {
   OutputPipe *returnValue = NULL;
   uintptr_t pipeIndex = (uintptr_t) stream;
 
-  if ((pipeIndex > 0) && (pipeIndex <= 2)) {
+  if ((pipeIndex > ((uintptr_t) stdin))
+    && (pipeIndex <= ((uintptr_t) stderr))
+  ) {
     returnValue =
       &allProcesses[processId(getRunningProcess())].outputPipes[pipeIndex - 1];
   }
