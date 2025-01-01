@@ -59,7 +59,7 @@ typedef enum FilesystemResponse {
 } FilesystemResponse;
 
 // Exported functionality
-void *runFilesystem(void *args);
+void* runFilesystem(void *args);
 
 #ifdef __cplusplus
 } // extern "C"
