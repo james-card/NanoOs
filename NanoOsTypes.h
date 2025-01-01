@@ -128,6 +128,18 @@ typedef unsigned long long int NanoOsMessageData;
 
 // Composite types
 
+/// @struct Pipe
+///
+/// @brief Information that can be used to direct the output of one process
+/// into the input of another one.
+///
+/// @param processId The process ID (PID) of the destination process.
+/// @param messageType The type of message to send to the process.
+typedef struct Pipe {
+  ProcessId processId;
+  uint8_t messageType;
+} Pipe;
+
 /// @struct ProcessDescriptor
 ///
 /// @brief Descriptor for a running process.
@@ -138,11 +150,14 @@ typedef unsigned long long int NanoOsMessageData;
 ///   state.
 /// @param 
 /// @param userId The numerical ID of the user that is running the process.
+/// @param outputPipes An array of Pipe objects that specifies how to direct
+/// stdout (index 0) and stderr (index 1) of the process.
 typedef struct ProcessDescriptor {
   const char    *name;
   ProcessHandle  processHandle;
   ProcessId      processId;
   UserId         userId;
+  Pipe           outputPipes[2];
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement
