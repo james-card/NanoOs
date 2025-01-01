@@ -1596,10 +1596,6 @@ __attribute__((noinline)) void startScheduler(
     printString("Could not double filesystem process's stack.\n");
   }
 
-  // Start the filesystem process by calling coroutineResume.
-  coroutineResume(
-    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle, NULL);
-
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
