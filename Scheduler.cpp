@@ -36,12 +36,12 @@
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the USB serial port shell.
-#define USB_SERIAL_PORT_SHELL_PID 3
+#define USB_SERIAL_PORT_SHELL_PID 4
 
 /// @def GPIO_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the GPIO serial port shell.
-#define GPIO_SERIAL_PORT_SHELL_PID 4
+#define GPIO_SERIAL_PORT_SHELL_PID 5
 
 /// @var schedulerProcess
 ///

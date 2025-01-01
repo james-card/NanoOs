@@ -82,14 +82,19 @@ extern "C"
 
 /// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the first user process.
+/// @brief The process ID (PID) of the process that will manage memory.
 #define NANO_OS_MEMORY_MANAGER_PROCESS_ID                 2
+
+/// @def NANO_OS_FILESYSTEM_PROCESS_ID
+///
+/// @brief The process ID (PID) of the process that will manage the filesystem.
+#define NANO_OS_FILESYSTEM_PROCESS_ID                     3
 
 /// @def NANO_OS_FIRST_USER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process, i.e. the first ID
 /// after the last system process ID.
-#define NANO_OS_FIRST_USER_PROCESS_ID                     3
+#define NANO_OS_FIRST_USER_PROCESS_ID                     4
 
 /// @def NANO_OS_VERSION
 ///
