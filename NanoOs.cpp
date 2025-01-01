@@ -94,7 +94,7 @@ unsigned int raiseUInt(unsigned int x, unsigned int y) {
 /// @return Returns the a pointer to computed hexadecimal digest on success,
 /// NULL on failure.
 char* getHexDigest(const char *inputString) {
-  uint8_t digest[20];
+  uint8_t *digest = NULL;
   char *hexDigest = NULL;
   uint32_t *working = NULL;
   uint8_t *dataTail = NULL;
@@ -104,10 +104,16 @@ char* getHexDigest(const char *inputString) {
     goto exit;
   }
 
+  digest = (uint8_t*) malloc(20);
+  if (digest == NULL) {
+    fputs("ERROR:  Could not allocate digest.\n", stderr);
+    goto exit;
+  }
+
   working = (uint32_t*) calloc(1, 80 * sizeof(uint32_t));
   if (working == NULL) {
     fputs("ERROR:  Could not allocate working.\n", stderr);
-    goto exit;
+    goto freeDigest;
   }
 
   dataTail = (uint8_t*) calloc(1, 128);
@@ -139,6 +145,9 @@ freeDataTail:
 
 freeWorking:
   free(working); working = NULL;
+
+freeDigest:
+  free(digest); digest = NULL;
 
 exit:
   return hexDigest;
@@ -204,8 +213,8 @@ UserId getUserIdByUsername(const char *username) {
 void login(void) {
   UserId userId = NO_USER_ID;
 
-  char username[USERNAME_BUFFER_SIZE];
-  char password[PASSWORD_BUFFER_SIZE];
+  char *username = (char*) malloc(USERNAME_BUFFER_SIZE);
+  char *password = (char*) malloc(PASSWORD_BUFFER_SIZE);
   char *newlineAt = NULL;
 
   while (userId == NO_USER_ID) {
@@ -250,6 +259,9 @@ void login(void) {
       fputs("Login incorrect\n", stderr);
     }
   }
+
+  username = stringDestroy(username);
+  password = stringDestroy(password);
 
   if (schedulerSetProcessUser(userId) != 0) {
     fputs("WARNING:  "
