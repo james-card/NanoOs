@@ -980,6 +980,10 @@ int schedulerRunProcessCommandHandler(
   if (processDescriptor != NULL) {
     processDescriptor->userId
       = schedulerState->allProcesses[processId(caller)].userId;
+    processDescriptor->outputPipes[0].processId = NANO_OS_CONSOLE_PROCESS_ID;
+    processDescriptor->outputPipes[0].messageType = CONSOLE_WRITE_BUFFER;
+    processDescriptor->outputPipes[1].processId = NANO_OS_CONSOLE_PROCESS_ID;
+    processDescriptor->outputPipes[1].messageType = CONSOLE_WRITE_BUFFER;
 
     if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
