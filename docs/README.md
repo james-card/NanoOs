@@ -31,3 +31,5 @@ This work started out as an experiment to see if I could implement an operating 
 [2024-12-29: Waiting Queues](2024-12-29_Waiting-Queues.md)
 
 [2024-12-30: Preemptive Multitasking](2024-12-30_Preemptive-Multitasking.md)
+
+[2025-01-01: Filesystem](2025-01-01_Filesystem.md)
