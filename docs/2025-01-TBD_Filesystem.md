@@ -16,6 +16,12 @@ The downside was that this was not the end of the answer, though.  Unlike the SD
 
 There was, however, one saving grace about this, though.  The fact that it was a variable that I had to declare myself meant that I could declare it as part of a process instead of the global address space.  I had already intended to sacrifice one process slot to construct a filesystem process.  636 bytes is too large for a single process's stack, but I could use my back-to-back process trick again and git the filesystem process two slots.  So, I would still lose some memory, but a lot less than if the whole state object had to be declared outside of a running process.
 
+Plan in hand, I set about carving out a new filesystem process.  The first step was reordering the processes to make room for a new kenel process.  Change a few defines and we're done.  I wasn't happy about the loss of a general-purpose process slot, though.  I decided to make a design change.  Rather than only shell commands replacing the shell process, *ALL* processes not explicitly specified to run in the background would replace the shell process.  This guaranteed that each console would always be able to run any foreground process.  The only contention for process slots would be for background processes.
+
+Testing out the changes, though, I noticed something when I logged in and got a list of running processes:  Only the USB shell was running.  When fiddling with the MicroSD card reader, I had disconnected the GPIO shell, so I connected it up to see what was on the console.  Nothing.  And, to make matters worse, trying to provide input resulted in error message coming from the console process.
+
+I then realized the mistake I had made.  Since my recent changes reducing the stack sizes, the stacks of the shell processes were too small to accommodate *ANY* character arrays declared locally.  Using dynamic memory was a must.  So, it was a darn good thing that I found an alternative to the SD library becauase I wouldn't be able to even login if I had to use it!
+
 To be continued...
 
 [Table of Contents](.)
