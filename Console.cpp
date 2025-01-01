@@ -30,6 +30,7 @@
 
 #include "Console.h"
 #include "Commands.h"
+#include "Scheduler.h"
 
 /// @fn int consolePrintMessage(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message)
@@ -1063,17 +1064,29 @@ ConsoleBuffer* consoleGetBuffer(void) {
 /// @return Returns 0 on success, EOF on failure.
 int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   int returnValue = 0;
+  OutputPipe *outputPipe = schedulerGetOutputPipe(stream);
+  if (outputPipe == NULL) {
+    printString("ERROR!!!  Could not get pipe for process ");
+    printInt(processId(getRunningProcess()));
+    printString(" and stream ");
+    printInt((intptr_t) stream);
+    printString(".\n");
+
+    // We can't proceed, so bail.
+    returnValue = EOF;
+    return returnValue;
+  }
 
   if (stream == stdout) {
     if (sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      outputPipe->processId, outputPipe->messageType,
       0, (intptr_t) consoleBuffer, false) == NULL
     ) {
       returnValue = EOF;
     }
   } else if (stream == stderr) {
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_BUFFER,
+      outputPipe->processId, outputPipe->messageType,
       0, (intptr_t) consoleBuffer, true);
     if (processMessage != NULL) {
       processMessageWaitForDone(processMessage, NULL);
