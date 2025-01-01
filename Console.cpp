@@ -87,6 +87,29 @@ void consoleMessageCleanup(ProcessMessage *inputMessage) {
   }
 }
 
+/// @fn ConsoleBuffer* getAvailableConsoleBuffer(ConsoleState *consoleState)
+///
+/// @brief Get an available console buffer and mark it as being in use.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  The buffers in this state will be searched for
+///
+/// @return Returns a pointer to the available ConsoleBuffer on success, NULL
+/// on failure.
+ConsoleBuffer* getAvailableConsoleBuffer(ConsoleState *consoleState) {
+  ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
+  ConsoleBuffer *returnValue = NULL;
+  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
+    if (consoleBuffers[ii].inUse == false) {
+      returnValue = &consoleBuffers[ii];
+      returnValue->inUse = true;
+      break;
+    }
+  }
+
+  return returnValue;
+}
+
 /// @fn void consoleWriteValueCommandHandler(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
@@ -94,8 +117,8 @@ void consoleMessageCleanup(ProcessMessage *inputMessage) {
 ///
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  Unused by this function.
-/// @param inputMessage A pointer to the ProcessMessage that was received from the
-///   process that sent the command.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
@@ -209,8 +232,8 @@ void consoleWriteValueCommandHandler(
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  The buffers in this state will be searched for
 ///   something available to return to the message sender.
-/// @param inputMessage A pointer to the ProcessMessage that was received from the
-///   process that sent the command.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
@@ -220,8 +243,6 @@ void consoleWriteValueCommandHandler(
 void consoleGetBufferCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
-  ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
-  ConsoleBuffer *returnValue = NULL;
   // We're going to reuse the input message as the return message.
   ProcessMessage *returnMessage = inputMessage;
   NanoOsMessage *nanoOsMessage
@@ -229,14 +250,7 @@ void consoleGetBufferCommandHandler(
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (intptr_t) NULL;
 
-  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
-    if (consoleBuffers[ii].inUse == false) {
-      returnValue = &consoleBuffers[ii];
-      returnValue->inUse = true;
-      break;
-    }
-  }
-
+  ConsoleBuffer *returnValue = getAvailableConsoleBuffer(consoleState);
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
     nanoOsMessage->data = (intptr_t) returnValue;
@@ -265,8 +279,8 @@ void consoleGetBufferCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  Unused by this function.
-/// @param inputMessage A pointer to the ProcessMessage that was received from the
-///   process that sent the command.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
 ///
 /// @return This function returns no value but does set the inputMessage to
 /// done so that the calling process knows that we've handled the message.
@@ -297,9 +311,10 @@ void consoleWriteBufferCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
-///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
-///   that will associate the port with the process if this function succeeds.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port with the process
+///   if this function succeeds.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
@@ -338,9 +353,10 @@ void consleSetPortShellCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
-///   This contains a NanoOsMessage that contains a ConsolePortPidAssociation
-///   that will associate the port with the process if this function succeeds.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port with the process
+///   if this function succeeds.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
@@ -379,7 +395,8 @@ void consoleAssignPortCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
 ///
 /// @return This function returns no value.
 void consoleReleasePortCommandHandler(
@@ -420,7 +437,8 @@ void consoleReleasePortCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
 ///
 /// @return This function returns no value.
 void consoleGetOwnedPortCommandHandler(
@@ -460,7 +478,8 @@ void consoleGetOwnedPortCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
 ///
 /// @return This function returns no value.
 void consoleSetEchoCommandHandler(
@@ -506,7 +525,8 @@ void consoleSetEchoCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
 ///
 /// @return This function returns no value.
 void consoleWaitForInputCommandHandler(
@@ -542,7 +562,8 @@ void consoleWaitForInputCommandHandler(
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
-/// @param inputMessage A pointer to the ProcessMessage with the received command.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
 ///
 /// @return This function returns no value.
 void consoleReleasePidPortCommandHandler(
@@ -566,8 +587,8 @@ void consoleReleasePidPortCommandHandler(
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = consolePorts[ii].shell;
-      // NOTE:  By calling sendProcessMessageToPid from within the for loop, we run
-      // the risk of sending the same message to multiple shells.  That's
+      // NOTE:  By calling sendProcessMessageToPid from within the for loop, we
+      // run the risk of sending the same message to multiple shells.  That's
       // irrelevant in this case since nothing is waiting for the message and
       // all the shells will release the message.  In reality, one process
       // almost never owns multiple ports.  The only exception is during boot.
@@ -596,6 +617,44 @@ void consoleReleasePidPortCommandHandler(
   return;
 }
 
+/// @fn void consoleReleaseBufferCommandHandler(
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
+///
+/// @brief Command handler for the CONSOLE_RELEASE_BUFFER command.  Releases a
+/// buffer that was previously returned by the CONSOLE_GET_BUFFER command.
+/// a pointer to the buffer structure.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  One of the buffers in this state will have its inUse
+///   member set to false.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
+///
+/// @return This function returns no value but does set the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+/// Since this is a synchronous call, it also pushes a message onto the message
+/// sender's queue with the free buffer on success.  On failure, the
+/// inputMessage is marked as done but no response is sent.
+void consoleReleaseBufferCommandHandler(
+  ConsoleState *consoleState, ProcessMessage *inputMessage
+) {
+  // We don't need to examine consoleState since the caller has provided us
+  // with the pointer we can use directly.
+  (void) consoleState;
+
+  ConsoleBuffer *consoleBuffer
+    = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
+  if (consoleBuffer != NULL) {
+    consoleBuffer->inUse = false;
+  }
+
+  // Whether we were able to grab a buffer or not, we're now done with this
+  // call, so mark the input message handled.  This is a synchronous call and
+  // the caller is waiting on our response, so *DO NOT* release it.  The caller
+  // is responsible for releasing it when they've received the response.
+  processMessageSetDone(inputMessage);
+  return;
+}
 
 /// @var consoleCommandHandlers
 ///
@@ -611,6 +670,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
   consoleSetEchoCommandHandler,        // CONSOLE_SET_ECHO_PORT
   consoleWaitForInputCommandHandler,   // CONSOLE_WAIT_FOR_INPUT
   consoleReleasePidPortCommandHandler, // CONSOLE_RELEASE_PID_PORT
+  consoleReleaseBufferCommandHandler,  // CONSOLE_RELEASE_BUFFER
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
