@@ -40,7 +40,13 @@ void *runFilesystem(void *args) {
   (void) args;
 
   FilesystemState filesystemState;
-  (void) filesystemState;
+  // Deliberately not checking return value here for now.
+  (void) filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED);
+
+  while (1) {
+    coroutineYield(NULL);
+  }
 
   return NULL;
 }
+
