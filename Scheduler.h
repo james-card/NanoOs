@@ -79,6 +79,7 @@ int schedulerRunProcess(
   CommandEntry *commandEntry, char *consoleInput, int consolePort);
 UserId schedulerGetProcessUser(void);
 int schedulerSetProcessUser(UserId userId);
+OutputPipe* schedulerGetOutputPipe(FILE *stream);
 
 #ifdef __cplusplus
 } // extern "C"

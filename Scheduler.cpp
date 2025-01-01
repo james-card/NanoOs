@@ -864,6 +864,28 @@ int schedulerSetProcessUser(UserId userId) {
   return returnValue;
 }
 
+/// @fn Pipe* schedulerGetOutputPipe(FILE *stream)
+///
+/// @brief Get the OutputPipe object for a process given a pointer to the FILE
+///   stream to write to.
+///
+/// @param stream A pointer to the desired FILE output stream (stdout or
+///   stderr).
+///
+/// @return Returns the appropriate Pipe object for the current process on
+/// success, NULL on failure.
+OutputPipe* schedulerGetOutputPipe(FILE *stream) {
+  OutputPipe *returnValue = NULL;
+  uintptr_t pipeIndex = (uintptr_t) stream;
+
+  if ((pipeIndex > 0) && (pipeIndex <= 2)) {
+    returnValue =
+      &allProcesses[processId(getRunningProcess())].outputPipes[pipeIndex - 1];
+  }
+
+  return returnValue;
+}
+
 // Scheduler command handlers
 
 /// @fn int schedulerRunProcessCommandHandler(
