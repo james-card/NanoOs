@@ -1,4 +1,4 @@
-# TBD-Jan-2025 - Filesystem
+# 1-Jan-2025 - Filesystem Part I
 
 I started working on being able to access files on a MicroSD card right after my work on preemptive multitasking.  I had already found a tutorial for how to get that to work and purchased the recommended card reader.  However, I really needed to solder in the pin connectors to my board so that I could properly use my breadboard to connect to the reader.  My soldering pencil was still on its way, so I started working on the software part of this.
 
