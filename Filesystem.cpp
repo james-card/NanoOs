@@ -31,6 +31,11 @@
 // Custom includes
 #include "Filesystem.h"
 
+/// @def PIN_SD_CS
+///
+/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
+#define PIN_SD_CS 4
+
 void *runFilesystem(void *args) {
   (void) args;
 
