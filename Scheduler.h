@@ -3,9 +3,9 @@
 /// @author            James Card
 /// @date              12.02.2024
 ///
-/// @file              Processes.h
+/// @file              Scheduler.h
 ///
-/// @brief             Process functionality for NanoOs.
+/// @brief             Scheduler functionality for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2024 James Card
