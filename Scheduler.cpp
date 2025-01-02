@@ -923,9 +923,18 @@ int schedulerRunProcessCommandHandler(
   char *consoleInput = commandDescriptor->consoleInput;
   int consolePort = commandDescriptor->consolePort;
   ProcessHandle caller = processMessageFrom(processMessage);
-  
+  ProcessId numPipes = getNumPipes(consoleInput);
   bool backgroundProcess = false;
-  char *ampersandAt = strchr(consoleInput, '&');
+  char *ampersandAt = NULL;
+  ProcessDescriptor *processDescriptor = NULL;
+
+  if (numPipes > schedulerState->free.numElements) {
+    // We've been asked to run more processes chained together than we can
+    // currently launch.  Fail.
+    goto outOfSlots;
+  }
+
+  ampersandAt = strchr(consoleInput, '&');
   if (ampersandAt != NULL) {
     ampersandAt++;
     if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
@@ -934,7 +943,6 @@ int schedulerRunProcessCommandHandler(
   }
 
   // Find an open slot.
-  ProcessDescriptor *processDescriptor = NULL;
   if (backgroundProcess == false) {
     // Task is a foreground process.  We're going to kill the caller and reuse
     // its process slot.
@@ -1018,23 +1026,28 @@ int schedulerRunProcessCommandHandler(
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
-    // *DO NOT* set returnValue to a non-zero value here as that would result
-    // in an infinite loop.
-    //
-    // printf sends synchronous messages to the console, which we can't do.
-    // Use the non-blocking printString instead.
-    printString("Out of process slots to launch process.\n");
-    sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-      SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
-    consoleInput = stringDestroy(consoleInput);
-    free(commandDescriptor); commandDescriptor = NULL;
-    if (processMessageRelease(processMessage) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleSchedulerMessage "
-        "for invalid message type.\n");
-    }
+    goto outOfSlots;
   }
   
+  return returnValue;
+
+outOfSlots:
+  // *DO NOT* set returnValue to a non-zero value here as that would result
+  // in an infinite loop.
+  //
+  // printf sends synchronous messages to the console, which we can't do.
+  // Use the non-blocking printString instead.
+  printString("Out of process slots to launch process.\n");
+  sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+    SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
+  consoleInput = stringDestroy(consoleInput);
+  free(commandDescriptor); commandDescriptor = NULL;
+  if (processMessageRelease(processMessage) != processSuccess) {
+    printString("ERROR!!!  "
+      "Could not release message from handleSchedulerMessage "
+      "for invalid message type.\n");
+  }
+
   return returnValue;
 }
 
