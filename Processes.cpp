@@ -224,7 +224,7 @@ void* startCommand(void *args) {
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
 
-  if (commandDescriptor->callingProcess != processId(getRunningProcess())) {
+  if (commandDescriptor->callingProcess != getRunningProcessId()) {
     // This command did NOT replace a shell process.
     releaseConsole();
     if (backgroundProcess == false) {
