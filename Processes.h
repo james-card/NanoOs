@@ -153,6 +153,12 @@ extern "C"
 #define processMessageQueuePop() \
   comessageQueuePop()
 
+/// @def getRunningProcessId
+///
+/// @brief Get the process ID for the currently-running process."
+#define getRunningProcessId() \
+  processId(getRunningProcess())
+
 // Process message accessors
 #define processMessageType(processMessagePointer) \
   comessageType(processMessagePointer)
