@@ -1294,8 +1294,11 @@ char* consoleWaitForInput(void) {
     CONSOLE_RETURNING_INPUT, NULL);
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(response, ConsoleBuffer*);
-  char *returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
-  strcpy(returnValue, consoleBuffer->buffer);
+  char *returnValue = NULL;
+  if (consoleBuffer != NULL) {
+    returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
+    strcpy(returnValue, consoleBuffer->buffer);
+  }
 
   // Release the buffer.
   processMessageRelease(response);
