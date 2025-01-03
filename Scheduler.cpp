@@ -43,6 +43,11 @@
 /// @brief The process ID (PID) of the GPIO serial port shell.
 #define GPIO_SERIAL_PORT_SHELL_PID 5
 
+/// @def NUM_STANDARD_FILE_DESCRIPTORS
+///
+/// @brief The number of file descriptors a process usually starts out with.
+#define NUM_STANDARD_FILE_DESCRIPTORS 3
+
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main process object that's allocated in the main loop
@@ -67,6 +72,103 @@ NanoOsMessage *nanoOsMessages = NULL;
 /// SchedulerState object maintained by the scheduler process.  This is needed
 /// in order to do lookups from process IDs to process object pointers.
 static ProcessDescriptor *allProcesses = NULL;
+
+/// @var standardKernelFileDescriptors
+///
+/// @brief The array of file descriptors that all kernel processes use.
+FileDescriptor standardKernelFileDescriptors[
+  NUM_STANDARD_FILE_DESCRIPTORS
+] = {
+  {
+    // stdin
+    // Kernel processes do not read from stdin, so clear out both pipes.
+    .inputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
+    },
+    .outputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
+    },
+  },
+  {
+    // stdout
+    // Uni-directional FileDescriptor, so clear the input pipe and direct the
+    // output pipe to the console.
+    .inputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
+    },
+    .outputPipe = {
+      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .messageType = CONSOLE_WRITE_BUFFER,
+    },
+  },
+  {
+    // stderr
+    // Uni-directional FileDescriptor, so clear the input pipe and direct the
+    // output pipe to the console.
+    .inputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
+    },
+    .outputPipe = {
+      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .messageType = CONSOLE_WRITE_BUFFER,
+    },
+  },
+};
+
+/// @var standardUserFileDescriptors
+///
+/// @brief Pointer to the array of FileDescriptor objects (declared in the
+/// startScheduler function on the scheduler's stack) that all processes start
+/// out with.
+//// static FileDescriptor *standardUserFileDescriptors = NULL;
+static FileDescriptor standardUserFileDescriptors
+  [
+    NUM_STANDARD_FILE_DESCRIPTORS
+  ] = {
+    {
+      // stdin
+      // Uni-directional FileDescriptor, so clear the output pipe and direct the
+      // input pipe to the console.
+      .inputPipe = {
+        .processId = NANO_OS_CONSOLE_PROCESS_ID,
+        .messageType = CONSOLE_WAIT_FOR_INPUT,
+      },
+      .outputPipe = {
+        .processId = PROCESS_ID_NOT_SET,
+        .messageType = 0,
+      },
+    },
+    {
+      // stdout
+      // Uni-directional FileDescriptor, so clear the input pipe and direct the
+      // output pipe to the console.
+      .inputPipe = {
+        .processId = PROCESS_ID_NOT_SET,
+        .messageType = 0,
+      },
+      .outputPipe = {
+        .processId = NANO_OS_CONSOLE_PROCESS_ID,
+        .messageType = CONSOLE_WRITE_BUFFER,
+      },
+    },
+    {
+      // stderr
+      // Uni-directional FileDescriptor, so clear the input pipe and direct the
+      // output pipe to the console.
+      .inputPipe = {
+        .processId = PROCESS_ID_NOT_SET,
+        .messageType = 0,
+      },
+      .outputPipe = {
+        .processId = NANO_OS_CONSOLE_PROCESS_ID,
+        .messageType = CONSOLE_WRITE_BUFFER,
+      },
+    },
+  };
 
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
@@ -864,25 +966,23 @@ int schedulerSetProcessUser(UserId userId) {
   return returnValue;
 }
 
-/// @fn Pipe* schedulerGetOutputPipe(FILE *stream)
+/// @fn FileDescriptor* schedulerGetFileDescriptor(FILE *stream)
 ///
-/// @brief Get the OutputPipe object for a process given a pointer to the FILE
+/// @brief Get the IoPipe object for a process given a pointer to the FILE
 ///   stream to write to.
 ///
 /// @param stream A pointer to the desired FILE output stream (stdout or
 ///   stderr).
 ///
-/// @return Returns the appropriate Pipe object for the current process on
-/// success, NULL on failure.
-OutputPipe* schedulerGetOutputPipe(FILE *stream) {
-  OutputPipe *returnValue = NULL;
-  uintptr_t pipeIndex = (uintptr_t) stream;
+/// @return Returns the appropriate FileDescriptor object for the current
+/// process on success, NULL on failure.
+FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
+  FileDescriptor *returnValue = NULL;
+  uintptr_t fdIndex = (uintptr_t) stream;
+  ProcessId runningProcessId = getRunningProcessId();
 
-  if ((pipeIndex > ((uintptr_t) stdin))
-    && (pipeIndex <= ((uintptr_t) stderr))
-  ) {
-    returnValue =
-      &allProcesses[processId(getRunningProcess())].outputPipes[pipeIndex - 1];
+  if (fdIndex < allProcesses[runningProcessId].numFileDescriptors) {
+    returnValue = &allProcesses[runningProcessId].fileDescriptors[fdIndex];
   } else {
     printString("ERROR:  Received request for unknown stream ");
     printInt((intptr_t) stream);
@@ -992,10 +1092,8 @@ int schedulerRunProcessCommandHandler(
   if (processDescriptor != NULL) {
     processDescriptor->userId
       = schedulerState->allProcesses[processId(caller)].userId;
-    processDescriptor->outputPipes[0].processId = NANO_OS_CONSOLE_PROCESS_ID;
-    processDescriptor->outputPipes[0].messageType = CONSOLE_WRITE_BUFFER;
-    processDescriptor->outputPipes[1].processId = NANO_OS_CONSOLE_PROCESS_ID;
-    processDescriptor->outputPipes[1].messageType = CONSOLE_WRITE_BUFFER;
+    processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+    processDescriptor->fileDescriptors = standardUserFileDescriptors;
 
     if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
@@ -1508,14 +1606,10 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[0].processId
-        = NANO_OS_CONSOLE_PROCESS_ID;
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[0].messageType
-        = CONSOLE_WRITE_BUFFER;
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[1].processId
-        = NANO_OS_CONSOLE_PROCESS_ID;
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].outputPipes[1].messageType
-        = CONSOLE_WRITE_BUFFER;
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
+        = NUM_STANDARD_FILE_DESCRIPTORS;
+      allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
+        = standardUserFileDescriptors;
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
           == processError
       ) {
@@ -1528,14 +1622,10 @@ void runScheduler(SchedulerState *schedulerState) {
       && (processRunning(processDescriptor->processHandle) == false)
     ) {
       // Restart the shell.
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[0].processId
-        = NANO_OS_CONSOLE_PROCESS_ID;
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[0].messageType
-        = CONSOLE_WRITE_BUFFER;
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[1].processId
-        = NANO_OS_CONSOLE_PROCESS_ID;
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].outputPipes[1].messageType
-        = CONSOLE_WRITE_BUFFER;
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
+        = NUM_STANDARD_FILE_DESCRIPTORS;
+      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
+        = standardUserFileDescriptors;
       if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
       ) {
@@ -1598,12 +1688,10 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
 
-  // Initialize all the kernel process output pipes.
+  // Initialize all the kernel process file descriptors.
   for (ProcessId ii = 0; ii < NANO_OS_FIRST_USER_PROCESS_ID; ii++) {
-    allProcesses[ii].outputPipes[0].processId = NANO_OS_CONSOLE_PROCESS_ID;
-    allProcesses[ii].outputPipes[0].messageType = CONSOLE_WRITE_BUFFER;
-    allProcesses[ii].outputPipes[1].processId = NANO_OS_CONSOLE_PROCESS_ID;
-    allProcesses[ii].outputPipes[1].messageType = CONSOLE_WRITE_BUFFER;
+    allProcesses[ii].numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+    allProcesses[ii].fileDescriptors = standardKernelFileDescriptors;
   }
 
   // Create the console process.
@@ -1685,13 +1773,15 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[ii].processHandle = processHandle;
     allProcesses[ii].userId = NO_USER_ID;
   }
+
   printString("Console stack size = ");
   printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
+    ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
     ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
+
   printString("Coroutine stack size = ");
   printInt(ABS_DIFF(
     ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
@@ -1699,8 +1789,13 @@ __attribute__((noinline)) void startScheduler(
     - sizeof(Coroutine)
   );
   printString(" bytes\n");
+
   printString("Coroutine size = ");
   printInt(sizeof(Coroutine));
+  printString("\n");
+
+  printString("standardKernelFileDescriptors size = ");
+  printInt(sizeof(standardKernelFileDescriptors));
   printString("\n");
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS

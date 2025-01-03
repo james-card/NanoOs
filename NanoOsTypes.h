@@ -128,17 +128,31 @@ typedef unsigned long long int NanoOsMessageData;
 
 // Composite types
 
-/// @struct OutputPipe
+/// @struct IoPipe
 ///
 /// @brief Information that can be used to direct the output of one process
 /// into the input of another one.
 ///
 /// @param processId The process ID (PID) of the destination process.
 /// @param messageType The type of message to send to the process.
-typedef struct OutputPipe {
+typedef struct IoPipe {
   ProcessId processId;
   uint8_t messageType;
 } Pipe;
+
+/// @struct FileDescriptor
+///
+/// @brief Definition of a file descriptor that a process can use for input
+/// and/or output.
+///
+/// @param inputPipe An IoPipe object that describes where the file descriptor
+///   gets its input, if any.
+/// @param outputPipe An IoPipe object that describes where the file descriptor
+///   sends its output, if any.
+typedef struct FileDescriptor {
+  IoPipe inputPipe;
+  IoPipe outputPipe;
+} FileDescriptor;
 
 /// @struct ProcessDescriptor
 ///
@@ -150,14 +164,17 @@ typedef struct OutputPipe {
 ///   state.
 /// @param 
 /// @param userId The numerical ID of the user that is running the process.
-/// @param outputPipes An array of Pipe objects that specifies how to direct
-/// stdout (index 0) and stderr (index 1) of the process.
+/// @param numFileDescriptors The number of FileDescriptor objects contained by
+///   the fileDescriptors array.
+/// @param fileDescriptors Pointer to an array of FileDescriptors that are
+///   currently in use by the process.
 typedef struct ProcessDescriptor {
-  const char    *name;
-  ProcessHandle  processHandle;
-  ProcessId      processId;
-  UserId         userId;
-  OutputPipe     outputPipes[2];
+  const char     *name;
+  ProcessHandle   processHandle;
+  ProcessId       processId;
+  UserId          userId;
+  uint8_t         numFileDescriptors;
+  FileDescriptor *fileDescriptors;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement

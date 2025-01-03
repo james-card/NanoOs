@@ -906,8 +906,8 @@ void* runConsole(void *args) {
 
   // Set the port-specific data.
   consoleState.consolePorts[USB_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[USB_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
-  consoleState.consolePorts[USB_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].owner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[USB_SERIAL_PORT].readByte = readUsbSerialByte;
   consoleState.consolePorts[USB_SERIAL_PORT].echo = true;
@@ -915,8 +915,8 @@ void* runConsole(void *args) {
     = printUsbSerialString;
 
   consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].owner = COROUTINE_ID_NOT_SET;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].shell = COROUTINE_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].owner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[GPIO_SERIAL_PORT].readByte = readGpioSerialByte;
   consoleState.consolePorts[GPIO_SERIAL_PORT].echo = true;
@@ -930,7 +930,7 @@ void* runConsole(void *args) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
-        if (consolePort->owner == COROUTINE_ID_NOT_SET) {
+        if (consolePort->owner == PROCESS_ID_NOT_SET) {
           // NULL-terminate the buffer.
           consolePort->consoleIndex--;
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
@@ -1064,10 +1064,10 @@ ConsoleBuffer* consoleGetBuffer(void) {
 /// @return Returns 0 on success, EOF on failure.
 int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   int returnValue = 0;
-  OutputPipe *outputPipe = schedulerGetOutputPipe(stream);
-  if (outputPipe == NULL) {
+  FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
+  if (outputFd == NULL) {
     printString("ERROR!!!  Could not get pipe for process ");
-    printInt(processId(getRunningProcess()));
+    printInt(getRunningProcessId());
     printString(" and stream ");
     printInt((intptr_t) stream);
     printString(".\n");
@@ -1076,6 +1076,7 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
     returnValue = EOF;
     return returnValue;
   }
+  IoPipe *outputPipe = &outputFd->outputPipe;
 
   if (stream == stdout) {
     if (sendNanoOsMessageToPid(

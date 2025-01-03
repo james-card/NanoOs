@@ -92,11 +92,11 @@ void localFreeProcessMemory(
   void *ptr = memoryManagerState->mallocNext;
   
   // We have to do two passes.  First pass:  Set the size of all the pointers
-  // allocated by the process to zero and the pid to COROUTINE_ID_NOT_SET.
+  // allocated by the process to zero and the pid to PROCESS_ID_NOT_SET.
   for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
     if (cur->owner == pid) {
       cur->size = 0;
-      cur->owner = COROUTINE_ID_NOT_SET;
+      cur->owner = PROCESS_ID_NOT_SET;
     }
   }
   
@@ -133,7 +133,7 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
     if (sizeOfMemory(ptr) > 0) {
       // Clear out the size.
       memNode(charPointer)->size = 0;
-      memNode(charPointer)->owner = COROUTINE_ID_NOT_SET;
+      memNode(charPointer)->owner = PROCESS_ID_NOT_SET;
       
       if (charPointer == memoryManagerState->mallocNext) {
         // Special case.  The value being freed is the last one that was
