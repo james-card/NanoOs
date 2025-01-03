@@ -1092,10 +1092,22 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   return returnValue;
 }
 
-void handleOutOfSlots(
-  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
-  char *commandLine
-) {
+/// @fn void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine)
+///
+/// @brief Handle the exception case when we're out of free process slots to run
+/// all the commands we've been asked to launch.  Releases all relevant messages
+/// and frees all relevant memory.
+///
+/// @param processMessage A pointer to the ProcessMessage that was received
+///   that contains the information about the process to run and how to run it.
+/// @param commandLine The part of the console input that was being worked on
+///   at the time of the failure.
+///
+/// @return This function returns no value.
+void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
+
   // printf sends synchronous messages to the console, which we can't do.
   // Use the non-blocking printString instead.
   printString("Out of process slots to launch process.\n");
@@ -1108,19 +1120,36 @@ void handleOutOfSlots(
       "Could not release message from handleSchedulerMessage "
       "for invalid message type.\n");
   }
-  
 
   return;
 }
 
-int launchProcess(
-  SchedulerState *schedulerState, ProcessDescriptor *processDescriptor,
-  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
-  char *commandLine
+/// @fn ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
+///   ProcessMessage *processMessage, char *commandLine,
+///   ProcessDescriptor *processDescriptor)
+///
+/// @brief Run the specified command line with the specified ProcessDescriptor.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received
+///   that contains the information about the process to run and how to run it.
+/// @param commandLine The command line to run.  This may be part or all of the
+///   full line read from the console.
+/// @processDescriptor A pointer to the available processDescriptor to run the
+///   command with.
+///
+/// @return Returns a pointer to the ProcessDescriptor used to launch the
+/// process on success, NULL on failure.
+ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
+  ProcessMessage *processMessage, char *commandLine,
+  ProcessDescriptor *processDescriptor
 ) {
-  int returnValue = 0;
+  ProcessDescriptor *returnValue = processDescriptor;
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
 
   if (processDescriptor != NULL) {
     processDescriptor->userId = schedulerState->allProcesses[
@@ -1156,22 +1185,37 @@ int launchProcess(
 
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
-
-    returnValue = processId(processDescriptor->processHandle);
   } else {
-    returnValue = -1;
-    handleOutOfSlots(commandDescriptor, processMessage, commandLine);
+    returnValue = NULL;
+    handleOutOfSlots(processMessage, commandLine);
   }
 
   return returnValue;
 }
 
-int launchForegroundProcess(SchedulerState *schedulerState,
-  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
-  char *commandLine
+/// @fn ProcessDescriptor* launchForegroundProcess(
+///   SchedulerState *schedulerState,
+///   ProcessMessage *processMessage, char *commandLine)
+///
+/// @brief Kill the sender of the ProcessMessage and use its ProcessDescriptor
+/// to run the specified command line.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received
+///   that contains the information about the process to run and how to run it.
+/// @param commandLine The command line to run.  This may be part or all of the
+///   full line read from the console.
+///
+/// @return Returns a pointer to the ProcessDescriptor used to launch the
+/// process on success, NULL on failure.
+ProcessDescriptor* launchForegroundProcess(SchedulerState *schedulerState,
+  ProcessMessage *processMessage, char *commandLine
 ) {
   ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
     processId(processMessageFrom(processMessage))];
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   // The process should be blocked in processMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
@@ -1210,18 +1254,33 @@ int launchForegroundProcess(SchedulerState *schedulerState,
     printString("Memory leak.\n");
   }
 
-  return launchProcess(schedulerState, processDescriptor,
-    commandDescriptor, processMessage, commandLine);
+  return launchProcess(schedulerState, processMessage,
+    commandLine, processDescriptor);
 }
 
-int launchBackgroundProcess(SchedulerState *schedulerState,
-  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
-  char *commandLine
+/// @fn ProcessDescriptor* launchBackgroundProcess(
+///   SchedulerState *schedulerState,
+///   ProcessMessage *processMessage, char *commandLine)
+///
+/// @brief Pop a process off of the free queue and use it to run the specified
+/// command line.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received
+///   that contains the information about the process to run and how to run it.
+/// @param commandLine The command line to run.  This may be part or all of the
+///   full line read from the console.
+///
+/// @return Returns a pointer to the ProcessDescriptor used to launch the
+/// process on success, NULL on failure.
+ProcessDescriptor* launchBackgroundProcess(SchedulerState *schedulerState,
+  ProcessMessage *processMessage, char *commandLine
 ) {
   ProcessDescriptor *processDescriptor = processQueuePop(&schedulerState->free);
 
-  return launchProcess(schedulerState, processDescriptor,
-    commandDescriptor, processMessage, commandLine);
+  return launchProcess(schedulerState, processMessage,
+    commandLine, processDescriptor);
 }
 
 // Scheduler command handlers
@@ -1256,7 +1315,7 @@ int schedulerRunProcessCommandHandler(
   if (getNumPipes(consoleInput) > schedulerState->free.numElements) {
     // We've been asked to run more processes chained together than we can
     // currently launch.  Fail.
-    handleOutOfSlots(commandDescriptor, processMessage, consoleInput);
+    handleOutOfSlots(processMessage, consoleInput);
   }
 
   ampersandAt = strchr(consoleInput, '&');
@@ -1270,12 +1329,10 @@ int schedulerRunProcessCommandHandler(
   if (backgroundProcess == false) {
     // Task is a foreground process.  We're going to kill the caller and reuse
     // its process slot.
-    launchForegroundProcess(schedulerState, commandDescriptor,
-      processMessage, consoleInput);
+    launchForegroundProcess(schedulerState, processMessage, consoleInput);
   } else {
     // Task is a background process.  Get a process off the free queue.
-    launchBackgroundProcess(schedulerState, commandDescriptor,
-      processMessage, consoleInput);
+    launchBackgroundProcess(schedulerState, processMessage, consoleInput);
   }
 
   return 0;
