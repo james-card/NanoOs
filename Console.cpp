@@ -1072,6 +1072,11 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
     printInt((intptr_t) stream);
     printString(".\n");
 
+    // Release the buffer to avoid creating a leak.
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+
     // We can't proceed, so bail.
     returnValue = EOF;
     return returnValue;
@@ -1103,6 +1108,12 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
     printString(" from process ");
     printInt(getRunningProcessId());
     printString(".\n");
+
+    // Release the buffer to avoid creating a leak.
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+
     returnValue = EOF;
   }
 
