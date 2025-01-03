@@ -1078,23 +1078,32 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   }
   IoPipe *outputPipe = &outputFd->outputPipe;
 
-  if (stream == stdout) {
-    if (sendNanoOsMessageToPid(
-      outputPipe->processId, outputPipe->messageType,
-      0, (intptr_t) consoleBuffer, false) == NULL
-    ) {
-      returnValue = EOF;
+  if (outputPipe->processId != PROCESS_ID_NOT_SET) {
+    if (stream == stdout) {
+      if (sendNanoOsMessageToPid(
+        outputPipe->processId, outputPipe->messageType,
+        0, (intptr_t) consoleBuffer, false) == NULL
+      ) {
+        returnValue = EOF;
+      }
+    } else if (stream == stderr) {
+      ProcessMessage *processMessage = sendNanoOsMessageToPid(
+        outputPipe->processId, outputPipe->messageType,
+        0, (intptr_t) consoleBuffer, true);
+      if (processMessage != NULL) {
+        processMessageWaitForDone(processMessage, NULL);
+        processMessageRelease(processMessage);
+      } else {
+        returnValue = EOF;
+      }
     }
-  } else if (stream == stderr) {
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      outputPipe->processId, outputPipe->messageType,
-      0, (intptr_t) consoleBuffer, true);
-    if (processMessage != NULL) {
-      processMessageWaitForDone(processMessage, NULL);
-      processMessageRelease(processMessage);
-    } else {
-      returnValue = EOF;
-    }
+  } else {
+    printString("ERROR!!!  Request to write to invalid stream ");
+    printInt((intptr_t) stream);
+    printString(" from process ");
+    printInt(getRunningProcessId());
+    printString(".\n");
+    returnValue = EOF;
   }
 
   return returnValue;
