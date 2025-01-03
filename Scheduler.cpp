@@ -1092,106 +1092,39 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   return returnValue;
 }
 
-// Scheduler command handlers
-
-/// @fn int schedulerRunProcessCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
-///
-/// @brief Run a process in an appropriate process slot.
-///
-/// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received that contains
-///   the information about the process to run and how to run it.
-///
-/// @return Returns 0 on success, non-zero error code on failure.
-int schedulerRunProcessCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+void handleOutOfSlots(
+  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
+  char *commandLine
 ) {
-  static int returnValue = 0;
-  if (processMessage == NULL) {
-    // This should be impossible, but there's nothing to do.  Return good
-    // status.
-    return returnValue; // 0
+  // printf sends synchronous messages to the console, which we can't do.
+  // Use the non-blocking printString instead.
+  printString("Out of process slots to launch process.\n");
+  sendNanoOsMessageToPid(commandDescriptor->callingProcess,
+    SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
+  commandLine = stringDestroy(commandLine);
+  free(commandDescriptor); commandDescriptor = NULL;
+  if (processMessageRelease(processMessage) != processSuccess) {
+    printString("ERROR!!!  "
+      "Could not release message from handleSchedulerMessage "
+      "for invalid message type.\n");
   }
+  
 
+  return;
+}
+
+int launchProcess(
+  SchedulerState *schedulerState, ProcessDescriptor *processDescriptor,
+  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
+  char *commandLine
+) {
+  int returnValue = 0;
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
-  CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
-  commandDescriptor->schedulerState = schedulerState;
-  char *consoleInput = commandDescriptor->consoleInput;
-  int consolePort = commandDescriptor->consolePort;
-  ProcessHandle caller = processMessageFrom(processMessage);
-  ProcessId numPipes = getNumPipes(consoleInput);
-  bool backgroundProcess = false;
-  char *ampersandAt = NULL;
-  ProcessDescriptor *processDescriptor = NULL;
-
-  if (numPipes > schedulerState->free.numElements) {
-    // We've been asked to run more processes chained together than we can
-    // currently launch.  Fail.
-    goto outOfSlots;
-  }
-
-  ampersandAt = strchr(consoleInput, '&');
-  if (ampersandAt != NULL) {
-    ampersandAt++;
-    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
-      backgroundProcess = true;
-    }
-  }
-
-  // Find an open slot.
-  if (backgroundProcess == false) {
-    // Task is a foreground process.  We're going to kill the caller and reuse
-    // its process slot.
-    processDescriptor = &schedulerState->allProcesses[processId(caller)];
-    // The process should be blocked in processMessageQueueWaitForType waiting
-    // on a condition with an infinite timeout.  So, it *SHOULD* be on the
-    // waiting queue.  Take no chances, though.
-    (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-      || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
-        == 0)
-      || processQueueRemove(&schedulerState->ready, processDescriptor);
-
-    // Protect the relevant memory from deletion below.
-    if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-      printString(
-        "WARNING:  Could not protect console input from deletion.\n");
-      printString("Undefined behavior.\n");
-    }
-    if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-      printString(
-        "WARNING:  Could not protect command descriptor from deletion.\n");
-      printString("Undefined behavior.\n");
-    }
-
-    // Kill and clear out the calling process.
-    processTerminate(caller);
-    processSetId(
-      processDescriptor->processHandle, processDescriptor->processId);
-
-    // We don't want to wait for the memory manager to release the memory.  Make
-    // it do it immediately.
-    if (schedulerSendNanoOsMessageToPid(
-      schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-      MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-      /* func= */ 0, processDescriptor->processId)
-    ) {
-      printString("WARNING:  Could not release memory for process ");
-      printInt(processDescriptor->processId);
-      printString("\n");
-      printString("Memory leak.\n");
-    }
-  } else {
-    // Task is a background process.  Get a process off the free queue.
-    processDescriptor = processQueuePop(&schedulerState->free);
-  }
 
   if (processDescriptor != NULL) {
-    processDescriptor->userId
-      = schedulerState->allProcesses[processId(caller)].userId;
+    processDescriptor->userId = schedulerState->allProcesses[
+      processId(processMessageFrom(processMessage))].userId;
     processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
     processDescriptor->fileDescriptors = standardUserFileDescriptors;
 
@@ -1201,7 +1134,7 @@ int schedulerRunProcessCommandHandler(
       printString(
         "ERROR!!!  Could not configure process handle for new command.\n");
     }
-    if (assignMemory(consoleInput, processDescriptor->processId) != 0) {
+    if (assignMemory(commandLine, processDescriptor->processId) != 0) {
       printString(
         "WARNING:  Could not assign console input to new process.\n");
       printString("Memory leak.\n");
@@ -1214,39 +1147,138 @@ int schedulerRunProcessCommandHandler(
 
     processDescriptor->name = commandEntry->name;
 
-    returnValue = 0;
     if (schedulerAssignPortToPid(schedulerState,
-      consolePort, processDescriptor->processId) != processSuccess
+      commandDescriptor->consolePort, processDescriptor->processId)
+      != processSuccess
     ) {
       printString("WARNING:  Could not assign console port to process.\n");
     }
 
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
+
+    returnValue = processId(processDescriptor->processHandle);
   } else {
-    goto outOfSlots;
-  }
-  
-  return returnValue;
-
-outOfSlots:
-  // *DO NOT* set returnValue to a non-zero value here as that would result
-  // in an infinite loop.
-  //
-  // printf sends synchronous messages to the console, which we can't do.
-  // Use the non-blocking printString instead.
-  printString("Out of process slots to launch process.\n");
-  sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-    SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
-  consoleInput = stringDestroy(consoleInput);
-  free(commandDescriptor); commandDescriptor = NULL;
-  if (processMessageRelease(processMessage) != processSuccess) {
-    printString("ERROR!!!  "
-      "Could not release message from handleSchedulerMessage "
-      "for invalid message type.\n");
+    returnValue = -1;
+    handleOutOfSlots(commandDescriptor, processMessage, commandLine);
   }
 
   return returnValue;
+}
+
+int launchForegroundProcess(SchedulerState *schedulerState,
+  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
+  char *commandLine
+) {
+  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
+    processId(processMessageFrom(processMessage))];
+  // The process should be blocked in processMessageQueueWaitForType waiting
+  // on a condition with an infinite timeout.  So, it *SHOULD* be on the
+  // waiting queue.  Take no chances, though.
+  (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+      == 0)
+    || processQueueRemove(&schedulerState->ready, processDescriptor);
+
+  // Protect the relevant memory from deletion below.
+  if (assignMemory(commandLine, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString(
+      "WARNING:  Could not protect console input from deletion.\n");
+    printString("Undefined behavior.\n");
+  }
+  if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString(
+      "WARNING:  Could not protect command descriptor from deletion.\n");
+    printString("Undefined behavior.\n");
+  }
+
+  // Kill and clear out the calling process.
+  processTerminate(processMessageFrom(processMessage));
+  processSetId(
+    processDescriptor->processHandle, processDescriptor->processId);
+
+  // We don't want to wait for the memory manager to release the memory.  Make
+  // it do it immediately.
+  if (schedulerSendNanoOsMessageToPid(
+    schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+    /* func= */ 0, processDescriptor->processId)
+  ) {
+    printString("WARNING:  Could not release memory for process ");
+    printInt(processDescriptor->processId);
+    printString("\n");
+    printString("Memory leak.\n");
+  }
+
+  return launchProcess(schedulerState, processDescriptor,
+    commandDescriptor, processMessage, commandLine);
+}
+
+int launchBackgroundProcess(SchedulerState *schedulerState,
+  CommandDescriptor *commandDescriptor, ProcessMessage *processMessage,
+  char *commandLine
+) {
+  ProcessDescriptor *processDescriptor = processQueuePop(&schedulerState->free);
+
+  return launchProcess(schedulerState, processDescriptor,
+    commandDescriptor, processMessage, commandLine);
+}
+
+// Scheduler command handlers
+
+/// @fn int schedulerRunProcessCommandHandler(
+///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///
+/// @brief Run a process in an appropriate process slot.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received
+///   that contains the information about the process to run and how to run it.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int schedulerRunProcessCommandHandler(
+  SchedulerState *schedulerState, ProcessMessage *processMessage
+) {
+  if (processMessage == NULL) {
+    // This should be impossible, but there's nothing to do.  Return good
+    // status.
+    return 0;
+  }
+
+  CommandDescriptor *commandDescriptor
+    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
+  commandDescriptor->schedulerState = schedulerState;
+  char *consoleInput = commandDescriptor->consoleInput;
+  bool backgroundProcess = false;
+  char *ampersandAt = NULL;
+
+  if (getNumPipes(consoleInput) > schedulerState->free.numElements) {
+    // We've been asked to run more processes chained together than we can
+    // currently launch.  Fail.
+    handleOutOfSlots(commandDescriptor, processMessage, consoleInput);
+  }
+
+  ampersandAt = strchr(consoleInput, '&');
+  if (ampersandAt != NULL) {
+    ampersandAt++;
+    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+      backgroundProcess = true;
+    }
+  }
+
+  if (backgroundProcess == false) {
+    // Task is a foreground process.  We're going to kill the caller and reuse
+    // its process slot.
+    launchForegroundProcess(schedulerState, commandDescriptor,
+      processMessage, consoleInput);
+  } else {
+    // Task is a background process.  Get a process off the free queue.
+    launchBackgroundProcess(schedulerState, commandDescriptor,
+      processMessage, consoleInput);
+  }
+
+  return 0;
 }
 
 /// @fn int schedulerKillProcessCommandHandler(
