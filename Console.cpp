@@ -1066,7 +1066,7 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   int returnValue = 0;
   FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
   if (outputFd == NULL) {
-    printString("ERROR!!!  Could not get pipe for process ");
+    printString("ERROR!!!  Could not get output file descriptor for process ");
     printInt(getRunningProcessId());
     printString(" and stream ");
     printInt((intptr_t) stream);
@@ -1287,15 +1287,29 @@ int printConsole(const char *message) {
 /// @return Returns a pointer to the input retrieved on success, NULL on
 /// failure.
 char* consoleWaitForInput(void) {
-  ProcessMessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WAIT_FOR_INPUT,
-    /* func= */ 0, /* data= */ 0, true);
+  char *returnValue = NULL;
+  FileDescriptor *inputFd = schedulerGetFileDescriptor(stdin);
+  if (inputFd == NULL) {
+    printString("ERROR!!!  Could not get input file descriptor for process ");
+    printInt(getRunningProcessId());
+    printString(" and stream ");
+    printInt((intptr_t) stdin);
+    printString(".\n");
 
-  ProcessMessage *response = processMessageWaitForReplyWithType(sent, true,
-    CONSOLE_RETURNING_INPUT, NULL);
+    // We can't proceed, so bail.
+    return returnValue; // NULL
+  }
+  IoPipe *inputPipe = &inputFd->inputPipe;
+
+  if (inputPipe->processId != PROCESS_ID_NOT_SET) {
+    sendNanoOsMessageToPid(inputPipe->processId, inputPipe->messageType,
+      /* func= */ 0, /* data= */ 0, false);
+  }
+
+  ProcessMessage *response
+    = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT,NULL);
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(response, ConsoleBuffer*);
-  char *returnValue = NULL;
   if (consoleBuffer != NULL) {
     returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
     strcpy(returnValue, consoleBuffer->buffer);
