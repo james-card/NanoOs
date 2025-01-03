@@ -669,7 +669,7 @@ size_t getFreeMemory(void) {
   return returnValue;
 }
 
-/// @fn void *memoryManagerSendReallocMessage(void *ptr, size_t size)
+/// @fn void* memoryManagerSendReallocMessage(void *ptr, size_t size)
 ///
 /// @brief Send a MEMORY_MANAGER_REALLOC command to the memory manager process
 /// and wait for a reply.
@@ -678,7 +678,7 @@ size_t getFreeMemory(void) {
 /// @param size The size to send to the process.
 ///
 /// @return Returns the data pointer returned in the reply.
-void *memoryManagerSendReallocMessage(void *ptr, size_t size) {
+void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
   void *returnValue = NULL;
   
   ReallocMessage reallocMessage;
