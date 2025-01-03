@@ -44,6 +44,13 @@ extern "C"
 {
 #endif
 
+/// @def PROCESS_ID_NOT_SET
+///
+/// @brief Value to be used to indicate that a process ID has not been set for
+/// a ProcessDescriptor object.
+#define PROCESS_ID_NOT_SET \
+  COROUTINE_ID_NOT_SET
+
 /// @def getRunningProcess
 ///
 /// @brief Function macro to get the pointer to the currently running Process
