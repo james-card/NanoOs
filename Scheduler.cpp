@@ -525,7 +525,8 @@ int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
 
   // These messages are always waiting for done from the caller, so hardcode
   // the waiting parameter to true here.
-  processMessageInit(&processMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
+  processMessageInit(
+    &processMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
   int returnValue = schedulerSendProcessMessageToProcess(
     processHandle, &processMessage);
@@ -572,6 +573,105 @@ int schedulerSendNanoOsMessageToPid(
     processHandle, type, func, data);
   return returnValue;
 }
+
+/// @fn void* schedulerResumeReallocMessage(void *ptr, size_t size)
+///
+/// @brief Send a MEMORY_MANAGER_REALLOC command to the memory manager process
+/// by resuming it with the message and get a reply.
+///
+/// @param ptr The pointer to send to the process.
+/// @param size The size to send to the process.
+///
+/// @return Returns the data pointer returned in the reply.
+void* schedulerResumeReallocMessage(void *ptr, size_t size) {
+  void *returnValue = NULL;
+  
+  ReallocMessage reallocMessage;
+  reallocMessage.ptr = ptr;
+  reallocMessage.size = size;
+  reallocMessage.pid = processId(getRunningProcess());
+  reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
+  
+  STATIC_NANO_OS_MESSAGE(
+    /* variableName= */ sent,
+    /* type= */ MEMORY_MANAGER_REALLOC,
+    /* funcValue= */ 0,
+    /* dataValue= */ (uintptr_t) &reallocMessage,
+    /* waiting= */ true
+  );
+  coroutineResume(
+    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+    &sent);
+  
+  ProcessMessage *response = processMessageWaitForReplyWithType(&sent, false,
+    MEMORY_MANAGER_RETURNING_POINTER, NULL);
+  if (response == NULL) {
+    // Something is wrong.  Fail.
+    return returnValue; // NULL
+  }
+  
+  // The handler set the pointer back in the structure we sent it, so grab it
+  // out of the structure we already have.
+  returnValue = reallocMessage.ptr;
+  // The message that was sent to us is the one that we allocated on the stack,
+  // so, there's no reason to call processMessageRelease here.
+  
+  return returnValue;
+}
+
+/// @fn void* krealloc(void *ptr, size_t size)
+///
+/// @brief Reallocate a provided pointer to a new size.
+///
+/// @param ptr A pointer to the original block of dynamic memory.  If this value
+///   is NULL, new memory will be allocated.
+/// @param size The new size desired for the memory block at ptr.  If this value
+///   is 0, the provided pointer will be freed.
+///
+/// @return Returns a pointer to size-adjusted memory on success, NULL on
+/// failure or free.
+void* krealloc(void *ptr, size_t size) {
+  return schedulerResumeReallocMessage(ptr, size);
+}
+
+/// @fn void* kmalloc(size_t size)
+///
+/// @brief Allocate but do not clear memory.
+///
+/// @param size The size of the block of memory to allocate in bytes.
+///
+/// @return Returns a pointer to newly-allocated memory of the specified size
+/// on success, NULL on failure.
+void* kmalloc(size_t size) {
+  return schedulerResumeReallocMessage(NULL, size);
+}
+
+/// @fn void* kcalloc(size_t nmemb, size_t size)
+///
+/// @brief Allocate memory and clear all the bytes to 0.
+///
+/// @param nmemb The number of elements to allocate in the memory block.
+/// @param size The size of each element to allocate in the memory block.
+///
+/// @return Returns a pointer to zeroed newly-allocated memory of the specified
+/// size on success, NULL on failure.
+void* kcalloc(size_t nmemb, size_t size) {
+  size_t totalSize = nmemb * size;
+  void *returnValue = schedulerResumeReallocMessage(NULL, totalSize);
+  
+  if (returnValue != NULL) {
+    memset(returnValue, 0, totalSize);
+  }
+  return returnValue;
+}
+
+/// @def kfree
+///
+/// @brief Free a piece of memory allocated to a kernel process.  As of today
+/// (3-Jan-2025), the allocation methods and areas are the same between kernel
+/// space and user space, so we can just use free.  Also, the free call in the
+/// memory manager library is a non-blocking call, which is what we want.
+#define kfree free
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
