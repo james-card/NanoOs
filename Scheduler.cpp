@@ -981,8 +981,8 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   uintptr_t fdIndex = (uintptr_t) stream;
   ProcessId runningProcessId = getRunningProcessId();
 
-  if (fdIndex < allProcesses[runningProcessId].numFileDescriptors) {
-    returnValue = &allProcesses[runningProcessId].fileDescriptors[fdIndex];
+  if (fdIndex <= allProcesses[runningProcessId].numFileDescriptors) {
+    returnValue = &allProcesses[runningProcessId].fileDescriptors[fdIndex - 1];
   } else {
     printString("ERROR:  Received request for unknown stream ");
     printInt((intptr_t) stream);
