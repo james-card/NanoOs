@@ -284,8 +284,8 @@ int memoryManagerReallocCommandHandler(
   ProcessHandle from = processMessageFrom(incoming);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(incoming);
   
-  // We need to mark waiting as true here so that processMessageSetDone signals the
-  // client side correctly.
+  // We need to mark waiting as true here so that processMessageSetDone signals
+  // the client side correctly.
   processMessageInit(response, reallocMessage->responseType,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   if (processMessageQueuePush(from, response) != processSuccess) {
