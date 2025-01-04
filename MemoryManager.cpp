@@ -277,7 +277,8 @@ int memoryManagerReallocCommandHandler(
     = nanoOsMessageDataPointer(incoming, ReallocMessage*);
   void *clientReturnValue
     = localRealloc(memoryManagerState,
-      reallocMessage->ptr, reallocMessage->size, reallocMessage->pid);
+      reallocMessage->ptr, reallocMessage->size,
+      processId(processMessageFrom(incoming)));
   reallocMessage->ptr = clientReturnValue;
   reallocMessage->size = memNode(clientReturnValue)->size;
   
@@ -402,11 +403,16 @@ int memoryManagerFreeProcessMemoryCommandHandler(
     returnValue = -1;
   }
   
-  // The client is waiting on us.  Mark the message as done.
-  if (processMessageSetDone(incoming) != processSuccess) {
-    printString("ERROR!!!  Could not mark message done in "
-      "memoryManagerFreeProcessMemoryCommandHandler.\n");
-    returnValue = -1;
+  if (processMessageWaiting(incoming) == true) {
+    // The client is waiting on us.  Mark the message as done.
+    if (processMessageSetDone(incoming) != processSuccess) {
+      printString("ERROR!!!  Could not mark message done in "
+        "memoryManagerFreeProcessMemoryCommandHandler.\n");
+      returnValue = -1;
+    }
+  } else {
+    // the client is *NOT* waiting on us.  Release the message.
+    processMessageRelease(incoming);
   }
   
   return returnValue;
@@ -508,6 +514,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memoryManagerState->mallocEnd
     = ((uintptr_t) memoryManagerState->mallocBuffer) - memorySize;
   memNode(memoryManagerState->mallocNext)->size = memorySize;
+  memNode(memoryManagerState->mallocNext)->owner = PROCESS_ID_NOT_SET;
   
   longjmp(returnBuffer, (int) stack);
 }
@@ -684,7 +691,6 @@ void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  reallocMessage.pid = processId(getRunningProcess());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
   ProcessMessage *sent
