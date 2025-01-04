@@ -1333,6 +1333,10 @@ char* consoleWaitForInput(void) {
   // Release the buffer.
   processMessageRelease(response);
 
+  // The message may have come from the scheduler, which would be waiting on us,
+  // so yield now just in case.
+  processYield();
+
   sendNanoOsMessageToPid(
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
     /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
