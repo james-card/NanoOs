@@ -33,7 +33,7 @@
 #include "Scheduler.h"
 
 extern ProcessMessage *messages;
-extern NanoOsMessage *nanoOsMessages;
+extern NanoOsMessage nanoOsMessages[];
 
 /// @fn int getNumTokens(const char *input)
 ///
@@ -178,20 +178,20 @@ void* startCommand(void *args) {
   // The scheduler may be suspended because of launching this process.
   // Immediately call processYield as a best practice to make sure the scheduler
   // goes back to its work.
-  processYield();
   ProcessMessage *processMessage = (ProcessMessage*) args;
   if (processMessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
     return (void*) ((intptr_t) -1);
   }
-
-  int argc = 0;
-  char **argv = NULL;
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
+  processYield();
+
+  int argc = 0;
+  char **argv = NULL;
 
   argv = parseArgs(consoleInput, &argc);
   if (argv == NULL) {
