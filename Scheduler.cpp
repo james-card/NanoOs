@@ -680,13 +680,41 @@ void* kcalloc(size_t nmemb, size_t size) {
   return returnValue;
 }
 
-/// @def kfree
+/// @fn void kfree(void *ptr)
 ///
-/// @brief Free a piece of memory allocated to a kernel process.  As of today
-/// (3-Jan-2025), the allocation methods and areas are the same between kernel
-/// space and user space, so we can just use free.  Also, the free call in the
-/// memory manager library is a non-blocking call, which is what we want.
-#define kfree free
+/// @brief Free a piece of memory using mechanisms available to the scheduler.
+///
+/// @param ptr The pointer to the memory to free.
+///
+/// @return This function returns no value.
+void kfree(void *ptr) {
+  ProcessMessage *sent = getAvailableMessage();
+  if (sent == NULL) {
+    // Nothing we can do.  The scheduler can't yield.  Bail.
+    return;
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(sent);
+  nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) ptr);
+  processMessageInit(sent, MEMORY_MANAGER_FREE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  // sent->from would normally be set during processMessageQueuePush.  We're
+  // not using that mechanism here, so we have to do it manually.  Things will
+  // get messed up if we don't.
+  sent->from = schedulerProcess;
+
+  coroutineResume(
+    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+    sent);
+  if (processMessageDone(sent) == false) {
+    printString(
+      "Warning!!!  Memory manager did not mark free message done.\n");
+  }
+  comessageRelease(sent);
+
+  return;
+}
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
@@ -1679,10 +1707,10 @@ int schedulerGetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
   int returnValue = 0;
-  ProcessId processId = processId(processMessageFrom(processMessage));
+  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
-  if (processId < NANO_OS_NUM_PROCESSES) {
-    nanoOsMessage->data = schedulerState->allProcesses[processId].userId;
+  if (callingProcessId < NANO_OS_NUM_PROCESSES) {
+    nanoOsMessage->data = schedulerState->allProcesses[callingProcessId].userId;
   } else {
     nanoOsMessage->data = -1;
   }
@@ -1701,24 +1729,24 @@ int schedulerGetProcessUserCommandHandler(
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
 ///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.  This will be
-///   reused for the reply.
+/// @param processMessage A pointer to the ProcessMessage that was received.
+///   This will be reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerSetProcessUserCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
   int returnValue = 0;
-  ProcessId processId = processId(processMessageFrom(processMessage));
+  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
   UserId userId = nanoOsMessageDataValue(processMessage, UserId);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = -1;
 
-  if (processId < NANO_OS_NUM_PROCESSES) {
-    if ((schedulerState->allProcesses[processId].userId == -1)
+  if (callingProcessId < NANO_OS_NUM_PROCESSES) {
+    if ((schedulerState->allProcesses[callingProcessId].userId == -1)
       || (userId == -1)
     ) {
-      schedulerState->allProcesses[processId].userId = userId;
+      schedulerState->allProcesses[callingProcessId].userId = userId;
       nanoOsMessage->data = 0;
     } else {
       nanoOsMessage->data = EACCES;
@@ -1728,6 +1756,74 @@ int schedulerSetProcessUserCommandHandler(
   processMessageSetDone(processMessage);
 
   // DO NOT release the message since the caller is waiting on the response.
+
+  return returnValue;
+}
+
+/// @fn int schedulerCloseFileDescriptorsCommandHandler(
+///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///
+/// @brief Get the number of processes that are currently running in the system.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int schedulerCloseFileDescriptorsCommandHandler(
+  SchedulerState *schedulerState, ProcessMessage *processMessage
+) {
+  int returnValue = 0;
+  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
+  ProcessMessage *messageToSend
+    = nanoOsMessageDataPointer(processMessage, ProcessMessage*);
+  ProcessDescriptor *processDescriptor
+    = &schedulerState->allProcesses[callingProcessId];
+  FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
+
+  // Initialize messageToSend->from so that it behaves correctly.
+  messageToSend->from = schedulerProcess;
+
+  if (fileDescriptors != standardUserFileDescriptors) {
+    uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
+    for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
+      ProcessId waitingProcessId = fileDescriptors[ii].outputPipe.processId;
+      if ((waitingProcessId == PROCESS_ID_NOT_SET)
+        || (waitingProcessId == NANO_OS_CONSOLE_PROCESS_ID)
+      ) {
+        // Nothing waiting on output from this file descriptor.  Move on.
+        continue;
+      }
+
+      // Send an empty message to the waiting process so that it will become
+      // unblocked.
+      ProcessHandle processHandle
+        = schedulerState->allProcesses[waitingProcessId].processHandle;
+      processMessageInit(messageToSend,
+          fileDescriptors[ii].outputPipe.messageType,
+          /*data= */ NULL, /* size= */ 0, /* waiting= */ true);
+      processMessageQueuePush(processHandle, messageToSend);
+      coroutineResume(processHandle, NULL);
+
+      // The function that was waiting should have released the message we sent
+      // it.  Get another one.
+      if (processMessageDone(messageToSend)) {
+        messageToSend = getAvailableMessage();
+      } else {
+        printString("ERROR!!!  Resumed process did not release the message!\n");
+      }
+    }
+
+    // kfree will pull an available message.  Release the one we've been using
+    // so that we're guaranteed it will be successful.
+    processMessageRelease(messageToSend);
+    kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
+  } else {
+    // Nothing to do.  Just release the spare message.
+    processMessageRelease(messageToSend);
+  }
+
+  processMessageRelease(processMessage);
 
   return returnValue;
 }
@@ -1744,6 +1840,8 @@ int (*schedulerCommandHandlers[])(SchedulerState*, ProcessMessage*) = {
   schedulerGetProcessInfoCommandHandler,    // SCHEDULER_GET_PROCESS_INFO
   schedulerGetProcessUserCommandHandler,    // SCHEDULER_GET_PROCESS_USER
   schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
+  // SCHEDULER_CLOSE_FILE_DESCRIPTORS:
+  schedulerCloseFileDescriptorsCommandHandler,
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
