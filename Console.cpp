@@ -406,19 +406,14 @@ void consoleReleasePortCommandHandler(
   ProcessId owner = processId(processMessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
-  bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].owner == owner) {
       consolePorts[ii].owner = consolePorts[ii].shell;
-      portFound = true;
     }
   }
 
-  if (portFound == false) {
-    printString("WARNING:  Request to release a port from non-owning process ");
-    printInt(owner);
-    printString("\n");
-  }
+  // Since piped commands still attempt to release a port on completion, we
+  // will not print a warning if we didn't successfully release anything.
 
   processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
