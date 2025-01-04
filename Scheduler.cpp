@@ -1892,9 +1892,6 @@ void runScheduler(SchedulerState *schedulerState) {
     if (processRunning(processDescriptor->processHandle) == false) {
       schedulerSendNanoOsMessageToPid(schedulerState,
         NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-        /* func= */ 0, /* data= */ 0);
-      schedulerSendNanoOsMessageToPid(schedulerState,
-        NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         /* func= */ 0, /* data= */ processDescriptor->processId);
     }
 
