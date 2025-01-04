@@ -32,8 +32,17 @@
 #include "Processes.h"
 #include "Scheduler.h"
 
-extern ProcessMessage *messages;
-extern NanoOsMessage *nanoOsMessages;
+/// @var messages
+///
+/// @brief Pointer to the array of process messages that will be stored in the
+/// scheduler function's stack.
+ProcessMessage *messages = NULL;
+
+/// @var nanoOsMessages
+///
+/// @brief Pointer to the array of NanoOsMessages that will be stored in the
+/// scheduler function's stack.
+NanoOsMessage *nanoOsMessages = NULL;
 
 /// @fn int getNumTokens(const char *input)
 ///

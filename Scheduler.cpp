@@ -72,18 +72,6 @@
 /// function.
 ProcessHandle schedulerProcess = NULL;
 
-/// @var messages
-///
-/// @brief Pointer to the array of process messages that will be stored in the
-/// scheduler function's stack.
-ProcessMessage *messages = NULL;
-
-/// @var nanoOsMessages
-///
-/// @brief Pointer to the array of NanoOsMessages that will be stored in the
-/// scheduler function's stack.
-NanoOsMessage *nanoOsMessages = NULL;
-
 /// @var allProcesses
 ///
 /// @brief Pointer to the allProcesses array that is part of the
@@ -1965,10 +1953,12 @@ __attribute__((noinline)) void startScheduler(
 
   // Initialize the static ProcessMessage storage.
   ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  extern ProcessMessage *messages;
   messages = messagesStorage;
 
   // Initialize the static NanoOsMessage storage.
   NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  extern NanoOsMessage *nanoOsMessages;
   nanoOsMessages = nanoOsMessagesStorage;
 
   // Initialize the allProcesses pointer.
