@@ -1398,12 +1398,13 @@ int schedulerRunProcessCommandHandler(
     if (prevProcessDescriptor != NULL) {
       // We're piping two or more commands together and we need to connect the
       // pipes.
+      FileDescriptor *fileDescriptors = NULL;
       if (
         prevProcessDescriptor->fileDescriptors == standardUserFileDescriptors
       ) {
         // We need to make a copy of the previous process descriptor's file
         // descriptors.
-        FileDescriptor *fileDescriptors = (FileDescriptor*) kmalloc(
+        fileDescriptors = (FileDescriptor*) kmalloc(
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
         memcpy(fileDescriptors, prevProcessDescriptor->fileDescriptors,
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
@@ -1412,7 +1413,19 @@ int schedulerRunProcessCommandHandler(
         STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.processId
         = curProcessDescriptor->processId;
       prevProcessDescriptor->fileDescriptors[
-        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.messageType = 0;
+        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.messageType
+        = 0;
+
+      fileDescriptors = (FileDescriptor*) kmalloc(
+        NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
+      memcpy(fileDescriptors, standardUserFileDescriptors,
+        NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
+      prevProcessDescriptor->fileDescriptors[
+        STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.processId
+        = prevProcessDescriptor->processId;
+      prevProcessDescriptor->fileDescriptors[
+        STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
+        = CONSOLE_RETURNING_INPUT;
     }
 
     prevProcessDescriptor = curProcessDescriptor;
