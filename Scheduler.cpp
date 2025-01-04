@@ -1334,10 +1334,14 @@ int schedulerRunProcessCommandHandler(
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
+  if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString("WARNING:  Could not assign consoleInput to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
   commandDescriptor->schedulerState = schedulerState;
   bool backgroundProcess = false;
   char *charAt = NULL;
-    ProcessDescriptor *curProcessDescriptor = NULL;
+  ProcessDescriptor *curProcessDescriptor = NULL;
   ProcessDescriptor *prevProcessDescriptor = NULL;
   char *commandLine = NULL;
 
@@ -1426,8 +1430,7 @@ int schedulerRunProcessCommandHandler(
 
   // We're done with our copy of the console input.  The process(es) will free
   // its/their copy/copies.
-  consoleInput
-    = stringDestroy(consoleInput);
+  consoleInput = stringDestroy(consoleInput);
 
   return 0;
 }
