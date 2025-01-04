@@ -33,7 +33,7 @@
 #include "Scheduler.h"
 
 extern ProcessMessage *messages;
-extern NanoOsMessage nanoOsMessages[];
+extern NanoOsMessage *nanoOsMessages;
 
 /// @fn int getNumTokens(const char *input)
 ///

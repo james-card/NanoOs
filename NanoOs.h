@@ -65,7 +65,7 @@ extern "C"
 ///
 /// @brief The total number of inter-process messages that will be available
 /// for use by processes.
-#define NANO_OS_NUM_MESSAGES                              7
+#define NANO_OS_NUM_MESSAGES                              6
 
 /// @def NANO_OS_SCHEDULER_PROCESS_ID
 ///

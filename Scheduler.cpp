@@ -82,7 +82,7 @@ ProcessMessage *messages = NULL;
 ///
 /// @brief Pointer to the array of NanoOsMessages that will be stored in the
 /// scheduler function's stack.
-NanoOsMessage nanoOsMessages[NANO_OS_NUM_MESSAGES] = {};
+NanoOsMessage *nanoOsMessages = NULL;
 
 /// @var allProcesses
 ///
@@ -1966,6 +1966,10 @@ __attribute__((noinline)) void startScheduler(
   // Initialize the static ProcessMessage storage.
   ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
+
+  // Initialize the static NanoOsMessage storage.
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  nanoOsMessages = nanoOsMessagesStorage;
 
   // Initialize the allProcesses pointer.
   allProcesses = schedulerState.allProcesses;
