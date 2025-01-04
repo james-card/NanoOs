@@ -1327,7 +1327,7 @@ char* consoleWaitForInput(void) {
   }
 
   ProcessMessage *response
-    = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT,NULL);
+    = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(response, ConsoleBuffer*);
   if (consoleBuffer != NULL) {
