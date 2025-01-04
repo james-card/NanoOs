@@ -48,6 +48,24 @@
 /// @brief The number of file descriptors a process usually starts out with.
 #define NUM_STANDARD_FILE_DESCRIPTORS 3
 
+/// @def STDIN_FILE_DESCRIPTOR_INDEX
+///
+/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the process's stdin FILE stream.
+#define STDIN_FILE_DESCRIPTOR_INDEX 0
+
+/// @def STDOUT_FILE_DESCRIPTOR_INDEX
+///
+/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the process's stdout FILE stream.
+#define STDOUT_FILE_DESCRIPTOR_INDEX 1
+
+/// @def STDERR_FILE_DESCRIPTOR_INDEX
+///
+/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the process's stderr FILE stream.
+#define STDERR_FILE_DESCRIPTOR_INDEX 2
+
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main process object that's allocated in the main loop
@@ -64,7 +82,7 @@ ProcessMessage *messages = NULL;
 ///
 /// @brief Pointer to the array of NanoOsMessages that will be stored in the
 /// scheduler function's stack.
-NanoOsMessage *nanoOsMessages = NULL;
+NanoOsMessage nanoOsMessages[NANO_OS_NUM_MESSAGES] = {};
 
 /// @var allProcesses
 ///
@@ -125,50 +143,49 @@ FileDescriptor standardKernelFileDescriptors[
 /// startScheduler function on the scheduler's stack) that all processes start
 /// out with.
 //// static FileDescriptor *standardUserFileDescriptors = NULL;
-static FileDescriptor standardUserFileDescriptors
-  [
-    NUM_STANDARD_FILE_DESCRIPTORS
-  ] = {
-    {
-      // stdin
-      // Uni-directional FileDescriptor, so clear the output pipe and direct the
-      // input pipe to the console.
-      .inputPipe = {
-        .processId = NANO_OS_CONSOLE_PROCESS_ID,
-        .messageType = CONSOLE_WAIT_FOR_INPUT,
-      },
-      .outputPipe = {
-        .processId = PROCESS_ID_NOT_SET,
-        .messageType = 0,
-      },
+static FileDescriptor standardUserFileDescriptors[
+  NUM_STANDARD_FILE_DESCRIPTORS
+] = {
+  {
+    // stdin
+    // Uni-directional FileDescriptor, so clear the output pipe and direct the
+    // input pipe to the console.
+    .inputPipe = {
+      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .messageType = CONSOLE_WAIT_FOR_INPUT,
     },
-    {
-      // stdout
-      // Uni-directional FileDescriptor, so clear the input pipe and direct the
-      // output pipe to the console.
-      .inputPipe = {
-        .processId = PROCESS_ID_NOT_SET,
-        .messageType = 0,
-      },
-      .outputPipe = {
-        .processId = NANO_OS_CONSOLE_PROCESS_ID,
-        .messageType = CONSOLE_WRITE_BUFFER,
-      },
+    .outputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
     },
-    {
-      // stderr
-      // Uni-directional FileDescriptor, so clear the input pipe and direct the
-      // output pipe to the console.
-      .inputPipe = {
-        .processId = PROCESS_ID_NOT_SET,
-        .messageType = 0,
-      },
-      .outputPipe = {
-        .processId = NANO_OS_CONSOLE_PROCESS_ID,
-        .messageType = CONSOLE_WRITE_BUFFER,
-      },
+  },
+  {
+    // stdout
+    // Uni-directional FileDescriptor, so clear the input pipe and direct the
+    // output pipe to the console.
+    .inputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
     },
-  };
+    .outputPipe = {
+      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .messageType = CONSOLE_WRITE_BUFFER,
+    },
+  },
+  {
+    // stderr
+    // Uni-directional FileDescriptor, so clear the input pipe and direct the
+    // output pipe to the console.
+    .inputPipe = {
+      .processId = PROCESS_ID_NOT_SET,
+      .messageType = 0,
+    },
+    .outputPipe = {
+      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .messageType = CONSOLE_WRITE_BUFFER,
+    },
+  },
+};
 
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
@@ -592,27 +609,34 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   reallocMessage.pid = processId(getRunningProcess());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
-  STATIC_NANO_OS_MESSAGE(
-    /* variableName= */ sent,
-    /* type= */ MEMORY_MANAGER_REALLOC,
-    /* funcValue= */ 0,
-    /* dataValue= */ (uintptr_t) &reallocMessage,
-    /* waiting= */ true
-  );
+  ProcessMessage *sent = getAvailableMessage();
+  if (sent == NULL) {
+    // Nothing we can do.  The scheduler can't yield.  Bail.
+    return returnValue;
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(sent);
+  nanoOsMessage->data = (NanoOsMessageData) &reallocMessage;
+  processMessageInit(sent, MEMORY_MANAGER_REALLOC,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-    &sent);
-  
-  ProcessMessage *response = processMessageWaitForReplyWithType(&sent, false,
-    MEMORY_MANAGER_RETURNING_POINTER, NULL);
-  if (response == NULL) {
-    // Something is wrong.  Fail.
-    return returnValue; // NULL
+    sent);
+  if (processMessageDone(sent) == true) {
+    // The handler set the pointer back in the structure we sent it, so grab it
+    // out of the structure we already have.
+    returnValue = reallocMessage.ptr;
+  } else {
+    printString(
+      "Warning!!!  Memory manager did not mark realloc message done.\n");
   }
-  
-  // The handler set the pointer back in the structure we sent it, so grab it
-  // out of the structure we already have.
-  returnValue = reallocMessage.ptr;
+  // The handler pushes the message back onto our queue, which is not what we
+  // want.  Pop it off again.
+  comessageQueuePop();
+  comessageRelease(sent);
+
   // The message that was sent to us is the one that we allocated on the stack,
   // so, there's no reason to call processMessageRelease here.
   
@@ -1125,7 +1149,7 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 }
 
 /// @fn ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
-///   ProcessMessage *processMessage, char *commandLine,
+///   ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
 ///   ProcessDescriptor *processDescriptor)
 ///
 /// @brief Run the specified command line with the specified ProcessDescriptor.
@@ -1134,22 +1158,20 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 ///   scheduler process.
 /// @param processMessage A pointer to the ProcessMessage that was received
 ///   that contains the information about the process to run and how to run it.
-/// @param commandLine The command line to run.  This may be part or all of the
-///   full line read from the console.
+/// @param commandDescriptor The CommandDescriptor that was sent via the
+///   processMessage to the scueduler.
 /// @processDescriptor A pointer to the available processDescriptor to run the
 ///   command with.
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
-  ProcessMessage *processMessage, char *commandLine,
+static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
+  ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
   ProcessDescriptor *processDescriptor
 ) {
   ProcessDescriptor *returnValue = processDescriptor;
   CommandEntry *commandEntry
     = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
-  CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
 
   if (processDescriptor != NULL) {
     processDescriptor->userId = schedulerState->allProcesses[
@@ -1163,7 +1185,9 @@ ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
       printString(
         "ERROR!!!  Could not configure process handle for new command.\n");
     }
-    if (assignMemory(commandLine, processDescriptor->processId) != 0) {
+    if (assignMemory(commandDescriptor->consoleInput,
+      processDescriptor->processId) != 0
+    ) {
       printString(
         "WARNING:  Could not assign console input to new process.\n");
       printString("Memory leak.\n");
@@ -1183,19 +1207,21 @@ ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
       printString("WARNING:  Could not assign console port to process.\n");
     }
 
+    // Resume the coroutine so that it picks up all the pointers it needs.
+    coroutineResume(processDescriptor->processHandle, NULL);
+
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
   } else {
     returnValue = NULL;
-    handleOutOfSlots(processMessage, commandLine);
   }
 
   return returnValue;
 }
 
 /// @fn ProcessDescriptor* launchForegroundProcess(
-///   SchedulerState *schedulerState,
-///   ProcessMessage *processMessage, char *commandLine)
+///   SchedulerState *schedulerState, ProcessMessage *processMessage,
+///   CommandDescriptor *commandDescriptor)
 ///
 /// @brief Kill the sender of the ProcessMessage and use its ProcessDescriptor
 /// to run the specified command line.
@@ -1204,18 +1230,17 @@ ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 ///   scheduler process.
 /// @param processMessage A pointer to the ProcessMessage that was received
 ///   that contains the information about the process to run and how to run it.
-/// @param commandLine The command line to run.  This may be part or all of the
-///   full line read from the console.
+/// @param commandDescriptor The CommandDescriptor that was sent via the
+///   processMessage to the scueduler.
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-ProcessDescriptor* launchForegroundProcess(SchedulerState *schedulerState,
-  ProcessMessage *processMessage, char *commandLine
+static inline ProcessDescriptor* launchForegroundProcess(
+  SchedulerState *schedulerState, ProcessMessage *processMessage,
+  CommandDescriptor *commandDescriptor
 ) {
   ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
     processId(processMessageFrom(processMessage))];
-  CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   // The process should be blocked in processMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
@@ -1225,7 +1250,9 @@ ProcessDescriptor* launchForegroundProcess(SchedulerState *schedulerState,
     || processQueueRemove(&schedulerState->ready, processDescriptor);
 
   // Protect the relevant memory from deletion below.
-  if (assignMemory(commandLine, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(commandDescriptor->consoleInput,
+    NANO_OS_SCHEDULER_PROCESS_ID) != 0
+  ) {
     printString(
       "WARNING:  Could not protect console input from deletion.\n");
     printString("Undefined behavior.\n");
@@ -1254,13 +1281,13 @@ ProcessDescriptor* launchForegroundProcess(SchedulerState *schedulerState,
     printString("Memory leak.\n");
   }
 
-  return launchProcess(schedulerState, processMessage,
-    commandLine, processDescriptor);
+  return launchProcess(schedulerState, processMessage, commandDescriptor,
+    processDescriptor);
 }
 
 /// @fn ProcessDescriptor* launchBackgroundProcess(
-///   SchedulerState *schedulerState,
-///   ProcessMessage *processMessage, char *commandLine)
+///   SchedulerState *schedulerState, ProcessMessage *processMessage,
+///   CommandDescriptor *commandDescriptor)
 ///
 /// @brief Pop a process off of the free queue and use it to run the specified
 /// command line.
@@ -1269,18 +1296,17 @@ ProcessDescriptor* launchForegroundProcess(SchedulerState *schedulerState,
 ///   scheduler process.
 /// @param processMessage A pointer to the ProcessMessage that was received
 ///   that contains the information about the process to run and how to run it.
-/// @param commandLine The command line to run.  This may be part or all of the
-///   full line read from the console.
+/// @param commandDescriptor The CommandDescriptor that was sent via the
+///   processMessage to the scueduler.
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-ProcessDescriptor* launchBackgroundProcess(SchedulerState *schedulerState,
-  ProcessMessage *processMessage, char *commandLine
+static inline ProcessDescriptor* launchBackgroundProcess(
+  SchedulerState *schedulerState, ProcessMessage *processMessage,
+  CommandDescriptor *commandDescriptor
 ) {
-  ProcessDescriptor *processDescriptor = processQueuePop(&schedulerState->free);
-
-  return launchProcess(schedulerState, processMessage,
-    commandLine, processDescriptor);
+  return launchProcess(schedulerState, processMessage, commandDescriptor,
+    processQueuePop(&schedulerState->free));
 }
 
 // Scheduler command handlers
@@ -1307,33 +1333,101 @@ int schedulerRunProcessCommandHandler(
 
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
-  commandDescriptor->schedulerState = schedulerState;
   char *consoleInput = commandDescriptor->consoleInput;
+  commandDescriptor->schedulerState = schedulerState;
   bool backgroundProcess = false;
-  char *ampersandAt = NULL;
+  char *charAt = NULL;
+    ProcessDescriptor *curProcessDescriptor = NULL;
+  ProcessDescriptor *prevProcessDescriptor = NULL;
+  char *commandLine = NULL;
 
-  if (getNumPipes(consoleInput) > schedulerState->free.numElements) {
+  if (consoleInput == NULL) {
+    // We can't parse or handle NULL input.  Bail.
+    handleOutOfSlots(processMessage, consoleInput);
+    return 0;
+  } else if (getNumPipes(consoleInput)
+    > schedulerState->free.numElements
+  ) {
     // We've been asked to run more processes chained together than we can
     // currently launch.  Fail.
     handleOutOfSlots(processMessage, consoleInput);
+    return 0;
   }
 
-  ampersandAt = strchr(consoleInput, '&');
-  if (ampersandAt != NULL) {
-    ampersandAt++;
-    if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
+  charAt = strchr(consoleInput, '&');
+  if (charAt != NULL) {
+    charAt++;
+    if (charAt[strspn(charAt, " \t\r\n")] == '\0') {
       backgroundProcess = true;
     }
   }
 
-  if (backgroundProcess == false) {
-    // Task is a foreground process.  We're going to kill the caller and reuse
-    // its process slot.
-    launchForegroundProcess(schedulerState, processMessage, consoleInput);
-  } else {
-    // Task is a background process.  Get a process off the free queue.
-    launchBackgroundProcess(schedulerState, processMessage, consoleInput);
+  while (*consoleInput != '\0') {
+    charAt = strrchr(consoleInput, '|');
+    if (charAt == NULL) {
+      // This is the usual case, so list it first.
+      commandLine
+        = (char*) kmalloc(strlen(consoleInput)) + 1;
+      strcpy(commandLine, consoleInput);
+      *consoleInput = '\0';
+    } else {
+      // This is the last command in a chain of pipes.
+      *charAt = '\0';
+      charAt++;
+      charAt = &charAt[strspn(charAt, " \t\r\n")];
+      commandLine = (char*) kmalloc(strlen(charAt)) + 1;
+      strcpy(commandLine, charAt);
+    }
+    commandDescriptor->consoleInput = commandLine;
+
+    if (backgroundProcess == false) {
+      // Task is a foreground process.  We're going to kill the caller and reuse
+      // its process slot.  This is expected to be the usual case, so list it
+      // first.
+      curProcessDescriptor = launchForegroundProcess(
+        schedulerState, processMessage, commandDescriptor);
+
+      // Any process after the first one (if we're connecting pipes) will have
+      // to be a background process, so set backgroundProcess to true.
+      backgroundProcess = true;
+    } else {
+      // Task is a background process.  Get a process off the free queue.
+      curProcessDescriptor = launchBackgroundProcess(
+        schedulerState, processMessage, commandDescriptor);
+    }
+    if (curProcessDescriptor == NULL) {
+      commandLine = stringDestroy(commandLine);
+      handleOutOfSlots(processMessage, consoleInput);
+      break;
+    }
+
+    if (prevProcessDescriptor != NULL) {
+      // We're piping two or more commands together and we need to connect the
+      // pipes.
+      if (
+        prevProcessDescriptor->fileDescriptors == standardUserFileDescriptors
+      ) {
+        // We need to make a copy of the previous process descriptor's file
+        // descriptors.
+        FileDescriptor *fileDescriptors = (FileDescriptor*) kmalloc(
+          NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
+        memcpy(fileDescriptors, prevProcessDescriptor->fileDescriptors,
+          NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
+      }
+      prevProcessDescriptor->fileDescriptors[
+        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.processId
+        = curProcessDescriptor->processId;
+      prevProcessDescriptor->fileDescriptors[
+        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.messageType = 0;
+    }
+
+    prevProcessDescriptor = curProcessDescriptor;
   }
+
+  // We're done with our copy of the console input.  The process(es) will free
+  // its/their copy/copies.
+  consoleInput
+    = stringDestroy(consoleInput);
 
   return 0;
 }
@@ -1861,10 +1955,6 @@ __attribute__((noinline)) void startScheduler(
   // Initialize the static ProcessMessage storage.
   ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
   messages = messagesStorage;
-
-  // Initialize the NanoOsMessage storage.
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
-  nanoOsMessages = nanoOsMessagesStorage;
 
   // Initialize the allProcesses pointer.
   allProcesses = schedulerState.allProcesses;
