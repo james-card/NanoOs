@@ -191,7 +191,7 @@ extern "C"
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the specified type.
 #define nanoOsMessageFuncValue(msg, type) \
-  ((type) ((NanoOsMessage*) (msg)->data)->func)
+  (((msg)->data) ? ((type) ((NanoOsMessage*) (msg)->data)->func) : ((type) 0))
 
 /// @def nanoOsMessageFuncPointer
 ///
@@ -205,7 +205,7 @@ extern "C"
 /// @brief Given a pointer to a thrd_msg_t, extract the underlying function
 /// value and cast it to the specified type.
 #define nanoOsMessageDataValue(msg, type) \
-  ((type) ((NanoOsMessage*) (msg)->data)->data)
+  (((msg)->data) ? ((type) ((NanoOsMessage*) (msg)->data)->data) : ((type) 0))
 
 /// @def nanoOsMessageDataPointer
 ///
