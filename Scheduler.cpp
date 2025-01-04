@@ -1141,7 +1141,7 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 
 /// @fn ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 ///   ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
-///   ProcessDescriptor *processDescriptor)
+///   ProcessDescriptor *processDescriptor, bool backgroundProcess)
 ///
 /// @brief Run the specified command line with the specified ProcessDescriptor.
 ///
@@ -1151,14 +1151,17 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 ///   that contains the information about the process to run and how to run it.
 /// @param commandDescriptor The CommandDescriptor that was sent via the
 ///   processMessage to the scueduler.
-/// @processDescriptor A pointer to the available processDescriptor to run the
-///   command with.
+/// @param processDescriptor A pointer to the available processDescriptor to
+///   run the command with.
+/// @param backgroundProcess Whether or not the process is to be launched as a
+///   background process.  If this value is false then it will not be assigned
+///   to a console port.
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
 static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
   ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
-  ProcessDescriptor *processDescriptor
+  ProcessDescriptor *processDescriptor, bool backgroundProcess
 ) {
   ProcessDescriptor *returnValue = processDescriptor;
   CommandEntry *commandEntry
@@ -1191,11 +1194,13 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 
     processDescriptor->name = commandEntry->name;
 
-    if (schedulerAssignPortToPid(schedulerState,
-      commandDescriptor->consolePort, processDescriptor->processId)
-      != processSuccess
-    ) {
-      printString("WARNING:  Could not assign console port to process.\n");
+    if (backgroundProcess == false) {
+      if (schedulerAssignPortToPid(schedulerState,
+        commandDescriptor->consolePort, processDescriptor->processId)
+        != processSuccess
+      ) {
+        printString("WARNING:  Could not assign console port to process.\n");
+      }
     }
 
     // Resume the coroutine so that it picks up all the pointers it needs.
@@ -1273,7 +1278,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
   }
 
   return launchProcess(schedulerState, processMessage, commandDescriptor,
-    processDescriptor);
+    processDescriptor, false);
 }
 
 /// @fn ProcessDescriptor* launchBackgroundProcess(
@@ -1297,7 +1302,7 @@ static inline ProcessDescriptor* launchBackgroundProcess(
   CommandDescriptor *commandDescriptor
 ) {
   return launchProcess(schedulerState, processMessage, commandDescriptor,
-    processQueuePop(&schedulerState->free));
+    processQueuePop(&schedulerState->free), true);
 }
 
 // Scheduler command handlers
