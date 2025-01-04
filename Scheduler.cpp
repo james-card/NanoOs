@@ -466,10 +466,10 @@ int schedulerSendProcessMessageToProcess(
     returnValue = processError;
     return returnValue;
   }
-  // processMessage->from would normally be set when we do a processMessageQueuePush.
-  // We're not using that mechanism here, so we have to do it manually.  If we
-  // don't do this, then commands that validate that the message came from the
-  // scheduler will fail.
+  // processMessage->from would normally be set when we do a
+  // processMessageQueuePush. We're not using that mechanism here, so we have
+  // to do it manually.  If we don't do this, then commands that validate that
+  // the message came from the scheduler will fail.
   processMessage->from = schedulerProcess;
 
   void *processReturnValue = coroutineResume(processHandle, processMessage);
@@ -606,7 +606,6 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   ReallocMessage reallocMessage;
   reallocMessage.ptr = ptr;
   reallocMessage.size = size;
-  reallocMessage.pid = processId(getRunningProcess());
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
   ProcessMessage *sent = getAvailableMessage();
@@ -620,6 +619,10 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   nanoOsMessage->data = (NanoOsMessageData) &reallocMessage;
   processMessageInit(sent, MEMORY_MANAGER_REALLOC,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
+  // sent->from would normally be set during processMessageQueuePush.  We're
+  // not using that mechanism here, so we have to do it manually.  Things will
+  // get messed up if we don't.
+  sent->from = schedulerProcess;
 
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
@@ -1370,8 +1373,7 @@ int schedulerRunProcessCommandHandler(
     charAt = strrchr(consoleInput, '|');
     if (charAt == NULL) {
       // This is the usual case, so list it first.
-      commandLine
-        = (char*) kmalloc(strlen(consoleInput)) + 1;
+      commandLine = (char*) kmalloc(strlen(consoleInput) + 1);
       strcpy(commandLine, consoleInput);
       *consoleInput = '\0';
     } else {
@@ -1379,7 +1381,7 @@ int schedulerRunProcessCommandHandler(
       *charAt = '\0';
       charAt++;
       charAt = &charAt[strspn(charAt, " \t\r\n")];
-      commandLine = (char*) kmalloc(strlen(charAt)) + 1;
+      commandLine = (char*) kmalloc(strlen(charAt) + 1);
       strcpy(commandLine, charAt);
     }
     commandDescriptor->consoleInput = commandLine;
@@ -1885,6 +1887,15 @@ void runScheduler(SchedulerState *schedulerState) {
       }
 
       continue;
+    }
+
+    if (processRunning(processDescriptor->processHandle) == false) {
+      schedulerSendNanoOsMessageToPid(schedulerState,
+        NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+        /* func= */ 0, /* data= */ 0);
+      schedulerSendNanoOsMessageToPid(schedulerState,
+        NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+        /* func= */ 0, /* data= */ processDescriptor->processId);
     }
 
     // Check the shells and restart them if needed.
