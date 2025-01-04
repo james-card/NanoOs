@@ -181,6 +181,7 @@ void* startCommand(void *args) {
   ProcessMessage *processMessage = (ProcessMessage*) args;
   if (processMessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
+    releaseConsole();
     return (void*) ((intptr_t) -1);
   }
   CommandEntry *commandEntry
