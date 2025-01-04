@@ -44,9 +44,9 @@
 /// @param owner The PID of the process that owns the memory (which is not
 ///   necessarily the process that allocated it).
 typedef struct MemNode {
-  struct MemNode    *prev;
-  size_t             size:12;
-  ProcessId  owner:4;
+  struct MemNode *prev;
+  size_t          size:12;
+  ProcessId       owner:4;
 } MemNode;
 
 /// @def memNode
