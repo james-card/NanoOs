@@ -123,6 +123,37 @@ int echoCommandHandler(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int grepCommandHandler(int argc, char **argv);
+///
+/// @brief Echo a line of text from standard input to the console output if it
+/// contains the string the user is looking for.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  They will be greped back to the console
+///   output separated by a space.
+///
+/// @return This function always returns 0.
+int grepCommandHandler(int argc, char **argv) {
+  char buffer[128];
+
+  if (argc < 2) {
+    printf("Usage:  %s <string to find>\n", argv[0]);
+    return 1;
+  }
+
+  while (fgets(buffer, sizeof(buffer), stdin)) {
+    if (strstr(buffer, argv[1])) {
+      printConsole(buffer);
+    }
+  }
+
+  printConsole("\n");
+
+  return 0;
+}
+
 /// @fn int echoSomethingCommandHandler(int argc, char **argv);
 ///
 /// @brief Echo the word "Something" to the console output.  This function
@@ -489,6 +520,11 @@ CommandEntry commands[] = {
     .name = "exit",
     .func = logoutCommandHandler,
     .help = "Exit the current shell."
+  },
+  {
+    .name = "grep",
+    .func = grepCommandHandler,
+    .help = "Find text in piped output."
   },
   {
     .name = "help",
