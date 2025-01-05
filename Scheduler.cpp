@@ -31,7 +31,8 @@
 // Custom includes
 #include "Scheduler.h"
 
-// Coroutines support
+// Support prototypes.
+void runScheduler(SchedulerState *schedulerState);
 
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
@@ -1135,6 +1136,28 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   return returnValue;
 }
 
+/// @fn int schedulerCloseAllFileDescriptors(void)
+///
+/// @brief Close all the open file descriptors for the currently-running
+/// process.
+///
+/// @return Returns 0 on success, -1 on failure.
+int schedulerCloseAllFileDescriptors(void) {
+  ProcessMessage *processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
+    processYield();
+    processMessage = getAvailableMessage();
+  }
+
+  sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
+    /* func= */ 0, /* data= */ (intptr_t) processMessage, false);
+
+  return 0;
+}
+
+// Scheduler command handlers and support functions
+
 /// @fn void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine)
 ///
 /// @brief Handle the exception case when we're out of free process slots to run
@@ -1333,8 +1356,6 @@ static inline ProcessDescriptor* launchBackgroundProcess(
     processQueuePop(&schedulerState->free), true);
 }
 
-// Scheduler command handlers
-
 /// @fn int schedulerRunProcessCommandHandler(
 ///   SchedulerState *schedulerState, ProcessMessage *processMessage)
 ///
@@ -1355,6 +1376,8 @@ int schedulerRunProcessCommandHandler(
     return 0;
   }
 
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
@@ -1405,6 +1428,9 @@ int schedulerRunProcessCommandHandler(
       commandLine = (char*) kmalloc(strlen(charAt) + 1);
       strcpy(commandLine, charAt);
     }
+
+    CommandEntry *commandEntry = getCommandEntryFromInput(commandLine);
+    nanoOsMessage->func = (intptr_t) commandEntry;
     commandDescriptor->consoleInput = commandLine;
 
     if (backgroundProcess == false) {
@@ -1441,6 +1467,7 @@ int schedulerRunProcessCommandHandler(
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
         memcpy(fileDescriptors, prevProcessDescriptor->fileDescriptors,
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
+        prevProcessDescriptor->fileDescriptors = fileDescriptors;
       }
       prevProcessDescriptor->fileDescriptors[
         STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.processId
@@ -1453,10 +1480,11 @@ int schedulerRunProcessCommandHandler(
         NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
       memcpy(fileDescriptors, standardUserFileDescriptors,
         NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
-      prevProcessDescriptor->fileDescriptors[
+      curProcessDescriptor->fileDescriptors = fileDescriptors;
+      curProcessDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.processId
         = prevProcessDescriptor->processId;
-      prevProcessDescriptor->fileDescriptors[
+      curProcessDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
         = CONSOLE_RETURNING_INPUT;
     }
@@ -1760,7 +1788,7 @@ int schedulerSetProcessUserCommandHandler(
   return returnValue;
 }
 
-/// @fn int schedulerCloseFileDescriptorsCommandHandler(
+/// @fn int schedulerCloseAllFileDescriptorsCommandHandler(
 ///   SchedulerState *schedulerState, ProcessMessage *processMessage)
 ///
 /// @brief Get the number of processes that are currently running in the system.
@@ -1770,7 +1798,7 @@ int schedulerSetProcessUserCommandHandler(
 /// @param processMessage A pointer to the ProcessMessage that was received.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerCloseFileDescriptorsCommandHandler(
+int schedulerCloseAllFileDescriptorsCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
   int returnValue = 0;
@@ -1780,9 +1808,6 @@ int schedulerCloseFileDescriptorsCommandHandler(
   ProcessDescriptor *processDescriptor
     = &schedulerState->allProcesses[callingProcessId];
   FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
-
-  // Initialize messageToSend->from so that it behaves correctly.
-  messageToSend->from = schedulerProcess;
 
   if (fileDescriptors != standardUserFileDescriptors) {
     uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
@@ -1803,14 +1828,20 @@ int schedulerCloseFileDescriptorsCommandHandler(
           fileDescriptors[ii].outputPipe.messageType,
           /*data= */ NULL, /* size= */ 0, /* waiting= */ true);
       processMessageQueuePush(processHandle, messageToSend);
+      // Give the process a chance to unblock.
+      printDebug("Sending NULL message of type ");
+      printDebug(fileDescriptors[ii].outputPipe.messageType);
+      printDebug(" to process ");
+      printDebug(processId(schedulerState->allProcesses[waitingProcessId].processHandle));
+      printDebug(".\n");
       coroutineResume(processHandle, NULL);
 
       // The function that was waiting should have released the message we sent
       // it.  Get another one.
-      if (processMessageDone(messageToSend)) {
+      messageToSend = getAvailableMessage();
+      while (messageToSend == NULL) {
+        runScheduler(schedulerState);
         messageToSend = getAvailableMessage();
-      } else {
-        printString("ERROR!!!  Resumed process did not release the message!\n");
       }
     }
 
@@ -1840,8 +1871,8 @@ int (*schedulerCommandHandlers[])(SchedulerState*, ProcessMessage*) = {
   schedulerGetProcessInfoCommandHandler,    // SCHEDULER_GET_PROCESS_INFO
   schedulerGetProcessUserCommandHandler,    // SCHEDULER_GET_PROCESS_USER
   schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
-  // SCHEDULER_CLOSE_FILE_DESCRIPTORS:
-  schedulerCloseFileDescriptorsCommandHandler,
+  // SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS:
+  schedulerCloseAllFileDescriptorsCommandHandler,
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
@@ -1932,121 +1963,119 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
-/// @brief Run the main scheduler loop.
+/// @brief Run one (1) iteration of the main scheduler loop.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
 ///   the scheduler process.
 ///
-/// @return This function returns no value and, in fact, never returns at all.
+/// @return This function returns no value.
 void runScheduler(SchedulerState *schedulerState) {
-  void *processReturnValue = NULL;
-  ProcessDescriptor *processDescriptor = NULL;
+  ProcessDescriptor *processDescriptor
+    = processQueuePop(&schedulerState->ready);
+  void *processReturnValue
+    = coroutineResume(processDescriptor->processHandle, NULL);
 
-  while (1) {
-    processDescriptor = processQueuePop(&schedulerState->ready);
-    processReturnValue
-      = coroutineResume(processDescriptor->processHandle, NULL);
+  if (processReturnValue == COROUTINE_CORRUPT) {
+    printString("ERROR!!!  Process corruption detected!!!\n");
+    printString("          Removing process ");
+    printInt(processDescriptor->processId);
+    printString(" from process queues.\n");
 
-    if (processReturnValue == COROUTINE_CORRUPT) {
-      printString("ERROR!!!  Process corruption detected!!!\n");
-      printString("          Removing process ");
-      printInt(processDescriptor->processId);
-      printString(" from process queues.\n");
+    processDescriptor->name = NULL;
+    processDescriptor->userId = NO_USER_ID;
+    processDescriptor->processHandle->state = COROUTINE_STATE_NOT_RUNNING;
 
-      processDescriptor->name = NULL;
-      processDescriptor->userId = NO_USER_ID;
-      processDescriptor->processHandle->state = COROUTINE_STATE_NOT_RUNNING;
-
-      ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
-      if (schedulerProcessCompleteMessage != NULL) {
-        schedulerSendNanoOsMessageToPid(
-          schedulerState,
-          NANO_OS_CONSOLE_PROCESS_ID,
-          CONSOLE_RELEASE_PID_PORT,
-          (intptr_t) schedulerProcessCompleteMessage,
-          processDescriptor->processId);
-      } else {
-        printString("WARNING:  Could not allocate "
-          "schedulerProcessCompleteMessage.  Memory leak.\n");
-        // If we can't allocate the first message, we can't allocate the second
-        // one either, so bail.
-        continue;
-      }
-
-      ProcessMessage *freeProcessMemoryMessage = getAvailableMessage();
-      if (freeProcessMemoryMessage != NULL) {
-        NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(
-          freeProcessMemoryMessage);
-        nanoOsMessage->data = processDescriptor->processId;
-        processMessageInit(freeProcessMemoryMessage,
-          MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-          nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-        sendProcessMessageToProcess(
-          schedulerState->allProcesses[
-            NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-          freeProcessMemoryMessage);
-      } else {
-        printString("WARNING:  Could not allocate "
-          "freeProcessMemoryMessage.  Memory leak.\n");
-      }
-
-      continue;
+    ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
+    if (schedulerProcessCompleteMessage != NULL) {
+      schedulerSendNanoOsMessageToPid(
+        schedulerState,
+        NANO_OS_CONSOLE_PROCESS_ID,
+        CONSOLE_RELEASE_PID_PORT,
+        (intptr_t) schedulerProcessCompleteMessage,
+        processDescriptor->processId);
+    } else {
+      printString("WARNING:  Could not allocate "
+        "schedulerProcessCompleteMessage.  Memory leak.\n");
+      // If we can't allocate the first message, we can't allocate the second
+      // one either, so bail.
+      return;
     }
 
-    if (processRunning(processDescriptor->processHandle) == false) {
-      schedulerSendNanoOsMessageToPid(schedulerState,
-        NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-        /* func= */ 0, /* data= */ processDescriptor->processId);
+    ProcessMessage *freeProcessMemoryMessage = getAvailableMessage();
+    if (freeProcessMemoryMessage != NULL) {
+      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(
+        freeProcessMemoryMessage);
+      nanoOsMessage->data = processDescriptor->processId;
+      processMessageInit(freeProcessMemoryMessage,
+        MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+        nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
+      sendProcessMessageToProcess(
+        schedulerState->allProcesses[
+          NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+        freeProcessMemoryMessage);
+    } else {
+      printString("WARNING:  Could not allocate "
+        "freeProcessMemoryMessage.  Memory leak.\n");
     }
 
-    // Check the shells and restart them if needed.
-    if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
-      && (processRunning(processDescriptor->processHandle) == false)
-    ) {
-      // Restart the shell.
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
-        = NUM_STANDARD_FILE_DESCRIPTORS;
-      allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
-        = standardUserFileDescriptors;
-      if (processCreate(&processDescriptor->processHandle, runShell, NULL)
-          == processError
-      ) {
-        printString(
-          "ERROR!!!  Could not configure process for USB shell.\n");
-      }
-      processDescriptor->name = "USB shell";
-      coroutineResume(processDescriptor->processHandle, NULL);
-    } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
-      && (processRunning(processDescriptor->processHandle) == false)
-    ) {
-      // Restart the shell.
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
-        = NUM_STANDARD_FILE_DESCRIPTORS;
-      allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
-        = standardUserFileDescriptors;
-      if (processCreate(&processDescriptor->processHandle, runShell, NULL)
-        == processError
-      ) {
-        printString(
-          "ERROR!!!  Could not configure process for GPIO shell.\n");
-      }
-      processDescriptor->name = "GPIO shell";
-      coroutineResume(processDescriptor->processHandle, NULL);
-    }
-
-    if (processReturnValue == COROUTINE_WAIT) {
-      processQueuePush(&schedulerState->waiting, processDescriptor);
-    } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
-      processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-    } else if (processFinished(processDescriptor->processHandle)) {
-      processQueuePush(&schedulerState->free, processDescriptor);
-    } else { // Process is still running.
-      processQueuePush(&schedulerState->ready, processDescriptor);
-    }
-
-    checkForTimeouts(schedulerState);
-    handleSchedulerMessage(schedulerState);
+    return;
   }
+
+  if (processRunning(processDescriptor->processHandle) == false) {
+    schedulerSendNanoOsMessageToPid(schedulerState,
+      NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+      /* func= */ 0, /* data= */ processDescriptor->processId);
+  }
+
+  // Check the shells and restart them if needed.
+  if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
+    && (processRunning(processDescriptor->processHandle) == false)
+  ) {
+    // Restart the shell.
+    allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
+      = NUM_STANDARD_FILE_DESCRIPTORS;
+    allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
+      = standardUserFileDescriptors;
+    if (processCreate(&processDescriptor->processHandle, runShell, NULL)
+        == processError
+    ) {
+      printString(
+        "ERROR!!!  Could not configure process for USB shell.\n");
+    }
+    processDescriptor->name = "USB shell";
+    coroutineResume(processDescriptor->processHandle, NULL);
+  } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
+    && (processRunning(processDescriptor->processHandle) == false)
+  ) {
+    // Restart the shell.
+    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
+      = NUM_STANDARD_FILE_DESCRIPTORS;
+    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
+      = standardUserFileDescriptors;
+    if (processCreate(&processDescriptor->processHandle, runShell, NULL)
+      == processError
+    ) {
+      printString(
+        "ERROR!!!  Could not configure process for GPIO shell.\n");
+    }
+    processDescriptor->name = "GPIO shell";
+    coroutineResume(processDescriptor->processHandle, NULL);
+  }
+
+  if (processReturnValue == COROUTINE_WAIT) {
+    processQueuePush(&schedulerState->waiting, processDescriptor);
+  } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
+    processQueuePush(&schedulerState->timedWaiting, processDescriptor);
+  } else if (processFinished(processDescriptor->processHandle)) {
+    processQueuePush(&schedulerState->free, processDescriptor);
+  } else { // Process is still running.
+    processQueuePush(&schedulerState->ready, processDescriptor);
+  }
+
+  checkForTimeouts(schedulerState);
+  handleSchedulerMessage(schedulerState);
+
+  return;
 }
 
 /// @fn void startScheduler(SchedulerState **coroutineStatePointer)
@@ -2254,7 +2283,9 @@ __attribute__((noinline)) void startScheduler(
     processQueuePush(&schedulerState.ready, &allProcesses[ii]);
   }
 
-  // Start our scheduler.
-  runScheduler(&schedulerState);
+  // Run our scheduler.
+  while (1) {
+    runScheduler(&schedulerState);
+  }
 }
 
