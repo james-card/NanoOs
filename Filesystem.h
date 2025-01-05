@@ -44,19 +44,15 @@ extern "C"
 {
 #endif
 
-/// @enum FilesystemCommand
+/// @enum FilesystemCommandResponse
 ///
-/// @brief Commands understood by the filesystem inter-process message handler.
-typedef enum FilesystemCommand {
-  NUM_FILESYSTEM_COMMANDS
+/// @brief Commands and responses understood by the filesystem inter-process
+/// message handler.
+typedef enum FilesystemCommandResponse {
+  // Commands:
+  // Responses:
+  NUM_FILESYSTEM_COMMAND_RESPONSES
 } FilesystemCommand;
-
-/// @enum FilesystemResponse
-///
-/// @brief Responses the filesystem process may send to a command.
-typedef enum FilesystemResponse {
-  NUM_FILESYSTEM_RESPONSES
-} FilesystemResponse;
 
 // Exported functionality
 void* runFilesystem(void *args);

@@ -67,10 +67,12 @@ extern "C"
 /// Index into ConsoleState.conslePorts for the GPIO serial port.
 #define GPIO_SERIAL_PORT 1
 
-/// @enum ConsoleCommand
+/// @enum ConsoleCommandResponse
 ///
-/// @brief The commands that the console understands via inter-process messages.
-typedef enum ConsoleCommand {
+/// @brief The commands and responses that the console understands via
+/// inter-process messages.
+typedef enum ConsoleCommandResponse {
+  // Commands:
   CONSOLE_WRITE_VALUE,
   CONSOLE_GET_BUFFER,
   CONSOLE_WRITE_BUFFER,
@@ -82,7 +84,11 @@ typedef enum ConsoleCommand {
   CONSOLE_WAIT_FOR_INPUT,
   CONSOLE_RELEASE_PID_PORT,
   CONSOLE_RELEASE_BUFFER,
-  NUM_CONSOLE_COMMANDS
+  // Responses:
+  CONSOLE_RETURNING_BUFFER,
+  CONSOLE_RETURNING_PORT,
+  CONSOLE_RETURNING_INPUT,
+  NUM_CONSOLE_COMMAND_RESPONSES
 } ConsoleCommand;
 
 /// @enum ConsoleValueType
@@ -100,19 +106,6 @@ typedef enum ConsoleValueType {
   CONSOLE_VALUE_STRING,
   NUM_CONSOLE_VALUES
 } ConsoleValueType;
-
-/// @enum ConsoleResponse
-///
-/// @brief The responses that the console may send as a response to a command
-/// from an inter-process message.  One of these will be sent back to the sender
-/// of the command for synchronous commands.  Note that not all commands are
-/// synchronous, so only responses for synchronous commands are defined.
-typedef enum ConsoleResponse {
-  CONSOLE_RETURNING_BUFFER,
-  CONSOLE_RETURNING_PORT,
-  CONSOLE_RETURNING_INPUT,
-  NUM_CONSOLE_RESPONSES
-} ConsleResponse;
 
 // Support functions
 void releaseConsole(void);

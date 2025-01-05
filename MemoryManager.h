@@ -71,25 +71,20 @@ extern "C"
 #endif // MEMORY_MANAGER_DEBUG
 
 
-/// @enum MemoryManagerCommand
+/// @enum MemoryManagerCommandResponse
 ///
-/// @brief Commands recognized by the memory manager.
-typedef enum MemoryManagerCommand {
+/// @brief Commands and responses recognized by the memory manager.
+typedef enum MemoryManagerCommandREsponse {
+  // Commands:
   MEMORY_MANAGER_REALLOC,
   MEMORY_MANAGER_FREE,
   MEMORY_MANAGER_GET_FREE_MEMORY,
   MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-  NUM_MEMORY_MANAGER_COMMANDS
-} MemoryManagerCommand;
-
-/// @enum MemoryManagerResponse
-///
-/// @brief Possible responses from synchronous memory manager commands.
-typedef enum MemoryManagerResponse {
+  // Responses:
   MEMORY_MANAGER_RETURNING_POINTER,
   MEMORY_MANAGER_RETURNING_FREE_MEMORY,
-  NUM_MEMORY_MANAGER_RESPONSES
-} MemoryManagerResponse;
+  NUM_MEMORY_MANAGER_COMMAND_RESPONSES
+} MemoryManagerCommand;
 
 // Function prototypes
 void* runMemoryManager(void *args);

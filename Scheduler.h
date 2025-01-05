@@ -46,27 +46,23 @@ extern "C"
 {
 #endif
 
-/// @enum SchedulerCommand
+/// @enum SchedulerCommandResponse
 ///
-/// @brief Commands understood by the scheduler inter-process message handler.
-typedef enum SchedulerCommand {
+/// @brief Commands and responses understood by the scheduler inter-process
+/// message handler.
+typedef enum SchedulerCommandResponse {
+  // Commands:
   SCHEDULER_RUN_PROCESS,
   SCHEDULER_KILL_PROCESS,
   SCHEDULER_GET_NUM_RUNNING_PROCESSES,
   SCHEDULER_GET_PROCESS_INFO,
   SCHEDULER_GET_PROCESS_USER,
   SCHEDULER_SET_PROCESS_USER,
-  SCHEDULER_CLOSE_FILE_DESCRIPTORS,
+  SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
+  // Responses:
+  SCHEDULER_PROCESS_COMPLETE,
   NUM_SCHEDULER_COMMANDS
 } SchedulerCommand;
-
-/// @enum SchedulerResponse
-///
-/// @brief Responses the scheduler may send to a command.
-typedef enum SchedulerResponse {
-  SCHEDULER_PROCESS_COMPLETE,
-  NUM_SCHEDULER_RESPONSES
-} SchedulerResponse;
 
 // Exported functionality
 void startScheduler(SchedulerState **coroutineStatePointer);
@@ -81,6 +77,7 @@ int schedulerRunProcess(
 UserId schedulerGetProcessUser(void);
 int schedulerSetProcessUser(UserId userId);
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream);
+int schedulerCloseAllFileDescriptors(void);
 
 #ifdef __cplusplus
 } // extern "C"
