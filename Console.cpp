@@ -1018,8 +1018,10 @@ ConsoleBuffer* consoleGetBuffer(void) {
     // we wait for a reply.  Do a blocking wait.
     if (processMessageWaitForDone(processMessage, NULL) != processSuccess) {
       // Something is wrong.  Bail.
+      processMessageRelease(processMessage);
       break; // will return returnValue, which is NULL
     }
+    processMessageRelease(processMessage);
 
     // The handler only marks the message as done if it has successfully sent
     // us a reply or if there was an error and it could not send a reply.  So,
@@ -1031,7 +1033,6 @@ ConsoleBuffer* consoleGetBuffer(void) {
     if (processMessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
-      processMessageRelease(processMessage);
       break; // will return returnValue, which is NULL
     }
 
@@ -1078,7 +1079,7 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   }
   IoPipe *outputPipe = &outputFd->outputPipe;
 
-  if (outputPipe->processId != PROCESS_ID_NOT_SET) {
+  if ((outputPipe != NULL) && (outputPipe->processId != PROCESS_ID_NOT_SET)) {
     if (stream == stdout) {
       if (sendNanoOsMessageToPid(
         outputPipe->processId, outputPipe->messageType,
