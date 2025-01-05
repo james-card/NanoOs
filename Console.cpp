@@ -1331,10 +1331,6 @@ char* consoleWaitForInput(void) {
   }
   processMessageRelease(response);
 
-  // The message may have come from the scheduler, which would be waiting on us,
-  // so yield now just in case.
-  processYield();
-
   if (consoleBuffer != NULL) {
     // Release the buffer.
     sendNanoOsMessageToPid(
