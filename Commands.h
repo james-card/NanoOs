@@ -51,6 +51,7 @@ extern "C"
 #endif
 
 // Exported support functions
+CommandEntry* getCommandEntryFromInput(char *consoleInput);
 int handleCommand(int consolePort, char *consoleInput);
 
 // Exported processes
