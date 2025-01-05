@@ -681,7 +681,7 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   ProcessMessage *message = processMessageQueuePop();
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) processMessageType(message);
-    if (messageType >= NUM_CONSOLE_COMMANDS) {
+    if (messageType >= NUM_CONSOLE_COMMAND_RESPONSES) {
       // Invalid.
       message = processMessageQueuePop();
       continue;
@@ -974,7 +974,7 @@ void* runConsole(void *args) {
       // list it first.
       ConsoleCommand messageType
         = (ConsoleCommand) processMessageType(schedulerMessage);
-      if (messageType < NUM_CONSOLE_COMMANDS) {
+      if (messageType < NUM_CONSOLE_COMMAND_RESPONSES) {
         consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
       } else {
         printString("ERROR!!!  Received unknown console command ");
@@ -1316,15 +1316,23 @@ char* consoleWaitForInput(void) {
   }
   IoPipe *inputPipe = &inputFd->inputPipe;
 
-  if (inputPipe->processId != PROCESS_ID_NOT_SET) {
+  if (inputPipe->processId == NANO_OS_CONSOLE_PROCESS_ID) {
     sendNanoOsMessageToPid(inputPipe->processId, inputPipe->messageType,
       /* func= */ 0, /* data= */ 0, false);
   }
 
+  printDebug(getRunningProcessId());
+  printDebug(": Waiting for message type ");
+  printDebug(CONSOLE_RETURNING_INPUT);
+  printDebug(" from console.\n");
   ProcessMessage *response
     = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(response, ConsoleBuffer*);
+  printDebug(getRunningProcessId());
+  printDebug(": Got consoleBuffer ");
+  printDebug((uintptr_t) consoleBuffer);
+  printDebug(".\n");
   if (consoleBuffer != NULL) {
     returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
     strcpy(returnValue, consoleBuffer->buffer);
@@ -1337,9 +1345,11 @@ char* consoleWaitForInput(void) {
   // so yield now just in case.
   processYield();
 
-  sendNanoOsMessageToPid(
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
-    /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+  if (consoleBuffer != NULL) {
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+  }
 
   return returnValue;
 }
