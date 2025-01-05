@@ -626,8 +626,8 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   }
   // The handler pushes the message back onto our queue, which is not what we
   // want.  Pop it off again.
-  comessageQueuePop();
-  comessageRelease(sent);
+  processMessageQueuePop();
+  processMessageRelease(sent);
 
   // The message that was sent to us is the one that we allocated on the stack,
   // so, there's no reason to call processMessageRelease here.
@@ -1805,6 +1805,9 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
   ProcessId callingProcessId = processId(processMessageFrom(processMessage));
   ProcessMessage *messageToSend
     = nanoOsMessageDataPointer(processMessage, ProcessMessage*);
+  if (messageToSend == NULL) {
+    return returnValue;
+  }
   ProcessDescriptor *processDescriptor
     = &schedulerState->allProcesses[callingProcessId];
   FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
@@ -1829,11 +1832,6 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
           /*data= */ NULL, /* size= */ 0, /* waiting= */ true);
       processMessageQueuePush(processHandle, messageToSend);
       // Give the process a chance to unblock.
-      printDebug("Sending NULL message of type ");
-      printDebug(fileDescriptors[ii].outputPipe.messageType);
-      printDebug(" to process ");
-      printDebug(processId(schedulerState->allProcesses[waitingProcessId].processHandle));
-      printDebug(".\n");
       coroutineResume(processHandle, NULL);
 
       // The function that was waiting should have released the message we sent
