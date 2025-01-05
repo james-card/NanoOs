@@ -144,14 +144,10 @@ int grepCommandHandler(int argc, char **argv) {
   }
 
   while (fgets(buffer, sizeof(buffer), stdin)) {
-    printDebug("Read \"");
-    printDebug(buffer);
-    printDebug("\" as input.\n");
     if (strstr(buffer, argv[1])) {
       fputs(buffer, stdout);
     }
   }
-  printDebug("Exited fgets.\n");
 
   fputs("\n", stdout);
 
