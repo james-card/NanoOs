@@ -453,7 +453,8 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
       continue;
     }
     
-    memoryManagerCommandHandlers[messageType](memoryManagerState, processMessage);
+    memoryManagerCommandHandlers[messageType](
+      memoryManagerState, processMessage);
     
     processMessage = processMessageQueuePop();
   }
