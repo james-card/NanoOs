@@ -1321,24 +1321,14 @@ char* consoleWaitForInput(void) {
       /* func= */ 0, /* data= */ 0, false);
   }
 
-  printDebug(getRunningProcessId());
-  printDebug(": Waiting for message type ");
-  printDebug(CONSOLE_RETURNING_INPUT);
-  printDebug(" from console.\n");
   ProcessMessage *response
     = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(response, ConsoleBuffer*);
-  printDebug(getRunningProcessId());
-  printDebug(": Got consoleBuffer ");
-  printDebug((uintptr_t) consoleBuffer);
-  printDebug(".\n");
   if (consoleBuffer != NULL) {
     returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
     strcpy(returnValue, consoleBuffer->buffer);
   }
-
-  // Release the buffer.
   processMessageRelease(response);
 
   // The message may have come from the scheduler, which would be waiting on us,
@@ -1346,6 +1336,7 @@ char* consoleWaitForInput(void) {
   processYield();
 
   if (consoleBuffer != NULL) {
+    // Release the buffer.
     sendNanoOsMessageToPid(
       NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
