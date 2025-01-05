@@ -113,12 +113,12 @@ int killCommandHandler(int argc, char **argv) {
 /// @return This function always returns 0.
 int echoCommandHandler(int argc, char **argv) {
   for (int ii = 1; ii < argc; ii++) {
-    printConsole(argv[ii]);
+    fputs(argv[ii], stdout);
     if (ii < (argc - 1)) {
-      printConsole(" ");
+      fputs(" ", stdout);
     }
   }
-  printConsole("\n");
+  fputs("\n", stdout);
 
   return 0;
 }
@@ -144,33 +144,17 @@ int grepCommandHandler(int argc, char **argv) {
   }
 
   while (fgets(buffer, sizeof(buffer), stdin)) {
+    printDebug("Read \"");
+    printDebug(buffer);
+    printDebug("\" as input.\n");
     if (strstr(buffer, argv[1])) {
-      printConsole(buffer);
+      fputs(buffer, stdout);
     }
   }
+  printDebug("Exited fgets.\n");
 
-  printConsole("\n");
+  fputs("\n", stdout);
 
-  return 0;
-}
-
-/// @fn int echoSomethingCommandHandler(int argc, char **argv);
-///
-/// @brief Echo the word "Something" to the console output.  This function
-/// exists to make sure that the binary search used for command lookup works
-/// correctly.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.
-///
-/// @return This function always returns 0.
-int echoSomethingCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  printf("Something\n");
   return 0;
 }
 
@@ -257,39 +241,39 @@ int showInfoCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  printf("- Compile time: %s, %s\n", __DATE__, __TIME__);
-  printf("- Current counter value: %u\n", counter);
-  printf("- Dynamic memory left: %d\n", getFreeMemory());
-  printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
-  printf("- sizeof(ProcessMessage): %u\n", sizeof(ProcessMessage));
-  printf("- sizeof(SdFat): %u\n", sizeof(SdFat));
-  printf("- sizeof(FatFile): %u\n", sizeof(FatFile));
-  printf("\n");
+  //// printf("- Compile time: %s, %s\n", __DATE__, __TIME__);
+  //// printf("- Current counter value: %u\n", counter);
+  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
+  //// printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
+  //// printf("- sizeof(ProcessMessage): %u\n", sizeof(ProcessMessage));
+  //// printf("- sizeof(SdFat): %u\n", sizeof(SdFat));
+  //// printf("- sizeof(FatFile): %u\n", sizeof(FatFile));
+  //// printf("\n");
 
-  char *myString = (char*) malloc(16);
-  strcpy(myString, "Hello, world!!!");
-  printf("- myString: %p\n", myString);
-  printf("- myString: '%s'", myString);
-  printf("\n");
-  printf("- strlen(myString): %u\n", strlen(myString));
-  printf("- Dynamic memory left: %d\n", getFreeMemory());
-  free(myString); // We don't want to set it to NULL in this case.
-  printf("- myString after free: '%s'", myString);
-  printf("\n");
-  printf("- strlen(myString) after free: %u\n", strlen(myString));
-  printf("- Dynamic memory left: %d\n", getFreeMemory());
-  myString = (char*) malloc(16);
-  printf("- Second myString: %p\n", myString);
-  printf("- Second myString: '%s'", myString);
-  printf("\n");
-  printf("- Sescond strlen(myString): %u\n", strlen(myString));
-  printf("- Dynamic memory left: %d\n", getFreeMemory());
-  myString = stringDestroy(myString);
-  printf("\n");
+  //// char *myString = (char*) malloc(16);
+  //// strcpy(myString, "Hello, world!!!");
+  //// printf("- myString: %p\n", myString);
+  //// printf("- myString: '%s'", myString);
+  //// printf("\n");
+  //// printf("- strlen(myString): %u\n", strlen(myString));
+  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
+  //// free(myString); // We don't want to set it to NULL in this case.
+  //// printf("- myString after free: '%s'", myString);
+  //// printf("\n");
+  //// printf("- strlen(myString) after free: %u\n", strlen(myString));
+  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
+  //// myString = (char*) malloc(16);
+  //// printf("- Second myString: %p\n", myString);
+  //// printf("- Second myString: '%s'", myString);
+  //// printf("\n");
+  //// printf("- Sescond strlen(myString): %u\n", strlen(myString));
+  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
+  //// myString = stringDestroy(myString);
+  //// printf("\n");
 
-  fprintf(stderr, "- stdin: %p\n", stdin);
-  fprintf(stderr, "- stdout: %p\n", stdout);
-  fprintf(stderr, "- stderr: %p\n", stderr);
+  //// fprintf(stderr, "- stdin: %p\n", stdin);
+  //// fprintf(stderr, "- stdout: %p\n", stdout);
+  //// fprintf(stderr, "- stderr: %p\n", stderr);
 
   return 0;
 }
@@ -308,7 +292,7 @@ int verCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  printf("NanoOs version " NANO_OS_VERSION "\n");
+  //// printf("NanoOs version " NANO_OS_VERSION "\n");
 
   return 0;
 }
@@ -324,15 +308,18 @@ int verCommandHandler(int argc, char **argv) {
 ///
 /// @return Returns 0 on success, 1 on failure.
 int sha1SumCommandHandler(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "Usage:  %s <string>\n", argv[0]);
-    return 1;
-  }
-  const char *inputString = argv[1];
+  (void) argc;
+  (void) argv;
 
-  char *hexDigest = getHexDigest(inputString);
-  printf("SHA1 sum:  %s\n", hexDigest);
-  hexDigest = stringDestroy(hexDigest);
+  //// if (argc < 2) {
+  ////   fprintf(stderr, "Usage:  %s <string>\n", argv[0]);
+  ////   return 1;
+  //// }
+  //// const char *inputString = argv[1];
+
+  //// char *hexDigest = getHexDigest(inputString);
+  //// printf("SHA1 sum:  %s\n", hexDigest);
+  //// hexDigest = stringDestroy(hexDigest);
 
   return 0;
 }
@@ -510,11 +497,6 @@ CommandEntry commands[] = {
     .name = "echo",
     .func = echoCommandHandler,
     .help = "Echo a string back to the console."
-  },
-  {
-    .name = "echoSomething",
-    .func = echoSomethingCommandHandler,
-    .help = "Echo the word \"Something\" back to the console."
   },
   {
     .name = "exit",
