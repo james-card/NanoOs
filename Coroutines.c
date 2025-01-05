@@ -2213,25 +2213,27 @@ Comessage* comessageQueuePopType(int type) {
   // code execution later.
   //
   // JBC 2024-11-26
+  Comessage *prev = NULL;
   Comessage *cur = coroutine->nextMessage;
-  Comessage **prev = &coroutine->nextMessage;
+  Comessage **prevNext = &coroutine->nextMessage;
   if (comutexLock(&coroutine->messageLock) == coroutineSuccess) {
     while ((cur != NULL) && (cur->type != type)) {
-      prev = &cur->next;
+      prev = cur;
+      prevNext = &cur->next;
       cur = cur->next;
     }
 
     if (cur != NULL) {
       // Desired type was found.  Remove the message from the queue.
       returnValue = cur;
-      *prev = cur->next;
+      *prevNext = cur->next;
 
       if (coroutine->nextMessage == NULL) {
         // Empty queue.  Set coroutine->lastMessage to NULL too.
         coroutine->lastMessage = NULL;
       }
       if (coroutine->lastMessage == cur) {
-        coroutine->lastMessage = cur->next;
+        coroutine->lastMessage = prev;
       }
       cur->next = NULL;
     }
@@ -2269,8 +2271,9 @@ Comessage* comessageQueueWaitForType_(
     return returnValue;
   }
 
+  Comessage *prev = NULL;
   Comessage *cur = coroutine->nextMessage;
-  Comessage **prev = &coroutine->nextMessage;
+  Comessage **prevNext = &coroutine->nextMessage;
   int searchType = 0;
   if (type != NULL) {
     // This allows us to bypass dereferncing the pointer every time in the loop
@@ -2287,21 +2290,22 @@ Comessage* comessageQueueWaitForType_(
   if (lockStatus == coroutineSuccess) {
     while (returnValue == NULL) {
       while ((cur != NULL) && (type != NULL) && (cur->type != searchType)) {
-        prev = &cur->next;
+        prev = cur;
+        prevNext = &cur->next;
         cur = cur->next;
       }
 
       if (cur != NULL) {
         // Desired type was found.  Remove the message from the coroutine.
         returnValue = cur;
-        *prev = cur->next;
+        *prevNext = cur->next;
 
         if (coroutine->nextMessage == NULL) {
           // Empty queue.  Set coroutine->lastMessage to NULL too.
           coroutine->lastMessage = NULL;
         }
         if (coroutine->lastMessage == cur) {
-          coroutine->lastMessage = cur->next;
+          coroutine->lastMessage = prev;
         }
         cur->next = NULL;
       } else {
@@ -2319,8 +2323,9 @@ Comessage* comessageQueueWaitForType_(
         }
       }
 
+      prev = NULL;
       cur = coroutine->nextMessage;
-      prev = &coroutine->nextMessage;
+      prevNext = &coroutine->nextMessage;
     }
 
     comutexUnlock(&coroutine->messageLock);
@@ -2780,8 +2785,9 @@ Comessage* comessageWaitForReplyWithType_(
 
   // comutexTimedLock will return coroutineTimedout if the timeout is
   // reached, so we'll never reach this point if we've exceeded our timeout.
+  Comessage *prev = NULL;
   Comessage *cur = coroutine->nextMessage;
-  Comessage **prev = &coroutine->nextMessage;
+  Comessage **prevNext = &coroutine->nextMessage;
   int searchType = 0;
   if (type != NULL) {
     // This saves us from having to dereference the pointer in every iteration
@@ -2797,21 +2803,22 @@ Comessage* comessageWaitForReplyWithType_(
         || ((type != NULL) && (cur->type != searchType))
       )
     ) {
-      prev = &cur->next;
+      prev = cur;
+      prevNext = &cur->next;
       cur = cur->next;
     }
 
     if (cur != NULL) {
       // Desired reply was found.  Remove the message from the coroutine.
       reply = cur;
-      *prev = cur->next;
+      *prevNext = cur->next;
 
       if (coroutine->nextMessage == NULL) {
         // Empty queue.  Set coroutine->lastMessage to NULL too.
         coroutine->lastMessage = NULL;
       }
       if (coroutine->lastMessage == cur) {
-        coroutine->lastMessage = cur->next;
+        coroutine->lastMessage = prev;
       }
       cur->next = NULL;
     } else {
@@ -2831,8 +2838,9 @@ Comessage* comessageWaitForReplyWithType_(
       // reached, so we won't continue the loop if we've exceeded our timeout.
     }
 
+    prev = NULL;
     cur = coroutine->nextMessage;
-    prev = &coroutine->nextMessage;
+    prevNext = &coroutine->nextMessage;
   }
 
   comutexUnlock(&coroutine->messageLock);
