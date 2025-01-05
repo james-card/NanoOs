@@ -1937,20 +1937,14 @@ void checkForTimeouts(SchedulerState *schedulerState) {
     Cocondition *blockingCocondition
       = poppedDescriptor->processHandle->blockingCocondition;
 
-    if (blockingComutex != NULL) {
-      if ((blockingComutex->timeoutTime != 0)
-        && (now >= blockingComutex->timeoutTime)
-      ) {
-        processQueuePush(&schedulerState->ready, poppedDescriptor);
-        continue;
-      }
-    } else if (blockingCocondition != NULL) {
-      if ((blockingCocondition->timeoutTime != 0)
-        && (now >= blockingCocondition->timeoutTime)
-      ) {
-        processQueuePush(&schedulerState->ready, poppedDescriptor);
-        continue;
-      }
+    if ((blockingComutex != NULL) && (now >= blockingComutex->timeoutTime)) {
+      processQueuePush(&schedulerState->ready, poppedDescriptor);
+      continue;
+    } else if ((blockingCocondition != NULL)
+      && (now >= blockingCocondition->timeoutTime)
+    ) {
+      processQueuePush(&schedulerState->ready, poppedDescriptor);
+      continue;
     }
 
     processQueuePush(timedWaiting, poppedDescriptor);
