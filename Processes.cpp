@@ -191,6 +191,7 @@ void* startCommand(void *args) {
   if (processMessage == NULL) {
     printString("ERROR:  No arguments message provided to startCommand.\n");
     releaseConsole();
+    schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
   CommandEntry *commandEntry
@@ -217,6 +218,7 @@ void* startCommand(void *args) {
         "for invalid message type.\n");
     }
     releaseConsole();
+    schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
 
@@ -260,6 +262,7 @@ void* startCommand(void *args) {
   free(commandDescriptor); commandDescriptor = NULL;
   free(argv); argv = NULL;
 
+  schedulerCloseAllFileDescriptors();
   return (void*) ((intptr_t) returnValue);
 }
 
