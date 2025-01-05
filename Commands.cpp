@@ -223,103 +223,6 @@ int runCounterCommandHandler(int argc, char **argv) {
   return 0;
 }
 
-/// @fn int showInfoCommandHandler(int argc, char **argv);
-///
-/// @brief Show various information about the state of the system.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.
-///
-/// @return This function always returns 0.
-int showInfoCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  //// printf("- Compile time: %s, %s\n", __DATE__, __TIME__);
-  //// printf("- Current counter value: %u\n", counter);
-  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
-  //// printf("- sizeof(Coroutine): %u\n", sizeof(Coroutine));
-  //// printf("- sizeof(ProcessMessage): %u\n", sizeof(ProcessMessage));
-  //// printf("- sizeof(SdFat): %u\n", sizeof(SdFat));
-  //// printf("- sizeof(FatFile): %u\n", sizeof(FatFile));
-  //// printf("\n");
-
-  //// char *myString = (char*) malloc(16);
-  //// strcpy(myString, "Hello, world!!!");
-  //// printf("- myString: %p\n", myString);
-  //// printf("- myString: '%s'", myString);
-  //// printf("\n");
-  //// printf("- strlen(myString): %u\n", strlen(myString));
-  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
-  //// free(myString); // We don't want to set it to NULL in this case.
-  //// printf("- myString after free: '%s'", myString);
-  //// printf("\n");
-  //// printf("- strlen(myString) after free: %u\n", strlen(myString));
-  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
-  //// myString = (char*) malloc(16);
-  //// printf("- Second myString: %p\n", myString);
-  //// printf("- Second myString: '%s'", myString);
-  //// printf("\n");
-  //// printf("- Sescond strlen(myString): %u\n", strlen(myString));
-  //// printf("- Dynamic memory left: %d\n", getFreeMemory());
-  //// myString = stringDestroy(myString);
-  //// printf("\n");
-
-  //// fprintf(stderr, "- stdin: %p\n", stdin);
-  //// fprintf(stderr, "- stdout: %p\n", stdout);
-  //// fprintf(stderr, "- stderr: %p\n", stderr);
-
-  return 0;
-}
-
-/// @fn int verCommandHandler(int argc, char **argv);
-///
-/// @brief Display the version of the OS on the console.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.
-///
-/// @return This function always returns 0.
-int verCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  //// printf("NanoOs version " NANO_OS_VERSION "\n");
-
-  return 0;
-}
-
-/// @fn int sha1SumCommandHandler(int argc, char **argv)
-///
-/// @brief Compute the SHA1 sum of an input string.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.  Must be at least 2.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.  argv[1] will be she string to compute.
-///
-/// @return Returns 0 on success, 1 on failure.
-int sha1SumCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  //// if (argc < 2) {
-  ////   fprintf(stderr, "Usage:  %s <string>\n", argv[0]);
-  ////   return 1;
-  //// }
-  //// const char *inputString = argv[1];
-
-  //// char *hexDigest = getHexDigest(inputString);
-  //// printf("SHA1 sum:  %s\n", hexDigest);
-  //// hexDigest = stringDestroy(hexDigest);
-
-  return 0;
-}
-
 /// @fn int logoutCommandHandler(int argc, char **argv)
 ///
 /// @brief Logout of a running shell.
@@ -528,21 +431,6 @@ CommandEntry commands[] = {
     .name = "runCounter",
     .func = runCounterCommandHandler,
     .help = "Increment a counter in a while loop."
-  },
-  {
-    .name = "sha1Sum",
-    .func = sha1SumCommandHandler,
-    .help = "Compute the SHA1 sum of a value."
-  },
-  {
-    .name = "showInfo",
-    .func = showInfoCommandHandler,
-    .help = "Show various pieces of information about the system."
-  },
-  {
-    .name = "ver",
-    .func = verCommandHandler,
-    .help = "Show the version of the operating system."
   },
 };
 
