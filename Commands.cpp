@@ -191,38 +191,6 @@ int helpCommandHandler(int argc, char **argv) {
   return 0;
 }
 
-/// @var counter
-///
-/// @brief Value that is continually incremented by the runCounter command and
-/// shown via the showInfo command.
-static unsigned int counter = 0;
-
-/// @fn int runCounterCommandHandler(int argc, char **argv);
-///
-/// @brief Continually increment the global counter variable by one and then
-/// yield control back to the scheduler.  This process exists as an example of
-/// a multi-tasking command that runs in the background.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.
-///
-/// @return This function would always return 0 if it returned, however it
-/// runs in an infinite loop and only stops when it is killed by the kill
-/// command.
-int runCounterCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  while (1) {
-    counter++;
-    processYield();
-  }
-
-  return 0;
-}
-
 /// @fn int logoutCommandHandler(int argc, char **argv)
 ///
 /// @brief Logout of a running shell.
@@ -426,11 +394,6 @@ CommandEntry commands[] = {
     .name = "ps",
     .func = psCommandHandler,
     .help = "List the running processes."
-  },
-  {
-    .name = "runCounter",
-    .func = runCounterCommandHandler,
-    .help = "Increment a counter in a while loop."
   },
 };
 
