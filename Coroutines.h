@@ -419,6 +419,11 @@ int64_t coroutineGetNanoseconds(const struct timespec *ts);
   (((coroutinePointer) != NULL) \
     && ((coroutinePointer)->state != COROUTINE_STATE_NOT_RUNNING))
 
+/// @def getRunningCoroutineId
+///
+/// @brief Get the coroutine ID for the currently-running coroutine.
+#define getRunningCoroutineId() \
+  coroutineId(getRunningCoroutine())
 
 // Coroutine function prototypes.  Doxygen inline in source file.
 int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
