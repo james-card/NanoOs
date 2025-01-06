@@ -726,33 +726,6 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-/// @fn int consoleSendInputToProcess(
-///   ProcessId processId, ConsoleBuffer *consoleBuffer)
-///
-/// @brief Send input captured from a console port to a process that's waiting
-/// for it.
-///
-/// @param processId The ID of the process that's waiting for input to be
-///   returned.
-/// @param consoleBuffer A pointer to a ConsoleBuffer that contains a copy of
-///   the user's input.
-///
-/// @return Returns processSuccess on success, processError on failure.
-int consoleSendInputToProcess(
-  ProcessId processId, ConsoleBuffer *consoleBuffer
-) {
-  int returnValue = processSuccess;
-
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    processId, CONSOLE_RETURNING_INPUT,
-    /* func= */ 0, (intptr_t) consoleBuffer, false);
-  if (processMessage == NULL) {
-    returnValue = processError;
-  }
-
-  return returnValue;
-}
-
 /// @var lastToggleTime
 ///
 /// @brief Time at which the last LED state toggle occurred.
@@ -983,8 +956,9 @@ void* runConsole(void *args) {
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
-          consoleSendInputToProcess(
-            consolePort->owner, consolePort->consoleBuffer);
+          sendNanoOsMessageToPid(
+            consolePort->owner, CONSOLE_RETURNING_INPUT,
+            /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
           consolePort->waitingForInput = false;
         } else {
           // Console port is owned but owning process is not waiting for input.
