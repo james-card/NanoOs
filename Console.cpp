@@ -88,23 +88,42 @@ void consoleMessageCleanup(ProcessMessage *inputMessage) {
   }
 }
 
-/// @fn ConsoleBuffer* getAvailableConsoleBuffer(ConsoleState *consoleState)
+/// @fn ConsoleBuffer* getAvailableConsoleBuffer(
+///   ConsoleState *consoleState, ProcessId processId)
 ///
 /// @brief Get an available console buffer and mark it as being in use.
 ///
 /// @param consoleState A pointer to the ConsoleState structure held by the
 ///   runConsole process.  The buffers in this state will be searched for
+/// @param processId The numerical ID of the process (PID) making the request
+///   for a buffer (if any).
 ///
 /// @return Returns a pointer to the available ConsoleBuffer on success, NULL
 /// on failure.
-ConsoleBuffer* getAvailableConsoleBuffer(ConsoleState *consoleState) {
+ConsoleBuffer* getAvailableConsoleBuffer(
+  ConsoleState *consoleState, ProcessId processId
+) {
   ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *returnValue = NULL;
-  for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
-    if (consoleBuffers[ii].inUse == false) {
+
+  // Check to see if the requesting process owns one of the ports.  Use the
+  // buffer for that port if so.
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].owner == processId) {
       returnValue = &consoleBuffers[ii];
-      returnValue->inUse = true;
+      // returnValue->inUse is already set to true, so no need to set it.
       break;
+    }
+  }
+
+  if (returnValue == NULL) {
+    for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
+      if (consoleBuffers[ii].inUse == false) {
+        returnValue = &consoleBuffers[ii];
+        returnValue->inUse = true;
+        break;
+      }
     }
   }
 
@@ -250,8 +269,10 @@ void consoleGetBufferCommandHandler(
     = (NanoOsMessage*) processMessageData(returnMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (intptr_t) NULL;
+  ProcessId callingPid = processId(processMessageFrom(inputMessage));
 
-  ConsoleBuffer *returnValue = getAvailableConsoleBuffer(consoleState);
+  ConsoleBuffer *returnValue
+    = getAvailableConsoleBuffer(consoleState, callingPid);
   if (returnValue != NULL) {
     // Send the buffer back to the caller via the message we allocated earlier.
     nanoOsMessage->data = (intptr_t) returnValue;
@@ -638,9 +659,20 @@ void consoleReleaseBufferCommandHandler(
   // with the pointer we can use directly.
   (void) consoleState;
 
+  ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
   if (consoleBuffer != NULL) {
+    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+      if (consoleBuffer == &consoleBuffers[ii]) {
+        // The buffer being released is one of the buffers dedicated to a port.
+        // *DO NOT* mark it as not being in use because it is always in use.
+        // Just release the message and return.
+        processMessageRelease(inputMessage);
+        return;
+      }
+    }
+
     consoleBuffer->inUse = false;
   }
 
@@ -951,13 +983,17 @@ void* runConsole(void *args) {
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           ConsoleBuffer *consoleBuffer
-            = getAvailableConsoleBuffer(&consoleState);
-          memcpy(consoleBuffer->buffer, consolePort->consoleBuffer->buffer,
-            consolePort->consoleIndex);
-          consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
-          consolePort->consoleIndex = 0;
-          consoleSendInputToProcess(consolePort->owner, consoleBuffer);
-          consolePort->waitingForInput = false;
+            = getAvailableConsoleBuffer(&consoleState, PROCESS_ID_NOT_SET);
+          if (consoleBuffer != NULL) {
+            memcpy(consoleBuffer->buffer, consolePort->consoleBuffer->buffer,
+              consolePort->consoleIndex);
+            consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+            consolePort->consoleIndex = 0;
+            consoleSendInputToProcess(consolePort->owner, consoleBuffer);
+            consolePort->waitingForInput = false;
+          } else {
+            consolePort->printString("No console buffer available.\n");
+          }
         } else {
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
