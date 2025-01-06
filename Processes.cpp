@@ -221,6 +221,7 @@ void* startCommand(void *args) {
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
+  consoleInput = stringDestroy(consoleInput);
 
   bool backgroundProcess = false;
   char *ampersandAt = strchr(argv[argc - 1], '&');
@@ -235,6 +236,7 @@ void* startCommand(void *args) {
 
   // Call the process function.
   int returnValue = commandEntry->func(argc, argv);
+  free(argv); argv = NULL;
 
   if (commandDescriptor->callingProcess != getRunningProcessId()) {
     // This command did NOT replace a shell process.
@@ -258,9 +260,7 @@ void* startCommand(void *args) {
     releaseConsole();
   }
 
-  free(consoleInput); consoleInput = NULL;
   free(commandDescriptor); commandDescriptor = NULL;
-  free(argv); argv = NULL;
 
   schedulerCloseAllFileDescriptors();
   return (void*) ((intptr_t) returnValue);
