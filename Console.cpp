@@ -982,18 +982,10 @@ void* runConsole(void *args) {
           }
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
-          ConsoleBuffer *consoleBuffer
-            = getAvailableConsoleBuffer(&consoleState, PROCESS_ID_NOT_SET);
-          if (consoleBuffer != NULL) {
-            memcpy(consoleBuffer->buffer, consolePort->consoleBuffer->buffer,
-              consolePort->consoleIndex);
-            consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
-            consolePort->consoleIndex = 0;
-            consoleSendInputToProcess(consolePort->owner, consoleBuffer);
-            consolePort->waitingForInput = false;
-          } else {
-            consolePort->printString("No console buffer available.\n");
-          }
+          consolePort->consoleIndex = 0;
+          consoleSendInputToProcess(
+            consolePort->owner, consolePort->consoleBuffer);
+          consolePort->waitingForInput = false;
         } else {
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
