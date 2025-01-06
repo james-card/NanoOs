@@ -326,7 +326,7 @@ void consoleWriteBufferCommandHandler(
   return;
 }
 
-/// @fn void consleSetPortShellCommandHandler(
+/// @fn void consoleSetPortShellCommandHandler(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Set the designated shell process ID for a port.
@@ -340,7 +340,7 @@ void consoleWriteBufferCommandHandler(
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
-void consleSetPortShellCommandHandler(
+void consoleSetPortShellCommandHandler(
   ConsoleState *consoleState, ProcessMessage *inputMessage
 ) {
   ConsolePortPidUnion consolePortPidUnion;
@@ -691,7 +691,7 @@ void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
   consoleWriteValueCommandHandler,     // CONSOLE_WRITE_VALUE
   consoleGetBufferCommandHandler,      // CONSOLE_GET_BUFFER
   consoleWriteBufferCommandHandler,    // CONSOLE_WRITE_BUFFER
-  consleSetPortShellCommandHandler,    // CONSOLE_SET_PORT_SHELL
+  consoleSetPortShellCommandHandler,   // CONSOLE_SET_PORT_SHELL
   consoleAssignPortCommandHandler,     // CONSOLE_ASSIGN_PORT
   consoleReleasePortCommandHandler,    // CONSOLE_RELEASE_PORT
   consoleGetOwnedPortCommandHandler,   // CONSOLE_GET_OWNED_PORT
