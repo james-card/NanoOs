@@ -136,7 +136,7 @@ int echoCommandHandler(int argc, char **argv) {
 ///
 /// @return This function always returns 0.
 int grepCommandHandler(int argc, char **argv) {
-  char buffer[128];
+  char buffer[96];
 
   if (argc < 2) {
     printf("Usage:  %s <string to find>\n", argv[0]);
