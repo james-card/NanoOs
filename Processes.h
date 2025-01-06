@@ -162,9 +162,9 @@ extern "C"
 
 /// @def getRunningProcessId
 ///
-/// @brief Get the process ID for the currently-running process."
+/// @brief Get the process ID for the currently-running process.
 #define getRunningProcessId() \
-  processId(getRunningProcess())
+  getRunningCoroutineId()
 
 // Process message accessors
 #define processMessageType(processMessagePointer) \
