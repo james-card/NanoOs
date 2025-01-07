@@ -716,16 +716,14 @@ void* memoryManagerSendReallocMessage(const char *functionName, void *ptr, size_
   returnValue = reallocMessage.ptr;
   processMessageRelease(sent);
   
-  if (getRunningProcessId() > 3) {
-    printDebug(functionName);
-    printDebug(" ");
-    printDebug(getRunningProcessId());
-    printDebug(": allocated ");
-    printDebug(size);
-    printDebug(" bytes at ");
-    printDebug((uintptr_t) returnValue);
-    printDebug("\n");
-  }
+  printDebug(getRunningProcessId());
+  printDebug(" ");
+  printDebug(functionName);
+  printDebug(": allocated ");
+  printDebug(size);
+  printDebug(" bytes at ");
+  printDebug((uintptr_t) returnValue);
+  printDebug("\n");
   return returnValue;
 }
 
@@ -739,14 +737,12 @@ void* memoryManagerSendReallocMessage(const char *functionName, void *ptr, size_
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(const char *functionName, void *ptr) {
-  if ((getRunningProcessId() > 3) || (getRunningProcessId() == 0)) {
-    printDebug(functionName);
-    printDebug(" ");
-    printDebug(getRunningProcessId());
-    printDebug(": freeing ");
-    printDebug((uintptr_t) ptr);
-    printDebug("\n");
-  }
+  printDebug(getRunningProcessId());
+  printDebug(" ");
+  printDebug(functionName);
+  printDebug(": freeing ");
+  printDebug((uintptr_t) ptr);
+  printDebug("\n");
   sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
     (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
   return;
