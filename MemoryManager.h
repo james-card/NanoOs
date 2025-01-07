@@ -89,29 +89,29 @@ typedef enum MemoryManagerCommandREsponse {
 // Function prototypes
 void* runMemoryManager(void *args);
 
-void memoryManagerFree(void *ptr);
+void memoryManagerFree(const char *functionName, void *ptr);
 #ifdef free
 #undef free
 #endif // free
-#define free(ptr) memoryManagerFree(ptr)
+#define free(ptr) memoryManagerFree(__func__, ptr)
 
-void* memoryManagerRealloc(void *ptr, size_t size);
+void* memoryManagerRealloc(const char *functionName, void *ptr, size_t size);
 #ifdef realloc
 #undef realloc
 #endif // realloc
-#define realloc(ptr, size) memoryManagerRealloc(ptr, size)
+#define realloc(ptr, size) memoryManagerRealloc(__func__, ptr, size)
 
-void* memoryManagerMalloc(size_t size);
+void* memoryManagerMalloc(const char *functionName, size_t size);
 #ifdef malloc
 #undef malloc
 #endif // malloc
-#define malloc(size) memoryManagerMalloc(size)
+#define malloc(size) memoryManagerMalloc(__func__, size)
 
-void* memoryManagerCalloc(size_t nmemb, size_t size);
+void* memoryManagerCalloc(const char *functionName, size_t nmemb, size_t size);
 #ifdef calloc
 #undef calloc
 #endif // calloc
-#define calloc(nmemb, size) memoryManagerCalloc(nmemb, size)
+#define calloc(nmemb, size) memoryManagerCalloc(__func__, nmemb, size)
 
 size_t getFreeMemory(void);
 int assignMemory(void *ptr, ProcessId pid);

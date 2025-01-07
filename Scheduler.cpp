@@ -589,7 +589,7 @@ int schedulerSendNanoOsMessageToPid(
 /// @param size The size to send to the process.
 ///
 /// @return Returns the data pointer returned in the reply.
-void* schedulerResumeReallocMessage(void *ptr, size_t size) {
+void* schedulerResumeReallocMessage(const char *functionName, void *ptr, size_t size) {
   void *returnValue = NULL;
   
   ReallocMessage reallocMessage;
@@ -632,6 +632,14 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   // The message that was sent to us is the one that we allocated on the stack,
   // so, there's no reason to call processMessageRelease here.
   
+  printDebug(functionName);
+  printDebug(" ");
+  printDebug(getRunningProcessId());
+  printDebug(": allocated ");
+  printDebug(size);
+  printDebug(" bytes at ");
+  printDebug((uintptr_t) returnValue);
+  printDebug("\n");
   return returnValue;
 }
 
@@ -646,9 +654,10 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
 ///
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or free.
-void* krealloc(void *ptr, size_t size) {
-  return schedulerResumeReallocMessage(ptr, size);
+void* krealloc_(const char *functionName, void *ptr, size_t size) {
+  return schedulerResumeReallocMessage(functionName, ptr, size);
 }
+#define krealloc(ptr, size) krealloc_(__func__,  ptr, size)
 
 /// @fn void* kmalloc(size_t size)
 ///
@@ -658,9 +667,10 @@ void* krealloc(void *ptr, size_t size) {
 ///
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
-void* kmalloc(size_t size) {
-  return schedulerResumeReallocMessage(NULL, size);
+void* kmalloc_(const char *functionName, size_t size) {
+  return schedulerResumeReallocMessage(functionName, NULL, size);
 }
+#define kmalloc(size) kmalloc_(__func__,  size)
 
 /// @fn void* kcalloc(size_t nmemb, size_t size)
 ///
@@ -671,15 +681,16 @@ void* kmalloc(size_t size) {
 ///
 /// @return Returns a pointer to zeroed newly-allocated memory of the specified
 /// size on success, NULL on failure.
-void* kcalloc(size_t nmemb, size_t size) {
+void* kcalloc_(const char *functionName, size_t nmemb, size_t size) {
   size_t totalSize = nmemb * size;
-  void *returnValue = schedulerResumeReallocMessage(NULL, totalSize);
+  void *returnValue = schedulerResumeReallocMessage(functionName, NULL, totalSize);
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
   }
   return returnValue;
 }
+#define kcalloc(size) kcalloc_(__func__,  size)
 
 /// @fn void kfree(void *ptr)
 ///
@@ -688,7 +699,13 @@ void* kcalloc(size_t nmemb, size_t size) {
 /// @param ptr The pointer to the memory to free.
 ///
 /// @return This function returns no value.
-void kfree(void *ptr) {
+void kfree_(const char *functionName, void *ptr) {
+  printDebug(functionName);
+  printDebug(" ");
+  printDebug(getRunningProcessId());
+  printDebug(": freeing ");
+  printDebug((uintptr_t) ptr);
+  printDebug("\n");
   ProcessMessage *sent = getAvailableMessage();
   if (sent == NULL) {
     // Nothing we can do.  The scheduler can't yield.  Bail.
@@ -716,6 +733,7 @@ void kfree(void *ptr) {
 
   return;
 }
+#define kfree(ptr) kfree_(__func__, ptr)
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
@@ -1805,6 +1823,10 @@ int schedulerSetProcessUserCommandHandler(
 int schedulerCloseAllFileDescriptorsCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
+  printDebug("Closing all file descriptors for process ");
+  printDebug(processId(processMessageFrom(processMessage)));
+  printDebug("\n");
+
   int returnValue = 0;
   ProcessId callingProcessId = processId(processMessageFrom(processMessage));
   ProcessMessage *messageToSend

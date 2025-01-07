@@ -686,7 +686,7 @@ size_t getFreeMemory(void) {
 /// @param size The size to send to the process.
 ///
 /// @return Returns the data pointer returned in the reply.
-void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
+void* memoryManagerSendReallocMessage(const char *functionName, void *ptr, size_t size) {
   void *returnValue = NULL;
   
   ReallocMessage reallocMessage;
@@ -716,6 +716,16 @@ void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
   returnValue = reallocMessage.ptr;
   processMessageRelease(sent);
   
+  if (getRunningProcessId() > 3) {
+    printDebug(functionName);
+    printDebug(" ");
+    printDebug(getRunningProcessId());
+    printDebug(": allocated ");
+    printDebug(size);
+    printDebug(" bytes at ");
+    printDebug((uintptr_t) returnValue);
+    printDebug("\n");
+  }
   return returnValue;
 }
 
@@ -728,7 +738,15 @@ void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
 /// @param ptr A pointer to the block of memory to free.
 ///
 /// @return This function always succeeds and returns no value.
-void memoryManagerFree(void *ptr) {
+void memoryManagerFree(const char *functionName, void *ptr) {
+  if ((getRunningProcessId() > 3) || (getRunningProcessId() == 0)) {
+    printDebug(functionName);
+    printDebug(" ");
+    printDebug(getRunningProcessId());
+    printDebug(": freeing ");
+    printDebug((uintptr_t) ptr);
+    printDebug("\n");
+  }
   sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
     (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
   return;
@@ -745,8 +763,8 @@ void memoryManagerFree(void *ptr) {
 ///
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or free.
-void* memoryManagerRealloc(void *ptr, size_t size) {
-  return memoryManagerSendReallocMessage(ptr, size);
+void* memoryManagerRealloc(const char *functionName, void *ptr, size_t size) {
+  return memoryManagerSendReallocMessage(functionName, ptr, size);
 }
 
 /// @fn void* memoryManagerMalloc(size_t size)
@@ -757,8 +775,8 @@ void* memoryManagerRealloc(void *ptr, size_t size) {
 ///
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
-void* memoryManagerMalloc(size_t size) {
-  return memoryManagerSendReallocMessage(NULL, size);
+void* memoryManagerMalloc(const char *functionName, size_t size) {
+  return memoryManagerSendReallocMessage(functionName, NULL, size);
 }
 
 /// @fn void* memoryManagerCalloc(size_t nmemb, size_t size)
@@ -770,9 +788,9 @@ void* memoryManagerMalloc(size_t size) {
 ///
 /// @return Returns a pointer to zeroed newly-allocated memory of the specified
 /// size on success, NULL on failure.
-void* memoryManagerCalloc(size_t nmemb, size_t size) {
+void* memoryManagerCalloc(const char *functionName, size_t nmemb, size_t size) {
   size_t totalSize = nmemb * size;
-  void *returnValue = memoryManagerSendReallocMessage(NULL, totalSize);
+  void *returnValue = memoryManagerSendReallocMessage(functionName, NULL, totalSize);
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
