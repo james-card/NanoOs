@@ -712,7 +712,7 @@ void kfree(void *ptr) {
     printString(
       "Warning!!!  Memory manager did not mark free message done.\n");
   }
-  comessageRelease(sent);
+  processMessageRelease(sent);
 
   return;
 }
@@ -1395,6 +1395,7 @@ int schedulerRunProcessCommandHandler(
   if (consoleInput == NULL) {
     // We can't parse or handle NULL input.  Bail.
     handleOutOfSlots(processMessage, consoleInput);
+    free(commandDescriptor); commandDescriptor = NULL;
     return 0;
   } else if (getNumPipes(consoleInput)
     > schedulerState->free.numElements
@@ -1402,6 +1403,7 @@ int schedulerRunProcessCommandHandler(
     // We've been asked to run more processes chained together than we can
     // currently launch.  Fail.
     handleOutOfSlots(processMessage, consoleInput);
+    free(commandDescriptor); commandDescriptor = NULL;
     return 0;
   }
 
@@ -1496,6 +1498,8 @@ int schedulerRunProcessCommandHandler(
   // its/their copy/copies.
   consoleInput = stringDestroy(consoleInput);
 
+  processMessageRelease(processMessage);
+  free(commandDescriptor); commandDescriptor = NULL;
   return 0;
 }
 
@@ -1806,6 +1810,7 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
   ProcessMessage *messageToSend
     = nanoOsMessageDataPointer(processMessage, ProcessMessage*);
   if (messageToSend == NULL) {
+    processMessageRelease(processMessage);
     return returnValue;
   }
   ProcessDescriptor *processDescriptor
