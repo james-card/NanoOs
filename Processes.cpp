@@ -199,6 +199,8 @@ void* startCommand(void *args) {
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
+  ProcessId callingProcessId = commandDescriptor->callingProcess;
+  SchedulerState *schedulerState = commandDescriptor->schedulerState;
   processYield();
 
   int argc = 0;
@@ -212,11 +214,6 @@ void* startCommand(void *args) {
     printString(consoleInput);
     printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
-    if (processMessageRelease(processMessage) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleSchedulerMessage "
-        "for invalid message type.\n");
-    }
     releaseConsole();
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
@@ -230,7 +227,7 @@ void* startCommand(void *args) {
     if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
       backgroundProcess = true;
       releaseConsole();
-      schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
+      schedulerNotifyProcessComplete(callingProcessId);
     }
   }
 
@@ -238,29 +235,21 @@ void* startCommand(void *args) {
   int returnValue = commandEntry->func(argc, argv);
   free(argv); argv = NULL;
 
-  if (commandDescriptor->callingProcess != getRunningProcessId()) {
+  if (callingProcessId != getRunningProcessId()) {
     // This command did NOT replace a shell process.
     releaseConsole();
     if (backgroundProcess == false) {
       // The caller is still running and waiting to be told it can resume.
       // Notify it via a message.
-      schedulerNotifyProcessComplete(commandDescriptor->callingProcess);
+      schedulerNotifyProcessComplete(callingProcessId);
     }
-    commandDescriptor->schedulerState->allProcesses[
+    schedulerState->allProcesses[
       processId(getRunningProcess())].userId = NO_USER_ID;
   } else {
-    // This command DID replace a shell process.  We need to release the
-    // message that was sent because there's no shell that is waiting to
-    // release it.
-    if (processMessageRelease(processMessage) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from handleSchedulerMessage "
-        "for invalid message type.\n");
-    }
+    // This is a foreground process that replaced the shell.  Just release the
+    // console.
     releaseConsole();
   }
-
-  free(commandDescriptor); commandDescriptor = NULL;
 
   schedulerCloseAllFileDescriptors();
   return (void*) ((intptr_t) returnValue);
