@@ -1082,14 +1082,7 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
   IoPipe *outputPipe = &outputFd->outputPipe;
 
   if ((outputPipe != NULL) && (outputPipe->processId != PROCESS_ID_NOT_SET)) {
-    if (stream == stdout) {
-      if (sendNanoOsMessageToPid(
-        outputPipe->processId, outputPipe->messageType,
-        0, (intptr_t) consoleBuffer, false) == NULL
-      ) {
-        returnValue = EOF;
-      }
-    } else if (stream == stderr) {
+    if ((stream == stdout) || (stream == stderr)) {
       ProcessMessage *processMessage = sendNanoOsMessageToPid(
         outputPipe->processId, outputPipe->messageType,
         0, (intptr_t) consoleBuffer, true);
@@ -1099,11 +1092,23 @@ int consoleWriteBuffer(FILE *stream, ConsoleBuffer *consoleBuffer) {
       } else {
         returnValue = EOF;
       }
+    } else {
+      printString("ERROR!!!  Request to write to invalid stream ");
+      printInt((intptr_t) stream);
+      printString(" from process ");
+      printInt(getRunningProcessId());
+      printString(".\n");
+
+      // Release the buffer to avoid creating a leak.
+      sendNanoOsMessageToPid(
+        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+
+      returnValue = EOF;
     }
   } else {
-    printString("ERROR!!!  Request to write to invalid stream ");
-    printInt((intptr_t) stream);
-    printString(" from process ");
+    printString(
+      "ERROR!!!  Request to write with no output pipe set from process ");
     printInt(getRunningProcessId());
     printString(".\n");
 
@@ -1327,7 +1332,14 @@ ConsoleBuffer* consoleWaitForInput(void) {
   ProcessMessage *response
     = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
   consoleBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
-  processMessageRelease(response);
+
+  if (processMessageWaiting(response) == false) {
+    // The usual case.
+    processMessageRelease(response);
+  } else {
+    // Just tell the sender that we're done.
+    processMessageSetDone(response);
+  }
 
   return consoleBuffer;
 }
