@@ -149,7 +149,9 @@ int grepCommandHandler(int argc, char **argv) {
     }
   }
 
-  fputs("\n", stdout);
+  if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
+    fputs("\n", stdout);
+  }
 
   return 0;
 }
