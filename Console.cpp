@@ -53,7 +53,7 @@ int consolePrintMessage(
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
+    if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].printString(message);
       portFound = true;
     }
@@ -106,11 +106,11 @@ ConsoleBuffer* getAvailableConsoleBuffer(
   ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
   ConsoleBuffer *returnValue = NULL;
 
-  // Check to see if the requesting process owns one of the ports.  Use the
-  // buffer for that port if so.
+  // Check to see if the requesting process owns one of the ports for output.
+  // Use the buffer for that port if so.
   ConsolePort *consolePorts = consoleState->consolePorts;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == processId) {
+    if (consolePorts[ii].outputOwner == processId) {
       returnValue = &consoleBuffers[ii];
       // returnValue->inUse is already set to true, so no need to set it.
       break;
@@ -368,22 +368,25 @@ void consoleSetPortShellCommandHandler(
   return;
 }
 
-/// @fn void consoleAssignPortCommandHandler(
+/// @fn void consoleAssignPortInputCommandHandler(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
-/// @brief Assign a console port to a running process.
+/// @brief Assign a console port's input and possibly output to a running
+/// process.
 ///
 /// @param consoleState A pointer to the ConsoleState being maintained by the
 ///   runConsole function that's running.
 /// @param inputMessage A pointer to the ProcessMessage with the received
 ///   command.  This contains a NanoOsMessage that contains a
-///   ConsolePortPidAssociation that will associate the port with the process
-///   if this function succeeds.
+///   ConsolePortPidAssociation that will associate the port's input with the
+///   process if this function succeeds.
+/// @param assignOutput Whether or not to assign the output as well as the
+///   input.
 ///
 /// @return This function returns no value, but it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
-void consoleAssignPortCommandHandler(
-  ConsoleState *consoleState, ProcessMessage *inputMessage
+void consoleAssignPortHelper(
+  ConsoleState *consoleState, ProcessMessage *inputMessage, bool assignOutput
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.nanoOsMessageData
@@ -395,17 +398,64 @@ void consoleAssignPortCommandHandler(
   ProcessId processId = consolePortPidAssociation->processId;
 
   if (consolePort < CONSOLE_NUM_PORTS) {
-    consoleState->consolePorts[consolePort].owner = processId;
+    if (assignOutput == true) {
+      consoleState->consolePorts[consolePort].outputOwner = processId;
+    }
+    consoleState->consolePorts[consolePort].inputOwner = processId;
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
     printString("ERROR:  Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
-    // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
-    // message being done will indicate to the caller that there was a problem
-    // servicing the command.
+    // *DON'T* call processMessageRelease or processMessageSetDone here.  The
+    // lack of the message being done will indicate to the caller that there
+    // was a problem servicing the command.
   }
+
+  return;
+}
+
+/// @fn void consoleAssignPortCommandHandler(
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
+///
+/// @brief Assign a console port's input and output to a running process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port's input and output
+///   with the process if this function succeeds.
+///
+/// @return This function returns no value, but it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+void consoleAssignPortCommandHandler(
+  ConsoleState *consoleState, ProcessMessage *inputMessage
+) {
+  consoleAssignPortHelper(consoleState, inputMessage, true);
+
+  return;
+}
+
+/// @fn void consoleAssignPortInputCommandHandler(
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
+///
+/// @brief Assign a console port's input to a running process.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port's input with the
+///   process if this function succeeds.
+///
+/// @return This function returns no value, but it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+void consoleAssignPortInputCommandHandler(
+  ConsoleState *consoleState, ProcessMessage *inputMessage
+) {
+  consoleAssignPortHelper(consoleState, inputMessage, false);
 
   return;
 }
@@ -428,8 +478,11 @@ void consoleReleasePortCommandHandler(
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
-      consolePorts[ii].owner = consolePorts[ii].shell;
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].outputOwner = consolePorts[ii].shell;
+    }
+    if (consolePorts[ii].inputOwner == owner) {
+      consolePorts[ii].inputOwner = consolePorts[ii].shell;
     }
   }
 
@@ -467,7 +520,10 @@ void consoleGetOwnedPortCommandHandler(
 
   int ownedPort = -1;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
+    // inputOwner is assigned at the same as outputOwner, but inputOwner can be
+    // set separately later if the commands are being piped together.
+    // Therefore, checking inputOwner checks both of them.
+    if (consolePorts[ii].inputOwner == owner) {
       ownedPort = ii;
       break;
     }
@@ -513,7 +569,7 @@ void consoleSetEchoCommandHandler(
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
+    if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].echo = desiredEchoState;
       portFound = true;
     }
@@ -554,7 +610,7 @@ void consoleWaitForInputCommandHandler(
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
+    if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].waitingForInput = true;
       portFound = true;
     }
@@ -599,11 +655,12 @@ void consoleReleasePidPortCommandHandler(
   ConsolePort *consolePorts = consoleState->consolePorts;
   ProcessMessage *processMessage
     = nanoOsMessageFuncPointer(inputMessage, ProcessMessage*);
+  bool releaseMessage = false;
 
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].owner == owner) {
-      consolePorts[ii].owner = consolePorts[ii].shell;
+    if (consolePorts[ii].inputOwner == owner) {
+      consolePorts[ii].inputOwner = consolePorts[ii].shell;
       // NOTE:  By calling sendProcessMessageToPid from within the for loop, we
       // run the risk of sending the same message to multiple shells.  That's
       // irrelevant in this case since nothing is waiting for the message and
@@ -612,19 +669,24 @@ void consoleReleasePidPortCommandHandler(
       if (owner != consolePorts[ii].shell) {
         sendProcessMessageToPid(consolePorts[ii].shell, processMessage);
       } else {
-        // The scheduler is telling us to free the console's port.  That means
-        // the shell is being killed and restarted.  It won't be able to
-        // receive the message if we send it, so we need to go ahead and
-        // release it.
-        processMessageRelease(processMessage);
+        // The shell is being restarted.  It won't be able to receive the
+        // message if we send it, so we need to go ahead and release it.
+        releaseMessage = true;
+      }
+      portFound = true;
+    }
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].outputOwner = consolePorts[ii].shell;
+      if (owner == consolePorts[ii].shell) {
+        // The shell is being restarted.  It won't be able to receive the
+        // message if we send it, so we need to go ahead and release it.
+        releaseMessage = true;
       }
       portFound = true;
     }
   }
 
-  if (portFound == false) {
-    // The process doesn't own any ports.  Release the message to prevent a
-    // message leak.
+  if ((releaseMessage == true) || (portFound == false)) {
     processMessageRelease(processMessage);
   }
 
@@ -688,17 +750,18 @@ void consoleReleaseBufferCommandHandler(
 ///
 /// @brief Array of handlers for console command messages.
 void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
-  consoleWriteValueCommandHandler,     // CONSOLE_WRITE_VALUE
-  consoleGetBufferCommandHandler,      // CONSOLE_GET_BUFFER
-  consoleWriteBufferCommandHandler,    // CONSOLE_WRITE_BUFFER
-  consoleSetPortShellCommandHandler,   // CONSOLE_SET_PORT_SHELL
-  consoleAssignPortCommandHandler,     // CONSOLE_ASSIGN_PORT
-  consoleReleasePortCommandHandler,    // CONSOLE_RELEASE_PORT
-  consoleGetOwnedPortCommandHandler,   // CONSOLE_GET_OWNED_PORT
-  consoleSetEchoCommandHandler,        // CONSOLE_SET_ECHO_PORT
-  consoleWaitForInputCommandHandler,   // CONSOLE_WAIT_FOR_INPUT
-  consoleReleasePidPortCommandHandler, // CONSOLE_RELEASE_PID_PORT
-  consoleReleaseBufferCommandHandler,  // CONSOLE_RELEASE_BUFFER
+  consoleWriteValueCommandHandler,      // CONSOLE_WRITE_VALUE
+  consoleGetBufferCommandHandler,       // CONSOLE_GET_BUFFER
+  consoleWriteBufferCommandHandler,     // CONSOLE_WRITE_BUFFER
+  consoleSetPortShellCommandHandler,    // CONSOLE_SET_PORT_SHELL
+  consoleAssignPortCommandHandler,      // CONSOLE_ASSIGN_PORT
+  consoleAssignPortInputCommandHandler, // CONSOLE_ASSIGN_PORT_INPUT
+  consoleReleasePortCommandHandler,     // CONSOLE_RELEASE_PORT
+  consoleGetOwnedPortCommandHandler,    // CONSOLE_GET_OWNED_PORT
+  consoleSetEchoCommandHandler,         // CONSOLE_SET_ECHO_PORT
+  consoleWaitForInputCommandHandler,    // CONSOLE_WAIT_FOR_INPUT
+  consoleReleasePidPortCommandHandler,  // CONSOLE_RELEASE_PID_PORT
+  consoleReleaseBufferCommandHandler,   // CONSOLE_RELEASE_BUFFER
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
@@ -713,7 +776,7 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   ProcessMessage *message = processMessageQueuePop();
   while (message != NULL) {
     ConsoleCommand messageType = (ConsoleCommand) processMessageType(message);
-    if (messageType >= NUM_CONSOLE_COMMAND_RESPONSES) {
+    if (messageType >= NUM_CONSOLE_COMMANDS) {
       // Invalid.
       message = processMessageQueuePop();
       continue;
@@ -906,7 +969,8 @@ void* runConsole(void *args) {
 
   // Set the port-specific data.
   consoleState.consolePorts[USB_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[USB_SERIAL_PORT].owner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].inputOwner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[USB_SERIAL_PORT].outputOwner = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[USB_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[USB_SERIAL_PORT].readByte = readUsbSerialByte;
@@ -915,7 +979,8 @@ void* runConsole(void *args) {
     = printUsbSerialString;
 
   consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].owner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].inputOwner = PROCESS_ID_NOT_SET;
+  consoleState.consolePorts[GPIO_SERIAL_PORT].outputOwner = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[GPIO_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
   consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[GPIO_SERIAL_PORT].readByte = readGpioSerialByte;
@@ -930,7 +995,7 @@ void* runConsole(void *args) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
-        if (consolePort->owner == PROCESS_ID_NOT_SET) {
+        if (consolePort->inputOwner == PROCESS_ID_NOT_SET) {
           // NULL-terminate the buffer.
           consolePort->consoleIndex--;
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
@@ -957,7 +1022,7 @@ void* runConsole(void *args) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
           sendNanoOsMessageToPid(
-            consolePort->owner, CONSOLE_RETURNING_INPUT,
+            consolePort->inputOwner, CONSOLE_RETURNING_INPUT,
             /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
           consolePort->waitingForInput = false;
         } else {
@@ -976,7 +1041,7 @@ void* runConsole(void *args) {
       // list it first.
       ConsoleCommand messageType
         = (ConsoleCommand) processMessageType(schedulerMessage);
-      if (messageType < NUM_CONSOLE_COMMAND_RESPONSES) {
+      if (messageType < NUM_CONSOLE_COMMANDS) {
         consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
       } else {
         printString("ERROR!!!  Received unknown console command ");

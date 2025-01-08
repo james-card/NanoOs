@@ -303,7 +303,10 @@ typedef struct ConsoleBuffer {
 ///   from the user.
 /// @param consoleIndex An index into the buffer provided by consoleBuffer of
 ///   the next position to read a byte into.
-/// @param owner The ID of the process that currently owns the console port.
+/// @param outputOwner The ID of the process that currently has the ability to
+///   write output to the port.
+/// @param inputOwner The ID of the process that currently has the ability to
+///   read input from the port.
 /// @param shell The ID of the process that serves as the console port's shell.
 /// @param waitingForInput Whether or not the owning process is currently
 ///   waiting for input from the user.
@@ -316,7 +319,8 @@ typedef struct ConsoleBuffer {
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleIndex;
-  ProcessId           owner;
+  ProcessId           outputOwner;
+  ProcessId           inputOwner;
   ProcessId           shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
