@@ -1852,11 +1852,11 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
 
     // kfree will pull an available message.  Release the one we've been using
     // so that we're guaranteed it will be successful.
-    processMessageSetDone(messageToSend);
+    processMessageRelease(messageToSend);
     kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
   } else {
     // Nothing to do.  Just release the spare message.
-    processMessageSetDone(messageToSend);
+    processMessageRelease(messageToSend);
   }
 
   processMessageSetDone(processMessage);
