@@ -51,7 +51,7 @@ extern "C"
 typedef enum FilesystemCommandResponse {
   // Commands:
   // Responses:
-  NUM_FILESYSTEM_COMMAND_RESPONSES
+  NUM_FILESYSTEM_COMMANDS,
 } FilesystemCommand;
 
 // Exported functionality
