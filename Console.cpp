@@ -1358,22 +1358,73 @@ ConsoleBuffer* consoleWaitForInput(void) {
 /// @return Returns the buffer pointer provided on success, NULL on failure.
 char *consoleFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
+  static ConsoleBuffer *consoleBuffer = NULL;
+  int numBytesReceived = 0;
+  char *newlineAt = NULL;
+  int numBytesToCopy = 0;
+  int consoleInputLength = 0;
+  int bufferIndex = 0;
 
   if (stream == stdin) {
-    ConsoleBuffer *consoleBuffer = consoleWaitForInput();
+    // There are three stop conditions:
+    // 1. consoleWaitForInput returns NULL, signalling the end of the input
+    //    from the stream.
+    // 2. We read a newline.
+    // 3. We reach size - 1 bytes received from the stream.
     if (consoleBuffer == NULL) {
-      return returnValue; // NULL
+      consoleBuffer = consoleWaitForInput();
+    } else {
+      newlineAt = strchr(consoleBuffer->buffer, '\n');
+      if (newlineAt != NULL) {
+        bufferIndex = (((uintptr_t) newlineAt)
+          - ((uintptr_t) consoleBuffer->buffer)) + 1;
+      } else {
+        // This should be impossible given the algorithm below, but assume
+        // nothing.
+      }
     }
-    returnValue = buffer;
-    int consoleInputLength = (int) strlen(consoleBuffer->buffer);
 
-    int numBytesToCopy = MIN(size - 1, consoleInputLength);
-    memcpy(buffer, consoleBuffer->buffer, numBytesToCopy);
-    buffer[numBytesToCopy] = '\0';
-    // Release the buffer.
-    sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
-      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
+    while (
+      (consoleBuffer != NULL)
+      && (newlineAt == NULL)
+      && (numBytesReceived < (size - 1))
+    ) {
+      returnValue = buffer;
+      newlineAt = strchr(&consoleBuffer->buffer[bufferIndex], '\n');
+
+      if ((newlineAt == NULL) || (newlineAt[1] == '\0')) {
+        // The usual case.
+        consoleInputLength = (int) strlen(&consoleBuffer->buffer[bufferIndex]);
+      } else {
+        // We've received a buffer that contains a newline plus something after
+        // it.  Copy everything up to and including the newline.  Return what
+        // we copy and leave the pointer alone so that it's picked up on the
+        // next call.
+        consoleInputLength = (int) (((uintptr_t) newlineAt)
+          - ((uintptr_t) &consoleBuffer->buffer[bufferIndex]));
+      }
+
+      numBytesToCopy
+        = MIN((size - 1 - numBytesReceived), consoleInputLength);
+      memcpy(&buffer[numBytesReceived], &consoleBuffer->buffer[bufferIndex],
+        numBytesToCopy);
+      numBytesReceived += numBytesToCopy;
+      // Release the buffer.
+      sendNanoOsMessageToPid(
+        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        /* func= */ 0, /* data= */ (uintptr_t) consoleBuffer, false);
+
+      if (newlineAt != NULL) {
+        // We've reached one of the stop cases, so we're not going to attempt
+        // to receive any more data from the file descriptor.
+        consoleBuffer = NULL;
+      } else {
+        // There was no newline in this message.  We need to get another one.
+        consoleBuffer = consoleWaitForInput();
+        bufferIndex = 0;
+      }
+    }
+    buffer[numBytesReceived] = '\0';
   }
 
   return returnValue;
