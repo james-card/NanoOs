@@ -74,16 +74,16 @@ extern "C"
 /// @enum MemoryManagerCommandResponse
 ///
 /// @brief Commands and responses recognized by the memory manager.
-typedef enum MemoryManagerCommandREsponse {
+typedef enum MemoryManagerCommandResponse {
   // Commands:
-  MEMORY_MANAGER_REALLOC               = 0,
-  MEMORY_MANAGER_FREE                  = 1,
-  MEMORY_MANAGER_GET_FREE_MEMORY       = 2,
-  MEMORY_MANAGER_FREE_PROCESS_MEMORY   = 3,
+  MEMORY_MANAGER_REALLOC,
+  MEMORY_MANAGER_FREE,
+  MEMORY_MANAGER_GET_FREE_MEMORY,
+  MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+  NUM_MEMORY_MANAGER_COMMANDS,
   // Responses:
-  MEMORY_MANAGER_RETURNING_POINTER     = 4,
-  MEMORY_MANAGER_RETURNING_FREE_MEMORY = 5,
-  NUM_MEMORY_MANAGER_COMMAND_RESPONSES
+  MEMORY_MANAGER_RETURNING_POINTER,
+  MEMORY_MANAGER_RETURNING_FREE_MEMORY,
 } MemoryManagerCommand;
 
 // Function prototypes
