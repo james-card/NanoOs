@@ -1329,16 +1329,18 @@ ConsoleBuffer* consoleWaitForInput(void) {
       /* func= */ 0, /* data= */ 0, false);
   }
 
-  ProcessMessage *response
-    = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
-  consoleBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
+  if (inputPipe->processId != PROCESS_ID_NOT_SET) {
+    ProcessMessage *response
+      = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
+    consoleBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
 
-  if (processMessageWaiting(response) == false) {
-    // The usual case.
-    processMessageRelease(response);
-  } else {
-    // Just tell the sender that we're done.
-    processMessageSetDone(response);
+    if (processMessageWaiting(response) == false) {
+      // The usual case.
+      processMessageRelease(response);
+    } else {
+      // Just tell the sender that we're done.
+      processMessageSetDone(response);
+    }
   }
 
   return consoleBuffer;
