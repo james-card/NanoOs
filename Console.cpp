@@ -1409,6 +1409,7 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
       memcpy(&buffer[numBytesReceived], &consoleBuffer->buffer[bufferIndex],
         numBytesToCopy);
       numBytesReceived += numBytesToCopy;
+      buffer[numBytesReceived] = '\0';
       // Release the buffer.
       sendNanoOsMessageToPid(
         NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
@@ -1424,7 +1425,6 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
         bufferIndex = 0;
       }
     }
-    buffer[numBytesReceived] = '\0';
   }
 
   return returnValue;
