@@ -1298,14 +1298,14 @@ int printConsole(const char *message) {
 
 // Input support functions.
 
-/// @fn char* consoleWaitForInput(void)
+/// @fn ConsoleBuffer* consoleWaitForInput(void)
 ///
 /// @brief Wait for input from the console port owned by the current process.
 ///
 /// @return Returns a pointer to the input retrieved on success, NULL on
 /// failure.
-char* consoleWaitForInput(void) {
-  char *returnValue = NULL;
+ConsoleBuffer* consoleWaitForInput(void) {
+  ConsoleBuffer *consoleBuffer = NULL;
   FileDescriptor *inputFd = schedulerGetFileDescriptor(stdin);
   if (inputFd == NULL) {
     printString("ERROR!!!  Could not get input file descriptor for process ");
@@ -1315,7 +1315,7 @@ char* consoleWaitForInput(void) {
     printString(".\n");
 
     // We can't proceed, so bail.
-    return returnValue; // NULL
+    return consoleBuffer; // NULL
   }
   IoPipe *inputPipe = &inputFd->inputPipe;
 
@@ -1326,22 +1326,10 @@ char* consoleWaitForInput(void) {
 
   ProcessMessage *response
     = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
-  ConsoleBuffer *consoleBuffer
-    = nanoOsMessageDataPointer(response, ConsoleBuffer*);
-  if (consoleBuffer != NULL) {
-    returnValue = (char*) malloc(strlen(consoleBuffer->buffer) + 1);
-    strcpy(returnValue, consoleBuffer->buffer);
-  }
+  consoleBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
   processMessageRelease(response);
 
-  if (consoleBuffer != NULL) {
-    // Release the buffer.
-    sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
-      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
-  }
-
-  return returnValue;
+  return consoleBuffer;
 }
 
 /// @fn char *consoleFGets(char *buffer, int size, FILE *stream)
@@ -1358,17 +1346,20 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
 
   if (stream == stdin) {
-    char *consoleInput = consoleWaitForInput();
-    if (consoleInput == NULL) {
+    ConsoleBuffer *consoleBuffer = consoleWaitForInput();
+    if (consoleBuffer == NULL) {
       return returnValue; // NULL
     }
     returnValue = buffer;
-    int consoleInputLength = (int) strlen(consoleInput);
+    int consoleInputLength = (int) strlen(consoleBuffer->buffer);
 
     int numBytesToCopy = MIN(size - 1, consoleInputLength);
-    memcpy(buffer, consoleInput, numBytesToCopy);
+    memcpy(buffer, consoleBuffer->buffer, numBytesToCopy);
     buffer[numBytesToCopy] = '\0';
-    consoleInput = stringDestroy(consoleInput);
+    // Release the buffer.
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
   }
 
   return returnValue;
@@ -1390,13 +1381,16 @@ int consoleVFScanf(FILE *stream, const char *format, va_list args) {
   int returnValue = EOF;
 
   if (stream == stdin) {
-    char *consoleInput = consoleWaitForInput();
-    if (consoleInput == NULL) {
+    ConsoleBuffer *consoleBuffer = consoleWaitForInput();
+    if (consoleBuffer == NULL) {
       return returnValue; // EOF
     }
 
-    returnValue = vsscanf(consoleInput, format, args);
-    consoleInput = stringDestroy(consoleInput);
+    returnValue = vsscanf(consoleBuffer->buffer, format, args);
+    // Release the buffer.
+    sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) consoleBuffer, false);
   }
 
   return returnValue;
