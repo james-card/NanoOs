@@ -1829,17 +1829,22 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
         // Nothing waiting on output from this file descriptor.  Move on.
         continue;
       }
+      ProcessDescriptor *waitingProcessDescriptor
+        = &schedulerState->allProcesses[waitingProcessId];
+
+      // Clear the processId of the waiting process's stdin file descriptor.
+      waitingProcessDescriptor->fileDescriptors[STDIN_FILE_DESCRIPTOR_INDEX].
+        inputPipe.processId = PROCESS_ID_NOT_SET;
 
       // Send an empty message to the waiting process so that it will become
       // unblocked.
-      ProcessHandle processHandle
-        = schedulerState->allProcesses[waitingProcessId].processHandle;
       processMessageInit(messageToSend,
           fileDescriptors[ii].outputPipe.messageType,
           /*data= */ NULL, /* size= */ 0, /* waiting= */ true);
-      processMessageQueuePush(processHandle, messageToSend);
+      processMessageQueuePush(
+        waitingProcessDescriptor->processHandle, messageToSend);
       // Give the process a chance to unblock.
-      coroutineResume(processHandle, NULL);
+      coroutineResume(waitingProcessDescriptor->processHandle, NULL);
 
       // The function that was waiting should have released the message we sent
       // it.  Get another one.
