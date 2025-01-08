@@ -1840,7 +1840,7 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
       // unblocked.
       processMessageInit(messageToSend,
           fileDescriptors[ii].outputPipe.messageType,
-          /*data= */ NULL, /* size= */ 0, /* waiting= */ true);
+          /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
       processMessageQueuePush(
         waitingProcessDescriptor->processHandle, messageToSend);
       // Give the process a chance to unblock.
