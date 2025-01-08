@@ -745,6 +745,34 @@ int schedulerAssignPortToPid(
   return returnValue;
 }
 
+/// @fn int schedulerAssignPortInputToPid(
+///   SchedulerState *schedulerState,
+///   uint8_t consolePort, ProcessId owner)
+///
+/// @brief Assign a console port to a process ID.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintainted by
+///   the scheduler.
+/// @param consolePort The ID of the consolePort to assign.
+/// @param owner The ID of the process to assign the port to.
+///
+/// @return Returns processSuccess on success, processError on failure.
+int schedulerAssignPortInputToPid(
+  SchedulerState *schedulerState,
+  uint8_t consolePort, ProcessId owner
+) {
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.consolePortPidAssociation.consolePort
+    = consolePort;
+  consolePortPidUnion.consolePortPidAssociation.processId = owner;
+
+  int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT_INPUT,
+    /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
+
+  return returnValue;
+}
+
 /// @fn int schedulerSetPortShell(
 ///   SchedulerState *schedulerState,
 ///   uint8_t consolePort, ProcessId shell)
@@ -1491,6 +1519,13 @@ int schedulerRunProcessCommandHandler(
       curProcessDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
         = CONSOLE_RETURNING_INPUT;
+      if (schedulerAssignPortInputToPid(schedulerState,
+        commandDescriptor->consolePort, curProcessDescriptor->processId)
+        != processSuccess
+      ) {
+        printString(
+          "WARNING:  Could not assign console port input to process.\n");
+      }
     }
 
     prevProcessDescriptor = curProcessDescriptor;
