@@ -589,7 +589,7 @@ int schedulerSendNanoOsMessageToPid(
 /// @param size The size to send to the process.
 ///
 /// @return Returns the data pointer returned in the reply.
-void* schedulerResumeReallocMessage(const char *functionName, void *ptr, size_t size) {
+void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   void *returnValue = NULL;
   
   ReallocMessage reallocMessage;
@@ -632,14 +632,6 @@ void* schedulerResumeReallocMessage(const char *functionName, void *ptr, size_t 
   // The message that was sent to us is the one that we allocated on the stack,
   // so, there's no reason to call processMessageRelease here.
   
-  printDebug(functionName);
-  printDebug(" ");
-  printDebug(getRunningProcessId());
-  printDebug(": allocated ");
-  printDebug(size);
-  printDebug(" bytes at ");
-  printDebug((uintptr_t) returnValue);
-  printDebug("\n");
   return returnValue;
 }
 
@@ -654,10 +646,9 @@ void* schedulerResumeReallocMessage(const char *functionName, void *ptr, size_t 
 ///
 /// @return Returns a pointer to size-adjusted memory on success, NULL on
 /// failure or free.
-void* krealloc_(const char *functionName, void *ptr, size_t size) {
-  return schedulerResumeReallocMessage(functionName, ptr, size);
+void* krealloc(void *ptr, size_t size) {
+  return schedulerResumeReallocMessage(ptr, size);
 }
-#define krealloc(ptr, size) krealloc_(__func__,  ptr, size)
 
 /// @fn void* kmalloc(size_t size)
 ///
@@ -667,10 +658,9 @@ void* krealloc_(const char *functionName, void *ptr, size_t size) {
 ///
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
-void* kmalloc_(const char *functionName, size_t size) {
-  return schedulerResumeReallocMessage(functionName, NULL, size);
+void* kmalloc(size_t size) {
+  return schedulerResumeReallocMessage(NULL, size);
 }
-#define kmalloc(size) kmalloc_(__func__,  size)
 
 /// @fn void* kcalloc(size_t nmemb, size_t size)
 ///
@@ -681,16 +671,15 @@ void* kmalloc_(const char *functionName, size_t size) {
 ///
 /// @return Returns a pointer to zeroed newly-allocated memory of the specified
 /// size on success, NULL on failure.
-void* kcalloc_(const char *functionName, size_t nmemb, size_t size) {
+void* kcalloc(size_t nmemb, size_t size) {
   size_t totalSize = nmemb * size;
-  void *returnValue = schedulerResumeReallocMessage(functionName, NULL, totalSize);
+  void *returnValue = schedulerResumeReallocMessage(NULL, totalSize);
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
   }
   return returnValue;
 }
-#define kcalloc(size) kcalloc_(__func__,  size)
 
 /// @fn void kfree(void *ptr)
 ///
@@ -699,13 +688,7 @@ void* kcalloc_(const char *functionName, size_t nmemb, size_t size) {
 /// @param ptr The pointer to the memory to free.
 ///
 /// @return This function returns no value.
-void kfree_(const char *functionName, void *ptr) {
-  printDebug(functionName);
-  printDebug(" ");
-  printDebug(getRunningProcessId());
-  printDebug(": freeing ");
-  printDebug((uintptr_t) ptr);
-  printDebug("\n");
+void kfree(void *ptr) {
   ProcessMessage *sent = getAvailableMessage();
   if (sent == NULL) {
     // Nothing we can do.  The scheduler can't yield.  Bail.
@@ -733,7 +716,6 @@ void kfree_(const char *functionName, void *ptr) {
 
   return;
 }
-#define kfree(ptr) kfree_(__func__, ptr)
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
@@ -1161,15 +1143,17 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int schedulerCloseAllFileDescriptors(void) {
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  ProcessMessage *messageToSend = getAvailableMessage();
+  while (messageToSend == NULL) {
     processYield();
-    processMessage = getAvailableMessage();
+    messageToSend = getAvailableMessage();
   }
 
-  sendNanoOsMessageToPid(
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
-    /* func= */ 0, /* data= */ (intptr_t) processMessage, false);
+    /* func= */ 0, /* data= */ (intptr_t) messageToSend, false);
+  processMessageWaitForDone(processMessage, NULL);
+  processMessageRelease(processMessage);
 
   return 0;
 }
@@ -1823,16 +1807,12 @@ int schedulerSetProcessUserCommandHandler(
 int schedulerCloseAllFileDescriptorsCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
-  printDebug("Closing all file descriptors for process ");
-  printDebug(processId(processMessageFrom(processMessage)));
-  printDebug("\n");
-
   int returnValue = 0;
   ProcessId callingProcessId = processId(processMessageFrom(processMessage));
   ProcessMessage *messageToSend
     = nanoOsMessageDataPointer(processMessage, ProcessMessage*);
   if (messageToSend == NULL) {
-    processMessageRelease(processMessage);
+    processMessageSetDone(processMessage);
     return returnValue;
   }
   ProcessDescriptor *processDescriptor
@@ -1872,14 +1852,14 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
 
     // kfree will pull an available message.  Release the one we've been using
     // so that we're guaranteed it will be successful.
-    processMessageRelease(messageToSend);
+    processMessageSetDone(messageToSend);
     kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
   } else {
     // Nothing to do.  Just release the spare message.
-    processMessageRelease(messageToSend);
+    processMessageSetDone(messageToSend);
   }
 
-  processMessageRelease(processMessage);
+  processMessageSetDone(processMessage);
 
   return returnValue;
 }
