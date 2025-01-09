@@ -1442,6 +1442,9 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
       setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, consoleBuffer);
     } else {
       newlineAt = strchr(consoleBuffer->buffer, '\n');
+      if (newlineAt == NULL) {
+        newlineAt = strchr(consoleBuffer->buffer, '\r');
+      }
       if (newlineAt != NULL) {
         bufferIndex = (((uintptr_t) newlineAt)
           - ((uintptr_t) consoleBuffer->buffer)) + 1;
@@ -1458,6 +1461,9 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
     ) {
       returnValue = buffer;
       newlineAt = strchr(&consoleBuffer->buffer[bufferIndex], '\n');
+      if (newlineAt == NULL) {
+        newlineAt = strchr(consoleBuffer->buffer, '\r');
+      }
 
       if ((newlineAt == NULL) || (newlineAt[1] == '\0')) {
         // The usual case.
