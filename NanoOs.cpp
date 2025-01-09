@@ -58,6 +58,75 @@ ProcessId getNumPipes(const char *commandLine) {
   return numPipes;
 }
 
+/// @var processStorage
+///
+/// @brief File-local variable to hold the per-process storage.
+static void *processStorage[
+  NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID][
+  NUM_PROCESS_STORAGE_KEYS] = {};
+
+/// @fn void *getProcessStorage(uint8_t key)
+///
+/// @brief Get a previously-set value from per-process storage.
+///
+/// @param key The index into the process's per-process storage to retrieve.
+///
+/// @return Returns the previously-set value on success, NULL on failure.
+void *getProcessStorage(uint8_t key) {
+  void *returnValue = NULL;
+  if (key >= NUM_PROCESS_STORAGE_KEYS) {
+    // Key is out of range.
+    return returnValue; // NULL
+  }
+
+  int processIndex
+    = ((int) getRunningProcessId()) - NANO_OS_FIRST_USER_PROCESS_ID;
+  if ((processIndex >= 0)
+    && (processIndex < (NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID))
+  ) {
+    // Calling process is not supported and does not have storage.
+    returnValue = processStorage[processIndex][key];
+  }
+
+  return returnValue;
+}
+
+/// @fn int setProcessStorage_(uint8_t key, void *val, int processId, ...)
+///
+/// @brief Set the value of a piece of per-process storage.
+///
+/// @param key The index into the process's per-process storage to retrieve.
+/// @param val The pointer value to set for the storage.
+/// @param processId The ID of the process to set.  This value may only be set
+///   by the scheduler.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on failure.
+int setProcessStorage_(uint8_t key, void *val, int processId, ...) {
+  int returnValue = coroutineError;
+  if (key >= NUM_PROCESS_STORAGE_KEYS) {
+    // Key is out of range.
+    return returnValue; // coroutineError
+  }
+
+  if (processId < 0) {
+    if (getRunningProcessId() == NANO_OS_SCHEDULER_PROCESS_ID) {
+      processId = (int) getRunningProcessId();
+    } else {
+      return returnValue; // coroutineError
+    }
+  }
+  int processIndex = processId - NANO_OS_FIRST_USER_PROCESS_ID;
+  if ((processIndex >= 0)
+    && (processIndex < (NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID))
+  ) {
+    // Calling process is not supported and does not have storage.
+    processStorage[processIndex][key] = val;
+    returnValue = coroutineSuccess;
+  }
+
+  return returnValue;
+}
+
 /// @fn void timespecFromDelay(struct timespec *ts, long int delayMs)
 ///
 /// @brief Initialize the value of a struct timespec with a time in the future

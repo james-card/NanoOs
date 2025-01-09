@@ -110,6 +110,11 @@ extern "C"
 /// @brief The numerical value that indicates that a process is not owned.
 #define NO_USER_ID                                       -1
 
+/// @def NUM_PROCESS_STORAGE_KEYS
+///
+/// @brief The total number of keys supported by the per-process storage.
+#define NUM_PROCESS_STORAGE_KEYS                          1
+
 /// @def floatToInts
 ///
 /// @brief Break a floating-point number into two integer values that represent
@@ -167,6 +172,10 @@ char* getHexDigest(const char *inputString);
 const char* getUsernameByUserId(UserId userId);
 UserId getUserIdByUsername(const char *username);
 void login(void);
+void *getProcessStorage(uint8_t key);
+int setProcessStorage_(uint8_t key, void *val, int processId, ...);
+#define setProcessStorage(key, val, ...) \
+  setProcessStorage_(key, val, ##__VA_ARGS__, -1)
 
 #ifdef __cplusplus
 } // extern "C"
