@@ -1423,7 +1423,8 @@ ConsoleBuffer* consoleWaitForInput(void) {
 /// @return Returns the buffer pointer provided on success, NULL on failure.
 char *consoleFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
-  static ConsoleBuffer *consoleBuffer = NULL;
+  ConsoleBuffer *consoleBuffer
+    = (ConsoleBuffer*) getProcessStorage(FGETS_CONSOLE_BUFFER_KEY);
   int numBytesReceived = 0;
   char *newlineAt = NULL;
   int numBytesToCopy = 0;
@@ -1438,6 +1439,7 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
     // 3. We reach size - 1 bytes received from the stream.
     if (consoleBuffer == NULL) {
       consoleBuffer = consoleWaitForInput();
+      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, consoleBuffer);
     } else {
       newlineAt = strchr(consoleBuffer->buffer, '\n');
       if (newlineAt != NULL) {
@@ -1489,6 +1491,8 @@ char *consoleFGets(char *buffer, int size, FILE *stream) {
         consoleBuffer = consoleWaitForInput();
         bufferIndex = 0;
       }
+
+      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, consoleBuffer);
     }
   }
 
