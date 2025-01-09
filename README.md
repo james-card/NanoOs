@@ -53,7 +53,9 @@ Currently, all available user processes, including the shell, are implemented in
 
 Since NanoOs aims to emulate parts of UNIX, background user processes are supported.  As in UNIX-like environments, launching a process in the background is achieved in a similar manner to UNIX shells:  By appending an ampersand ('&') to the end of the command line.
 
-*NOTE:*  Background processes do not have access to stdout/stderr.  Their only communication mechanism is inter-process communication.
+### Pipes
+
+Pipes of stdout from one process to stdin of another are supported.  Internally, the processes that redirect their stdout are run as background processes.  Only the last process in the chain, which sends its stdout to the console, is run as a foreground process.  Due to the limited amount of memory and the limitation on the number of processes, only three (3) processes may be piped together on one command line.
 
 ## Multi-user Support
 
