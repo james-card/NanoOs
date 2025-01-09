@@ -116,63 +116,6 @@ int setConsoleEcho(bool desiredEchoState);
 // Exported processes
 void* runConsole(void *args);
 
-// Exported IO functions
-ConsoleBuffer* consoleGetBuffer(void);
-
-int consoleFPuts(const char *s, FILE *stream);
-#ifdef fputs
-#undef fputs
-#endif
-#define fputs consoleFPuts
-
-int consolePuts(const char *s);
-#ifdef puts
-#undef puts
-#endif
-#define puts consolePuts
-
-int consoleVFPrintf(FILE *stream, const char *format, va_list args);
-#ifdef vfprintf
-#undef vfprintf
-#endif
-#define vfprintf consoleVFPrintf
-
-int consoleFPrintf(FILE *stream, const char *format, ...);
-#ifdef fprintf
-#undef fprintf
-#endif
-#define fprintf consoleFPrintf
-
-int consolePrintf(const char *format, ...);
-#ifdef printf
-#undef printf
-#endif
-#define printf consolePrintf
-
-char *consoleFGets(char *buffer, int size, FILE *stream);
-#ifdef fgets
-#undef fgets
-#endif
-#define fgets consoleFGets
-
-int consoleVFScanf(FILE *stream, const char *format, va_list ap);
-#ifdef vfscanf
-#undef vfscanf
-#endif
-#define vfscanf consoleVFScanf
-
-int consoleFScanf(FILE *stream, const char *format, ...);
-#ifdef fscanf
-#undef fscanf
-#endif
-#define fscanf consoleFScanf
-
-int consoleScanf(const char *format, ...);
-#ifdef scanf
-#undef scanf
-#endif
-#define scanf consoleScanf
-
 #ifdef __cplusplus
 } // extern "C"
 #endif

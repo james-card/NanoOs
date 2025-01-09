@@ -52,6 +52,9 @@ extern "C"
 {
 #endif
 
+// C-like types
+typedef struct __file FILE;
+
 /// @def SINGLE_CORE_COROUTINES
 ///
 /// @brief This define causes the Coroutines library to omit multi-thread
@@ -197,6 +200,62 @@ unsigned long getElapsedMilliseconds(unsigned long startTime);
 int vsscanf(const char *buffer, const char *format, va_list args);
 int sscanf(const char *buffer, const char *format, ...);
 const char* nanoOsStrError(int errnum);
+
+// Exported IO functions
+
+int nanoOsFPuts(const char *s, FILE *stream);
+#ifdef fputs
+#undef fputs
+#endif
+#define fputs nanoOsFPuts
+
+int nanoOsPuts(const char *s);
+#ifdef puts
+#undef puts
+#endif
+#define puts nanoOsPuts
+
+int nanoOsVFPrintf(FILE *stream, const char *format, va_list args);
+#ifdef vfprintf
+#undef vfprintf
+#endif
+#define vfprintf nanoOsVFPrintf
+
+int nanoOsFPrintf(FILE *stream, const char *format, ...);
+#ifdef fprintf
+#undef fprintf
+#endif
+#define fprintf nanoOsFPrintf
+
+int nanoOsPrintf(const char *format, ...);
+#ifdef printf
+#undef printf
+#endif
+#define printf nanoOsPrintf
+
+char *nanoOsFGets(char *buffer, int size, FILE *stream);
+#ifdef fgets
+#undef fgets
+#endif
+#define fgets nanoOsFGets
+
+int nanoOsVFScanf(FILE *stream, const char *format, va_list ap);
+#ifdef vfscanf
+#undef vfscanf
+#endif
+#define vfscanf nanoOsVFScanf
+
+int nanoOsFScanf(FILE *stream, const char *format, ...);
+#ifdef fscanf
+#undef fscanf
+#endif
+#define fscanf nanoOsFScanf
+
+int nanoOsScanf(const char *format, ...);
+#ifdef scanf
+#undef scanf
+#endif
+#define scanf nanoOsScanf
 
 #ifdef __cplusplus
 } // extern "C"

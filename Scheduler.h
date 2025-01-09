@@ -37,9 +37,7 @@
 #define SCHEDULER_H
 
 // Custom includes
-#include "NanoOs.h"
-#include "Console.h"
-#include "Filesystem.h"
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"

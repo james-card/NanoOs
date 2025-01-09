@@ -26,6 +26,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
+#include "NanoOs.h"
 #include "Scheduler.h"
 
 // The setup function runs once when you press reset or power the board.  This

@@ -29,7 +29,9 @@
 /// @file
 
 // Custom includes
+#include "NanoOs.h"
 #include "Scheduler.h"
+#include "Filesystem.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);

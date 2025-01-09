@@ -30,6 +30,17 @@
 
 // Custom includes
 #include "Filesystem.h"
+#include "SdFat.h"
+
+/// @struct FilesystemState
+///
+/// @brief State metadata the filesystem process uses to provide access to
+/// files.
+///
+/// @param sdFat An SdFat object as defined by the SdFat library.
+typedef struct FilesystemState {
+  SdFat sdFat;
+} FilesystemState;
 
 /// @def PIN_SD_CS
 ///
