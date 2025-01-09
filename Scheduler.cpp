@@ -1171,15 +1171,9 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int schedulerCloseAllFileDescriptors(void) {
-  ProcessMessage *messageToSend = getAvailableMessage();
-  while (messageToSend == NULL) {
-    processYield();
-    messageToSend = getAvailableMessage();
-  }
-
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
-    /* func= */ 0, /* data= */ (intptr_t) messageToSend, false);
+    /* func= */ 0, /* data= */ 0, true);
   processMessageWaitForDone(processMessage, NULL);
   processMessageRelease(processMessage);
 
@@ -1384,6 +1378,74 @@ static inline ProcessDescriptor* launchBackgroundProcess(
 ) {
   return launchProcess(schedulerState, processMessage, commandDescriptor,
     processQueuePop(&schedulerState->free), true);
+}
+
+/// @fn int closeProcessFileDescriptors(
+///   SchedulerState *schedulerState, ProcessDescriptor *processDescriptor)
+///
+/// @brief Helper function to close out the file descriptors owned by a process
+/// when it exits or is killed.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processDescriptor A pointer to the ProcessDescriptor that holds the
+///   fileDescriptors array to close.
+///
+/// @return Returns 0 on success, -1 on failure.
+int closeProcessFileDescriptors(
+  SchedulerState *schedulerState, ProcessDescriptor *processDescriptor
+) {
+  FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
+  if (fileDescriptors != standardUserFileDescriptors) {
+    ProcessMessage *messageToSend = getAvailableMessage();
+    while (messageToSend == NULL) {
+      runScheduler(schedulerState);
+      messageToSend = getAvailableMessage();
+    }
+
+    uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
+    for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
+      ProcessId waitingProcessId = fileDescriptors[ii].outputPipe.processId;
+      if ((waitingProcessId == PROCESS_ID_NOT_SET)
+        || (waitingProcessId == NANO_OS_CONSOLE_PROCESS_ID)
+      ) {
+        // Nothing waiting on output from this file descriptor.  Move on.
+        continue;
+      }
+      ProcessDescriptor *waitingProcessDescriptor
+        = &schedulerState->allProcesses[waitingProcessId];
+
+      // Clear the processId of the waiting process's stdin file descriptor.
+      waitingProcessDescriptor->fileDescriptors[
+        STDIN_FILE_DESCRIPTOR_INDEX].
+        inputPipe.processId = PROCESS_ID_NOT_SET;
+
+      // Send an empty message to the waiting process so that it will become
+      // unblocked.
+      processMessageInit(messageToSend,
+          fileDescriptors[ii].outputPipe.messageType,
+          /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
+      processMessageQueuePush(
+        waitingProcessDescriptor->processHandle, messageToSend);
+      // Give the process a chance to unblock.
+      coroutineResume(waitingProcessDescriptor->processHandle, NULL);
+
+      // The function that was waiting should have released the message we
+      // sent it.  Get another one.
+      messageToSend = getAvailableMessage();
+      while (messageToSend == NULL) {
+        runScheduler(schedulerState);
+        messageToSend = getAvailableMessage();
+      }
+    }
+
+    // kfree will pull an available message.  Release the one we've been
+    // using so that we're guaranteed it will be successful.
+    processMessageRelease(messageToSend);
+    kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
+  }
+
+  return 0;
 }
 
 /// @fn int schedulerRunProcessCommandHandler(
@@ -1616,6 +1678,11 @@ int schedulerKillProcessCommandHandler(
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         processMessage);
 
+      // Close the file descriptors before we terminate the process so that
+      // anything that gets sent to the process's queue gets cleaned up when
+      // we terminate it.
+      closeProcessFileDescriptors(schedulerState, processDescriptor);
+
       if (processTerminate(processDescriptor->processHandle)
         == processSuccess
       ) {
@@ -1844,60 +1911,9 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
 ) {
   int returnValue = 0;
   ProcessId callingProcessId = processId(processMessageFrom(processMessage));
-  ProcessMessage *messageToSend
-    = nanoOsMessageDataPointer(processMessage, ProcessMessage*);
-  if (messageToSend == NULL) {
-    processMessageSetDone(processMessage);
-    return returnValue;
-  }
   ProcessDescriptor *processDescriptor
     = &schedulerState->allProcesses[callingProcessId];
-  FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
-
-  if (fileDescriptors != standardUserFileDescriptors) {
-    uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
-    for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
-      ProcessId waitingProcessId = fileDescriptors[ii].outputPipe.processId;
-      if ((waitingProcessId == PROCESS_ID_NOT_SET)
-        || (waitingProcessId == NANO_OS_CONSOLE_PROCESS_ID)
-      ) {
-        // Nothing waiting on output from this file descriptor.  Move on.
-        continue;
-      }
-      ProcessDescriptor *waitingProcessDescriptor
-        = &schedulerState->allProcesses[waitingProcessId];
-
-      // Clear the processId of the waiting process's stdin file descriptor.
-      waitingProcessDescriptor->fileDescriptors[STDIN_FILE_DESCRIPTOR_INDEX].
-        inputPipe.processId = PROCESS_ID_NOT_SET;
-
-      // Send an empty message to the waiting process so that it will become
-      // unblocked.
-      processMessageInit(messageToSend,
-          fileDescriptors[ii].outputPipe.messageType,
-          /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-      processMessageQueuePush(
-        waitingProcessDescriptor->processHandle, messageToSend);
-      // Give the process a chance to unblock.
-      coroutineResume(waitingProcessDescriptor->processHandle, NULL);
-
-      // The function that was waiting should have released the message we sent
-      // it.  Get another one.
-      messageToSend = getAvailableMessage();
-      while (messageToSend == NULL) {
-        runScheduler(schedulerState);
-        messageToSend = getAvailableMessage();
-      }
-    }
-
-    // kfree will pull an available message.  Release the one we've been using
-    // so that we're guaranteed it will be successful.
-    processMessageRelease(messageToSend);
-    kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
-  } else {
-    // Nothing to do.  Just release the spare message.
-    processMessageRelease(messageToSend);
-  }
+  closeProcessFileDescriptors(schedulerState, processDescriptor);
 
   processMessageSetDone(processMessage);
 
