@@ -115,6 +115,11 @@ extern "C"
 /// @brief The total number of keys supported by the per-process storage.
 #define NUM_PROCESS_STORAGE_KEYS                          1
 
+/// @def FGETS_CONSOLE_BUFFER_KEY
+///
+/// @brief Per-process storage key for the consoleBufer pointer in consoleFGets.
+#define FGETS_CONSOLE_BUFFER_KEY                          0
+
 /// @def floatToInts
 ///
 /// @brief Break a floating-point number into two integer values that represent
