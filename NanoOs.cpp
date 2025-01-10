@@ -175,75 +175,6 @@ unsigned int raiseUInt(unsigned int x, unsigned int y) {
   return z;
 }
 
-/// @fn char* getHexDigest(const char *inputString)
-///
-/// @brief Compute and return a dynamically-allocated hexadecimal representation
-/// of the SHA1 digest of an input string.
-///
-/// @param inputString The string to compute the digest of.
-///
-/// @return Returns the a pointer to computed hexadecimal digest on success,
-/// NULL on failure.
-char* getHexDigest(const char *inputString) {
-  uint8_t *digest = NULL;
-  char *hexDigest = NULL;
-  uint32_t *working = NULL;
-  uint8_t *dataTail = NULL;
-
-  if (inputString == NULL) {
-    fputs("ERROR:  No inputString supplied to getHexDigest.\n", stderr);
-    goto exit;
-  }
-
-  digest = (uint8_t*) malloc(20);
-  if (digest == NULL) {
-    fputs("ERROR:  Could not allocate digest.\n", stderr);
-    goto exit;
-  }
-
-  working = (uint32_t*) calloc(1, 80 * sizeof(uint32_t));
-  if (working == NULL) {
-    fputs("ERROR:  Could not allocate working.\n", stderr);
-    goto freeDigest;
-  }
-
-  dataTail = (uint8_t*) calloc(1, 128);
-  if (dataTail == NULL) {
-    fputs("ERROR:  Could not allocate dataTail.\n", stderr);
-    goto freeWorking;
-  }
-
-  hexDigest = (char*) malloc(41);
-  if (hexDigest == NULL) {
-    fputs("ERROR:  Could not allocate hexDigest.\n", stderr);
-    goto freeDataTail;
-  }
-
-  if (sha1Digest(digest, hexDigest, (uint8_t*) inputString, strlen(inputString),
-    working, dataTail) != 0
-  ) {
-    fprintf(stderr, "ERROR:  SHA1 sum could not be computed.\n");
-    goto freeHexDigest;
-  }
-
-  goto freeDataTail;
-
-freeHexDigest:
-  hexDigest = stringDestroy(hexDigest);
-
-freeDataTail:
-  free(dataTail); dataTail = NULL;
-
-freeWorking:
-  free(working); working = NULL;
-
-freeDigest:
-  free(digest); digest = NULL;
-
-exit:
-  return hexDigest;
-}
-
 /// @fn const char* getUsernameByUserId(UserId userId)
 ///
 /// @brief Get the username for a user given their numeric user ID.
@@ -307,8 +238,11 @@ void login(void) {
   char *username = (char*) malloc(USERNAME_BUFFER_SIZE);
   char *password = (char*) malloc(PASSWORD_BUFFER_SIZE);
   char *newlineAt = NULL;
+  size_t usernameLength = 0, passwordLength = 0, ii = 0;
 
   while (userId == NO_USER_ID) {
+    unsigned int checksum = 0;
+
     fputs("login: ", stdout);
     fgets(username, USERNAME_BUFFER_SIZE, stdin);
     setConsoleEcho(false);
@@ -325,6 +259,10 @@ void login(void) {
       // Terminate the string at the newline.
       *newlineAt = '\0';
     }
+    usernameLength = strlen(username);
+    for (ii = 0; ii < usernameLength; ii++) {
+      checksum += (unsigned int) username[ii];
+    }
 
     newlineAt = strchr(password, '\r');
     if (newlineAt == NULL) {
@@ -334,17 +272,19 @@ void login(void) {
       // Terminate the string at the newline.
       *newlineAt = '\0';
     }
+    passwordLength = strlen(password);
+    for (ii = 0; ii < passwordLength; ii++) {
+      checksum += (unsigned int) password[ii];
+    }
 
-    char *passwordDigest = getHexDigest(password);
     for (int ii = 0; ii < NUM_USERS; ii++) {
       if (strcmp(users[ii].username, username) == 0) {
-        if (strcmp(users[ii].password, passwordDigest) == 0) {
+        if (users[ii].checksum == checksum) {
           userId = users[ii].userId;
         }
         break;
       }
     }
-    passwordDigest = stringDestroy(passwordDigest);
 
     if (userId == NO_USER_ID) {
       fputs("Login incorrect\n", stderr);
@@ -370,17 +310,17 @@ User users[] = {
   {
     .userId   = 0,
     .username = "root",
-    .password = "33a485cb146e1153c69b588c671ab474f2e5b800", // rootroot
+    .checksum = 1356, // rootroot
   },
   {
     .userId   = 1000,
     .username = "user1",
-    .password = "cf7d4405661e272c141cd7b89f0ef5b367b27d2d", // user1user1
+    .checksum = 1488, // user1user1
   },
   {
     .userId   = 1001,
     .username = "user2",
-    .password = "5f0ffc1267ffa9f87d28110d1a526438f23f5aae", // user2user2
+    .checksum = 1491, // user2user2
   },
 };
 

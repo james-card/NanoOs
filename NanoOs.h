@@ -169,11 +169,6 @@ extern "C"
 ProcessId getNumPipes(const char *commandLine);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 unsigned int raiseUInt(unsigned int x, unsigned int y);
-int sha1Digest(uint8_t *digest, char *hexdigest,
-  const uint8_t *data, size_t databytes,
-  uint32_t *W, uint8_t *datatail);
-int sha1HexToDigest(const char *hexDigest, uint8_t *digest);
-char* getHexDigest(const char *inputString);
 const char* getUsernameByUserId(UserId userId);
 UserId getUserIdByUsername(const char *username);
 void login(void);

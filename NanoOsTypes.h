@@ -404,11 +404,11 @@ typedef struct MemoryManagerState {
 ///
 /// @param userId The numeric ID for the user.
 /// @param username The literal name of the user.
-/// @param password The SHA1 hash of the user's password.
+/// @param checksum The checksum of the username and password.
 typedef struct User {
   UserId        userId;
   const char   *username;
-  const char   *password;
+  unsigned int  checksum;
 } User;
 
 /// @struct NanoOsMessage
