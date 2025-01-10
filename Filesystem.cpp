@@ -58,33 +58,6 @@ void filesystemPrintError(FilesystemState *filesystemState) {
   Serial.println(errorData, HEX);
   
   switch (errorCode) {
-    //// case SD_CARD_ERROR_CMD0:
-    ////   Serial.println("No card or CMD0 timeout");
-    ////   break;
-    //// case SD_CARD_ERROR_CMD17:
-    ////   Serial.println("Rd error");
-    ////   break;
-    //// case SD_CARD_ERROR_CMD24:
-    ////   Serial.println("Wt error");
-    ////   break;
-    //// case SD_CARD_ERROR_CMD58:
-    ////   Serial.println("OCR read error");
-    ////   break;
-    //// case SD_CARD_ERROR_ACMD41:
-    ////   Serial.println("Init error");
-    ////   break;
-    //// //// case SD_CARD_ERROR_READ:
-    //// ////   Serial.println("Read error");
-    //// ////   break;
-    //// //// case SD_CARD_ERROR_WRITE:
-    //// ////   Serial.println("Write error");
-    //// ////   break;
-    //// case SD_CARD_ERROR_WRITE_PROGRAMMING:
-    ////   Serial.println("Pgm error");
-    ////   break;
-    //// //// case SD_CARD_ERROR_MISC:
-    //// ////   Serial.println("Unknown error");
-    //// ////   break;
     case 0x1:
       Serial.println("CMD0 T/O-No card/bad sig");
       break;
