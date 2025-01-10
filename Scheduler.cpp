@@ -1040,7 +1040,7 @@ int schedulerKillProcess(ProcessId processId) {
   return returnValue;
 }
 
-/// @fn int schedulerRunProcess(CommandEntry *commandEntry,
+/// @fn int schedulerRunProcess(const CommandEntry *commandEntry,
 ///   char *consoleInput, int consolePort)
 ///
 /// @brief Do all the inter-process communication with the scheduler required
@@ -1054,7 +1054,7 @@ int schedulerKillProcess(ProcessId processId) {
 ///   launched from.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int schedulerRunProcess(CommandEntry *commandEntry,
+int schedulerRunProcess(const CommandEntry *commandEntry,
   char *consoleInput, int consolePort
 ) {
   int returnValue = 1;
@@ -1525,7 +1525,7 @@ int schedulerRunProcessCommandHandler(
       strcpy(commandLine, charAt);
     }
 
-    CommandEntry *commandEntry = getCommandEntryFromInput(commandLine);
+    const CommandEntry *commandEntry = getCommandEntryFromInput(commandLine);
     nanoOsMessage->func = (intptr_t) commandEntry;
     commandDescriptor->consoleInput = commandLine;
 

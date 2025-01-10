@@ -32,7 +32,7 @@
 #include "Scheduler.h"
 
 // Defined at the bottom of this file:
-extern CommandEntry commands[];
+extern const CommandEntry commands[];
 extern const int NUM_COMMANDS;
 
 // Commands
@@ -228,7 +228,7 @@ int logoutCommandHandler(int argc, char **argv) {
   return 0;
 }
 
-/// @fn CommandEntry* getCommandEntryFromInput(char *consoleInput)
+/// @fn const CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
 /// @brief Get the command specified by consoleInput.
 ///
@@ -236,8 +236,8 @@ int logoutCommandHandler(int argc, char **argv) {
 ///
 /// @return Returns a pointer to the found CommandEntry on success, NULL on
 /// failure.
-CommandEntry* getCommandEntryFromInput(char *consoleInput) {
-  CommandEntry *commandEntry = NULL;
+const CommandEntry* getCommandEntryFromInput(char *consoleInput) {
+  const CommandEntry *commandEntry = NULL;
   if (*consoleInput != '\0') {
     int searchIndex = NUM_COMMANDS >> 1;
     size_t commandNameLength = strcspn(consoleInput, " \t\r\n&");
@@ -291,7 +291,7 @@ CommandEntry* getCommandEntryFromInput(char *consoleInput) {
 /// @return This function returns no value.
 int handleCommand(int consolePort, char *consoleInput) {
   int returnValue = processSuccess;
-  CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
+  const CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
     if (schedulerRunProcess(commandEntry, consoleInput, consolePort) != 0) {
@@ -341,7 +341,7 @@ void* runShell(void *args) {
   while (1) {
     printf("%s@localhost%s ", processUsername, prompt);
     fgets(commandBuffer, sizeof(commandBuffer), stdin);
-    CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
+    const CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
     if (commandEntry == NULL) {
       printf("Unknown command.\n");
       continue;
@@ -375,7 +375,7 @@ void* runShell(void *args) {
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the
 ///            binarysearch will work!!!
-CommandEntry commands[] = {
+const CommandEntry commands[] = {
   {
     .name = "echo",
     .func = echoCommandHandler,

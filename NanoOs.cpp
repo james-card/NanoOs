@@ -33,7 +33,7 @@
 #include "Scheduler.h"
 
 // Externs
-extern User users[];
+extern const User users[];
 extern const int NUM_USERS;
 
 /// @fn ProcessId getNumPipes(const char *commandLine)
@@ -306,7 +306,7 @@ void login(void) {
 /// @var users
 ///
 /// @brief The array of user information to simulate a user database.
-User users[] = {
+const User users[] = {
   {
     .userId   = 0,
     .username = "root",

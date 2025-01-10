@@ -71,7 +71,7 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout);
 ProcessInfo* schedulerGetProcessInfo(void);
 int schedulerKillProcess(ProcessId processId);
 int schedulerRunProcess(
-  CommandEntry *commandEntry, char *consoleInput, int consolePort);
+  const CommandEntry *commandEntry, char *consoleInput, int consolePort);
 UserId schedulerGetProcessUser(void);
 int schedulerSetProcessUser(UserId userId);
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream);
