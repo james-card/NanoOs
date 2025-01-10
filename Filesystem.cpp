@@ -31,6 +31,7 @@
 // Custom includes
 #include "Filesystem.h"
 #include "SdFat.h"
+//// #include "SdCard/SdCardInfo.h"
 
 /// @struct FilesystemState
 ///
@@ -47,6 +48,72 @@ typedef struct FilesystemState {
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
 #define PIN_SD_CS 4
 
+void filesystemPrintError(FilesystemState *filesystemState) {
+  uint8_t errorCode = filesystemState->sdFat.card()->errorCode();
+  uint8_t errorData = filesystemState->sdFat.card()->errorData();
+
+  Serial.print("SD initialization failed. Error Code: 0x");
+  Serial.print(errorCode, HEX);
+  Serial.print(" Error Data: 0x");
+  Serial.println(errorData, HEX);
+  
+  switch (errorCode) {
+    //// case SD_CARD_ERROR_CMD0:
+    ////   Serial.println("No card or CMD0 timeout");
+    ////   break;
+    //// case SD_CARD_ERROR_CMD17:
+    ////   Serial.println("Rd error");
+    ////   break;
+    //// case SD_CARD_ERROR_CMD24:
+    ////   Serial.println("Wt error");
+    ////   break;
+    //// case SD_CARD_ERROR_CMD58:
+    ////   Serial.println("OCR read error");
+    ////   break;
+    //// case SD_CARD_ERROR_ACMD41:
+    ////   Serial.println("Init error");
+    ////   break;
+    //// //// case SD_CARD_ERROR_READ:
+    //// ////   Serial.println("Read error");
+    //// ////   break;
+    //// //// case SD_CARD_ERROR_WRITE:
+    //// ////   Serial.println("Write error");
+    //// ////   break;
+    //// case SD_CARD_ERROR_WRITE_PROGRAMMING:
+    ////   Serial.println("Pgm error");
+    ////   break;
+    //// //// case SD_CARD_ERROR_MISC:
+    //// ////   Serial.println("Unknown error");
+    //// ////   break;
+    case 0x1:
+      Serial.println("CMD0 T/O-No card/bad sig");
+      break;
+    case 0x2:
+      Serial.println("CMD8 T/O-Not valid card");
+      break;
+    case 0x3:
+      Serial.println("CMD17 Rd T/O");
+      break;
+    case 0x4:
+      Serial.println("CMD24 Wt T/O");
+      break;
+    case 0x5:
+      Serial.println("Rd CRC err");
+      break;
+    case 0x6:
+      Serial.println("Wt CRC err");
+      break;
+    case 0x7:
+      Serial.println("Wt err - gen pblm");
+      break;
+    case 0x8:
+      Serial.println("Wt pgm err");
+      break;
+  }
+
+  return;
+}
+
 /// @fn void* runFilesystem(void *args)
 ///
 /// @brief Process entry-point for the filesystem process.  Sets up and
@@ -62,7 +129,12 @@ void* runFilesystem(void *args) {
 
   FilesystemState filesystemState;
   // Deliberately not checking return value here for now.
-  (void) filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED);
+  if (filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED)) {
+    //// printString("SdFat library initialized successfully.\n");
+  } else {
+    printString("ERR!  Could not initialize SdFat library\n");
+    filesystemPrintError(&filesystemState);
+  }
 
   while (1) {
     coroutineYield(NULL);
