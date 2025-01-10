@@ -48,6 +48,54 @@ typedef struct FilesystemState {
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
 #define PIN_SD_CS 4
 
+const char *sdCardErrors[] = {
+  "No error",
+  "Card reset failed",
+  "SDIO read CID",
+  "SDIO publish RCA",
+  "Switch card function",
+  "SDIO card select",
+  "Send and check interface settings",
+  "Read CSD data",
+  "Read CID data",
+  "Stop multiple block transmission",
+  "Read card status",
+  "Read single block",
+  "Read multiple blocks",
+  "Write single block",
+  "Write multiple blocks",
+  "Set first erase block",
+  "Set last erase block",
+  "Erase selected blocks",
+  "Read OCR register",
+  "Set CRC mode",
+  "Set SDIO bus width",
+  "Read extended status",
+  "Set pre-erased count",
+  "Activate card initialization",
+  "Read SCR data",
+  "Bad read data token",
+  "Read CRC error",
+  "SDIO fifo read timeout",
+  "Read CID or CSD failed.",
+  "Bad readStart argument",
+  "Read data timeout",
+  "Multiple block stop failed",
+  "SDIO transfer complete",
+  "Write data not accepted",
+  "SDIO fifo write timeout",
+  "Bad writeStart argument",
+  "Flash programming",
+  "Write timeout",
+  "DMA transfer failed",
+  "Card did not accept erase commands",
+  "Card does not support erase",
+  "Erase command timeout",
+  "Card has not been initialized",
+  "Invalid card config",
+  "Unsupported SDIO command",
+};
+
 void filesystemPrintError(FilesystemState *filesystemState) {
   uint8_t errorCode = filesystemState->sdFat.card()->errorCode();
   uint8_t errorData = filesystemState->sdFat.card()->errorData();
@@ -56,34 +104,8 @@ void filesystemPrintError(FilesystemState *filesystemState) {
   Serial.print(errorCode, HEX);
   Serial.print(" Error Data: 0x");
   Serial.println(errorData, HEX);
+  Serial.println(sdCardErrors[errorCode]);
   
-  switch (errorCode) {
-    case 0x1:
-      Serial.println("CMD0 T/O-No card/bad sig");
-      break;
-    case 0x2:
-      Serial.println("CMD8 T/O-Not valid card");
-      break;
-    case 0x3:
-      Serial.println("CMD17 Rd T/O");
-      break;
-    case 0x4:
-      Serial.println("CMD24 Wt T/O");
-      break;
-    case 0x5:
-      Serial.println("Rd CRC err");
-      break;
-    case 0x6:
-      Serial.println("Wt CRC err");
-      break;
-    case 0x7:
-      Serial.println("Wt err - gen pblm");
-      break;
-    case 0x8:
-      Serial.println("Wt pgm err");
-      break;
-  }
-
   return;
 }
 
@@ -103,9 +125,9 @@ void* runFilesystem(void *args) {
   FilesystemState filesystemState;
   // Deliberately not checking return value here for now.
   if (filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED)) {
-    //// printString("SdFat library initialized successfully.\n");
+    printString("SdFat library initialized successfully.\n");
   } else {
-    printString("ERR!  Could not initialize SdFat library\n");
+    printString("ERROR!!!  Could not initialize SdFat library!\n");
     filesystemPrintError(&filesystemState);
   }
 
