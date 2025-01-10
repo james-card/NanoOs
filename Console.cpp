@@ -798,7 +798,7 @@ unsigned long lastToggleTime = 0;
 ///
 /// @brief Array of states to put the LED pin into.  Values are LOW and HIGH
 /// which will turn the LED off and on, respectively.
-int ledStates[2] = {LOW, HIGH};
+const int ledStates[2] = {LOW, HIGH};
 
 /// @var ledStateIndex
 ///
