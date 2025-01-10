@@ -85,7 +85,7 @@ static ProcessDescriptor *allProcesses = NULL;
 /// @var standardKernelFileDescriptors
 ///
 /// @brief The array of file descriptors that all kernel processes use.
-FileDescriptor standardKernelFileDescriptors[
+const static FileDescriptor standardKernelFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
   {
@@ -134,7 +134,7 @@ FileDescriptor standardKernelFileDescriptors[
 /// startScheduler function on the scheduler's stack) that all processes start
 /// out with.
 //// static FileDescriptor *standardUserFileDescriptors = NULL;
-static FileDescriptor standardUserFileDescriptors[
+const static FileDescriptor standardUserFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
   {
@@ -1248,7 +1248,8 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     processDescriptor->userId = schedulerState->allProcesses[
       processId(processMessageFrom(processMessage))].userId;
     processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
-    processDescriptor->fileDescriptors = standardUserFileDescriptors;
+    processDescriptor->fileDescriptors
+      = (FileDescriptor*) standardUserFileDescriptors;
 
     if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
@@ -2092,7 +2093,7 @@ void runScheduler(SchedulerState *schedulerState) {
     allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
     allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
-      = standardUserFileDescriptors;
+      = (FileDescriptor*) standardUserFileDescriptors;
     if (processCreate(&processDescriptor->processHandle, runShell, NULL)
         == processError
     ) {
@@ -2108,7 +2109,7 @@ void runScheduler(SchedulerState *schedulerState) {
     allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
     allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
-      = standardUserFileDescriptors;
+      = (FileDescriptor*) standardUserFileDescriptors;
     if (processCreate(&processDescriptor->processHandle, runShell, NULL)
       == processError
     ) {
@@ -2177,7 +2178,8 @@ __attribute__((noinline)) void startScheduler(
   // Initialize all the kernel process file descriptors.
   for (ProcessId ii = 0; ii < NANO_OS_FIRST_USER_PROCESS_ID; ii++) {
     allProcesses[ii].numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
-    allProcesses[ii].fileDescriptors = standardKernelFileDescriptors;
+    allProcesses[ii].fileDescriptors
+      = (FileDescriptor*) standardKernelFileDescriptors;
   }
 
   // Create the console process.
