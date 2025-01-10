@@ -2333,6 +2333,8 @@ __attribute__((noinline)) void startScheduler(
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
+  processQueuePush(&schedulerState.ready,
+    &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
