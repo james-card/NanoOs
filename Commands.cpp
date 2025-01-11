@@ -195,7 +195,7 @@ int helpCommandHandler(int argc, char **argv) {
   maxCommandNameLength++;
   sprintf(formatString, "%%-%us %%s\n", maxCommandNameLength);
 
-  char *commandName = (char*) malloc(maxCommandNameLength + 1);
+  char *commandName = (char*) malloc(maxCommandNameLength + 2);
   for (int ii = 0; ii < NUM_COMMANDS; ii++) {
     strcpy(commandName, commands[ii].name);
     strcat(commandName, ":");
