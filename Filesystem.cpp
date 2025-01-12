@@ -31,7 +31,6 @@
 // Custom includes
 #include "Filesystem.h"
 #include "SdFat.h"
-//// #include "SdCard/SdCardInfo.h"
 
 /// @struct FilesystemState
 ///
@@ -123,7 +122,6 @@ void* runFilesystem(void *args) {
   (void) args;
 
   FilesystemState filesystemState;
-  // Deliberately not checking return value here for now.
   if (filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED)) {
     printString("SdFat library initialized successfully.\n");
   } else {
