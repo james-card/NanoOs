@@ -37,8 +37,6 @@ Currently, the following processes are always present and running:
 
 These processes work together to provide the basic kernel-level functionality.  These processes cannot be killed, even by the root user.
 
-Note:  As of 1-Jan-2025, the filesystem process is just a stub and does not yet provide any functionality.
-
 ### The Shell and Foreground Processes
 
 NanoOs has a very simple command-line shell.  The shells are not considered special kernel processes.
@@ -47,7 +45,7 @@ One of the challenges of having a shell in an embedded OS is consuming a process
 
 ### User Processes
 
-Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](Commands.cpp) library.  The OS may support commands from a filesystem in a later version.  See the output of the `help` command for details of the available commands.
+Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](Commands.cpp) library.  See the output of the `help` command for details of the available commands.
 
 ### Background Processes
 
@@ -78,6 +76,20 @@ The memory manager is a modified bump allocator that supports automatic memory c
 The memory manager also tracks the size of each allocation.  This allows for realloc to function correctly.  If the size of the reallocation is less than or equal to the size already allocated, no action is taken.  If the size of the reallocation is greater than the size already allocated, the old memory can be copied to the new location before returning the new pointer to the user (as is supposed to happen for realloc).
 
 The owning process of a piece of dynamically-allocated memory is also tracked.  By default, this is the process that originally made the allocation request.  However, the scheduler has the ability to reassign ownership on process creation.  This allows for all memory owned by an individual process to be freed in the event it is prematurely terminated.
+
+## Filesystem
+
+NanoOs uses the SdFat library with the following defines in SdFatConfig.h:
+
+```C
+#define USE_FAT_FILE_FLAG_CONTIGUOUS 0
+#define ENABLE_DEDICATED_SPI 0
+#define USE_LONG_FILE_NAMES 0
+#define SDFAT_FILE_TYPE 1
+#define CHECK_FLASH_PROGRAMMING 0
+```
+
+This produces the smallest possible codespace size (that's held in flash) as well as the smallest size for the SdFat object that's used to manage the state of the library (that's held in RAM).
 
 ## Development History
 
