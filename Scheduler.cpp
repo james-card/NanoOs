@@ -1020,7 +1020,7 @@ int schedulerKillProcess(ProcessId processId) {
       printf("Process terminated.\n");
     } else {
       printf("Process termination returned status \"%s\".\n",
-        nanoOsStrError(returnValue));
+        strerror(returnValue));
     }
   } else {
     returnValue = 1;
@@ -1134,7 +1134,7 @@ int schedulerSetProcessUser(UserId userId) {
 
   if (returnValue != 0) {
     printf("Scheduler returned \"%s\" for setProcessUser.\n",
-      nanoOsStrError(returnValue));
+      strerror(returnValue));
   }
 
   return returnValue;
