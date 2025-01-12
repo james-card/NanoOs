@@ -40,6 +40,10 @@ const char *boolNames[] = {
   "true"
 };
 
+FILE *nanoOsStdin  = (FILE*) ((intptr_t) 0x1);
+FILE *nanoOsStdout = (FILE*) ((intptr_t) 0x2);
+FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
+
 /// @fn int timespec_get(struct timespec* spec, int base)
 ///
 /// @brief Get the current time in the form of a struct timespec.
