@@ -783,9 +783,9 @@ const char *errorStrings[] = {
 /// @brief Constant value to hold the number of errors defined in errorStrings.
 const int NUM_ERRORS = sizeof(errorStrings) / sizeof(errorStrings[0]);
 
-/// @fn const char* nanoOsStrError(int errnum)
+/// @fn char* nanoOsStrError(int errnum)
 ///
-/// @brief strerror implementation for NanoOs.
+/// @brief nanoOsStrError implementation for NanoOs.
 ///
 /// @param errnum The error code either set as the variable errno or returned
 ///   from a function.
@@ -793,12 +793,12 @@ const int NUM_ERRORS = sizeof(errorStrings) / sizeof(errorStrings[0]);
 /// @return This function always succeeds and returns the string corrsponding
 /// to an error.  If the provided error number is outside the range of the
 /// defined errors, the string "Unknown error" will be returned.
-const char* nanoOsStrError(int errnum) {
+char* nanoOsStrError(int errnum) {
   if ((errnum < 0) || (errnum >= NUM_ERRORS)) {
     errnum = EUNKNOWN;
   }
 
-  return errorStrings[errnum];
+  return (char*) errorStrings[errnum];
 }
 
 /// @fn unsigned long getElapsedMilliseconds(unsigned long startTime)
