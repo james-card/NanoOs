@@ -127,14 +127,14 @@
 // Doxygen marker
 /// @file
 
-#include "Coroutines.h"
-
 #ifdef THREAD_SAFE_COROUTINES
 #include "CThreads.h"
 #endif
 
 #include <string.h>
 #include <stdio.h> // For error messages
+
+#include "Coroutines.h"
 
 // Prototype forward declarations for mutual recursion.
 void coroutineAllocateStack(int stackSize);
