@@ -40,8 +40,19 @@ const char *boolNames[] = {
   "true"
 };
 
+/// @var nanoOsStdin
+///
+/// @brief Implementation of nanoOsStdin which is the define value for stdin.
 FILE *nanoOsStdin  = (FILE*) ((intptr_t) 0x1);
+
+/// @var nanoOsStdout
+///
+/// @brief Implementation of nanoOsStdout which is the define value for stdout.
 FILE *nanoOsStdout = (FILE*) ((intptr_t) 0x2);
+
+/// @var nanoOsStderr
+///
+/// @brief Implementation of nanoOsStderr which is the define value for stderr.
 FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
 
 /// @fn int timespec_get(struct timespec* spec, int base)
