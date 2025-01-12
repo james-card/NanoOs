@@ -34,8 +34,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
-#include "Coroutines.h"
 #include "NanoOs.h"
+#include "Coroutines.h"
 
 #ifndef CONSOLE_H
 #define CONSOLE_H
