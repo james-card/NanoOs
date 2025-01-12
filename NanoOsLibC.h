@@ -43,9 +43,15 @@
 #ifndef NANO_OS_LIB_C
 #define NANO_OS_LIB_C
 
-#include <time.h>
+// Standard C includes
+#include <limits.h>
+#include <setjmp.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C"

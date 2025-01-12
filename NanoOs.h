@@ -40,11 +40,6 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
-// Standard C includes
-#include <limits.h>
-#include <string.h>
-#include <stdlib.h>
-
 // Local headers
 #include "Coroutines.h"
 #include "NanoOsTypes.h"

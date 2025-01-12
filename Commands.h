@@ -33,10 +33,6 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-// Standard C includes
-#include <limits.h>
-#include <string.h>
-
 // Custom includes
 #include "NanoOs.h"
 #include "Coroutines.h"

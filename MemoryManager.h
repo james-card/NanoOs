@@ -36,12 +36,6 @@
 #ifndef MEMORY_MANAGER_H
 #define MEMORY_MANAGER_H
 
-// Standard C includes
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <setjmp.h>
-
 // NanoOs includes
 #include "NanoOs.h"
 
