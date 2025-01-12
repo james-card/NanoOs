@@ -44,6 +44,7 @@
 #define NANO_OS_LIB_C
 
 // Standard C includes
+#define FILE C_FILE
 #include <limits.h>
 #include <setjmp.h>
 #include <stdarg.h>
@@ -52,14 +53,33 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#undef FILE
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-// C-like types
-typedef struct __file FILE;
+typedef struct NanoOsFile NanoOsFile;
+#ifdef FILE
+#undef FILE
+#endif // FILE
+#define FILE NanoOsFile
+
+#ifdef stdin
+#undef stdin
+#endif // stdin
+#define stdin nanoOsStdin
+
+#ifdef stdout
+#undef stdout
+#endif // stdout
+#define stdout nanoOsStdout
+
+#ifdef stderr
+#undef stderr
+#endif // stderr
+#define stderr nanoOsStderr
 
 /// @def SINGLE_CORE_COROUTINES
 ///
@@ -181,6 +201,9 @@ typedef void TypeDescriptor;
 #define STOP       ((void*) ((intptr_t) -1))
 
 extern const char *boolNames[];
+extern FILE *nanoOsStdin;
+extern FILE *nanoOsStdout;
+extern FILE *nanoOsStderr;
 
 // Debug functions
 int printString_(const char *string);
