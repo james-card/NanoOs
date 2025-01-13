@@ -133,7 +133,6 @@ const static FileDescriptor standardKernelFileDescriptors[
 /// @brief Pointer to the array of FileDescriptor objects (declared in the
 /// startScheduler function on the scheduler's stack) that all processes start
 /// out with.
-//// static FileDescriptor *standardUserFileDescriptors = NULL;
 const static FileDescriptor standardUserFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
