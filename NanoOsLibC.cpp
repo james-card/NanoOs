@@ -969,6 +969,13 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
 
       setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
     }
+  } else {
+    // stream is a regular FILE.
+    #undef fgets
+    int numBytesRead = stream->sdFile->fgets(buffer, size);
+    if (numBytesRead >= 0) {
+      returnValue = buffer;
+    }
   }
 
   return returnValue;
