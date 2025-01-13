@@ -1492,6 +1492,41 @@ FILE* kfopen(SchedulerState *schedulerState,
   return returnValue;
 }
 
+/// @fn int kfclose(SchedulerState *schedulerState, FILE *stream)
+///
+/// @brief Version of fclose for the scheduler.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler process.
+///
+/// @param stream A pointer to the FILE object that was previously opened.
+///
+/// @return Returns 0 on success, EOF on failure.  On failure, the value of
+/// errno is also set to the appropriate error.
+int kfclose(SchedulerState *schedulerState, FILE *stream) {
+  int returnValue = 0;
+  ProcessMessage *processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
+    runScheduler(schedulerState);
+    processMessage = getAvailableMessage();
+  }
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) stream;
+  processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  coroutineResume(
+    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    processMessage);
+
+  while (processMessageDone(processMessage) == false) {
+    runScheduler(schedulerState);
+  }
+
+  processMessageRelease(processMessage);
+  return returnValue;
+}
+
 /// @fn int schedulerRunProcessCommandHandler(
 ///   SchedulerState *schedulerState, ProcessMessage *processMessage)
 ///
