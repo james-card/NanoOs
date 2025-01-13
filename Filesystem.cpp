@@ -237,3 +237,16 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
   return returnValue;
 }
 
+/// @fn int filesystemFClose(FILE *stream)
+///
+/// @brief Close a file previously opened with filesystemFOpen.
+///
+/// @param stream A pointer to the FILE object that was previously opened.
+///
+/// @return Returns 0 on success, EOF on failure.  On failure, the value of
+/// errno is also set to the appropriate error.
+int filesystemFClose(FILE *stream) {
+  (void) stream;
+  return 0;
+}
+

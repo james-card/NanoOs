@@ -64,6 +64,12 @@ FILE* filesystemFOpen(const char *pathname, const char *mode);
 #endif // fopen
 #define fopen filesystemFOpen
 
+int filesystemFClose(FILE *stream);
+#ifdef fclose
+#undef fclose
+#endif // fclose
+#define fclose filesystemFClose
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
