@@ -30,7 +30,6 @@
 
 // Custom includes
 #include "Filesystem.h"
-#include "SdFat.h"
 
 /// @struct FilesystemState
 ///
@@ -41,6 +40,11 @@
 typedef struct FilesystemState {
   SdFat sdFat;
 } FilesystemState;
+
+/// @typedef FilesystemCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*FilesystemCommandHandler)(FilesystemState*, ProcessMessage*);
 
 /// @def PIN_SD_CS
 ///
@@ -112,6 +116,23 @@ void filesystemPrintError(FilesystemState *filesystemState) {
   return;
 }
 
+int filesystemOpenFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  (void) filesystemState;
+  NanoOsFile *nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
+  nanoOsFile->sdFile = new SdFile("/etc/hostname", O_RDONLY);
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) nanoOsFile;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
+FilesystemCommandHandler filesystemCommandHandlers[] = {
+  filesystemOpenFileCommandHandler, // FILESYSTEM_OPEN_FILE
+};
+
 /// @fn void* runFilesystem(void *args)
 ///
 /// @brief Process entry-point for the filesystem process.  Sets up and
@@ -124,19 +145,43 @@ void filesystemPrintError(FilesystemState *filesystemState) {
 /// @return This function never returns, but would return NULL if it did.
 void* runFilesystem(void *args) {
   (void) args;
+  ProcessMessage *schedulerMessage = NULL;
 
   FilesystemState filesystemState;
-  if (filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED)) {
-    printString("SdFat library initialized successfully.\n");
-  } else {
-    printString("ERROR!!!  Could not initialize SdFat library!\n");
+  if (!filesystemState.sdFat.begin(PIN_SD_CS, SPI_HALF_SPEED)) {
+    printString("ERROR! Could not initialize SdFat library!\n");
     filesystemPrintError(&filesystemState);
   }
 
   while (1) {
-    coroutineYield(NULL);
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      FilesystemCommandResponse messageType
+        = (FilesystemCommandResponse) processMessageType(schedulerMessage);
+      if (messageType < NUM_FILESYSTEM_COMMANDS) {
+        filesystemCommandHandlers[messageType](
+          &filesystemState, schedulerMessage);
+      } else {
+        printString("ERROR!!!  Received unknown filesystem command ");
+        printInt(messageType);
+        printString(" from scheduler.\n");
+      }
+    }
   }
 
   return NULL;
+}
+
+FILE* filesystemFOpen(const char *pathname, const char *mode) {
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
+    /* func= */ (intptr_t) mode, (intptr_t) pathname, true);
+  processMessageWaitForDone(processMessage, NULL);
+  FILE *returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
+  processMessageRelease(processMessage);
+  return returnValue;
 }
 
