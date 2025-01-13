@@ -41,8 +41,8 @@
 #include <HardwareSerial.h>
 
 // Local headers
-#include "Coroutines.h"
 #include "NanoOsTypes.h"
+#include "Coroutines.h"
 
 #ifdef __cplusplus
 extern "C"
