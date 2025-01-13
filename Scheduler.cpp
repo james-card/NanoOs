@@ -1451,6 +1451,47 @@ int closeProcessFileDescriptors(
   return 0;
 }
 
+/// @fn FILE* kfopen(SchedulerState *schedulerState,
+///   const char *pathname, const char *mode)
+///
+/// @brief Version of fopen for the scheduler.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler process.
+/// @param pathname A pointer to the C string with the full path to the file to
+///   open.
+/// @param mode A pointer to the C string that defines the way to open the file.
+///
+/// @return Returns a pointer to the opened file on success, NULL on failure.
+FILE* kfopen(SchedulerState *schedulerState,
+  const char *pathname, const char *mode
+) {
+  FILE *returnValue = NULL;
+  ProcessMessage *processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
+    runScheduler(schedulerState);
+    processMessage = getAvailableMessage();
+  }
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->func = (intptr_t) mode;
+  nanoOsMessage->data = (intptr_t) pathname;
+  processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  coroutineResume(
+    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    processMessage);
+
+  while (processMessageDone(processMessage) == false) {
+    runScheduler(schedulerState);
+  }
+
+  returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
+
+  processMessageRelease(processMessage);
+  return returnValue;
+}
+
 /// @fn int schedulerRunProcessCommandHandler(
 ///   SchedulerState *schedulerState, ProcessMessage *processMessage)
 ///
@@ -2094,8 +2135,9 @@ void runScheduler(SchedulerState *schedulerState) {
       = NUM_STANDARD_FILE_DESCRIPTORS;
     allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
-    if (processCreate(&processDescriptor->processHandle, runShell, NULL)
-        == processError
+    if (processCreate(&processDescriptor->processHandle,
+        runShell, schedulerState->hostname
+      ) == processError
     ) {
       printString(
         "ERROR!!!  Could not configure process for USB shell.\n");
@@ -2110,8 +2152,9 @@ void runScheduler(SchedulerState *schedulerState) {
       = NUM_STANDARD_FILE_DESCRIPTORS;
     allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
-    if (processCreate(&processDescriptor->processHandle, runShell, NULL)
-      == processError
+    if (processCreate(&processDescriptor->processHandle,
+        runShell, schedulerState->hostname
+      ) == processError
     ) {
       printString(
         "ERROR!!!  Could not configure process for GPIO shell.\n");
@@ -2342,6 +2385,37 @@ __attribute__((noinline)) void startScheduler(
     ii++
   ) {
     processQueuePush(&schedulerState.ready, &allProcesses[ii]);
+  }
+
+  // Get the memory manager and filesystem up and running.
+  coroutineResume(
+    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+    NULL);
+  coroutineResume(
+    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    NULL);
+
+  // Allocate memory for the hostname.
+  schedulerState.hostname = (char*) kcalloc(1, 30);
+  if (schedulerState.hostname == NULL) {
+    printString("ERROR!!!  schedulerState.hostname is NULL!!!\n");
+  }
+  FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
+  if (hostnameFile != NULL) {
+    if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
+      != schedulerState.hostname
+    ) {
+      printString("ERROR!!!  fgets did not read hostname!!!\n");
+    }
+    if (strchr(schedulerState.hostname, '\r')) {
+      *strchr(schedulerState.hostname, '\r') = '\0';
+    } else if (strchr(schedulerState.hostname, '\n')) {
+      *strchr(schedulerState.hostname, '\n') = '\0';
+    } else if (*schedulerState.hostname == '\0') {
+      strcpy(schedulerState.hostname, "localhost");
+    }
+  } else {
+    printString("ERROR!!!  kfopen of /etc/hostname returned NULL!!!\n");
   }
 
   // Run our scheduler.
