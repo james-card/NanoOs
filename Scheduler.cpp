@@ -2397,26 +2397,29 @@ __attribute__((noinline)) void startScheduler(
 
   // Allocate memory for the hostname.
   schedulerState.hostname = (char*) kcalloc(1, 30);
-  if (schedulerState.hostname == NULL) {
+  if (schedulerState.hostname != NULL) {
+    strcpy(schedulerState.hostname, "localhost");
+  } else {
     printString("ERROR!!!  schedulerState.hostname is NULL!!!\n");
   }
-  FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
-  if (hostnameFile != NULL) {
-    if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
-      != schedulerState.hostname
-    ) {
-      printString("ERROR!!!  fgets did not read hostname!!!\n");
-    }
-    if (strchr(schedulerState.hostname, '\r')) {
-      *strchr(schedulerState.hostname, '\r') = '\0';
-    } else if (strchr(schedulerState.hostname, '\n')) {
-      *strchr(schedulerState.hostname, '\n') = '\0';
-    } else if (*schedulerState.hostname == '\0') {
-      strcpy(schedulerState.hostname, "localhost");
-    }
-  } else {
-    printString("ERROR!!!  kfopen of /etc/hostname returned NULL!!!\n");
-  }
+  //// FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
+  //// if (hostnameFile != NULL) {
+  ////   if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
+  ////     != schedulerState.hostname
+  ////   ) {
+  ////     printString("ERROR!!!  fgets did not read hostname!!!\n");
+  ////   }
+  ////   if (strchr(schedulerState.hostname, '\r')) {
+  ////     *strchr(schedulerState.hostname, '\r') = '\0';
+  ////   } else if (strchr(schedulerState.hostname, '\n')) {
+  ////     *strchr(schedulerState.hostname, '\n') = '\0';
+  ////   } else if (*schedulerState.hostname == '\0') {
+  ////     strcpy(schedulerState.hostname, "localhost");
+  ////   }
+  ////   kfclose(&schedulerState, hostnameFile);
+  //// } else {
+  ////   printString("ERROR!!!  kfopen of /etc/hostname returned NULL!!!\n");
+  //// }
 
   // Run our scheduler.
   while (1) {
