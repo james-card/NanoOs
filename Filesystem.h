@@ -50,12 +50,19 @@ extern "C"
 /// message handler.
 typedef enum FilesystemCommandResponse {
   // Commands:
+  FILESYSTEM_OPEN_FILE,
   // Responses:
   NUM_FILESYSTEM_COMMANDS,
-} FilesystemCommand;
+} FilesystemCommandResponse;
 
 // Exported functionality
 void* runFilesystem(void *args);
+
+FILE* filesystemFOpen(const char *pathname, const char *mode);
+#ifdef fopen
+#undef fopen
+#endif // fopen
+#define fopen filesystemFOpen
 
 #ifdef __cplusplus
 } // extern "C"
