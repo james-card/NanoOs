@@ -167,11 +167,36 @@ int filesystemOpenFileCommandHandler(
   return 0;
 }
 
+/// @fn int filesystemCloseFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int filesystemCloseFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  (void) filesystemState;
+
+  FILE *stream = nanoOsMessageDataPointer(processMessage, FILE*);
+  delete stream->sdFile;
+  free(stream); stream = NULL;
+
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
 FilesystemCommandHandler filesystemCommandHandlers[] = {
-  filesystemOpenFileCommandHandler, // FILESYSTEM_OPEN_FILE
+  filesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
+  filesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
 };
 
 /// @fn void* runFilesystem(void *args)
@@ -246,7 +271,11 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
 /// @return Returns 0 on success, EOF on failure.  On failure, the value of
 /// errno is also set to the appropriate error.
 int filesystemFClose(FILE *stream) {
-  (void) stream;
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
+    /* func= */ 0, /* data= */ (intptr_t) stream, true);
+  processMessageWaitForDone(processMessage, NULL);
+  processMessageRelease(processMessage);
   return 0;
 }
 
