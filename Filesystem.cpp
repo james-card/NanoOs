@@ -103,6 +103,14 @@ const static char *sdCardErrors[] = {
   "Unsupported SDIO command",
 };
 
+/// @fn void filesystemPrintError(FilesystemState *filesystemState)
+///
+/// @brief Print out the current error status of the filesystem state.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+///
+/// @return This function returns no value.
 void filesystemPrintError(FilesystemState *filesystemState) {
   uint8_t errorCode = filesystemState->sdFat.card()->errorCode();
   uint8_t errorData = filesystemState->sdFat.card()->errorData();
@@ -116,12 +124,42 @@ void filesystemPrintError(FilesystemState *filesystemState) {
   return;
 }
 
+/// @fn int filesystemOpenFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_OPEN_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
 int filesystemOpenFileCommandHandler(
   FilesystemState *filesystemState, ProcessMessage *processMessage
 ) {
   (void) filesystemState;
+
+  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
+  const char *modeString = nanoOsMessageFuncPointer(processMessage, char*);
+  int mode = 0;
+  if ((strchr(modeString, 'r') && (strchr(modeString, 'w')))
+    || (strchr(modeString, '+'))
+  ) {
+    mode |= O_RDWR;
+  } else if (strchr(modeString, 'r')) {
+    mode |= O_RDONLY;
+  } else if (strchr(modeString, 'w')) {
+    mode |= O_WRONLY;
+  }
+  if (strchr(modeString, 'w')) {
+    mode |= O_CREAT | O_TRUNC;
+  } else if (strchr(modeString, 'a')) {
+    mode |= O_APPEND | O_CREAT;
+  }
+
   NanoOsFile *nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
-  nanoOsFile->sdFile = new SdFile("/etc/hostname", O_RDONLY);
+  nanoOsFile->sdFile = new SdFile(pathname, mode);
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = (intptr_t) nanoOsFile;
@@ -129,6 +167,9 @@ int filesystemOpenFileCommandHandler(
   return 0;
 }
 
+/// @var filesystemCommandHandlers
+///
+/// @brief Array of FilesystemCommandHandler function pointers.
 FilesystemCommandHandler filesystemCommandHandlers[] = {
   filesystemOpenFileCommandHandler, // FILESYSTEM_OPEN_FILE
 };
@@ -175,10 +216,21 @@ void* runFilesystem(void *args) {
   return NULL;
 }
 
+/// @fn FILE* filesystemFOpen(const char *pathname, const char *mode)
+///
+/// @brief NanoOs implementation of standard fopen command.
+///
+/// @param pathname Pointer to a C string with the full path to the file to
+///   open.
+/// @param mode Pointer to a C string containing one of the standard file mode
+///   combinations.
+///
+/// @return Returns a pointer to a newly-allocated and initialized FILE object
+/// on success, NULL on failure.
 FILE* filesystemFOpen(const char *pathname, const char *mode) {
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
-    /* func= */ (intptr_t) mode, (intptr_t) pathname, true);
+    /* func= */ (intptr_t) mode, /* data= */ (intptr_t) pathname, true);
   processMessageWaitForDone(processMessage, NULL);
   FILE *returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
   processMessageRelease(processMessage);
