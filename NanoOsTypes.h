@@ -37,7 +37,6 @@
 #define NANO_OS_TYPES_H
 
 // Custom includes
-#include "SdFat.h"
 #include "Coroutines.h"
 
 #ifdef __cplusplus
@@ -130,9 +129,9 @@ typedef unsigned long long int NanoOsMessageData;
 ///
 /// @brief Definition of the FILE structure used internally to NanoOs.
 ///
-/// @param sdFile A pointer to the SdFile used to perform IO on the file.
+/// @param file TODO Placeholder for file data.
 typedef struct NanoOsFile {
-  SdFile *sdFile;
+  void *file;
 } NanoOsFile;
 
 /// @struct IoPipe
