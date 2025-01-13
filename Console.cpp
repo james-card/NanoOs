@@ -746,10 +746,15 @@ void consoleReleaseBufferCommandHandler(
   return;
 }
 
+/// @typedef ConsoleCommandHandler
+///
+/// @brief Signature of command handler for a console command.
+typedef void (*ConsoleCommandHandler)(ConsoleState*, ProcessMessage*);
+
 /// @var consoleCommandHandlers
 ///
 /// @brief Array of handlers for console command messages.
-void (*consoleCommandHandlers[])(ConsoleState*, ProcessMessage*) = {
+const ConsoleCommandHandler consoleCommandHandlers[] = {
   consoleWriteValueCommandHandler,      // CONSOLE_WRITE_VALUE
   consoleGetBufferCommandHandler,       // CONSOLE_GET_BUFFER
   consoleWriteBufferCommandHandler,     // CONSOLE_WRITE_BUFFER

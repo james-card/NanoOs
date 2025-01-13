@@ -418,13 +418,17 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   return returnValue;
 }
 
+/// @typedef MemoryManagerCommandHandler
+///
+/// @brief Signature of command handler for a memory manager command.
+typedef int (*MemoryManagerCommandHandler)(
+  MemoryManagerState *memoryManagerState, ProcessMessage *incoming);
+
 /// @var memoryManagerCommandHandlers
 ///
 /// @brief Array of function pointers for handlers for commands that are
 /// understood by this library.
-int (*memoryManagerCommandHandlers[])(
-  MemoryManagerState *memoryManagerState, ProcessMessage *incoming
-) = {
+const MemoryManagerCommandHandler memoryManagerCommandHandlers[] = {
   memoryManagerReallocCommandHandler,       // MEMORY_MANAGER_REALLOC
   memoryManagerFreeCommandHandler,          // MEMORY_MANAGER_FREE
   memoryManagerGetFreeMemoryCommandHandler, // MEMORY_MANAGER_GET_FREE_MEMORY

@@ -32,7 +32,7 @@
 #include "Scheduler.h"
 
 // Defined at the bottom of this file:
-extern CommandEntry commands[];
+extern const CommandEntry commands[];
 extern const int NUM_COMMANDS;
 
 // Commands
@@ -375,7 +375,7 @@ void* runShell(void *args) {
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the
 ///            binarysearch will work!!!
-CommandEntry commands[] = {
+const CommandEntry commands[] = {
   //// {
   ////   .name = "echo",
   ////   .func = echoCommandHandler,

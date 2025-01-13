@@ -194,7 +194,7 @@ int filesystemCloseFileCommandHandler(
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
-FilesystemCommandHandler filesystemCommandHandlers[] = {
+const FilesystemCommandHandler filesystemCommandHandlers[] = {
   filesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
   filesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
 };

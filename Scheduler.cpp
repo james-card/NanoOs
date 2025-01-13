@@ -1999,11 +1999,16 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
   return returnValue;
 }
 
+/// @typedef SchedulerCommandHandler
+///
+/// @brief Signature of command handler for a scheduler command.
+typedef int (*SchedulerCommandHandler)(SchedulerState*, ProcessMessage*);
+
 /// @var schedulerCommandHandlers
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
-int (*schedulerCommandHandlers[])(SchedulerState*, ProcessMessage*) = {
+const SchedulerCommandHandler schedulerCommandHandlers[] = {
   schedulerRunProcessCommandHandler,        // SCHEDULER_RUN_PROCESS
   schedulerKillProcessCommandHandler,       // SCHEDULER_KILL_PROCESS
   // SCHEDULER_GET_NUM_RUNNING_PROCESSES:
