@@ -37,6 +37,7 @@
 #define NANO_OS_TYPES_H
 
 // Custom includes
+#include "SdFat.h"
 #include "Coroutines.h"
 
 #ifdef __cplusplus
@@ -124,6 +125,15 @@ typedef int16_t UserId;
 typedef unsigned long long int NanoOsMessageData;
 
 // Composite types
+
+/// @struct NanoOsFile
+///
+/// @brief Definition of the FILE structure used internally to NanoOs.
+///
+/// @param sdFile A pointer to the SdFile used to perform IO on the file.
+typedef struct NanoOsFile {
+  SdFile *sdFile;
+} NanoOsFile;
 
 /// @struct IoPipe
 ///
@@ -235,12 +245,14 @@ typedef struct ProcessQueue {
 ///   process.
 /// @param free Queue of processes that are free within the allProcesses
 ///   array.
+/// @param hostname The contents of the /etc/hostname file read at startup.
 typedef struct SchedulerState {
   ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
   ProcessQueue ready;
   ProcessQueue waiting;
   ProcessQueue timedWaiting;
   ProcessQueue free;
+  char *hostname;
 } SchedulerState;
 
 /// @struct CommandDescriptor
