@@ -318,7 +318,7 @@ int handleCommand(int consolePort, char *consoleInput) {
 ///
 /// @return This function never exits, but would return NULL if it did.
 void* runShell(void *args) {
-  (void) args;
+  const char *hostname = (char*) args;
   char commandBuffer[CONSOLE_BUFFER_SIZE];
   int consolePort = getOwnedConsolePort();
   while (consolePort < 0) {
@@ -327,8 +327,8 @@ void* runShell(void *args) {
   }
 
   if (schedulerGetProcessUser() < 0) {
-    printf("\nNanoOs " NANO_OS_VERSION " localhost console %d\n\n",
-      consolePort);
+    printf("\nNanoOs " NANO_OS_VERSION " %s console %d\n\n",
+      hostname, consolePort);
     login();
   }
 
