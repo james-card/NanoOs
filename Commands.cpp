@@ -32,7 +32,7 @@
 #include "Scheduler.h"
 
 // Defined at the bottom of this file:
-extern const CommandEntry commands[];
+extern CommandEntry commands[];
 extern const int NUM_COMMANDS;
 
 // Commands
@@ -100,75 +100,75 @@ int killCommandHandler(int argc, char **argv) {
   return returnValue;
 }
 
-/// @fn int echoCommandHandler(int argc, char **argv);
-///
-/// @brief Echo a string from the user back to the console output.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.  They will be echoed back to the console
-///   output separated by a space.
-///
-/// @return This function always returns 0.
-int echoCommandHandler(int argc, char **argv) {
-  if (argc > 1) {
-    // The usual case.  Print the arguments separated by one (1) space.
-    for (int ii = 1; ii < argc; ii++) {
-      fputs(argv[ii], stdout);
-      if (ii < (argc - 1)) {
-        fputs(" ", stdout);
-      }
-    }
-    fputs("\n", stdout);
-  } else {
-    // Read from stdin and echo the input back to the user until "EOF\n" is
-    // received.
-    char buffer[96];
-    while (fgets(buffer, sizeof(buffer), stdin)) {
-      if (strcmp(buffer, "EOF\n") != 0) {
-        fputs(buffer, stdout);
-      } else {
-        break;
-      }
-    }
-  }
+//// /// @fn int echoCommandHandler(int argc, char **argv);
+//// ///
+//// /// @brief Echo a string from the user back to the console output.
+//// ///
+//// /// @param argc The number or arguments parsed from the command line, including
+//// ///   the name of the command.
+//// /// @param argv The array of arguments parsed from the command line with one
+//// ///   argument per array element.  They will be echoed back to the console
+//// ///   output separated by a space.
+//// ///
+//// /// @return This function always returns 0.
+//// int echoCommandHandler(int argc, char **argv) {
+////   if (argc > 1) {
+////     // The usual case.  Print the arguments separated by one (1) space.
+////     for (int ii = 1; ii < argc; ii++) {
+////       fputs(argv[ii], stdout);
+////       if (ii < (argc - 1)) {
+////         fputs(" ", stdout);
+////       }
+////     }
+////     fputs("\n", stdout);
+////   } else {
+////     // Read from stdin and echo the input back to the user until "EOF\n" is
+////     // received.
+////     char buffer[96];
+////     while (fgets(buffer, sizeof(buffer), stdin)) {
+////       if (strcmp(buffer, "EOF\n") != 0) {
+////         fputs(buffer, stdout);
+////       } else {
+////         break;
+////       }
+////     }
+////   }
+//// 
+////   return 0;
+//// }
 
-  return 0;
-}
-
-/// @fn int grepCommandHandler(int argc, char **argv);
-///
-/// @brief Echo a line of text from standard input to the console output if it
-/// contains the string the user is looking for.
-///
-/// @param argc The number or arguments parsed from the command line, including
-///   the name of the command.
-/// @param argv The array of arguments parsed from the command line with one
-///   argument per array element.  They will be greped back to the console
-///   output separated by a space.
-///
-/// @return This function always returns 0.
-int grepCommandHandler(int argc, char **argv) {
-  char buffer[96];
-
-  if (argc < 2) {
-    printf("Usage:  %s <string to find>\n", argv[0]);
-    return 1;
-  }
-
-  while (fgets(buffer, sizeof(buffer), stdin)) {
-    if (strstr(buffer, argv[1])) {
-      fputs(buffer, stdout);
-    }
-  }
-
-  if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
-    fputs("\n", stdout);
-  }
-
-  return 0;
-}
+//// /// @fn int grepCommandHandler(int argc, char **argv);
+//// ///
+//// /// @brief Echo a line of text from standard input to the console output if it
+//// /// contains the string the user is looking for.
+//// ///
+//// /// @param argc The number or arguments parsed from the command line, including
+//// ///   the name of the command.
+//// /// @param argv The array of arguments parsed from the command line with one
+//// ///   argument per array element.  They will be greped back to the console
+//// ///   output separated by a space.
+//// ///
+//// /// @return This function always returns 0.
+//// int grepCommandHandler(int argc, char **argv) {
+////   char buffer[96];
+//// 
+////   if (argc < 2) {
+////     printf("Usage:  %s <string to find>\n", argv[0]);
+////     return 1;
+////   }
+//// 
+////   while (fgets(buffer, sizeof(buffer), stdin)) {
+////     if (strstr(buffer, argv[1])) {
+////       fputs(buffer, stdout);
+////     }
+////   }
+//// 
+////   if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
+////     fputs("\n", stdout);
+////   }
+//// 
+////   return 0;
+//// }
 
 /// @fn int helpCommandHandler(int argc, char **argv);
 ///
@@ -375,22 +375,22 @@ void* runShell(void *args) {
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the
 ///            binarysearch will work!!!
-const CommandEntry commands[] = {
-  {
-    .name = "echo",
-    .func = echoCommandHandler,
-    .help = "Echo a string back to the console."
-  },
+CommandEntry commands[] = {
+  //// {
+  ////   .name = "echo",
+  ////   .func = echoCommandHandler,
+  ////   .help = "Echo a string back to the console."
+  //// },
   {
     .name = "exit",
     .func = logoutCommandHandler,
     .help = "Exit the current shell."
   },
-  {
-    .name = "grep",
-    .func = grepCommandHandler,
-    .help = "Find text in piped output."
-  },
+  //// {
+  ////   .name = "grep",
+  ////   .func = grepCommandHandler,
+  ////   .help = "Find text in piped output."
+  //// },
   {
     .name = "help",
     .func = helpCommandHandler,
