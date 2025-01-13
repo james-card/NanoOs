@@ -199,6 +199,32 @@ FilesystemCommandHandler filesystemCommandHandlers[] = {
   filesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
 };
 
+/// @fn void handleFilesystemMessages(FilesystemState *filesystemState)
+///
+/// @brief Handle filesystem messages from the process's queue until there are
+/// no more waiting.
+///
+/// @param filesystemState A pointer to the FilesystemState structure
+///   maintained by the filesystem process.
+///
+/// @return This function returns no value.
+void handleFilesystemMessages(FilesystemState *filesystemState) {
+  ProcessMessage *processMessage = processMessageQueuePop();
+  while (processMessage != NULL) {
+    FilesystemCommandResponse messageType
+      = (FilesystemCommandResponse) processMessageType(processMessage);
+    if (messageType >= NUM_FILESYSTEM_COMMANDS) {
+      processMessage = processMessageQueuePop();
+      continue;
+    }
+    
+    filesystemCommandHandlers[messageType](filesystemState, processMessage);
+    processMessage = processMessageQueuePop();
+  }
+  
+  return;
+}
+
 /// @fn void* runFilesystem(void *args)
 ///
 /// @brief Process entry-point for the filesystem process.  Sets up and
@@ -235,6 +261,8 @@ void* runFilesystem(void *args) {
         printInt(messageType);
         printString(" from scheduler.\n");
       }
+    } else {
+      handleFilesystemMessages(&filesystemState);
     }
   }
 
