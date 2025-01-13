@@ -51,8 +51,9 @@ extern "C"
 typedef enum FilesystemCommandResponse {
   // Commands:
   FILESYSTEM_OPEN_FILE,
-  // Responses:
+  FILESYSTEM_CLOSE_FILE,
   NUM_FILESYSTEM_COMMANDS,
+  // Responses:
 } FilesystemCommandResponse;
 
 // Exported functionality
