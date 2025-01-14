@@ -791,6 +791,7 @@ const char *errorStrings[] = {
   "Out of memory",
   "Permission denied",
   "Invalid argument",
+  "I/O error",
 };
 
 /// @var NUM_ERRORS

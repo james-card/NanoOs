@@ -192,6 +192,7 @@ int timespec_get(struct timespec* spec, int base);
 #define ENOMEM           3      /* Out of memory */
 #define EACCES           4      /* Permission denied */
 #define EINVAL           5      /* Invalid argument */
+#define EIO              6      /* I/O error */
 
 typedef void TypeDescriptor;
 
