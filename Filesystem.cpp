@@ -155,9 +155,8 @@ void handleFilesystemMessages(FilesystemState *filesystemState) {
 
 /// @fn void* runFilesystem(void *args)
 ///
-/// @brief Process entry-point for the filesystem process.  Sets up and
-/// configures access to the SD card reader and then enters an infinite loop
-/// for processing commands.
+/// @brief Process entry-point for the filesystem process.  Enters an infinite
+/// loop for processing commands.
 ///
 /// @param args Any arguments to this function, cast to a void*.  Currently
 ///   ignored by this function.
