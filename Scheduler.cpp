@@ -31,6 +31,7 @@
 // Custom includes
 #include "NanoOs.h"
 #include "Scheduler.h"
+#include "SdCard.h"
 #include "Filesystem.h"
 
 // Support prototypes.
@@ -39,12 +40,12 @@ void runScheduler(SchedulerState *schedulerState);
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the USB serial port shell.
-#define USB_SERIAL_PORT_SHELL_PID 4
+#define USB_SERIAL_PORT_SHELL_PID 5
 
 /// @def GPIO_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the GPIO serial port shell.
-#define GPIO_SERIAL_PORT_SHELL_PID 5
+#define GPIO_SERIAL_PORT_SHELL_PID 6
 
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
@@ -2306,6 +2307,18 @@ __attribute__((noinline)) void startScheduler(
   printInt(sizeof(ConsoleState));
   printString(" bytes\n");
 
+  // Create the SD card process.
+  processHandle = 0;
+  if (processCreate(&processHandle, runSdCard, NULL) != processSuccess) {
+    printString("Could not start SD card process.\n");
+  }
+  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
+    = NANO_OS_SD_CARD_PROCESS_ID;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+
   // Create the filesystem process.
   processHandle = 0;
   if (processCreate(&processHandle, runFilesystem, NULL) != processSuccess) {
@@ -2317,11 +2330,6 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
-
-  processHandle = 0;
-  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
-    printString("Could not double filesystem process's stack.\n");
-  }
 
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
@@ -2414,11 +2422,13 @@ __attribute__((noinline)) void startScheduler(
   // The scheduler will take care of cleaning up the dummy processes.
 
   processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
+  processQueuePush(&schedulerState.ready,
+    &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
+  processQueuePush(&schedulerState.ready,
+    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
