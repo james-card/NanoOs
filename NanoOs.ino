@@ -33,9 +33,6 @@
 // is to be used for Arduino-specific setup.  *ANYTHING* that requires use of
 // coroutines needs to be done in the loop function.
 void setup() {
-  // initialize digital pin LED_BUILTIN as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
-
   // Start the USB serial port at 1000000 bps:
   Serial.begin(1000000);
   // wait for serial port to connect. Needed for native USB port only.
@@ -43,8 +40,6 @@ void setup() {
 
   // Start the secondary serial port at 1000000 bps:
   Serial1.begin(1000000);
-
-  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 // In a normal Arduino sketch, the loop function runs over and over again
