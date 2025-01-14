@@ -70,6 +70,11 @@ void runScheduler(SchedulerState *schedulerState);
 /// FileDescriptor object that maps to the process's stderr FILE stream.
 #define STDERR_FILE_DESCRIPTOR_INDEX 2
 
+/// @def SD_CARD_PIN_CHIP_SELECT
+///
+/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
+#define SD_CARD_PIN_CHIP_SELECT 4
+
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main process object that's allocated in the main loop
@@ -2309,7 +2314,10 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the SD card process.
   processHandle = 0;
-  if (processCreate(&processHandle, runSdCard, NULL) != processSuccess) {
+  if (processCreate(&processHandle, runSdCard,
+    (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
+    != processSuccess
+  ) {
     printString("Could not start SD card process.\n");
   }
   processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);

@@ -34,11 +34,6 @@
 // Basic SD card communication using SPI
 #include <SPI.h>
 
-/// @def PIN_SD_CS
-///
-/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
-#define PIN_SD_CS 4
-
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
 #define CMD8    0x48  // SEND_IF_COND
@@ -59,21 +54,23 @@
 /// @def sdEnd
 ///
 /// @brief End communication with the SD card.
-#define sdEnd() \
+#define sdEnd(chipSelect) \
   /* Deselect the SD chip select pin. */ \
-  digitalWrite(PIN_SD_CS, HIGH);
+  digitalWrite(chipSelect, HIGH);
 
-/// @fn uint8_t sdSendCommand(uint8_t cmd, uint32_t arg)
+/// @fn uint8_t sdSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg)
 ///
 /// @brief Send a command and its argument to the SD card over the SPI
 /// interface.
 ///
+/// @param chipSelect The pin tht the SD card's chip select line is connected
+///   to.
 /// @param cmd The 8-bit SD command to send to the SD card.
 /// @param arg The 32-bit arguent to send for the SD command.
 ///
 /// @return Returns the 8-bit command response from the SD card.
-uint8_t sdSendCommand(uint8_t cmd, uint32_t arg) {
-  digitalWrite(PIN_SD_CS, LOW);
+uint8_t sdSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg) {
+  digitalWrite(chipSelect, LOW);
   
   // Command byte
   SPI.transfer(cmd | 0x40);
@@ -105,25 +102,28 @@ uint8_t sdSendCommand(uint8_t cmd, uint32_t arg) {
   return response;
 }
 
-/// @fn int sdCardInit(void)
+/// @fn int sdCardInit(uint8_t chipSelect)
 ///
 /// @brief Initialize the SD card for communication with the OS.
 ///
+/// @param chipSelect The pin tht the SD card's chip select line is connected
+///   to.
+///
 /// @return Returns the version of the connected card on success (1 or 2),
 /// 0 on error.
-int sdCardInit(void) {
+int sdCardInit(uint8_t chipSelect) {
   int sdCardVersion = 0;
 
   // Set up SPI pins
-  pinMode(PIN_SD_CS, OUTPUT);
-  digitalWrite(PIN_SD_CS, HIGH);  // CS initially high (disabled)
+  pinMode(chipSelect, OUTPUT);
+  digitalWrite(chipSelect, HIGH);  // CS initially high (disabled)
   
   SPI.begin();
   
   printString("Initializing SD card...\n");
   
   // Power up sequence
-  digitalWrite(PIN_SD_CS, HIGH);
+  digitalWrite(chipSelect, HIGH);
   delay(1);
   
   // Send at least 74 clock cycles with CS high
@@ -134,7 +134,7 @@ int sdCardInit(void) {
   // Try to initialize the card
   bool initialized = false;
   for (int i = 0; i < 10; i++) {  // Try 10 times
-    if (sdSendCommand(CMD0, 0) == R1_IDLE_STATE) {
+    if (sdSendCommand(chipSelect, CMD0, 0) == R1_IDLE_STATE) {
       printString("Card is in idle state\n");
       initialized = true;
       break;
@@ -144,12 +144,12 @@ int sdCardInit(void) {
   
   if (!initialized) {
     printString("Failed to initialize card\n");
-    sdEnd();
+    sdEnd(chipSelect);
     return sdCardVersion; // 0
   }
   
   // Check if card supports version 2
-  if (sdSendCommand(CMD8, 0x1AA) == R1_IDLE_STATE) {
+  if (sdSendCommand(chipSelect, CMD8, 0x1AA) == R1_IDLE_STATE) {
     // Read rest of R7 response
     uint8_t response[4];
     uint8_t ii = 0;
@@ -170,7 +170,7 @@ int sdCardInit(void) {
     sdCardVersion = 1;
   }
 
-  sdEnd();
+  sdEnd(chipSelect);
   return sdCardVersion;
 }
 
@@ -182,7 +182,7 @@ int sdCardInit(void) {
 /// @param buffer A pointer to a character buffer to read the block into.
 ///
 /// @return Returns 0 on success, error code on failure.
-int readBlock(uint32_t blockNumber, uint8_t *buffer) {
+int readBlock(uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer) {
   // Check that buffer is not null
   if (!buffer) {
     return EINVAL;
@@ -192,9 +192,9 @@ int readBlock(uint32_t blockNumber, uint8_t *buffer) {
   uint32_t address = blockNumber << 9;
   
   // Send READ_SINGLE_BLOCK command
-  uint8_t response = sdSendCommand(CMD17, address);
+  uint8_t response = sdSendCommand(chipSelect, CMD17, address);
   if (response != 0x00) {
-    sdEnd();
+    sdEnd(chipSelect);
     return EIO; // Command failed
   }
   
@@ -206,7 +206,7 @@ int readBlock(uint32_t blockNumber, uint8_t *buffer) {
       break;
     }
     if (timeout == 0) {
-      sdEnd();
+      sdEnd(chipSelect);
       return EIO;  // Timeout waiting for data
     }
   }
@@ -220,7 +220,7 @@ int readBlock(uint32_t blockNumber, uint8_t *buffer) {
   SPI.transfer(0xFF);
   SPI.transfer(0xFF);
   
-  sdEnd();
+  sdEnd(chipSelect);
   
   // Send 8 clock pulses
   SPI.transfer(0xFF);
@@ -239,9 +239,9 @@ int readBlock(uint32_t blockNumber, uint8_t *buffer) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCard(void *args) {
-  (void) args;
+  uint8_t chipSelect = (uint8_t) ((intptr_t) args);
 
-  int sdCardVersion = sdCardInit();
+  int sdCardVersion = sdCardInit(chipSelect);
   if (sdCardVersion > 0) {
     printString("Card is SD version ");
     printInt(sdCardVersion);
