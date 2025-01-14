@@ -737,11 +737,6 @@ void memoryManagerFree(void *ptr) {
     (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
   return;
 }
-void __wrap_free(void *ptr) {
-  sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
-    (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
-  return;
-}
 
 /// @fn void* memoryManagerRealloc(void *ptr, size_t size)
 ///
@@ -767,9 +762,6 @@ void* memoryManagerRealloc(void *ptr, size_t size) {
 /// @return Returns a pointer to newly-allocated memory of the specified size
 /// on success, NULL on failure.
 void* memoryManagerMalloc(size_t size) {
-  return memoryManagerSendReallocMessage(NULL, size);
-}
-void* __wrap_malloc(size_t size) {
   return memoryManagerSendReallocMessage(NULL, size);
 }
 
