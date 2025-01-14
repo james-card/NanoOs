@@ -42,6 +42,7 @@
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
 #define CMD8    0x48  // SEND_IF_COND
+#define CMD17   0x51  // READ_SINGLE_BLOCK
 #define CMD58   0x7A  // READ_OCR
 #define CMD55   0x77  // APP_CMD
 #define ACMD41  0x69  // SD_SEND_OP_COND
@@ -54,6 +55,13 @@
 #define R1_ERASE_SEQ   0x10
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
+
+/// @def sdEnd
+///
+/// @brief End communication with the SD card.
+#define sdEnd() \
+  /* Deselect the SD chip select pin. */ \
+  digitalWrite(PIN_SD_CS, HIGH);
 
 /// @fn uint8_t sdSendCommand(uint8_t cmd, uint32_t arg)
 ///
@@ -136,6 +144,7 @@ int sdCardInit(void) {
   
   if (!initialized) {
     printString("Failed to initialize card\n");
+    sdEnd();
     return sdCardVersion; // 0
   }
   
@@ -161,7 +170,62 @@ int sdCardInit(void) {
     sdCardVersion = 1;
   }
 
+  sdEnd();
   return sdCardVersion;
+}
+
+/// @fn bool readBlock(uint32_t blockNumber, uint8_t *buffer)
+///
+/// @brief Read a 512-byte block from the SD card.
+///
+/// @param blockNumber The logical block number to read from the card.
+/// @param buffer A pointer to a character buffer to read the block into.
+///
+/// @return Returns 0 on success, error code on failure.
+int readBlock(uint32_t blockNumber, uint8_t *buffer) {
+  // Check that buffer is not null
+  if (!buffer) {
+    return EINVAL;
+  }
+  
+  // Convert block number to byte address (multiply by 512)
+  uint32_t address = blockNumber << 9;
+  
+  // Send READ_SINGLE_BLOCK command
+  uint8_t response = sdSendCommand(CMD17, address);
+  if (response != 0x00) {
+    sdEnd();
+    return EIO; // Command failed
+  }
+  
+  // Wait for data token (0xFE)
+  uint16_t timeout = 10000;
+  while (timeout--) {
+    response = SPI.transfer(0xFF);
+    if (response == 0xFE) {
+      break;
+    }
+    if (timeout == 0) {
+      sdEnd();
+      return EIO;  // Timeout waiting for data
+    }
+  }
+  
+  // Read 512 byte block
+  for (int ii = 0; ii < 512; ii++) {
+    buffer[ii] = SPI.transfer(0xFF);
+  }
+  
+  // Read CRC (2 bytes, ignored)
+  SPI.transfer(0xFF);
+  SPI.transfer(0xFF);
+  
+  sdEnd();
+  
+  // Send 8 clock pulses
+  SPI.transfer(0xFF);
+  
+  return 0;
 }
 
 /// @fn void* runSdCard(void *args)
