@@ -794,39 +794,6 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-/// @var lastToggleTime
-///
-/// @brief Time at which the last LED state toggle occurred.
-unsigned long lastToggleTime = 0;
-
-/// @var ledStates
-///
-/// @brief Array of states to put the LED pin into.  Values are LOW and HIGH
-/// which will turn the LED off and on, respectively.
-const int ledStates[2] = {LOW, HIGH};
-
-/// @var ledStateIndex
-///
-/// @brief Index of the value in ledStates that is currently set for the LED.
-int ledStateIndex = 0;
-
-/// @fn void ledToggle()
-///
-/// @brief Check the current time and, if it's half the duration of
-/// LED_CYCLE_TIME_MS since the last state change, toggle the state.
-///
-/// @return This function returns no value.
-void ledToggle() {
-  if (getElapsedMilliseconds(lastToggleTime) >= (LED_CYCLE_TIME_MS >> 1)) {
-    // toggle the LED state
-    digitalWrite(LED_BUILTIN, ledStates[ledStateIndex]);
-    ledStateIndex ^= 1;
-    lastToggleTime = getElapsedMilliseconds(0);
-  }
-
-  return;
-}
-
 /// @fn int readSerialByte(ConsolePort *consolePort, UartClass &serialPort)
 ///
 /// @brief Do a non-blocking read of a serial port.
@@ -945,10 +912,10 @@ int printGpioSerialString(const char *string) {
 /// @fn void* runConsole(void *args)
 ///
 /// @brief Main process for managing console input and output.  Runs in an
-/// infinite loop and never exits.  Every iteration, it calls the ledToggle
-/// function, cheks the serial connection for a byte and adds it to the buffer
-/// if there is anything, handles the user command if the incoming byte is a
-/// newline, and handles any messages that were sent to this process.
+/// infinite loop and never exits.  Every iteration, it checks the serial
+/// connection for a byte and adds it to the buffer if there is anything,
+/// handles the user command if the incoming byte is a newline, and handles any
+/// messages that were sent to this process.
 ///
 /// @param args Any arguments provided by the scheduler.  Ignored by this
 ///   process.
@@ -956,6 +923,7 @@ int printGpioSerialString(const char *string) {
 /// @return This function never returns, but would return NULL if it did.
 void* runConsole(void *args) {
   (void) args;
+
   int byteRead = -1;
   ConsoleState consoleState;
   memset(&consoleState, 0, sizeof(ConsoleState));
@@ -994,8 +962,6 @@ void* runConsole(void *args) {
     = printGpioSerialString;
 
   while (1) {
-    ledToggle();
-
     for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
