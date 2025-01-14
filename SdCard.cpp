@@ -143,11 +143,19 @@ int sdCardInit(void) {
   if (sdSendCommand(CMD8, 0x1AA) == R1_IDLE_STATE) {
     // Read rest of R7 response
     uint8_t response[4];
-    for (int i = 0; i < 4; i++) {
-      response[i] = SPI.transfer(0xFF);
+    uint8_t ii = 0;
+    for (; ii < 4; ii++) {
+      response[ii] = SPI.transfer(0xFF);
     }
     if (response[3] == 0xAA) {
       sdCardVersion = 2;
+    } else {
+      printString("CMD8 response: ");
+      Serial.print(response[0], HEX);
+      Serial.print(response[1], HEX);
+      Serial.print(response[2], HEX);
+      Serial.print(response[3], HEX);
+      printString("\n");
     }
   } else {
     sdCardVersion = 1;
