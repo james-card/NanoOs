@@ -96,7 +96,7 @@ typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
 __attribute__((noinline)) void sdSpiEnd(uint8_t chipSelect) {
   // Deselect the SD chip select pin.
   digitalWrite(chipSelect, HIGH);
-  for (int index = 0; index < 8; index++) {
+  for (int ii = 0; ii < 8; ii++) {
     SPI.transfer(0xFF); // 8 clock pulses
   }
 
@@ -137,7 +137,7 @@ uint8_t sdSpiSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg) {
   
   // Wait for response
   uint8_t response;
-  for (int i = 0; i < 10; i++) {
+  for (int ii = 0; ii < 10; ii++) {
     response = SPI.transfer(0xFF);
     if ((response & 0x80) == 0) {
       break; // Exit if valid response
@@ -169,14 +169,14 @@ int sdSpiCardInit(uint8_t chipSelect) {
   SPI.begin();
   
   // Extended power up sequence - Send more clock cycles
-  for (int index = 0; index < 32; index++) {
+  for (int ii = 0; ii < 32; ii++) {
     SPI.transfer(0xFF);
   }
   
   // Send CMD0 to enter SPI mode
   timeoutCount = 200;  // Extended timeout
   do {
-    for (int index = 0; index < 8; index++) {  // More dummy clocks
+    for (int ii = 0; ii < 8; ii++) {  // More dummy clocks
       SPI.transfer(0xFF);
     }
     response = sdSpiSendCommand(chipSelect, CMD0, 0);
@@ -187,13 +187,13 @@ int sdSpiCardInit(uint8_t chipSelect) {
   } while (response != R1_IDLE_STATE);
   
   // Send CMD8 to check version
-  for (int index = 0; index < 8; index++) {
+  for (int ii = 0; ii < 8; ii++) {
     SPI.transfer(0xFF);
   }
   response = sdSpiSendCommand(chipSelect, CMD8, 0x000001AA);
   if (response == R1_IDLE_STATE) {
     isSDv2 = true;
-    for (int index = 0; index < 4; index++) {
+    for (int ii = 0; ii < 4; ii++) {
       response = SPI.transfer(0xFF);
     }
   }
@@ -205,7 +205,7 @@ int sdSpiCardInit(uint8_t chipSelect) {
     response = sdSpiSendCommand(chipSelect, CMD55, 0);
     sdSpiEnd(chipSelect);
     
-    for (int index = 0; index < 8; index++) {
+    for (int ii = 0; ii < 8; ii++) {
       SPI.transfer(0xFF);
     }
     
@@ -221,7 +221,7 @@ int sdSpiCardInit(uint8_t chipSelect) {
   } while (response != 0);
   
   // If we get here, card is initialized
-  for (int index = 0; index < 8; index++) {
+  for (int ii = 0; ii < 8; ii++) {
     SPI.transfer(0xFF);
   }
   
@@ -313,8 +313,8 @@ int sdSpiWriteBlock(uint8_t chipSelect,
   SPI.transfer(0xFE);
   
   // Write data
-  for (int i = 0; i < 512; i++) {
-    SPI.transfer(buffer[i]);
+  for (int ii = 0; ii < 512; ii++) {
+    SPI.transfer(buffer[ii]);
   }
   
   // Send dummy CRC
@@ -426,8 +426,8 @@ int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
   }
   
   // Read CSD register
-  for (int index = 0; index < 16; index++) {
-    cardSpecificData[index] = SPI.transfer(0xFF);
+  for (int ii = 0; ii < 16; ii++) {
+    cardSpecificData[ii] = SPI.transfer(0xFF);
   }
   
   sdSpiEnd(chipSelect);
