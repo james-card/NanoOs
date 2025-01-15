@@ -44,7 +44,23 @@ extern "C"
 {
 #endif
 
+/// @enum SdCardCommandResponse
+///
+/// @brief Commands and responses understood by the SD card inter-process
+/// message handler.
+typedef enum SdCardCommandResponse {
+  // Commands:
+  SD_CARD_READ_BLOCKS,
+  SD_CARD_WRITE_BLOCKS,
+  NUM_SD_CARD_COMMANDS,
+  // Responses:
+} SdCardCommandResponse;
+
 void* runSdCard(void *args);
+int sdReadBlocks(void *context, uint32_t startBlock,
+  uint32_t numBlocks, uint32_t blockSize, uint8_t *buffer);
+int sdWriteBlocks(void *context, uint32_t startBlock,
+  uint32_t numBlocks, uint32_t blockSize, const uint8_t *buffer);
 
 #ifdef __cplusplus
 } // extern "C"

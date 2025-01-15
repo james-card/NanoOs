@@ -54,6 +54,33 @@
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
 
+/// @struct SdCommandParams
+///
+/// @param startBlock The block number to start the command on.
+/// @param numBlocks The number of blocks to perform the command on.
+/// @param blockSize The number of bytes in each block.
+/// @param buffer A pointer to the memory to read from or write to.
+typedef struct SdCommandParams {
+  uint32_t startBlock;
+  uint32_t numBlocks;
+  uint32_t blockSize;
+  uint8_t *buffer;
+} SdCommandParams;
+
+/// @struct SdCardState
+///
+/// @brief State maintained by an SdCard process.
+///
+/// @param chipSelect The I/O pin connected to the SD card's chip select line.
+typedef struct SdCardState {
+  uint8_t chipSelect;
+} SdCardState;
+
+/// @typedef SdCardCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
+
 /// @fn void sdSpiEnd(int chipSelect)
 ///
 /// @brief End communication with the SD card.
@@ -61,7 +88,7 @@
 /// @param chipSelect The I/O pin connected to the SD card's chip select line.
 ///
 /// @return This function returns no value.
-__attribute__((noinline)) void sdSpiEnd(int chipSelect) {
+__attribute__((noinline)) void sdSpiEnd(uint8_t chipSelect) {
   // Deselect the SD chip select pin.
   digitalWrite(chipSelect, HIGH);
   for (int index = 0; index < 8; index++) {
@@ -197,7 +224,8 @@ int sdSpiCardInit(uint8_t chipSelect) {
   return isSDv2 ? 2 : 1;
 }
 
-/// @fn bool sdSpiReadBlock(uint32_t blockNumber, uint8_t *buffer)
+/// @fn bool sdSpiReadBlock(
+///   uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer)
 ///
 /// @brief Read a 512-byte block from the SD card.
 ///
@@ -379,6 +407,29 @@ int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
   return (int32_t) blockCount;
 }
 
+int sdCardReadBlocksCommandHandler(
+  SdCardState *sdCardState, ProcessMessage *processMessage
+) {
+  (void) sdCardState;
+  (void) processMessage;
+
+  return 0;
+}
+
+int sdCardWriteBlocksCommandHandler(
+  SdCardState *sdCardState, ProcessMessage *processMessage
+) {
+  (void) sdCardState;
+  (void) processMessage;
+
+  return 0;
+}
+
+SdCardCommandHandler sdCardCommandHandler[] = {
+  sdCardReadBlocksCommandHandler, // SD_CARD_READ_BLOCKS
+  sdCardWriteBlocksCommandHandler, // SD_CARD_WRITE_BLOCKS
+};
+
 /// @fn void* runSdCard(void *args)
 ///
 /// @brief Process entry-point for the SD card process.  Sets up and
@@ -390,16 +441,17 @@ int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCard(void *args) {
-  uint8_t chipSelect = (uint8_t) ((intptr_t) args);
+  SdCardState sdCardState;
+  sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
 
-  int sdCardVersion = sdSpiCardInit(chipSelect);
+  int sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
   if (sdCardVersion > 0) {
 #ifdef SD_CARD_DEBUG
     printString("Card is ");
     printString((sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
     printString("\n");
 
-    int32_t totalBlocks = sdSpiGetBlockCount(chipSelect);
+    int32_t totalBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
     printLong(totalBlocks);
     printString(" total blocks (");
     printLongLong(((int64_t) totalBlocks) << 9);
@@ -416,4 +468,44 @@ void* runSdCard(void *args) {
   }
 
   return NULL;
+}
+
+int sdReadBlocks(void *context, uint32_t startBlock,
+  uint32_t numBlocks, uint32_t blockSize, uint8_t *buffer
+) {
+  intptr_t sdCardProcess = (intptr_t) context;
+  SdCommandParams sdCommandParams;
+  sdCommandParams.startBlock = startBlock;
+  sdCommandParams.numBlocks = numBlocks;
+  sdCommandParams.blockSize = blockSize;
+  sdCommandParams.buffer = buffer;
+
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    sdCardProcess, SD_CARD_READ_BLOCKS,
+    /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
+  processMessageWaitForDone(processMessage, NULL);
+  int returnValue = nanoOsMessageDataValue(processMessage, int);
+  processMessageRelease(processMessage);
+
+  return returnValue;
+}
+
+int sdWriteBlocks(void *context, uint32_t startBlock,
+  uint32_t numBlocks, uint32_t blockSize, const uint8_t *buffer
+) {
+  intptr_t sdCardProcess = (intptr_t) context;
+  SdCommandParams sdCommandParams;
+  sdCommandParams.startBlock = startBlock;
+  sdCommandParams.numBlocks = numBlocks;
+  sdCommandParams.blockSize = blockSize;
+  sdCommandParams.buffer = (uint8_t*) buffer;
+
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    sdCardProcess, SD_CARD_WRITE_BLOCKS,
+    /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
+  processMessageWaitForDone(processMessage, NULL);
+  int returnValue = nanoOsMessageDataValue(processMessage, int);
+  processMessageRelease(processMessage);
+
+  return returnValue;
 }
