@@ -393,7 +393,19 @@ void* runSdCard(void *args) {
   uint8_t chipSelect = (uint8_t) ((intptr_t) args);
 
   int sdCardVersion = sdCardInit(chipSelect);
-  if (sdCardVersion <= 0) {
+  if (sdCardVersion > 0) {
+#ifdef SD_CARD_DEBUG
+    printString("Card is ");
+    printString((sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
+    printString("\n");
+
+    int32_t totalBlocks = sdGetBlockCount(chipSelect);
+    printLong(totalBlocks);
+    printString(" total blocks (");
+    printLongLong(((int64_t) totalBlocks) << 9);
+    printString(" total bytes)\n");
+#endif // SD_CARD_DEBUG
+  } else {
     printString("ERROR! sdCardInit returned status ");
     printInt(sdCardVersion);
     printString("\n");
