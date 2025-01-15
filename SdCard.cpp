@@ -638,6 +638,22 @@ void* runSdCard(void *args) {
   return NULL;
 }
 
+/// @fn int sdReadBlocks(void *context, uint32_t startBlock,
+///   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer)
+///
+/// @brief Read a specified number of blocks of a given size from the SD card
+/// into a provided buffer.
+///
+/// @param context The process ID of the SD card process to read from, cast to
+///   a void*.
+/// @param startBlock The start block to read from in terms of the caller's
+///   context.
+/// @param numBlocks The number of blocks to read in terms of the caller's
+///   context.
+/// @param blockSize The size of the blocks as known to the caller.
+/// @param buffer A pointer to the byte buffer to read the data into.
+///
+/// @return Returns 0 on success, POSIX error code on failure.
 int sdReadBlocks(void *context, uint32_t startBlock,
   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer
 ) {
@@ -658,6 +674,22 @@ int sdReadBlocks(void *context, uint32_t startBlock,
   return returnValue;
 }
 
+/// @fn int sdWriteBlocks(void *context, uint32_t startBlock,
+///   uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer)
+///
+/// @brief Write a specified number of blocks of a given size to the SD card
+/// from a provided buffer.
+///
+/// @param context The process ID of the SD card process to write to, cast to
+///   a void*.
+/// @param startBlock The start block to write to in terms of the caller's
+///   context.
+/// @param numBlocks The number of blocks to write out terms of the caller's
+///   context.
+/// @param blockSize The size of the blocks as known to the caller.
+/// @param buffer A pointer to the byte buffer to write the data from.
+///
+/// @return Returns 0 on success, POSIX error code on failure.
 int sdWriteBlocks(void *context, uint32_t startBlock,
   uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer
 ) {
