@@ -58,9 +58,9 @@ typedef enum SdCardCommandResponse {
 
 void* runSdCard(void *args);
 int sdReadBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint32_t blockSize, uint8_t *buffer);
+  uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
 int sdWriteBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint32_t blockSize, const uint8_t *buffer);
+  uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
 
 #ifdef __cplusplus
 } // extern "C"
