@@ -69,18 +69,18 @@ extern "C"
 ///
 /// @brief The size, in bytes, of a single console buffer.  This is the number
 /// of bytes that printf calls will have to work with.
-#define CONSOLE_BUFFER_SIZE 128
-
-/// @def CONSOLE_NUM_BUFFERS
-///
-/// @brief The number of console buffers that will be allocated within the main
-/// console process's stack.
-#define CONSOLE_NUM_BUFFERS  4
+#define CONSOLE_BUFFER_SIZE 96
 
 /// @def CONSOLE_NUM_PORTS
 ///
 /// @brief The number of console supports supported.
 #define CONSOLE_NUM_PORTS 2
+
+/// @def CONSOLE_NUM_BUFFERS
+///
+/// @brief The number of console buffers that will be allocated within the main
+/// console process's stack.
+#define CONSOLE_NUM_BUFFERS CONSOLE_NUM_PORTS
 
 // Process status values
 #define processSuccess  coroutineSuccess

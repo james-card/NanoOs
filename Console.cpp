@@ -110,7 +110,9 @@ ConsoleBuffer* getAvailableConsoleBuffer(
   // Use the buffer for that port if so.
   ConsolePort *consolePorts = consoleState->consolePorts;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
-    if (consolePorts[ii].outputOwner == processId) {
+    if ((consolePorts[ii].outputOwner == processId)
+      || (consolePorts[ii].inputOwner == processId)
+    ) {
       returnValue = &consoleBuffers[ii];
       // returnValue->inUse is already set to true, so no need to set it.
       break;
@@ -118,13 +120,7 @@ ConsoleBuffer* getAvailableConsoleBuffer(
   }
 
   if (returnValue == NULL) {
-    for (int ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
-      if (consoleBuffers[ii].inUse == false) {
-        returnValue = &consoleBuffers[ii];
-        returnValue->inUse = true;
-        break;
-      }
-    }
+    returnValue = (ConsoleBuffer*) malloc(sizeof(ConsoleBuffer));
   }
 
   return returnValue;
@@ -318,7 +314,6 @@ void consoleWriteBufferCommandHandler(
     if (message != NULL) {
       consolePrintMessage(consoleState, inputMessage, message);
     }
-    consoleBuffer->inUse = false;
   }
   processMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -735,7 +730,7 @@ void consoleReleaseBufferCommandHandler(
       }
     }
 
-    consoleBuffer->inUse = false;
+    free(consoleBuffer); consoleBuffer = NULL;
   }
 
   // Whether we were able to grab a buffer or not, we're now done with this

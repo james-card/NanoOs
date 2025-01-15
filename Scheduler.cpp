@@ -2282,12 +2282,6 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
 
-  // Double the size of the console's stack.
-  processHandle = 0;
-  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
-    printString("Could not double console process's stack.\n");
-  }
-
   // Start the console by calling coroutineResume.
   coroutineResume(
     allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
