@@ -448,9 +448,9 @@ typedef struct NanoOsMessage {
 typedef struct BlockStorageDevice {
   void *context;
   int (*readBlocks)(void *context, uint32_t startBlock,
-    uint32_t numBlocks, uint32_t blockSize, uint8_t *buffer);
+    uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
   int (*writeBlocks)(void *context, uint32_t startBlock,
-    uint32_t numBlocks, uint32_t blockSize, const uint8_t *buffer);
+    uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
 } BlockStorageDevice;
 
 #ifdef __cplusplus
