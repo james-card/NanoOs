@@ -29,7 +29,7 @@
 /// @file
 
 // Custom includes
-#include "Filesystem.h"
+#include "Fat16Filesystem.h"
 
 /// @fn int filesystemOpenFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)

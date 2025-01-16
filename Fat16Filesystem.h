@@ -3,9 +3,9 @@
 /// @author            James Card
 /// @date              12.02.2024
 ///
-/// @file              Filesystem.h
+/// @file              Fat16Filesystem.h
 ///
-/// @brief             Common filesystem functionality for NanoOs.
+/// @brief             FAT16 filesystem functionality for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2024 James Card
@@ -33,69 +33,23 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef FILESYSTEM_H
-#define FILESYSTEM_H
+#ifndef FAT16_FILESYSTEM_H
+#define FAT16_FILESYSTEM_H
 
 // Custom includes
 #include "NanoOs.h"
+#include "Filesystem.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/// @struct FilesystemState
-///
-/// @brief State metadata the filesystem process uses to provide access to
-/// files.
-///
-/// @param blockDevice A pointer to an allocated and initialized
-///   BlockStorageDevice to use for reading and writing blocks.
-/// @param blockSize The size of a block as it is known to the filesystem.
-/// @param blockBuffer A pointer to the read/write buffer that is blockSize
-///   bytes in length.
-/// @param startLba The address of the first block of the filesystem.
-/// @param endLba The address of the last block of the filesystem.
-typedef struct FilesystemState {
-  BlockStorageDevice *blockDevice;
-  uint16_t blockSize;
-  uint8_t *blockBuffer;
-  uint32_t startLba;
-  uint32_t endLba;
-} FilesystemState;
-
-/// @typedef FilesystemCommandHandler
-///
-/// @brief Definition of a filesystem command handler function.
-typedef int (*FilesystemCommandHandler)(FilesystemState*, ProcessMessage*);
-
-/// @enum FilesystemCommandResponse
-///
-/// @brief Commands and responses understood by the filesystem inter-process
-/// message handler.
-typedef enum FilesystemCommandResponse {
-  // Commands:
-  FILESYSTEM_OPEN_FILE,
-  FILESYSTEM_CLOSE_FILE,
-  NUM_FILESYSTEM_COMMANDS,
-  // Responses:
-} FilesystemCommandResponse;
-
 // Exported functionality
-FILE* filesystemFOpen(const char *pathname, const char *mode);
-#ifdef fopen
-#undef fopen
-#endif // fopen
-#define fopen filesystemFOpen
-
-int filesystemFClose(FILE *stream);
-#ifdef fclose
-#undef fclose
-#endif // fclose
-#define fclose filesystemFClose
+void* runFat16Filesystem(void *args);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // FILESYSTEM_H
+#endif // FAT16_FILESYSTEM_H
