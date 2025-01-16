@@ -2320,15 +2320,13 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
+    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+  sdDevice->partitionNumber = 1;
 
   // Create the filesystem process.
-  BlockStorageDevice sdDevice = {
-    .context = (void*) ((intptr_t) NANO_OS_SD_CARD_PROCESS_ID),
-    .readBlocks = sdReadBlocks,
-    .writeBlocks = sdWriteBlocks,
-  };
   processHandle = 0;
-  if (processCreate(&processHandle, runFilesystem, &sdDevice)
+  if (processCreate(&processHandle, runFilesystem, sdDevice)
     != processSuccess
   ) {
     printString("Could not start filesystem process.\n");
