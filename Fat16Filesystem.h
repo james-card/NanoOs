@@ -98,7 +98,6 @@ typedef struct Fat16File {
   uint32_t fileSize;
   uint32_t firstCluster;
   char mode;  // 'r' for read, 'w' for write
-  FilesystemState *fs;
 } Fat16File;
 
 // Exported functionality
