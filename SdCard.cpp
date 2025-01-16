@@ -619,68 +619,6 @@ void handleSdCardMessages(SdCardState *sdCardState) {
   return;
 }
 
-/// @fn void* runSdCard(void *args)
-///
-/// @brief Process entry-point for the SD card process.  Sets up and
-/// configures access to the SD card reader and then enters an infinite loop
-/// for processing commands.
-///
-/// @param args Any arguments to this function, cast to a void*.  Currently
-///   ignored by this function.
-///
-/// @return This function never returns, but would return NULL if it did.
-void* runSdCard(void *args) {
-  SdCardState sdCardState;
-  sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
-
-  int sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
-  if (sdCardVersion > 0) {
-    sdCardState.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
-    sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
-#ifdef SD_CARD_DEBUG
-    printString("Card is ");
-    printString((sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
-    printString("\n");
-
-    printString("Card block size = ");
-    printInt(sdCardState.blockSize);
-    printString("\n");
-    printLong(sdCardState.numBlocks);
-    printString(" total blocks (");
-    printLongLong(((int64_t) sdCardState.numBlocks)
-      * ((int64_t) sdCardState.blockSize));
-    printString(" total bytes)\n");
-#endif // SD_CARD_DEBUG
-  } else {
-    printString("ERROR! sdSpiCardInit returned status ");
-    printInt(sdCardVersion);
-    printString("\n");
-  }
-
-  ProcessMessage *schedulerMessage = NULL;
-  while (1) {
-    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
-    if (schedulerMessage != NULL) {
-      // We have a message from the scheduler that we need to process.  This
-      // is not the expected case, but it's the priority case, so we need to
-      // list it first.
-      SdCardCommandResponse messageType
-        = (SdCardCommandResponse) processMessageType(schedulerMessage);
-      if (messageType < NUM_SD_CARD_COMMANDS) {
-        sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
-      } else {
-        printString("ERROR!!!  Received unknown sdCard command ");
-        printInt(messageType);
-        printString(" from scheduler.\n");
-      }
-    } else {
-      handleSdCardMessages(&sdCardState);
-    }
-  }
-
-  return NULL;
-}
-
 /// @fn int sdReadBlocks(void *context, uint32_t startBlock,
 ///   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer)
 ///
@@ -752,3 +690,73 @@ int sdWriteBlocks(void *context, uint32_t startBlock,
 
   return returnValue;
 }
+
+/// @fn void* runSdCard(void *args)
+///
+/// @brief Process entry-point for the SD card process.  Sets up and
+/// configures access to the SD card reader and then enters an infinite loop
+/// for processing commands.
+///
+/// @param args Any arguments to this function, cast to a void*.  Currently
+///   ignored by this function.
+///
+/// @return This function never returns, but would return NULL if it did.
+void* runSdCard(void *args) {
+  SdCardState sdCardState;
+  sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
+  BlockStorageDevice sdDevice = {
+    .context = 0,
+    .readBlocks = sdReadBlocks,
+    .writeBlocks = sdWriteBlocks,
+    .partitionNumber = 0,
+  };
+  coroutineYield(&sdDevice);
+
+  int sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
+  if (sdCardVersion > 0) {
+    sdCardState.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
+    sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
+#ifdef SD_CARD_DEBUG
+    printString("Card is ");
+    printString((sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
+    printString("\n");
+
+    printString("Card block size = ");
+    printInt(sdCardState.blockSize);
+    printString("\n");
+    printLong(sdCardState.numBlocks);
+    printString(" total blocks (");
+    printLongLong(((int64_t) sdCardState.numBlocks)
+      * ((int64_t) sdCardState.blockSize));
+    printString(" total bytes)\n");
+#endif // SD_CARD_DEBUG
+  } else {
+    printString("ERROR! sdSpiCardInit returned status ");
+    printInt(sdCardVersion);
+    printString("\n");
+  }
+
+  ProcessMessage *schedulerMessage = NULL;
+  while (1) {
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      SdCardCommandResponse messageType
+        = (SdCardCommandResponse) processMessageType(schedulerMessage);
+      if (messageType < NUM_SD_CARD_COMMANDS) {
+        sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
+      } else {
+        printString("ERROR!!!  Received unknown sdCard command ");
+        printInt(messageType);
+        printString(" from scheduler.\n");
+      }
+    } else {
+      handleSdCardMessages(&sdCardState);
+    }
+  }
+
+  return NULL;
+}
+
