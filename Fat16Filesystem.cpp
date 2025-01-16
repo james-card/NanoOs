@@ -200,7 +200,7 @@ int getPartitionInfo(FilesystemState *filesystemState) {
   return 0;
 }
 
-/// @fn void* runFilesystem(void *args)
+/// @fn void* runFat16Filesystem(void *args)
 ///
 /// @brief Process entry-point for the filesystem process.  Enters an infinite
 /// loop for processing commands.
@@ -209,7 +209,7 @@ int getPartitionInfo(FilesystemState *filesystemState) {
 ///   ignored by this function.
 ///
 /// @return This function never returns, but would return NULL if it did.
-void* runFilesystem(void *args) {
+void* runFat16Filesystem(void *args) {
   FilesystemState filesystemState;
   memset(&filesystemState, 0, sizeof(filesystemState));
   filesystemState.blockDevice = (BlockStorageDevice*) args;

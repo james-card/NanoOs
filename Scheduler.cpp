@@ -2326,7 +2326,7 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runFilesystem, sdDevice)
+  if (processCreate(&processHandle, runFat16Filesystem, sdDevice)
     != processSuccess
   ) {
     printString("Could not start filesystem process.\n");

@@ -82,7 +82,7 @@ typedef enum FilesystemCommandResponse {
 } FilesystemCommandResponse;
 
 // Exported functionality
-void* runFilesystem(void *args);
+void* runFat16Filesystem(void *args);
 
 FILE* filesystemFOpen(const char *pathname, const char *mode);
 #ifdef fopen
