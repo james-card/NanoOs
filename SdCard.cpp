@@ -705,7 +705,7 @@ void* runSdCard(void *args) {
   SdCardState sdCardState;
   sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
   BlockStorageDevice sdDevice = {
-    .context = 0,
+    .context = (void*) ((intptr_t) getRunningProcessId()),
     .readBlocks = sdReadBlocks,
     .writeBlocks = sdWriteBlocks,
     .partitionNumber = 0,
