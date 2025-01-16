@@ -31,6 +31,130 @@
 // Custom includes
 #include "Fat16Filesystem.h"
 
+// Read a single block from the filesystem
+static int readBlock(FilesystemState *fs, uint32_t blockNumber, uint8_t *buffer) {
+  return fs->blockDevice->readBlocks(fs->blockDevice->context, 
+    blockNumber, 1, fs->blockSize, buffer);
+}
+
+// Write a single block to the filesystem
+static int writeBlock(FilesystemState *fs, uint32_t blockNumber, const uint8_t *buffer) {
+  return fs->blockDevice->writeBlocks(fs->blockDevice->context,
+    blockNumber, 1, fs->blockSize, buffer);
+}
+
+// Read the boot sector to get filesystem parameters
+static Fat16BootSector* readBootSector(FilesystemState *fs) {
+  if (readBlock(fs, fs->startLba, fs->blockBuffer) != 0) {
+    return NULL;
+  }
+  return (Fat16BootSector*) fs->blockBuffer;
+}
+
+// Compare two filenames in FAT16 8.3 format
+static int compareFilenames(const uint8_t *dirEntry, const char *pathname) {
+  char filename[13];
+  int ii;
+  int jj = 0;
+
+  // Copy filename and extension, removing spaces
+  for (ii = 0; ii < FAT16_FILENAME_LENGTH; ii++) {
+    if (dirEntry[ii] != ' ') {
+      filename[jj++] = dirEntry[ii];
+    }
+  }
+  
+  if (dirEntry[FAT16_FILENAME_LENGTH] != ' ') {
+    filename[jj++] = '.';
+    for (ii = 0; ii < FAT16_EXTENSION_LENGTH; ii++) {
+      if (dirEntry[FAT16_FILENAME_LENGTH + ii] != ' ') {
+        filename[jj++] = dirEntry[FAT16_FILENAME_LENGTH + ii];
+      }
+    }
+  }
+  
+  filename[jj] = '\0';
+  return strcmp(filename, pathname);
+}
+
+// Find a file in the root directory
+static Fat16DirectoryEntry* findFile(FilesystemState *fs, const char *pathname,
+    Fat16BootSector *bootSector) {
+  uint32_t rootDirStart = fs->startLba + bootSector->reservedSectorCount + 
+    (bootSector->numberOfFats * bootSector->sectorsPerFat);
+  uint32_t rootDirBlocks = (bootSector->rootEntryCount * 
+    FAT16_BYTES_PER_DIRECTORY_ENTRY) / fs->blockSize;
+  
+  for (uint32_t ii = 0; ii < rootDirBlocks; ii++) {
+    if (readBlock(fs, rootDirStart + ii, fs->blockBuffer) != 0) {
+      return NULL;
+    }
+    
+    Fat16DirectoryEntry *dirEntry = (Fat16DirectoryEntry*) fs->blockBuffer;
+    for (uint32_t jj = 0; jj < FAT16_ENTRIES_PER_CLUSTER; jj++) {
+      if (dirEntry[jj].filename[0] == 0) {
+        // End of directory
+        return NULL;
+      }
+      
+      if (dirEntry[jj].filename[0] != 0xE5 && // Not deleted
+          (dirEntry[jj].attributes & FAT16_ATTR_FILE) && // Is a file
+          compareFilenames(dirEntry[jj].filename, pathname) == 0) {
+        return &dirEntry[jj];
+      }
+    }
+  }
+  
+  return NULL;
+}
+
+Fat16File* fat16Fopen(FilesystemState *fs,
+  const char *pathname, const char *mode
+) {
+  if (fs == NULL || pathname == NULL || mode == NULL) {
+    printString("Invalid parameters");
+    return NULL;
+  }
+  
+  // Only support "r" and "w" modes for now
+  if (strcmp(mode, "r") != 0 && strcmp(mode, "w") != 0) {
+    printString("Unsupported mode");
+    return NULL;
+  }
+  
+  Fat16BootSector *bootSector = readBootSector(fs);
+  if (bootSector == NULL) {
+    printString("Failed to read boot sector");
+    return NULL;
+  }
+  
+  Fat16DirectoryEntry *dirEntry = findFile(fs, pathname, bootSector);
+  if (dirEntry == NULL) {
+    if (strcmp(mode, "r") == 0) {
+      printString("File not found");
+      return NULL;
+    }
+    // TODO: Implement file creation for write mode
+    printString("File creation not implemented");
+    return NULL;
+  }
+  
+  Fat16File *file = (Fat16File*) malloc(sizeof(Fat16File));
+  if (file == NULL) {
+    printString("Memory allocation failed");
+    return NULL;
+  }
+  
+  file->currentCluster = dirEntry->firstClusterLow;
+  file->currentPosition = 0;
+  file->fileSize = dirEntry->fileSize;
+  file->firstCluster = dirEntry->firstClusterLow;
+  file->mode = mode[0];
+  file->fs = fs;
+  
+  return file;
+}
+
 /// @fn int filesystemOpenFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)
 ///
@@ -48,27 +172,11 @@ int filesystemOpenFileCommandHandler(
   (void) filesystemState;
 
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
-  const char *modeString = nanoOsMessageFuncPointer(processMessage, char*);
-  int mode = 0;
-  //// if ((strchr(modeString, 'r') && (strchr(modeString, 'w')))
-  ////   || (strchr(modeString, '+'))
-  //// ) {
-  ////   mode |= O_RDWR;
-  //// } else if (strchr(modeString, 'r')) {
-  ////   mode |= O_RDONLY;
-  //// } else if (strchr(modeString, 'w')) {
-  ////   mode |= O_WRONLY;
-  //// }
-  //// if (strchr(modeString, 'w')) {
-  ////   mode |= O_CREAT | O_TRUNC;
-  //// } else if (strchr(modeString, 'a')) {
-  ////   mode |= O_APPEND | O_CREAT;
-  //// }
-  (void) pathname;
-  (void) modeString;
-  (void) mode;
-
+  const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
+  Fat16File *fat16File = fat16Fopen(filesystemState, pathname, mode);
   NanoOsFile *nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
+  nanoOsFile->file = fat16File;
+
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = (intptr_t) nanoOsFile;
@@ -92,7 +200,9 @@ int filesystemCloseFileCommandHandler(
 ) {
   (void) filesystemState;
 
-  FILE *stream = nanoOsMessageDataPointer(processMessage, FILE*);
+  NanoOsFile *nanoOsFile
+    = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
+  free(nanoOsFile->file); nanoOsFile = NULL;
   free(stream); stream = NULL;
 
   processMessageSetDone(processMessage);

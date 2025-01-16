@@ -45,6 +45,62 @@ extern "C"
 {
 #endif
 
+#define FAT16_BYTES_PER_DIRECTORY_ENTRY 32
+#define FAT16_ENTRIES_PER_CLUSTER 16
+#define FAT16_CLUSTER_CHAIN_END 0xFFF8
+#define FAT16_FILENAME_LENGTH 8
+#define FAT16_EXTENSION_LENGTH 3
+#define FAT16_ATTR_DIRECTORY 0x10
+#define FAT16_ATTR_FILE 0x20
+
+typedef struct Fat16BootSector {
+  uint8_t jumpBoot[3];
+  uint8_t oemName[8];
+  uint16_t bytesPerSector;
+  uint8_t sectorsPerCluster;
+  uint16_t reservedSectorCount;
+  uint8_t numberOfFats;
+  uint16_t rootEntryCount;
+  uint16_t totalSectors16;
+  uint8_t mediaType;
+  uint16_t sectorsPerFat;
+  uint16_t sectorsPerTrack;
+  uint16_t numberOfHeads;
+  uint32_t hiddenSectors;
+  uint32_t totalSectors32;
+  uint8_t driveNumber;
+  uint8_t reserved1;
+  uint8_t bootSignature;
+  uint32_t volumeId;
+  uint8_t volumeLabel[11];
+  uint8_t fileSystemType[8];
+} Fat16BootSector;
+
+typedef struct Fat16DirectoryEntry {
+  uint8_t filename[FAT16_FILENAME_LENGTH];
+  uint8_t extension[FAT16_EXTENSION_LENGTH];
+  uint8_t attributes;
+  uint8_t reserved;
+  uint8_t creationTimeMs;
+  uint16_t creationTime;
+  uint16_t creationDate;
+  uint16_t lastAccessDate;
+  uint16_t firstClusterHigh;
+  uint16_t lastModifiedTime;
+  uint16_t lastModifiedDate;
+  uint16_t firstClusterLow;
+  uint32_t fileSize;
+} Fat16DirectoryEntry;
+
+typedef struct Fat16File {
+  uint32_t currentCluster;
+  uint32_t currentPosition;
+  uint32_t fileSize;
+  uint32_t firstCluster;
+  char mode;  // 'r' for read, 'w' for write
+  FilesystemState *fs;
+} Fat16File;
+
 // Exported functionality
 void* runFat16Filesystem(void *args);
 
