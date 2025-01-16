@@ -593,6 +593,32 @@ SdCardCommandHandler sdCardCommandHandlers[] = {
   sdCardWriteBlocksCommandHandler, // SD_CARD_WRITE_BLOCKS
 };
 
+/// @fn void handleSdCardMessages(SdCardState *sdCardState)
+///
+/// @brief Handle sdCard messages from the process's queue until there are no
+/// more waiting.
+///
+/// @param sdCardState A pointer to the SdCardState structure maintained by the
+///   sdCard process.
+///
+/// @return This function returns no value.
+void handleSdCardMessages(SdCardState *sdCardState) {
+  ProcessMessage *processMessage = processMessageQueuePop();
+  while (processMessage != NULL) {
+    SdCardCommandResponse messageType
+      = (SdCardCommandResponse) processMessageType(processMessage);
+    if (messageType >= NUM_SD_CARD_COMMANDS) {
+      processMessage = processMessageQueuePop();
+      continue;
+    }
+    
+    sdCardCommandHandlers[messageType](sdCardState, processMessage);
+    processMessage = processMessageQueuePop();
+  }
+  
+  return;
+}
+
 /// @fn void* runSdCard(void *args)
 ///
 /// @brief Process entry-point for the SD card process.  Sets up and
@@ -631,8 +657,25 @@ void* runSdCard(void *args) {
     printString("\n");
   }
 
+  ProcessMessage *schedulerMessage = NULL;
   while (1) {
-    processYield();
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      SdCardCommandResponse messageType
+        = (SdCardCommandResponse) processMessageType(schedulerMessage);
+      if (messageType < NUM_SD_CARD_COMMANDS) {
+        sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
+      } else {
+        printString("ERROR!!!  Received unknown sdCard command ");
+        printInt(messageType);
+        printString(" from scheduler.\n");
+      }
+    } else {
+      handleSdCardMessages(&sdCardState);
+    }
   }
 
   return NULL;
