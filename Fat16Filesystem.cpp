@@ -32,27 +32,33 @@
 #include "Fat16Filesystem.h"
 
 // Read a single block from the filesystem
-static int readBlock(FilesystemState *fs, uint32_t blockNumber, uint8_t *buffer) {
+static int fat16ReadBlock(FilesystemState *fs,
+  uint32_t blockNumber, uint8_t *buffer
+) {
   return fs->blockDevice->readBlocks(fs->blockDevice->context, 
     blockNumber, 1, fs->blockSize, buffer);
 }
 
 // Write a single block to the filesystem
-static int writeBlock(FilesystemState *fs, uint32_t blockNumber, const uint8_t *buffer) {
+static int fat16WriteBlock(FilesystemState *fs,
+  uint32_t blockNumber, const uint8_t *buffer
+) {
   return fs->blockDevice->writeBlocks(fs->blockDevice->context,
     blockNumber, 1, fs->blockSize, buffer);
 }
 
 // Read the boot sector to get filesystem parameters
-static Fat16BootSector* readBootSector(FilesystemState *fs) {
-  if (readBlock(fs, fs->startLba, fs->blockBuffer) != 0) {
+static Fat16BootSector* fat16ReadBootSector(FilesystemState *fs) {
+  if (fat16ReadBlock(fs, fs->startLba, fs->blockBuffer) != 0) {
     return NULL;
   }
   return (Fat16BootSector*) fs->blockBuffer;
 }
 
 // Compare two filenames in FAT16 8.3 format
-static int compareFilenames(const uint8_t *dirEntry, const char *pathname) {
+static int fat16CompareFilenames(
+  const uint8_t *dirEntry, const char *pathname
+) {
   char filename[13];
   int ii;
   int jj = 0;
@@ -78,15 +84,16 @@ static int compareFilenames(const uint8_t *dirEntry, const char *pathname) {
 }
 
 // Find a file in the root directory
-static Fat16DirectoryEntry* findFile(FilesystemState *fs, const char *pathname,
-    Fat16BootSector *bootSector) {
+static Fat16DirectoryEntry* fat16FindFile(FilesystemState *fs,
+  const char *pathname, Fat16BootSector *bootSector
+) {
   uint32_t rootDirStart = fs->startLba + bootSector->reservedSectorCount + 
     (bootSector->numberOfFats * bootSector->sectorsPerFat);
   uint32_t rootDirBlocks = (bootSector->rootEntryCount * 
     FAT16_BYTES_PER_DIRECTORY_ENTRY) / fs->blockSize;
   
   for (uint32_t ii = 0; ii < rootDirBlocks; ii++) {
-    if (readBlock(fs, rootDirStart + ii, fs->blockBuffer) != 0) {
+    if (fat16ReadBlock(fs, rootDirStart + ii, fs->blockBuffer) != 0) {
       return NULL;
     }
     
@@ -99,7 +106,7 @@ static Fat16DirectoryEntry* findFile(FilesystemState *fs, const char *pathname,
       
       if (dirEntry[jj].filename[0] != 0xE5 && // Not deleted
           (dirEntry[jj].attributes & FAT16_ATTR_FILE) && // Is a file
-          compareFilenames(dirEntry[jj].filename, pathname) == 0) {
+          fat16CompareFilenames(dirEntry[jj].filename, pathname) == 0) {
         return &dirEntry[jj];
       }
     }
@@ -122,13 +129,13 @@ Fat16File* fat16Fopen(FilesystemState *fs,
     return NULL;
   }
   
-  Fat16BootSector *bootSector = readBootSector(fs);
+  Fat16BootSector *bootSector = fat16ReadBootSector(fs);
   if (bootSector == NULL) {
     printString("Failed to read boot sector");
     return NULL;
   }
   
-  Fat16DirectoryEntry *dirEntry = findFile(fs, pathname, bootSector);
+  Fat16DirectoryEntry *dirEntry = fat16FindFile(fs, pathname, bootSector);
   if (dirEntry == NULL) {
     if (strcmp(mode, "r") == 0) {
       printString("File not found");
@@ -155,7 +162,7 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   return file;
 }
 
-/// @fn int filesystemOpenFileCommandHandler(
+/// @fn int fat16FilesystemOpenFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_OPEN_FILE command.
@@ -166,7 +173,7 @@ Fat16File* fat16Fopen(FilesystemState *fs,
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int filesystemOpenFileCommandHandler(
+int fat16FilesystemOpenFileCommandHandler(
   FilesystemState *filesystemState, ProcessMessage *processMessage
 ) {
   (void) filesystemState;
@@ -184,7 +191,7 @@ int filesystemOpenFileCommandHandler(
   return 0;
 }
 
-/// @fn int filesystemCloseFileCommandHandler(
+/// @fn int fat16FilesystemCloseFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
@@ -195,15 +202,15 @@ int filesystemOpenFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int filesystemCloseFileCommandHandler(
+int fat16FilesystemCloseFileCommandHandler(
   FilesystemState *filesystemState, ProcessMessage *processMessage
 ) {
   (void) filesystemState;
 
   NanoOsFile *nanoOsFile
     = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
-  free(nanoOsFile->file); nanoOsFile = NULL;
-  free(stream); stream = NULL;
+  free(nanoOsFile->file);
+  free(nanoOsFile);
 
   processMessageSetDone(processMessage);
   return 0;
@@ -213,8 +220,8 @@ int filesystemCloseFileCommandHandler(
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
 const FilesystemCommandHandler filesystemCommandHandlers[] = {
-  filesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
-  filesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
+  fat16FilesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
+  fat16FilesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
 };
 
 /// @fn void handleFilesystemMessages(FilesystemState *filesystemState)
@@ -330,7 +337,7 @@ void* runFat16Filesystem(void *args) {
   filesystemState.blockBuffer = (uint8_t*) malloc(filesystemState.blockSize);
   getPartitionInfo(&filesystemState);
 
-  ProcessMessage *schedulerMessage = NULL;
+  ProcessMessage *schedulerMessage;
   while (1) {
     schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
     if (schedulerMessage != NULL) {
