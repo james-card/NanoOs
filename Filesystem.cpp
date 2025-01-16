@@ -41,10 +41,14 @@
 /// @param blockSize The size of a block as it is known to the filesystem.
 /// @param blockBuffer A pointer to the read/write buffer that is blockSize
 ///   bytes in length.
+/// @param startLba The address of the first block of the filesystem.
+/// @param endLba The address of the last block of the filesystem.
 typedef struct FilesystemState {
   BlockStorageDevice *blockDevice;
   uint16_t blockSize;
   uint8_t *blockBuffer;
+  uint32_t startLba;
+  uint32_t endLba;
 } FilesystemState;
 
 /// @typedef FilesystemCommandHandler
@@ -159,87 +163,71 @@ void handleFilesystemMessages(FilesystemState *filesystemState) {
   return;
 }
 
-void printPartitionTable(FilesystemState *filesystemState) {
-    // Read block 0 (MBR)
-    if (filesystemState->blockDevice->readBlocks(
-            filesystemState->blockDevice->context,
-            0,  // start block
-            1,  // number of blocks
-            512,  // block size
-            filesystemState->blockBuffer) != 0) {
-        printString("Error reading MBR\n");
-        return;
-    }
+/// @fn int getPartitionInfo(FilesystemState *filesystemState)
+///
+/// @brief Get the start and end LBA information from the partition specified
+/// by the blockDevice->partitionNumber in the provided FilesystemState.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int getPartitionInfo(FilesystemState *filesystemState) {
+  if (filesystemState->blockDevice->partitionNumber == 0) {
+    printString("ERROR! Partition number not set\n");
+    return -1;
+  }
 
-    // Partition table starts at offset 0x1BE
-    uint8_t *partitionTable = filesystemState->blockBuffer + 0x1BE;
+  // Read block 0 (MBR)
+  if (filesystemState->blockDevice->readBlocks(
+      filesystemState->blockDevice->context,
+      0,  // start block
+      1,  // number of blocks
+      filesystemState->blockSize,
+      filesystemState->blockBuffer) != 0
+  ) {
+    printString("Error reading MBR\n");
+    return -2;
+  }
 
-    printString("Partition Table:\n");
-    
-    // Process all 4 primary partition entries
-    for (int i = 0; i < 4; i++) {
-        uint8_t *entry = partitionTable + (i * 16);  // Each entry is 16 bytes
-        
-        uint8_t status = entry[0];
-        uint8_t type = entry[4];
-        uint32_t startLBA
-          = (((uint32_t) entry[11]) << 24)
-          | (((uint32_t) entry[10]) << 16)
-          | (((uint32_t) entry[ 9]) <<  8)
-          | (((uint32_t) entry[ 8]) <<  0);
-        uint32_t numSectors
-          = (((uint32_t) entry[15]) << 24)
-          | (((uint32_t) entry[14]) << 16)
-          | (((uint32_t) entry[13]) <<  8)
-          | (((uint32_t) entry[12]) <<  0);
-        
-        // Only print active partitions (type != 0)
-        if (type != 0) {
-            printString("Partition ");
-            printInt(i + 1);
-            printString(":\n");
-            
-            printString("  Status: 0x");
-            printInt(status);
-            printString("\n");
-            
-            printString("  Type: 0x");
-            printInt(type);
-            printString(" (");
-            
-            // Print partition type description
-            switch(type) {
-                case 0x01:
-                    printString("FAT12");
-                    break;
-                case 0x04:
-                case 0x06:
-                    printString("FAT16");
-                    break;
-                case 0x07:
-                    printString("NTFS/exFAT");
-                    break;
-                case 0x0B:
-                case 0x0C:
-                    printString("FAT32");
-                    break;
-                case 0x83:
-                    printString("Linux");
-                    break;
-                default:
-                    printString("Unknown");
-            }
-            printString(")\n");
-            
-            printString("  Start Block: ");
-            printInt(startLBA);
-            printString("\n");
-            
-            printString("  End Block: ");
-            printLong(startLBA + numSectors - 1);
-            printString("\n\n");
-        }
-    }
+  // Partition table starts at offset 0x1BE
+  uint8_t *partitionTable = filesystemState->blockBuffer + 0x1BE;
+
+  // Each entry is 16 bytes
+  uint8_t *entry = partitionTable
+    + ((filesystemState->blockDevice->partitionNumber - 1) * 16);
+  uint8_t type = entry[4];
+  
+  // (type == 0x04 /* Up to 32 MB FAT16 using CHS addressing */)
+  // (type == 0x06 /* Over 32 MB FAT16 using CHS addressing */)
+  // (type == 0x0e /* FAT16 using LBA addressing */)
+  // (type == 0x14 /* Up to 32 MB hidden FAT16 using CHS addressing */)
+  // (type == 0x16 /* Over 32 MB hidden FAT16 using CHS addressing */)
+  // (type == 0x1e /* Hidden FAT16 using LBA addressing */)
+  // We're only supporting FAT16 using LBA addressing.
+  if (
+       (type == 0x0e /* FAT16 using LBA addressing */)
+    || (type == 0x1e /* Hidden FAT16 using LBA addressing */)
+  ) {
+    filesystemState->startLba
+      = (((uint32_t) entry[11]) << 24)
+      | (((uint32_t) entry[10]) << 16)
+      | (((uint32_t) entry[ 9]) <<  8)
+      | (((uint32_t) entry[ 8]) <<  0);
+    uint32_t numSectors
+      = (((uint32_t) entry[15]) << 24)
+      | (((uint32_t) entry[14]) << 16)
+      | (((uint32_t) entry[13]) <<  8)
+      | (((uint32_t) entry[12]) <<  0);
+    filesystemState->endLba = filesystemState->startLba + numSectors - 1;
+  } else {
+    printString("ERROR: Filesystem partition type is ");
+    printInt(type);
+    printString("\n");
+    return -3;
+  }
+
+  return 0;
 }
 
 /// @fn void* runFilesystem(void *args)
@@ -253,13 +241,14 @@ void printPartitionTable(FilesystemState *filesystemState) {
 /// @return This function never returns, but would return NULL if it did.
 void* runFilesystem(void *args) {
   FilesystemState filesystemState;
+  memset(&filesystemState, 0, sizeof(filesystemState));
   filesystemState.blockDevice = (BlockStorageDevice*) args;
   filesystemState.blockSize = 512;
   // Yield before we make any more calls.
   processYield();
 
   filesystemState.blockBuffer = (uint8_t*) malloc(filesystemState.blockSize);
-  printPartitionTable(&filesystemState);
+  getPartitionInfo(&filesystemState);
 
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
