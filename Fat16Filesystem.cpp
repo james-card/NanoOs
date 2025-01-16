@@ -161,6 +161,103 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   return file;
 }
 
+static uint32_t fat16GetNextCluster(FilesystemState *fs,
+  uint32_t reservedSectorCount, uint16_t bytesPerSector,
+  uint32_t currentCluster
+) {
+  uint32_t fatOffset = currentCluster * 2;
+  uint32_t fatBlock = reservedSectorCount + (fatOffset / bytesPerSector);
+  uint32_t fatIndex = fatOffset % bytesPerSector;
+  
+  // Read the FAT block
+  if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer) != 0) {
+    return 0xFFFF;  // Error indicator
+  }
+  
+  return *((uint16_t *) &fs->blockBuffer[fatIndex]);
+}
+
+int fat16Read(FilesystemState *fs, Fat16File *file,
+  void *buffer, uint32_t length
+) {
+  if ((fs == NULL) || (file == NULL) || (buffer == NULL) || (length == 0)) {
+    return -1;
+  }
+
+  // Don't read beyond EOF
+  uint32_t remainingBytes = file->fileSize - file->currentPosition;
+  if (length > remainingBytes) {
+    length = remainingBytes;
+  }
+
+  if (length == 0) {
+    return 0;
+  }
+
+  // Read boot sector and store needed parameters
+  Fat16BootSector *bootSector = fat16ReadBootSector(fs);
+  if (bootSector == NULL) {
+    return -1;
+  }
+  
+  // Store all parameters we need from boot sector before buffer is reused
+  uint16_t bytesPerSector = bootSector->bytesPerSector;
+  uint8_t sectorsPerCluster = bootSector->sectorsPerCluster;
+  uint16_t reservedSectorCount = bootSector->reservedSectorCount;
+  uint8_t numberOfFats = bootSector->numberOfFats;
+  uint16_t sectorsPerFat = bootSector->sectorsPerFat;
+  uint16_t rootEntryCount = bootSector->rootEntryCount;
+  
+  uint32_t bytesRead = 0;
+  uint8_t *outputBuffer = (uint8_t *) buffer;
+  uint32_t bytesPerCluster = bytesPerSector * sectorsPerCluster;
+  
+  while (bytesRead < length) {
+    // Calculate position within current cluster
+    uint32_t clusterOffset = file->currentPosition % bytesPerCluster;
+    uint32_t blockInCluster = clusterOffset / bytesPerSector;
+    uint32_t offsetInBlock = clusterOffset % bytesPerSector;
+    
+    // Calculate absolute block number
+    uint32_t firstDataBlock = reservedSectorCount +
+      (numberOfFats * sectorsPerFat) +
+      ((rootEntryCount * 32) / bytesPerSector);
+    uint32_t currentBlock = firstDataBlock +
+      ((file->currentCluster - 2) * sectorsPerCluster) +
+      blockInCluster;
+
+    // Read the block containing our data
+    if (fat16ReadBlock(fs, currentBlock, fs->blockBuffer) != 0) {
+      return -1;
+    }
+
+    // Calculate how many bytes we can read from this block
+    uint32_t bytesThisBlock = bytesPerSector - offsetInBlock;
+    if (bytesThisBlock > (length - bytesRead)) {
+      bytesThisBlock = length - bytesRead;
+    }
+
+    // Copy the data to the output buffer
+    memcpy(&outputBuffer[bytesRead],
+      &fs->blockBuffer[offsetInBlock], bytesThisBlock);
+    bytesRead += bytesThisBlock;
+    file->currentPosition += bytesThisBlock;
+
+    // Check if we need to move to the next cluster
+    if ((file->currentPosition % bytesPerCluster) == 0 &&
+        bytesRead < length) {
+      uint32_t nextCluster = fat16GetNextCluster(fs, reservedSectorCount,
+        bytesPerSector, file->currentCluster);
+      if (nextCluster >= 0xFFF8) {  // End of chain
+        break;
+      }
+      file->currentCluster = nextCluster;
+    }
+  }
+
+  return bytesRead;
+}
+
 /// @fn int fat16FilesystemOpenFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)
 ///
