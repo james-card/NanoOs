@@ -44,6 +44,31 @@ extern "C"
 {
 #endif
 
+/// @struct FilesystemState
+///
+/// @brief State metadata the filesystem process uses to provide access to
+/// files.
+///
+/// @param blockDevice A pointer to an allocated and initialized
+///   BlockStorageDevice to use for reading and writing blocks.
+/// @param blockSize The size of a block as it is known to the filesystem.
+/// @param blockBuffer A pointer to the read/write buffer that is blockSize
+///   bytes in length.
+/// @param startLba The address of the first block of the filesystem.
+/// @param endLba The address of the last block of the filesystem.
+typedef struct FilesystemState {
+  BlockStorageDevice *blockDevice;
+  uint16_t blockSize;
+  uint8_t *blockBuffer;
+  uint32_t startLba;
+  uint32_t endLba;
+} FilesystemState;
+
+/// @typedef FilesystemCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*FilesystemCommandHandler)(FilesystemState*, ProcessMessage*);
+
 /// @enum FilesystemCommandResponse
 ///
 /// @brief Commands and responses understood by the filesystem inter-process
