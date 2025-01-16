@@ -64,6 +64,21 @@ typedef struct FilesystemState {
   uint32_t endLba;
 } FilesystemState;
 
+/// @struct FilesystemIoCommandParameters
+///
+/// @brief Parameters needed for an I/O command in a filesystem.
+///
+/// @param file A pointer to the FILE object returned from a call to fopen.
+/// @param buffer A pointer to the memory that is either to be read from or
+///   written to.
+/// @param length The number of bytes to read into the buffer or write from the
+///   buffer.
+typedef struct FilesystemIoCommandParameters {
+  FILE *file;
+  void *buffer;
+  uint32_t length;
+} FilesystemIoCommandParameters;
+
 /// @typedef FilesystemCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
@@ -77,6 +92,7 @@ typedef enum FilesystemCommandResponse {
   // Commands:
   FILESYSTEM_OPEN_FILE,
   FILESYSTEM_CLOSE_FILE,
+  FILESYSTEM_READ_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
