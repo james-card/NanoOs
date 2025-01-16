@@ -36,9 +36,11 @@
 /// @brief State metadata the filesystem process uses to provide access to
 /// files.
 ///
-/// @param state TODO Placeholder for filesystem state.
+/// @param blockDevice A pointer to an allocated and initialized
+///   BlockStorageDevice to use for reading and writing blocks.
 typedef struct FilesystemState {
-  void *state;
+  BlockStorageDevice *blockDevice;
+  uint8_t *blockBuffer;
 } FilesystemState;
 
 /// @typedef FilesystemCommandHandler
@@ -163,10 +165,11 @@ void handleFilesystemMessages(FilesystemState *filesystemState) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runFilesystem(void *args) {
-  (void) args;
-  ProcessMessage *schedulerMessage = NULL;
   FilesystemState filesystemState;
+  filesystemState.blockDevice = (BlockStorageDevice*) args;
+  filesystemState.blockBuffer = NULL;
 
+  ProcessMessage *schedulerMessage = NULL;
   while (1) {
     schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
     if (schedulerMessage != NULL) {
