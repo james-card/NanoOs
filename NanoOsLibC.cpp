@@ -31,6 +31,7 @@
 #include "NanoOs.h"
 #include "NanoOsLibC.h"
 #include "Scheduler.h"
+#include "Filesystem.h"
 
 /// @var boolNames
 ///
@@ -972,7 +973,21 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
     }
   } else {
     // stream is a regular FILE.
-    // TODO!!!
+    FilesystemIoCommandParameters filesystemIoCommandParameters = {
+      .file = stream,
+      .buffer = buffer,
+      .length = (uint32_t) size
+    };
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID,
+      FILESYSTEM_READ_FILE,
+      /* func= */ 0,
+      /* data= */ (intptr_t) &filesystemIoCommandParameters,
+      true);
+    processMessageWaitForDone(processMessage, NULL);
+    if (filesystemIoCommandParameters.length > 0) {
+      returnValue = buffer;
+    }
   }
 
   return returnValue;
