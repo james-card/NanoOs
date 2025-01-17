@@ -2221,6 +2221,15 @@ void runScheduler(SchedulerState *schedulerState) {
   if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
     && (processRunning(processDescriptor->processHandle) == false)
   ) {
+    if ((schedulerState->hostname == NULL)
+      || (*schedulerState->hostname == '\0')
+    ) {
+      // We're not done initializing yet.  Put the process back on the ready
+      // queue and try again later.
+      processQueuePush(&schedulerState->ready, processDescriptor);
+      return;
+    }
+
     // Restart the shell.
     allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
@@ -2238,6 +2247,15 @@ void runScheduler(SchedulerState *schedulerState) {
   } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
     && (processRunning(processDescriptor->processHandle) == false)
   ) {
+    if ((schedulerState->hostname == NULL)
+      || (*schedulerState->hostname == '\0')
+    ) {
+      // We're not done initializing yet.  Put the process back on the ready
+      // queue and try again later.
+      processQueuePush(&schedulerState->ready, processDescriptor);
+      return;
+    }
+
     // Restart the shell.
     allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
@@ -2280,6 +2298,7 @@ __attribute__((noinline)) void startScheduler(
 ) {
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {};
+  schedulerState.hostname = NULL;
   schedulerState.ready.name = "ready";
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
@@ -2500,34 +2519,35 @@ __attribute__((noinline)) void startScheduler(
   // Allocate memory for the hostname.
   schedulerState.hostname = (char*) kcalloc(1, 30);
   if (schedulerState.hostname != NULL) {
-    strcpy(schedulerState.hostname, "localhost");
+    printDebug("Opening hostname\n");
+    FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
+    printDebug("hostnameFile = ");
+    printDebug((intptr_t) hostnameFile);
+    printDebug("\n");
+    if (hostnameFile != NULL) {
+      printDebug("hostnameFile was opened successfully\n");
+      if (kFilesystemFGets(&schedulerState,
+        schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
+      ) {
+        printString("ERROR! fgets did not read hostname!\n");
+      }
+      if (strchr(schedulerState.hostname, '\r')) {
+        *strchr(schedulerState.hostname, '\r') = '\0';
+        printDebug("Found \\r in schedulerState.hostname\n");
+      } else if (strchr(schedulerState.hostname, '\n')) {
+        *strchr(schedulerState.hostname, '\n') = '\0';
+        printDebug("Found \\n in schedulerState.hostname\n");
+      } else if (*schedulerState.hostname == '\0') {
+        strcpy(schedulerState.hostname, "localhost");
+        printDebug("Copied \"localhost\" to schedulerState.hostname\n");
+      }
+      printDebug("Closing hostnameFile\n");
+      kfclose(&schedulerState, hostnameFile);
+    } else {
+      printString("ERROR! kfopen of hostname returned NULL!\n");
+    }
   } else {
     printString("ERROR! schedulerState.hostname is NULL!\n");
-  }
-
-  printDebug("Opening hostname\n");
-  FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
-  printDebug("hostnameFile = ");
-  printDebug((intptr_t) hostnameFile);
-  printDebug("\n");
-  if (hostnameFile != NULL) {
-    printDebug("hostnameFile was opened successfully\n");
-    if (kFilesystemFGets(&schedulerState,
-      schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
-    ) {
-      printString("ERROR! fgets did not read hostname!\n");
-    }
-    if (strchr(schedulerState.hostname, '\r')) {
-      *strchr(schedulerState.hostname, '\r') = '\0';
-    } else if (strchr(schedulerState.hostname, '\n')) {
-      *strchr(schedulerState.hostname, '\n') = '\0';
-    } else if (*schedulerState.hostname == '\0') {
-      strcpy(schedulerState.hostname, "localhost");
-    }
-    printDebug("Closing hostnameFile\n");
-    kfclose(&schedulerState, hostnameFile);
-  } else {
-    printString("ERROR! kfopen of hostname returned NULL!\n");
   }
 
   // Run our scheduler.
