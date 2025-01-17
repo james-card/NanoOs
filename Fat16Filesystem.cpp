@@ -265,20 +265,91 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
 int fat16Write(FilesystemState *fs, Fat16File *file,
   const uint8_t *buffer, uint32_t length
 ) {
-  // Validate parameters and write mode
+  // Validate parameters
   if (!fs || !file || !buffer || length == 0) {
     return -EINVAL;
+  }
+
+  const Fat16BootSector *bootSector = fat16ReadBootSector(fs);
+  if (!bootSector) {
+    return -EIO;
   }
 
   uint32_t bytesWritten = 0;
   uint32_t remainingBytes = length;
   uint32_t blockSize = fs->blockSize;
   uint32_t blockOffset = file->currentPosition % blockSize;
+  uint32_t sectorsPerCluster = bootSector->sectorsPerCluster;
+  uint32_t clusterSize = blockSize * sectorsPerCluster;
+  uint32_t fatStartBlock = fs->startLba + bootSector->reservedSectorCount;
+  
+  // Read the FAT table into the block buffer
+  if (fat16ReadBlock(fs, fatStartBlock, fs->blockBuffer) != 0) {
+    return -EIO;
+  }
+  uint16_t *fatTable = (uint16_t *) fs->blockBuffer;
   
   while (remainingBytes > 0) {
+    // If we're at the end of a cluster, we need to find/allocate next one
+    if (file->currentCluster != 0 && 
+        (file->currentPosition % clusterSize) == 0) {
+      uint16_t nextCluster = fatTable[file->currentCluster];
+      
+      // If no next cluster or at end of chain, allocate a new one
+      if (nextCluster >= 0xFFF8) {
+        uint16_t newCluster = 0;
+        // Find a free cluster
+        for (uint16_t ii = 2; ii < bootSector->sectorsPerFat * 256; ii++) {
+          if (fatTable[ii] == 0) {
+            newCluster = ii;
+            break;
+          }
+        }
+        
+        // Check if disk is full
+        if (newCluster == 0) {
+          // Update directory entry with current file size before returning
+          Fat16DirectoryEntry *dirEntry = fat16FindFile(fs,
+            NULL, // We'd need filename here - simplified
+            (Fat16BootSector *)bootSector);
+          if (dirEntry) {
+            dirEntry->fileSize = file->fileSize;
+            // Write directory entry block back
+            if (fat16WriteBlock(fs, fs->startLba +
+                bootSector->reservedSectorCount +
+                (bootSector->numberOfFats * bootSector->sectorsPerFat),
+                fs->blockBuffer) != 0) {
+              return -EIO;
+            }
+          }
+          return bytesWritten;
+        }
+        
+        // Update FAT table
+        fatTable[file->currentCluster] = newCluster;
+        fatTable[newCluster] = 0xFFFF;  // End of chain marker
+        
+        // Write FAT table back to all FAT copies
+        for (uint8_t ii = 0; ii < bootSector->numberOfFats; ii++) {
+          if (fat16WriteBlock(fs, fatStartBlock + 
+              (ii * bootSector->sectorsPerFat),
+              fs->blockBuffer) != 0) {
+            return -EIO;
+          }
+        }
+        
+        file->currentCluster = newCluster;
+      } else {
+        file->currentCluster = nextCluster;
+      }
+    }
+    
     // Calculate current block number from cluster and position
     uint32_t currentBlock = fs->startLba +
-      (file->currentCluster - 2) * blockSize;
+      bootSector->reservedSectorCount +
+      (bootSector->numberOfFats * bootSector->sectorsPerFat) +
+      (bootSector->rootEntryCount * 32 / blockSize) +
+      ((file->currentCluster - 2) * sectorsPerCluster);
     
     // If we're not at a block boundary, need to read-modify-write
     if (blockOffset > 0) {
@@ -311,11 +382,24 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
     
     // Reset block offset since future iterations will be block-aligned
     blockOffset = 0;
+  }
+  
+  // Update directory entry with new file size
+  Fat16DirectoryEntry *dirEntry = fat16FindFile(fs,
+    NULL, // We'd need filename here - simplified
+    (Fat16BootSector *)bootSector);
+  if (dirEntry) {
+    dirEntry->fileSize = file->fileSize;
+    // Update modification time/date (simplified - should use RTC if available)
+    dirEntry->lastModifiedTime = 0;  // Would set from RTC
+    dirEntry->lastModifiedDate = 0;  // Would set from RTC
     
-    // If we've reached the end of this cluster, we need a new one
-    // This is simplified - would need FAT table traversal in real impl
-    if ((file->currentPosition % (blockSize * fs->blockSize)) == 0) {
-      file->currentCluster++;  // Simplified - should check FAT
+    // Write directory entry block back
+    if (fat16WriteBlock(fs, fs->startLba +
+        bootSector->reservedSectorCount +
+        (bootSector->numberOfFats * bootSector->sectorsPerFat),
+        fs->blockBuffer) != 0) {
+      return -EIO;
     }
   }
   
