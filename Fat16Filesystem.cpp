@@ -224,7 +224,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
     uint32_t offsetInBlock = clusterOffset % bytesPerSector;
     
     // Calculate absolute block number
-    uint32_t firstDataBlock = reservedSectorCount +
+    uint32_t firstDataBlock = fs->startLba + reservedSectorCount +
       (numberOfFats * sectorsPerFat) +
       ((rootEntryCount * 32) / bytesPerSector);
     uint32_t currentBlock = firstDataBlock +
