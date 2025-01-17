@@ -129,7 +129,7 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   }
   
   // Only support "r" and "w" modes for now
-  if (strcmp(mode, "r") != 0 && strcmp(mode, "w") != 0) {
+  if ((strchr(mode, 'r') == NULL) && (strchr(mode, 'w') == NULL)) {
     printString("Unsupported mode\n");
     return NULL;
   }
