@@ -119,36 +119,36 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   const char *pathname, const char *mode
 ) {
   if (fs == NULL || pathname == NULL || mode == NULL) {
-    printString("Invalid parameters");
+    printString("Invalid parameters\n");
     return NULL;
   }
   
   // Only support "r" and "w" modes for now
   if (strcmp(mode, "r") != 0 && strcmp(mode, "w") != 0) {
-    printString("Unsupported mode");
+    printString("Unsupported mode\n");
     return NULL;
   }
   
   Fat16BootSector *bootSector = fat16ReadBootSector(fs);
   if (bootSector == NULL) {
-    printString("Failed to read boot sector");
+    printString("Failed to read boot sector\n");
     return NULL;
   }
   
   Fat16DirectoryEntry *dirEntry = fat16FindFile(fs, pathname, bootSector);
   if (dirEntry == NULL) {
     if (strcmp(mode, "r") == 0) {
-      printString("File not found");
+      printString("File not found\n");
       return NULL;
     }
     // TODO: Implement file creation for write mode
-    printString("File creation not implemented");
+    printString("File creation not implemented\n");
     return NULL;
   }
   
   Fat16File *file = (Fat16File*) malloc(sizeof(Fat16File));
   if (file == NULL) {
-    printString("Memory allocation failed");
+    printString("Memory allocation failed\n");
     return NULL;
   }
   
@@ -181,7 +181,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
   void *buffer, uint32_t length
 ) {
   if ((fs == NULL) || (file == NULL) || (buffer == NULL) || (length == 0)) {
-    return -1;
+    return -EINVAL;
   }
 
   // Don't read beyond EOF
@@ -197,7 +197,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
   // Read boot sector and store needed parameters
   Fat16BootSector *bootSector = fat16ReadBootSector(fs);
   if (bootSector == NULL) {
-    return -1;
+    return -EIO;
   }
   
   // Store all parameters we need from boot sector before buffer is reused
@@ -228,7 +228,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
 
     // Read the block containing our data
     if (fat16ReadBlock(fs, currentBlock, fs->blockBuffer) != 0) {
-      return -1;
+      return -EIO;
     }
 
     // Calculate how many bytes we can read from this block
@@ -272,18 +272,22 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
 int fat16FilesystemOpenFileCommandHandler(
   FilesystemState *filesystemState, ProcessMessage *processMessage
 ) {
-  (void) filesystemState;
+  printDebug("Handling FILESYSTEM_OPEN_FILE command.\n");
 
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
   Fat16File *fat16File = fat16Fopen(filesystemState, pathname, mode);
-  NanoOsFile *nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
-  nanoOsFile->file = fat16File;
+  NanoOsFile *nanoOsFile = NULL;
+  if (fat16File != NULL) {
+    nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
+    nanoOsFile->file = fat16File;
+  }
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = (intptr_t) nanoOsFile;
   processMessageSetDone(processMessage);
+  printDebug("Exiting FILESYSTEM_OPEN_FILE command.\n");
   return 0;
 }
 
@@ -312,12 +316,49 @@ int fat16FilesystemCloseFileCommandHandler(
   return 0;
 }
 
+/// @fn int fat16FilesystemReadFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_READ_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemReadFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  FilesystemIoCommandParameters *filesystemIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  int returnValue = fat16Read(filesystemState,
+    (Fat16File*) filesystemIoCommandParameters->file->file,
+    filesystemIoCommandParameters->buffer,
+    filesystemIoCommandParameters->length);
+  if (returnValue >= 0) {
+    // Return value is the number of bytes read.  Set the length variable to it
+    // and set it to 0 to indicate good status.
+    filesystemIoCommandParameters->length = returnValue;
+    returnValue = 0;
+  } else {
+    // Return value is a negative error code.  Negate it.
+    returnValue = -returnValue;
+    // Tell the caller that we read nothing.
+    filesystemIoCommandParameters->length = 0;
+  }
+
+  processMessageSetDone(processMessage);
+  return returnValue;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
 const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
   fat16FilesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
+  fat16FilesystemReadFileCommandHandler,  // FILESYSTEM_READ_FILE
 };
 
 /// @fn void handleFilesystemMessages(FilesystemState *filesystemState)
@@ -428,20 +469,22 @@ void* runFat16Filesystem(void *args) {
   filesystemState.blockDevice = (BlockStorageDevice*) args;
   filesystemState.blockSize = 512;
   // Yield before we make any more calls.
-  processYield();
+  ProcessMessage *schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
 
   filesystemState.blockBuffer = (uint8_t*) malloc(filesystemState.blockSize);
   getPartitionInfo(&filesystemState);
 
-  ProcessMessage *schedulerMessage;
+  printDebug("Entering runFat16Filesystem while loop\n");
   while (1) {
-    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to process.  This
       // is not the expected case, but it's the priority case, so we need to
       // list it first.
       FilesystemCommandResponse messageType
         = (FilesystemCommandResponse) processMessageType(schedulerMessage);
+      printDebug("Received message ");
+      printDebug(messageType);
+      printDebug(" from scheduler\n");
       if (messageType < NUM_FILESYSTEM_COMMANDS) {
         filesystemCommandHandlers[messageType](
           &filesystemState, schedulerMessage);
@@ -453,6 +496,7 @@ void* runFat16Filesystem(void *args) {
     } else {
       handleFilesystemMessages(&filesystemState);
     }
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
   }
 
   return NULL;
