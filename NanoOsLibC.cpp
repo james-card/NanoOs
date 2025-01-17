@@ -988,6 +988,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
     if (filesystemIoCommandParameters.length > 0) {
       returnValue = buffer;
     }
+    processMessageRelease(processMessage);
   }
 
   return returnValue;
