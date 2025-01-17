@@ -1487,11 +1487,9 @@ FILE* kfopen(SchedulerState *schedulerState,
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
     processMessage);
 
-  printDebug("Waiting for FILESYSTEM_OPEN_FILE message to be done\n");
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
   }
-  printDebug("FILESYSTEM_OPEN_FILE message is done\n");
 
   returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
 
@@ -1528,6 +1526,52 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
 
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
+  }
+
+  processMessageRelease(processMessage);
+  return returnValue;
+}
+
+/// @fn int kFilesystemFGets(SchedulerState *schedulerState, FILE *stream)
+///
+/// @brief Version of fclose for the scheduler.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler process.
+///
+/// @param stream A pointer to the FILE object that was previously opened.
+///
+/// @return Returns 0 on success, EOF on failure.  On failure, the value of
+/// errno is also set to the appropriate error.
+char* kFilesystemFGets(SchedulerState *schedulerState,
+  char *buffer, int size, FILE *stream
+) {
+  char *returnValue = NULL;
+  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+    .file = stream,
+    .buffer = buffer,
+    .length = (uint32_t) size
+  };
+
+  ProcessMessage *processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
+    runScheduler(schedulerState);
+    processMessage = getAvailableMessage();
+  }
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
+  processMessageInit(processMessage, FILESYSTEM_READ_FILE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  coroutineResume(
+    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    processMessage);
+
+  while (processMessageDone(processMessage) == false) {
+    runScheduler(schedulerState);
+  }
+  if (filesystemIoCommandParameters.length > 0) {
+    returnValue = buffer;
   }
 
   processMessageRelease(processMessage);
@@ -2468,8 +2512,8 @@ __attribute__((noinline)) void startScheduler(
   printDebug("\n");
   if (hostnameFile != NULL) {
     printDebug("hostnameFile was opened successfully\n");
-    if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
-      != schedulerState.hostname
+    if (kFilesystemFGets(&schedulerState,
+      schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
     ) {
       printString("ERROR! fgets did not read hostname!\n");
     }
