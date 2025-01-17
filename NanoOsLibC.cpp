@@ -1134,40 +1134,55 @@ ConsoleBuffer* nanoOsGetBuffer(void) {
 /// @return Returns 0 on success, EOF on failure.
 int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
   int returnValue = 0;
-  FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
-  if (outputFd == NULL) {
-    printString("ERROR!!!  Could not get output file descriptor for process ");
-    printInt(getRunningProcessId());
-    printString(" and stream ");
-    printInt((intptr_t) stream);
-    printString(".\n");
+  if ((stream == stdout) || (stream == stderr)) {
+    FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
+    if (outputFd == NULL) {
+      printString(
+        "ERROR!!!  Could not get output file descriptor for process ");
+      printInt(getRunningProcessId());
+      printString(" and stream ");
+      printInt((intptr_t) stream);
+      printString(".\n");
 
-    // Release the buffer to avoid creating a leak.
-    sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
-      /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
+      // Release the buffer to avoid creating a leak.
+      sendNanoOsMessageToPid(
+        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
-    // We can't proceed, so bail.
-    returnValue = EOF;
-    return returnValue;
-  }
-  IoPipe *outputPipe = &outputFd->outputPipe;
+      // We can't proceed, so bail.
+      returnValue = EOF;
+      return returnValue;
+    }
+    IoPipe *outputPipe = &outputFd->outputPipe;
 
-  if ((outputPipe != NULL) && (outputPipe->processId != PROCESS_ID_NOT_SET)) {
-    if ((stream == stdout) || (stream == stderr)) {
-      ProcessMessage *processMessage = sendNanoOsMessageToPid(
-        outputPipe->processId, outputPipe->messageType,
-        0, (intptr_t) nanoOsBuffer, true);
-      if (processMessage != NULL) {
-        processMessageWaitForDone(processMessage, NULL);
-        processMessageRelease(processMessage);
+    if ((outputPipe != NULL) && (outputPipe->processId != PROCESS_ID_NOT_SET)) {
+      if ((stream == stdout) || (stream == stderr)) {
+        ProcessMessage *processMessage = sendNanoOsMessageToPid(
+          outputPipe->processId, outputPipe->messageType,
+          0, (intptr_t) nanoOsBuffer, true);
+        if (processMessage != NULL) {
+          processMessageWaitForDone(processMessage, NULL);
+          processMessageRelease(processMessage);
+        } else {
+          returnValue = EOF;
+        }
       } else {
+        printString("ERROR!!!  Request to write to invalid stream ");
+        printInt((intptr_t) stream);
+        printString(" from process ");
+        printInt(getRunningProcessId());
+        printString(".\n");
+
+        // Release the buffer to avoid creating a leak.
+        sendNanoOsMessageToPid(
+          NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+          /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
+
         returnValue = EOF;
       }
     } else {
-      printString("ERROR!!!  Request to write to invalid stream ");
-      printInt((intptr_t) stream);
-      printString(" from process ");
+      printString(
+        "ERROR!!!  Request to write with no output pipe set from process ");
       printInt(getRunningProcessId());
       printString(".\n");
 
@@ -1179,17 +1194,23 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       returnValue = EOF;
     }
   } else {
-    printString(
-      "ERROR!!!  Request to write with no output pipe set from process ");
-    printInt(getRunningProcessId());
-    printString(".\n");
-
-    // Release the buffer to avoid creating a leak.
-    sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
-      /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
-
-    returnValue = EOF;
+    // stream is a regular FILE.
+    FilesystemIoCommandParameters filesystemIoCommandParameters = {
+      .file = stream,
+      .buffer = nanoOsBuffer->buffer,
+      .length = (uint32_t) strlen(nanoOsBuffer->buffer)
+    };
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID,
+      FILESYSTEM_WRITE_FILE,
+      /* func= */ 0,
+      /* data= */ (intptr_t) &filesystemIoCommandParameters,
+      true);
+    processMessageWaitForDone(processMessage, NULL);
+    if (filesystemIoCommandParameters.length == 0) {
+      returnValue = EOF;
+    }
+    processMessageRelease(processMessage);
   }
 
   return returnValue;
