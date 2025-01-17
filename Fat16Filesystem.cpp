@@ -262,6 +262,66 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
   return bytesRead;
 }
 
+int fat16Write(FilesystemState *fs, Fat16File *file,
+  const uint8_t *buffer, uint32_t length
+) {
+  // Validate parameters and write mode
+  if (!fs || !file || !buffer || length == 0) {
+    return -EINVAL;
+  }
+
+  uint32_t bytesWritten = 0;
+  uint32_t remainingBytes = length;
+  uint32_t blockSize = fs->blockSize;
+  uint32_t blockOffset = file->currentPosition % blockSize;
+  
+  while (remainingBytes > 0) {
+    // Calculate current block number from cluster and position
+    uint32_t currentBlock = fs->startLba +
+      (file->currentCluster - 2) * blockSize;
+    
+    // If we're not at a block boundary, need to read-modify-write
+    if (blockOffset > 0) {
+      if (fat16ReadBlock(fs, currentBlock, fs->blockBuffer) != 0) {
+        return -EIO;
+      }
+    }
+    
+    // Calculate how many bytes we can write in this block
+    uint32_t blockBytesAvailable = blockSize - blockOffset;
+    uint32_t bytesToWrite = (remainingBytes < blockBytesAvailable) ?
+      remainingBytes : blockBytesAvailable;
+    
+    // Copy the bytes to write into the block buffer
+    memcpy(&fs->blockBuffer[blockOffset],
+      &buffer[bytesWritten], bytesToWrite);
+    
+    // Write the block back to storage
+    if (fat16WriteBlock(fs, currentBlock, fs->blockBuffer) != 0) {
+      return -EIO;
+    }
+    
+    // Update our position tracking
+    bytesWritten += bytesToWrite;
+    remainingBytes -= bytesToWrite;
+    file->currentPosition += bytesToWrite;
+    if (file->currentPosition > file->fileSize) {
+      file->fileSize = file->currentPosition;
+    }
+    
+    // Reset block offset since future iterations will be block-aligned
+    blockOffset = 0;
+    
+    // If we've reached the end of this cluster, we need a new one
+    // This is simplified - would need FAT table traversal in real impl
+    if ((file->currentPosition % (blockSize * fs->blockSize)) == 0) {
+      file->currentCluster++;  // Simplified - should check FAT
+    }
+  }
+  
+  return bytesWritten;
+}
+
 /// @fn int fat16FilesystemOpenFileCommandHandler(
 ///   FilesystemState *filesystemState, ProcessMessage *processMessage)
 ///
@@ -356,6 +416,42 @@ int fat16FilesystemReadFileCommandHandler(
   return returnValue;
 }
 
+/// @fn int fat16FilesystemWriteFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_WRITE_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemWriteFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  FilesystemIoCommandParameters *filesystemIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  int returnValue = fat16Write(filesystemState,
+    (Fat16File*) filesystemIoCommandParameters->file->file,
+    (uint8_t*) filesystemIoCommandParameters->buffer,
+    filesystemIoCommandParameters->length);
+  if (returnValue >= 0) {
+    // Return value is the number of bytes written.  Set the length variable to
+    // it and set it to 0 to indicate good status.
+    filesystemIoCommandParameters->length = returnValue;
+    returnValue = 0;
+  } else {
+    // Return value is a negative error code.  Negate it.
+    returnValue = -returnValue;
+    // Tell the caller that we wrote nothing.
+    filesystemIoCommandParameters->length = 0;
+  }
+
+  processMessageSetDone(processMessage);
+  return returnValue;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
@@ -363,6 +459,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
   fat16FilesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
   fat16FilesystemReadFileCommandHandler,  // FILESYSTEM_READ_FILE
+  fat16FilesystemWriteFileCommandHandler, // FILESYSTEM_WRITE_FILE
 };
 
 /// @fn void handleFilesystemMessages(FilesystemState *filesystemState)

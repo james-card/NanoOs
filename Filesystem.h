@@ -93,6 +93,7 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_OPEN_FILE,
   FILESYSTEM_CLOSE_FILE,
   FILESYSTEM_READ_FILE,
+  FILESYSTEM_WRITE_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
