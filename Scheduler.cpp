@@ -1483,13 +1483,15 @@ FILE* kfopen(SchedulerState *schedulerState,
   nanoOsMessage->data = (intptr_t) pathname;
   processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
+  processMessageQueuePush(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
     processMessage);
 
+  printDebug("Waiting for FILESYSTEM_OPEN_FILE message to be done\n");
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
   }
+  printDebug("FILESYSTEM_OPEN_FILE message is done\n");
 
   returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
 
@@ -2456,26 +2458,33 @@ __attribute__((noinline)) void startScheduler(
   if (schedulerState.hostname != NULL) {
     strcpy(schedulerState.hostname, "localhost");
   } else {
-    printString("ERROR!!!  schedulerState.hostname is NULL!!!\n");
+    printString("ERROR! schedulerState.hostname is NULL!\n");
   }
-  //// FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
-  //// if (hostnameFile != NULL) {
-  ////   if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
-  ////     != schedulerState.hostname
-  ////   ) {
-  ////     printString("ERROR!!!  fgets did not read hostname!!!\n");
-  ////   }
-  ////   if (strchr(schedulerState.hostname, '\r')) {
-  ////     *strchr(schedulerState.hostname, '\r') = '\0';
-  ////   } else if (strchr(schedulerState.hostname, '\n')) {
-  ////     *strchr(schedulerState.hostname, '\n') = '\0';
-  ////   } else if (*schedulerState.hostname == '\0') {
-  ////     strcpy(schedulerState.hostname, "localhost");
-  ////   }
-  ////   kfclose(&schedulerState, hostnameFile);
-  //// } else {
-  ////   printString("ERROR!!!  kfopen of /etc/hostname returned NULL!!!\n");
-  //// }
+
+  printDebug("Opening hostname\n");
+  FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
+  printDebug("hostnameFile = ");
+  printDebug((intptr_t) hostnameFile);
+  printDebug("\n");
+  if (hostnameFile != NULL) {
+    printDebug("hostnameFile was opened successfully\n");
+    if (nanoOsFGets(schedulerState.hostname, 30, hostnameFile)
+      != schedulerState.hostname
+    ) {
+      printString("ERROR! fgets did not read hostname!\n");
+    }
+    if (strchr(schedulerState.hostname, '\r')) {
+      *strchr(schedulerState.hostname, '\r') = '\0';
+    } else if (strchr(schedulerState.hostname, '\n')) {
+      *strchr(schedulerState.hostname, '\n') = '\0';
+    } else if (*schedulerState.hostname == '\0') {
+      strcpy(schedulerState.hostname, "localhost");
+    }
+    printDebug("Closing hostnameFile\n");
+    kfclose(&schedulerState, hostnameFile);
+  } else {
+    printString("ERROR! kfopen of hostname returned NULL!\n");
+  }
 
   // Run our scheduler.
   while (1) {
