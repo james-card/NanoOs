@@ -75,10 +75,12 @@ typedef struct SdCommandParams {
 /// @param blockSize The number of bytes per block on the SD card as presented
 ///   to the host.
 /// @param numBlocks The total number of blocks available on the SD card.
+/// @param sdCardVersion The version of the card (1 or 2).
 typedef struct SdCardState {
   uint8_t chipSelect;
   uint16_t blockSize;
   uint32_t numBlocks;
+  int sdCardVersion;
 } SdCardState;
 
 /// @typedef SdCardCommandHandler
@@ -229,30 +231,39 @@ int sdSpiCardInit(uint8_t chipSelect) {
   return isSDv2 ? 2 : 1;
 }
 
-/// @fn bool sdSpiReadBlock(
-///   uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer)
+/// @fn bool sdSpiReadBlock(SdCardState *sdCardState,
+///   uint32_t blockNumber, uint8_t *buffer)
 ///
 /// @brief Read a 512-byte block from the SD card.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @param sdCardState A pointer to the SdCardState object maintained by the
+///   runSdCard process.
 /// @param blockNumber The logical block number to read from the card.
 /// @param buffer A pointer to a character buffer to read the block into.
 ///
 /// @return Returns 0 on success, error code on failure.
-int sdSpiReadBlock(uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer) {
+int sdSpiReadBlock(SdCardState *sdCardState,
+  uint32_t blockNumber, uint8_t *buffer
+) {
   // Check that buffer is not null
   if (buffer == NULL) {
     return EINVAL;
   }
   
-  // Convert block number to byte address (multiply by 512)
-  uint32_t address = blockNumber << 9;
+  printDebug("Reading block ");
+  printDebug(blockNumber);
+  printDebug("\n");
+
+  uint32_t address = blockNumber;
+  if (sdCardState->sdCardVersion == 1) {
+    address *= sdCardState->blockSize; // Convert to byte address
+  }
+  
   
   // Send READ_SINGLE_BLOCK command
-  uint8_t response = sdSpiSendCommand(chipSelect, CMD17, address);
+  uint8_t response = sdSpiSendCommand(sdCardState->chipSelect, CMD17, address);
   if (response != 0x00) {
-    sdSpiEnd(chipSelect);
+    sdSpiEnd(sdCardState->chipSelect);
     return EIO; // Command failed
   }
   
@@ -264,7 +275,7 @@ int sdSpiReadBlock(uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer) {
       break;
     }
     if (timeout == 0) {
-      sdSpiEnd(chipSelect);
+      sdSpiEnd(sdCardState->chipSelect);
       return EIO;  // Timeout waiting for data
     }
   }
@@ -278,34 +289,45 @@ int sdSpiReadBlock(uint8_t chipSelect, uint32_t blockNumber, uint8_t *buffer) {
   SPI.transfer(0xFF);
   SPI.transfer(0xFF);
   
-  sdSpiEnd(chipSelect);
+  sdSpiEnd(sdCardState->chipSelect);
+
+  printDebug("buffer[0x1FE] = 0x");
+  Serial.print(buffer[0x1FE], HEX);
+  printDebug("\n");
+  printDebug("buffer[0x1FF] = 0x");
+  Serial.print(buffer[0x1FF], HEX);
+  printDebug("\n");
+
   return 0;
 }
 
-/// @fn int sdSpiWriteBlock(uint8_t chipSelect,
+/// @fn int sdSpiWriteBlock(SdCardState *sdCardState,
 ///   uint32_t blockNumber, const uint8_t *buffer)
 /// 
 /// @brief Write a 512-byte block to the SD card.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @param sdCardState A pointer to the SdCardState object maintained by the
+///   runSdCard process.
 /// @param blockNumber The logical block number to write from the card.
 /// @param buffer A pointer to a character buffer to write the block from.
 ///
 /// @return Returns 0 on success, error code on failure.
-int sdSpiWriteBlock(uint8_t chipSelect,
+int sdSpiWriteBlock(SdCardState *sdCardState,
   uint32_t blockNumber, const uint8_t *buffer
 ) {
   if (buffer == NULL) {
     return EINVAL;
   }
   
-  uint32_t address = blockNumber << 9;  // Convert to byte address
+  uint32_t address = blockNumber;
+  if (sdCardState->sdCardVersion == 1) {
+    address *= sdCardState->blockSize; // Convert to byte address
+  }
   
   // Send WRITE_BLOCK command
-  uint8_t response = sdSpiSendCommand(chipSelect, CMD24, address);
+  uint8_t response = sdSpiSendCommand(sdCardState->chipSelect, CMD24, address);
   if (response != 0x00) {
-    sdSpiEnd(chipSelect);
+    sdSpiEnd(sdCardState->chipSelect);
     return EIO; // Command failed
   }
   
@@ -324,7 +346,7 @@ int sdSpiWriteBlock(uint8_t chipSelect,
   // Get data response
   response = SPI.transfer(0xFF);
   if ((response & 0x1F) != 0x05) {
-    sdSpiEnd(chipSelect);
+    sdSpiEnd(sdCardState->chipSelect);
     return EIO; // Bad response
   }
   
@@ -335,12 +357,12 @@ int sdSpiWriteBlock(uint8_t chipSelect,
       break;
     }
     if (timeout == 0) {
-      sdSpiEnd(chipSelect);
+      sdSpiEnd(sdCardState->chipSelect);
       return EIO; // Write timeout
     }
   }
   
-  sdSpiEnd(chipSelect);
+  sdSpiEnd(sdCardState->chipSelect);
   return 0;
 }
 
@@ -523,11 +545,10 @@ int sdCardReadBlocksCommandHandler(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
 
   if (returnValue == 0) {
-    uint8_t chipSelect = sdCardState->chipSelect;
     uint8_t *buffer = sdCommandParams->buffer;
 
     for (uint32_t ii = 0; ii < numSdBlocks; ii++) {
-      returnValue = sdSpiReadBlock(chipSelect, startSdBlock + ii, buffer);
+      returnValue = sdSpiReadBlock(sdCardState, startSdBlock + ii, buffer);
       if (returnValue != 0) {
         break;
       }
@@ -564,11 +585,10 @@ int sdCardWriteBlocksCommandHandler(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
 
   if (returnValue == 0) {
-    uint8_t chipSelect = sdCardState->chipSelect;
     uint8_t *buffer = sdCommandParams->buffer;
 
     for (uint32_t ii = 0; ii < numSdBlocks; ii++) {
-      returnValue = sdSpiWriteBlock(chipSelect, startSdBlock + ii, buffer);
+      returnValue = sdSpiWriteBlock(sdCardState, startSdBlock + ii, buffer);
       if (returnValue != 0) {
         break;
       }
@@ -712,13 +732,13 @@ void* runSdCard(void *args) {
   };
   coroutineYield(&sdDevice);
 
-  int sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
-  if (sdCardVersion > 0) {
+  sdCardState.sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
+  if (sdCardState.sdCardVersion > 0) {
     sdCardState.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
     sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
 #ifdef SD_CARD_DEBUG
     printString("Card is ");
-    printString((sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
+    printString((sdCardState.sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
     printString("\n");
 
     printString("Card block size = ");
@@ -732,7 +752,7 @@ void* runSdCard(void *args) {
 #endif // SD_CARD_DEBUG
   } else {
     printString("ERROR! sdSpiCardInit returned status ");
-    printInt(sdCardVersion);
+    printInt(sdCardState.sdCardVersion);
     printString("\n");
   }
 
