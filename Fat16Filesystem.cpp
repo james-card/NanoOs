@@ -78,9 +78,14 @@ static int fat16CompareFilenames(
       }
     }
   }
-  
   filename[jj] = '\0';
-  return strcmp(filename, pathname);
+
+  int returnValue = 0;
+  for (ii = 0; (returnValue == 0) && (filename[ii]) && (pathname[ii]); ii++) {
+    returnValue = filename[ii] - toupper(pathname[ii]);
+  }
+
+  return returnValue;
 }
 
 // Find a file in the root directory
