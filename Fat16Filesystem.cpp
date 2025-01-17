@@ -161,6 +161,8 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   file->currentPosition = 0;
   file->fileSize = dirEntry->fileSize;
   file->firstCluster = dirEntry->firstClusterLow;
+  file->pathname = (char*) malloc(strlen(pathname) + 1);
+  strcpy(file->pathname, pathname);
   
   return file;
 }
@@ -287,7 +289,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
   if (fat16ReadBlock(fs, fatStartBlock, fs->blockBuffer) != 0) {
     return -EIO;
   }
-  uint16_t *fatTable = (uint16_t *) fs->blockBuffer;
+  uint16_t *fatTable = (uint16_t*) fs->blockBuffer;
   
   while (remainingBytes > 0) {
     // If we're at the end of a cluster, we need to find/allocate next one
@@ -310,8 +312,8 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
         if (newCluster == 0) {
           // Update directory entry with current file size before returning
           Fat16DirectoryEntry *dirEntry = fat16FindFile(fs,
-            NULL, // We'd need filename here - simplified
-            (Fat16BootSector *)bootSector);
+            file->pathname,
+            (Fat16BootSector*) bootSector);
           if (dirEntry) {
             dirEntry->fileSize = file->fileSize;
             // Write directory entry block back
@@ -386,7 +388,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
   
   // Update directory entry with new file size
   Fat16DirectoryEntry *dirEntry = fat16FindFile(fs,
-    NULL, // We'd need filename here - simplified
+    file->pathname,
     (Fat16BootSector *)bootSector);
   if (dirEntry) {
     dirEntry->fileSize = file->fileSize;
@@ -457,7 +459,9 @@ int fat16FilesystemCloseFileCommandHandler(
 
   NanoOsFile *nanoOsFile
     = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
-  free(nanoOsFile->file);
+  Fat16File *fat16File = (Fat16File*) nanoOsFile->file;
+  free(fat16File->pathname);
+  free(fat16File);
   free(nanoOsFile);
 
   processMessageSetDone(processMessage);

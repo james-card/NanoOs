@@ -97,6 +97,7 @@ typedef struct Fat16File {
   uint32_t currentPosition;
   uint32_t fileSize;
   uint32_t firstCluster;
+  char *pathname;
 } Fat16File;
 
 // Exported functionality
