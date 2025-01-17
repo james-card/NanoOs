@@ -55,6 +55,53 @@ static Fat16BootSector* fat16ReadBootSector(FilesystemState *fs) {
   return (Fat16BootSector*) fs->blockBuffer;
 }
 
+// Calculate the first sector of the root directory
+static uint32_t fat16GetRootDirectoryStartSector(FilesystemState *fs,
+  Fat16BootSector *bootSector
+) {
+  return fs->startLba + bootSector->reservedSectorCount + 
+    (bootSector->numberOfFats * bootSector->sectorsPerFat);
+}
+
+// Helper function to parse a pathname into FAT16 8.3 format
+static void fat16ParsePathname(const char *pathname,
+  char *filename, char *extension
+) {
+  // Initialize filename and extension with spaces
+  memset(filename, ' ', 8);
+  memset(extension, ' ', 3);
+  filename[8] = '\0';
+  extension[3] = '\0';
+
+  // Find the last dot in the pathname
+  const char *dot = strrchr(pathname, '.');
+  const char *nameStart = pathname;
+  size_t nameLength;
+  size_t extensionLength;
+
+  if (dot != NULL) {
+    // We found an extension
+    nameLength = dot - pathname;
+    extensionLength = strlen(dot + 1);
+  } else {
+    // No extension
+    nameLength = strlen(pathname);
+    extensionLength = 0;
+  }
+
+  // Copy and uppercase the filename (up to 8 characters)
+  for (size_t ii = 0; ii < 8 && ii < nameLength; ii++) {
+    filename[ii] = toupper((unsigned char) pathname[ii]);
+  }
+
+  // Copy and uppercase the extension (up to 3 characters)
+  if (dot != NULL) {
+    for (size_t ii = 0; ii < 3 && ii < extensionLength; ii++) {
+      extension[ii] = toupper((unsigned char) dot[ii + 1]);
+    }
+  }
+}
+
 // Compare two filenames in FAT16 8.3 format
 static int fat16CompareFilenames(
   const uint8_t *dirEntry, const char *pathname
@@ -120,6 +167,113 @@ static Fat16DirectoryEntry* fat16FindFile(FilesystemState *fs,
   return NULL;
 }
 
+// Helper function to find a free directory entry in the root directory
+static int fat16FindFreeDirectoryEntry(FilesystemState *fs,
+  Fat16BootSector *bootSector, uint32_t *entryOffset
+) {
+  uint32_t rootDirStartSector = fat16GetRootDirectoryStartSector(fs, bootSector);
+  uint32_t entriesPerSector = bootSector->bytesPerSector / 
+    sizeof(Fat16DirectoryEntry);
+  uint32_t rootDirSectors = (bootSector->rootEntryCount * 
+    sizeof(Fat16DirectoryEntry) + bootSector->bytesPerSector - 1) / 
+    bootSector->bytesPerSector;
+
+  // Search through all root directory sectors
+  for (uint32_t sector = 0; sector < rootDirSectors; sector++) {
+    if (fat16ReadBlock(fs, rootDirStartSector + sector, fs->blockBuffer) != 0) {
+      return -1;
+    }
+
+    Fat16DirectoryEntry *dirSector = (Fat16DirectoryEntry *) fs->blockBuffer;
+
+    // Check each entry in this sector
+    for (uint32_t entry = 0; entry < entriesPerSector; entry++) {
+      uint8_t firstChar = dirSector[entry].filename[0];
+      if (firstChar == 0x00 || firstChar == 0xE5) {
+        // Found a free entry - return its offset
+        *entryOffset = (sector * entriesPerSector + entry) * 
+          sizeof(Fat16DirectoryEntry);
+        return 0;
+      }
+    }
+  }
+
+  return -1;  // No free entry found
+}
+
+// Helper function to write a directory entry back to disk
+static int fat16WriteDirectoryEntry(FilesystemState *fs,
+  const Fat16DirectoryEntry *entry, uint32_t entryOffset
+) {
+  Fat16BootSector *bootSector = fat16ReadBootSector(fs);
+  if (bootSector == NULL) {
+    return -1;
+  }
+
+  uint32_t rootDirStartSector = fat16GetRootDirectoryStartSector(fs, bootSector);
+  uint32_t entrySector = rootDirStartSector + 
+    (entryOffset / bootSector->bytesPerSector);
+  uint32_t entryOffsetInSector = entryOffset % bootSector->bytesPerSector;
+
+  if (fat16ReadBlock(fs, entrySector, fs->blockBuffer) != 0) {
+    return -1;
+  }
+
+  // Update the entry in the sector buffer
+  memcpy(fs->blockBuffer + entryOffsetInSector, entry, 
+    sizeof(Fat16DirectoryEntry));
+
+  // Write the sector back
+  return fat16WriteBlock(fs, entrySector, fs->blockBuffer);
+}
+
+// Helper function to create a new file
+static Fat16DirectoryEntry* fat16CreateFile(FilesystemState *fs,
+  const char *pathname, Fat16BootSector *bootSector
+) {
+  uint32_t entryOffset;
+  
+  // Find a free directory entry
+  if (fat16FindFreeDirectoryEntry(fs, bootSector, &entryOffset) != 0) {
+    return NULL;
+  }
+
+  // Create the directory entry in our shared buffer
+  Fat16DirectoryEntry *newEntry = (Fat16DirectoryEntry *) fs->blockBuffer;
+  memset(newEntry, 0, sizeof(Fat16DirectoryEntry));
+  
+  // Parse pathname into filename and extension
+  char filename[9] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '\0'};
+  char extension[4] = {' ', ' ', ' ', '\0'};
+  fat16ParsePathname(pathname, filename, extension);
+
+  // Fill in the directory entry
+  memcpy(newEntry->filename, filename, 8);
+  memcpy(newEntry->extension, extension, 3);
+  
+  // Initialize all time/date fields to 0
+  newEntry->creationTime = 0;
+  newEntry->creationDate = 0;
+  newEntry->lastModifiedTime = 0;
+  newEntry->lastModifiedDate = 0;
+  newEntry->lastAccessDate = 0;
+  
+  // Initially the file has no clusters and zero size
+  newEntry->firstClusterLow = 0;
+  newEntry->fileSize = 0;
+  
+  // Standard file attributes
+  newEntry->attributes = 0x20;  // Normal file
+
+  // Write the entry to disk
+  if (fat16WriteDirectoryEntry(fs, newEntry, entryOffset) != 0) {
+    return NULL;
+  }
+
+  // Return a pointer to our buffer containing the entry
+  return newEntry;
+}
+
 Fat16File* fat16Fopen(FilesystemState *fs,
   const char *pathname, const char *mode
 ) {
@@ -127,43 +281,69 @@ Fat16File* fat16Fopen(FilesystemState *fs,
     printString("Invalid parameters\n");
     return NULL;
   }
-  
-  // Only support "r" and "w" modes for now
-  if ((strchr(mode, 'r') == NULL) && (strchr(mode, 'w') == NULL)) {
+
+  // Support "r", "w", and "a" modes
+  bool isRead = (strchr(mode, 'r') != NULL);
+  bool isWrite = (strchr(mode, 'w') != NULL);
+  bool isAppend = (strchr(mode, 'a') != NULL);
+
+  if (!isRead && !isWrite && !isAppend) {
     printString("Unsupported mode\n");
     return NULL;
   }
-  
+
   Fat16BootSector *bootSector = fat16ReadBootSector(fs);
   if (bootSector == NULL) {
     printString("Failed to read boot sector\n");
     return NULL;
   }
-  
+
   Fat16DirectoryEntry *dirEntry = fat16FindFile(fs, pathname, bootSector);
   if (dirEntry == NULL) {
-    if (strcmp(mode, "r") == 0) {
+    if (isRead) {
       printString("File not found\n");
       return NULL;
     }
-    // TODO: Implement file creation for write mode
-    printString("File creation not implemented\n");
-    return NULL;
+
+    // Create new file for write or append mode
+    dirEntry = fat16CreateFile(fs, pathname, bootSector);
+    if (dirEntry == NULL) {
+      printString("Failed to create file\n");
+      return NULL;
+    }
   }
-  
-  Fat16File *file = (Fat16File*) malloc(sizeof(Fat16File));
+
+  Fat16File *file = (Fat16File *) malloc(sizeof(Fat16File));
   if (file == NULL) {
     printString("Memory allocation failed\n");
     return NULL;
   }
-  
+
   file->currentCluster = dirEntry->firstClusterLow;
-  file->currentPosition = 0;
   file->fileSize = dirEntry->fileSize;
   file->firstCluster = dirEntry->firstClusterLow;
-  file->pathname = (char*) malloc(strlen(pathname) + 1);
+  file->pathname = (char *) malloc(strlen(pathname) + 1);
+  if (file->pathname == NULL) {
+    free(file);
+    printString("Memory allocation failed\n");
+    return NULL;
+  }
   strcpy(file->pathname, pathname);
-  
+
+  // Set initial position based on mode
+  if (isAppend) {
+    file->currentPosition = file->fileSize;
+  } else {
+    file->currentPosition = 0;
+  }
+
+  // For write mode, truncate existing file
+  if (isWrite && dirEntry->fileSize > 0) {
+    file->fileSize = 0;
+    // Note: Actual cluster chain cleanup would be done in a separate function
+    // when implementing the write functionality
+  }
+
   return file;
 }
 
