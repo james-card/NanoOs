@@ -161,7 +161,6 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   file->currentPosition = 0;
   file->fileSize = dirEntry->fileSize;
   file->firstCluster = dirEntry->firstClusterLow;
-  file->mode = mode[0];
   
   return file;
 }
