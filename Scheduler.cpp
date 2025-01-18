@@ -2519,13 +2519,8 @@ __attribute__((noinline)) void startScheduler(
   // Allocate memory for the hostname.
   schedulerState.hostname = (char*) kcalloc(1, 30);
   if (schedulerState.hostname != NULL) {
-    printDebug("Opening hostname\n");
     FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
-    printDebug("hostnameFile = ");
-    printDebug((intptr_t) hostnameFile);
-    printDebug("\n");
     if (hostnameFile != NULL) {
-      printDebug("hostnameFile was opened successfully\n");
       if (kFilesystemFGets(&schedulerState,
         schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
       ) {
@@ -2533,15 +2528,11 @@ __attribute__((noinline)) void startScheduler(
       }
       if (strchr(schedulerState.hostname, '\r')) {
         *strchr(schedulerState.hostname, '\r') = '\0';
-        printDebug("Found \\r in schedulerState.hostname\n");
       } else if (strchr(schedulerState.hostname, '\n')) {
         *strchr(schedulerState.hostname, '\n') = '\0';
-        printDebug("Found \\n in schedulerState.hostname\n");
       } else if (*schedulerState.hostname == '\0') {
         strcpy(schedulerState.hostname, "localhost");
-        printDebug("Copied \"localhost\" to schedulerState.hostname\n");
       }
-      printDebug("Closing hostnameFile\n");
       kfclose(&schedulerState, hostnameFile);
     } else {
       printString("ERROR! kfopen of hostname returned NULL!\n");
