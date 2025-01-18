@@ -131,7 +131,7 @@ int fat16FindFreeDirectoryEntry(FilesystemState *fs,
 int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
   const char *mode, Fat16DirectoryEntry *outEntry, uint32_t *outOffset
 ) {
-  bool createFile = false;
+  char createFile = '\0';
   for (int ii = 0; mode[ii] != '\0'; ii++) {
     // 'a' = 0x61
     // 'b' = 0x62
@@ -147,10 +147,7 @@ int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
     // writing operations have odd values.  None of the other ones do.  So, if
     // there is a mode character that has an odd value, we need to create the
     // file.
-    if (mode[ii] & 1) {
-      createFile = true;
-      break;
-    }
+    createFile |= mode[ii] & 1;
   }
 
   // Read boot sector directly
@@ -225,19 +222,16 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
 ) {
   Fat16DirectoryEntry entry;
   uint32_t entryOffset;
-  bool createFile = false;
+  char createFile = '\0';
   for (int ii = 0; mode[ii] != '\0'; ii++) {
     // See the comment in fat16CreateOrFindFile for the rationale behind this
     // logic.
-    if (mode[ii] & 1) {
-      createFile = true;
-      break;
-    }
+    createFile |= mode[ii] & 1;
   }
 
   int result = fat16CreateOrFindFile(fs, pathname, mode, &entry, &entryOffset);
   
-  if (result < 0 || ((result == 0) && (createFile == false))) {
+  if (result < 0 || ((result == 0) && (!createFile))) {
     return NULL;
   }
 
