@@ -92,11 +92,11 @@ typedef struct Fat16DirectoryEntry {
   uint32_t fileSize;
 } Fat16DirectoryEntry;
 
-typedef struct Fat16File {
-  uint32_t currentCluster;
+typedef struct __attribute__((packed)) Fat16File {
+  uint16_t currentCluster;
   uint32_t currentPosition;
   uint32_t fileSize;
-  uint32_t firstCluster;
+  uint16_t firstCluster;
   char *pathname;
 } Fat16File;
 
