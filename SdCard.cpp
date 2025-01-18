@@ -250,10 +250,6 @@ int sdSpiReadBlock(SdCardState *sdCardState,
     return EINVAL;
   }
   
-  printDebug("Reading block ");
-  printDebug(blockNumber);
-  printDebug("\n");
-
   uint32_t address = blockNumber;
   if (sdCardState->sdCardVersion == 1) {
     address *= sdCardState->blockSize; // Convert to byte address
@@ -290,14 +286,6 @@ int sdSpiReadBlock(SdCardState *sdCardState,
   SPI.transfer(0xFF);
   
   sdSpiEnd(sdCardState->chipSelect);
-
-  printDebug("buffer[0x1FE] = 0x");
-  Serial.print(buffer[0x1FE], HEX);
-  printDebug("\n");
-  printDebug("buffer[0x1FF] = 0x");
-  Serial.print(buffer[0x1FF], HEX);
-  printDebug("\n");
-
   return 0;
 }
 
