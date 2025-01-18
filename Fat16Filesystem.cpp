@@ -223,11 +223,14 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   Fat16DirectoryEntry entry;
   uint32_t entryOffset;
   char createFile = '\0';
+  char append = '\0';
   for (int ii = 0; mode[ii] != '\0'; ii++) {
     // See the comment in fat16CreateOrFindFile for the rationale behind this
     // logic.
     createFile |= mode[ii] & 1;
+    append |= mode[ii] & 2;
   }
+  append = !append;
 
   int result = fat16CreateOrFindFile(fs, pathname, mode, &entry, &entryOffset);
   
@@ -243,7 +246,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   file->currentCluster = entry.firstClusterLow;
   file->fileSize = entry.fileSize;
   file->firstCluster = entry.firstClusterLow;
-  file->currentPosition = (strchr(mode, 'a')) ? file->fileSize : 0;
+  file->currentPosition = (append) ? file->fileSize : 0;
   file->pathname = strdup(pathname);
 
   return file;
