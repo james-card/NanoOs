@@ -147,6 +147,12 @@ int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
     // writing operations have odd values.  None of the other ones do.  So, if
     // there is a mode character that has an odd value, we need to create the
     // file.
+    //
+    // Also, 'a' is the only character that does not involve a binary 2 in its
+    // value.  We can initialize an append character variable to a NULL byte
+    // and bitwise OR it with the negation of each character bitwise ANDed with
+    // 0x2.  At the end of that, the variable will only be non-zero if an 'a'
+    // character was encountered.
     createFile |= mode[ii] & 1;
   }
 
@@ -228,9 +234,8 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     // See the comment in fat16CreateOrFindFile for the rationale behind this
     // logic.
     createFile |= mode[ii] & 1;
-    append |= mode[ii] & 2;
+    append |= !(mode[ii] & 2);
   }
-  append = !append;
 
   int result = fat16CreateOrFindFile(fs, pathname, mode, &entry, &entryOffset);
   
