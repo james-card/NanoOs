@@ -290,110 +290,91 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
   return bytesRead;
 }
 
+static uint32_t fat16AllocateCluster(FilesystemState *fs,
+  uint32_t fatStart, uint32_t currentCluster
+) {
+  if (fat16ReadBlock(fs, fatStart, fs->blockBuffer) != 0) {
+    return 0;
+  }
+  
+  uint16_t *fat = (uint16_t*) fs->blockBuffer;
+  uint32_t newCluster = 0;
+  
+  // Find free cluster
+  for (uint32_t ii = 2; ii < 0xFF0; ii++) {
+    if (fat[ii] == 0) {
+      newCluster = ii;
+      break;
+    }
+  }
+  
+  if (newCluster) {
+    fat[currentCluster] = newCluster;
+    fat[newCluster] = 0xFFFF;
+    // Write all FAT copies
+    Fat16BootSector *bootSector = fat16ReadBootSector(fs);
+    for (uint8_t ii = 0; ii < bootSector->numberOfFats; ii++) {
+      fat16WriteBlock(fs, fatStart + (ii * bootSector->sectorsPerFat),
+        fs->blockBuffer);
+    }
+  }
+  
+  return newCluster;
+}
+
 int fat16Write(FilesystemState *fs, Fat16File *file,
   const uint8_t *buffer, uint32_t length
 ) {
   if (!fs || !file || !buffer || !length) {
-    return -EINVAL;
+    return -1;
   }
 
   Fat16BootSector *bootSector = fat16ReadBootSector(fs);
   if (!bootSector) {
-    return -EIO;
+    return -1;
   }
+
+  uint32_t fatStart = fs->startLba + bootSector->reservedSectorCount;
+  uint32_t dataStart = fatStart + (bootSector->numberOfFats *
+    bootSector->sectorsPerFat) + ((bootSector->rootEntryCount * 32) /
+    bootSector->bytesPerSector);
 
   uint32_t bytesWritten = 0;
   uint32_t bytesPerCluster = bootSector->bytesPerSector *
     bootSector->sectorsPerCluster;
-  uint32_t dataStart = fs->startLba + bootSector->reservedSectorCount +
-    (bootSector->numberOfFats * bootSector->sectorsPerFat) +
-    ((bootSector->rootEntryCount * 32) / bootSector->bytesPerSector);
 
   while (bytesWritten < length) {
-    if (file->currentCluster == 0 ||
-        (file->currentPosition % bytesPerCluster) == 0) {
-      // Need new cluster
-      uint32_t newCluster = 0;
-      if (fat16ReadBlock(fs, fs->startLba + bootSector->reservedSectorCount,
-          fs->blockBuffer) != 0) {
-        return bytesWritten ? bytesWritten : -EIO;
-      }
-      uint16_t *fat = (uint16_t*) fs->blockBuffer;
-
-      // Find free cluster
-      for (uint32_t ii = 2; ii < (bootSector->sectorsPerFat * 256); ii++) {
-        if (fat[ii] == 0) {
-          newCluster = ii;
-          break;
-        }
-      }
+    // Need new cluster?
+    if (!file->currentCluster ||
+        !(file->currentPosition % bytesPerCluster)) {
+      uint32_t newCluster = fat16AllocateCluster(fs, fatStart,
+        file->currentCluster);
       if (!newCluster) {
-        return bytesWritten ? bytesWritten : -ENOSPC;
+        return -1;
       }
-
-      // Update FAT
-      if (file->currentCluster) {
-        fat[file->currentCluster] = newCluster;
-      } else {
-        file->firstCluster = newCluster;
-      }
-      fat[newCluster] = 0xFFFF;
       file->currentCluster = newCluster;
-
-      // Write FAT copies
-      for (uint8_t ii = 0; ii < bootSector->numberOfFats; ii++) {
-        if (fat16WriteBlock(fs, fs->startLba + bootSector->reservedSectorCount +
-            (ii * bootSector->sectorsPerFat), fs->blockBuffer) != 0) {
-          return bytesWritten ? bytesWritten : -EIO;
-        }
-      }
     }
 
-    uint32_t clusterOffset = file->currentPosition % bytesPerCluster;
-    uint32_t blockInCluster = clusterOffset / bootSector->bytesPerSector;
-    uint32_t offsetInBlock = clusterOffset % bootSector->bytesPerSector;
+    // Write block
     uint32_t currentBlock = dataStart +
-      ((file->currentCluster - 2) * bootSector->sectorsPerCluster) +
-      blockInCluster;
+      ((file->currentCluster - 2) * bootSector->sectorsPerCluster);
 
-    // Read-modify-write if not aligned
-    if (offsetInBlock && fat16ReadBlock(fs, currentBlock, fs->blockBuffer) != 0) {
-      return bytesWritten ? bytesWritten : -EIO;
+    if (fat16WriteBlock(fs, currentBlock, buffer + bytesWritten) != 0) {
+      return -1;
     }
 
-    uint32_t bytesToWrite = bootSector->bytesPerSector - offsetInBlock;
-    if (bytesToWrite > (length - bytesWritten)) {
-      bytesToWrite = length - bytesWritten;
-    }
-
-    memcpy(fs->blockBuffer + offsetInBlock,
-      buffer + bytesWritten, bytesToWrite);
-
-    if (fat16WriteBlock(fs, currentBlock, fs->blockBuffer) != 0) {
-      return bytesWritten ? bytesWritten : -EIO;
-    }
-
-    bytesWritten += bytesToWrite;
-    file->currentPosition += bytesToWrite;
-    if (file->currentPosition > file->fileSize) {
-      file->fileSize = file->currentPosition;
-    }
+    bytesWritten += bootSector->bytesPerSector;
+    file->currentPosition += bootSector->bytesPerSector;
+    file->fileSize = file->currentPosition;
   }
 
-  // Update directory entry with new file size
-  Fat16DirectoryEntry *dirEntry = fat16FindFile(fs,
-    file->pathname, bootSector);
+  // Update directory entry
+  Fat16DirectoryEntry *dirEntry = fat16FindFile(fs, file->pathname, bootSector);
   if (dirEntry) {
     dirEntry->fileSize = file->fileSize;
-    dirEntry->lastModifiedTime = 0;  // Would set from RTC
-    dirEntry->lastModifiedDate = 0;  // Would set from RTC
-
-    if (fat16WriteBlock(fs, fs->startLba +
-        bootSector->reservedSectorCount +
-        (bootSector->numberOfFats * bootSector->sectorsPerFat),
-        fs->blockBuffer) != 0) {
-      return -EIO;
-    }
+    fat16WriteBlock(fs, fs->startLba + bootSector->reservedSectorCount +
+      (bootSector->numberOfFats * bootSector->sectorsPerFat),
+      fs->blockBuffer);
   }
 
   return bytesWritten;
