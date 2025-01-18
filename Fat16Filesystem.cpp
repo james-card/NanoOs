@@ -129,33 +129,8 @@ int fat16FindFreeDirectoryEntry(FilesystemState *fs,
 
 // Combined directory entry operations
 int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
-  const char *mode, Fat16DirectoryEntry *outEntry, uint32_t *outOffset
+  bool createFile, Fat16DirectoryEntry *outEntry, uint32_t *outOffset
 ) {
-  char createFile = '\0';
-  for (int ii = 0; mode[ii] != '\0'; ii++) {
-    // 'a' = 0x61
-    // 'b' = 0x62
-    // 'r' = 0x72
-    // 'w' = 0x77
-    // '+' = 0x2b
-    //
-    // '+' is always a read and some kind of write operation.
-    // Anything that involves writing must create the file.
-    // The presence of a 'b' does nothing.
-    //
-    // Given the ASCII character codes above, all of the characters that involve
-    // writing operations have odd values.  None of the other ones do.  So, if
-    // there is a mode character that has an odd value, we need to create the
-    // file.
-    //
-    // Also, 'a' is the only character that does not involve a binary 2 in its
-    // value.  We can initialize an append character variable to a NULL byte
-    // and bitwise OR it with the negation of each character bitwise ANDed with
-    // 0x2.  At the end of that, the variable will only be non-zero if an 'a'
-    // character was encountered.
-    createFile |= mode[ii] & 1;
-  }
-
   // Read boot sector directly
   if (fs->blockDevice->readBlocks(fs->blockDevice->context, fs->startLba, 1,
       fs->blockSize, fs->blockBuffer) != 0) {
@@ -231,13 +206,32 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   char createFile = '\0';
   char append = '\0';
   for (int ii = 0; mode[ii] != '\0'; ii++) {
-    // See the comment in fat16CreateOrFindFile for the rationale behind this
-    // logic.
+    // 'a' = 0x61
+    // 'b' = 0x62
+    // 'r' = 0x72
+    // 'w' = 0x77
+    // '+' = 0x2b
+    //
+    // '+' is always a read and some kind of write operation.
+    // Anything that involves writing must create the file.
+    // The presence of a 'b' does nothing.
+    //
+    // Given the ASCII character codes above, all of the characters that involve
+    // writing operations have odd values.  None of the other ones do.  So, if
+    // there is a mode character that has an odd value, we need to create the
+    // file.
+    //
+    // Also, 'a' is the only character that does not involve a binary 2 in its
+    // value.  We can initialize an append character variable to a NULL byte
+    // and bitwise OR it with the negation of each character bitwise ANDed with
+    // 0x2.  At the end of that, the variable will only be non-zero if an 'a'
+    // character was encountered.
     createFile |= mode[ii] & 1;
     append |= !(mode[ii] & 2);
   }
 
-  int result = fat16CreateOrFindFile(fs, pathname, mode, &entry, &entryOffset);
+  int result
+    = fat16CreateOrFindFile(fs, pathname, createFile, &entry, &entryOffset);
   
   if (result < 0 || ((result == 0) && (!createFile))) {
     return NULL;
@@ -459,7 +453,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
   // Update directory entry
   Fat16DirectoryEntry entry;
   uint32_t entryOffset;
-  if (fat16CreateOrFindFile(fs, file->pathname, "r", &entry,
+  if (fat16CreateOrFindFile(fs, file->pathname, false, &entry,
       &entryOffset) == 1) {
     entry.fileSize = file->fileSize;
     if (!file->firstCluster) {
