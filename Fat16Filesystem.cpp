@@ -46,13 +46,13 @@ static inline int fat16WriteBlock(FilesystemState *fs,
 }
 
 // Boot sector operations
-static Fat16BootSector* fat16ReadBootSector(FilesystemState *fs) {
+Fat16BootSector* fat16ReadBootSector(FilesystemState *fs) {
   return (fat16ReadBlock(fs, fs->startLba, fs->blockBuffer) == 0) ?
     (Fat16BootSector*) fs->blockBuffer : NULL;
 }
 
 // Filename handling
-static void fat16ParsePathname(const char *pathname,
+void fat16ParsePathname(const char *pathname,
   char *filename, char *extension
 ) {
   memset(filename, ' ', 8);
@@ -74,7 +74,7 @@ static void fat16ParsePathname(const char *pathname,
 }
 
 // Directory entry operations
-static int fat16WriteDirectoryEntry(FilesystemState *fs,
+int fat16WriteDirectoryEntry(FilesystemState *fs,
   const Fat16DirectoryEntry *entry, uint32_t entryOffset
 ) {
   Fat16BootSector *bootSector = fat16ReadBootSector(fs);
@@ -98,7 +98,7 @@ static int fat16WriteDirectoryEntry(FilesystemState *fs,
   return fat16WriteBlock(fs, entrySector, fs->blockBuffer);
 }
 
-static int fat16FindFreeDirectoryEntry(FilesystemState *fs,
+int fat16FindFreeDirectoryEntry(FilesystemState *fs,
   Fat16BootSector *bootSector, uint32_t *entryOffset
 ) {
   uint32_t rootDirStartSector = fs->startLba + bootSector->reservedSectorCount + 
@@ -127,7 +127,7 @@ static int fat16FindFreeDirectoryEntry(FilesystemState *fs,
   return -1;
 }
 
-static Fat16DirectoryEntry* fat16FindFile(FilesystemState *fs,
+Fat16DirectoryEntry* fat16FindFile(FilesystemState *fs,
   const char *pathname, Fat16BootSector *bootSector
 ) {
   uint32_t rootDirStart = fs->startLba + bootSector->reservedSectorCount + 
@@ -215,7 +215,7 @@ Fat16File* fat16Fopen(FilesystemState *fs,
   return file;
 }
 
-static uint32_t fat16GetNextCluster(FilesystemState *fs,
+uint32_t fat16GetNextCluster(FilesystemState *fs,
   Fat16BootSector *bootSector, uint32_t currentCluster
 ) {
   uint32_t fatOffset = currentCluster * 2;
@@ -290,7 +290,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
   return bytesRead;
 }
 
-static uint32_t fat16AllocateCluster(FilesystemState *fs,
+uint32_t fat16AllocateCluster(FilesystemState *fs,
   uint32_t fatStart, uint32_t currentCluster
 ) {
   if (fat16ReadBlock(fs, fatStart, fs->blockBuffer) != 0) {
@@ -380,7 +380,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file,
   return bytesWritten;
 }
 
-static int getPartitionInfo(FilesystemState *fs) {
+int getPartitionInfo(FilesystemState *fs) {
   if (fs->blockDevice->partitionNumber == 0) {
     return -1;
   }
