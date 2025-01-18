@@ -53,44 +53,19 @@ extern "C"
 #define FAT16_ATTR_DIRECTORY 0x10
 #define FAT16_ATTR_FILE 0x20
 
-typedef struct Fat16BootSector {
-  uint8_t jumpBoot[3];
-  uint8_t oemName[8];
-  uint16_t bytesPerSector;
-  uint8_t sectorsPerCluster;
-  uint16_t reservedSectorCount;
-  uint8_t numberOfFats;
-  uint16_t rootEntryCount;
-  uint16_t totalSectors16;
-  uint8_t mediaType;
-  uint16_t sectorsPerFat;
-  uint16_t sectorsPerTrack;
-  uint16_t numberOfHeads;
-  uint32_t hiddenSectors;
-  uint32_t totalSectors32;
-  uint8_t driveNumber;
-  uint8_t reserved1;
-  uint8_t bootSignature;
-  uint32_t volumeId;
-  uint8_t volumeLabel[11];
-  uint8_t fileSystemType[8];
-} Fat16BootSector;
+// Boot sector offsets
+#define FAT16_BOOT_BYTES_PER_SECTOR 0x0B
+#define FAT16_BOOT_SECTORS_PER_CLUSTER 0x0D
+#define FAT16_BOOT_RESERVED_SECTORS 0x0E
+#define FAT16_BOOT_NUMBER_OF_FATS 0x10
+#define FAT16_BOOT_ROOT_ENTRIES 0x11
+#define FAT16_BOOT_SECTORS_PER_FAT 0x16
 
-typedef struct Fat16DirectoryEntry {
-  uint8_t filename[FAT16_FILENAME_LENGTH];
-  uint8_t extension[FAT16_EXTENSION_LENGTH];
-  uint8_t attributes;
-  uint8_t reserved;
-  uint8_t creationTimeMs;
-  uint16_t creationTime;
-  uint16_t creationDate;
-  uint16_t lastAccessDate;
-  uint16_t firstClusterHigh;
-  uint16_t lastModifiedTime;
-  uint16_t lastModifiedDate;
-  uint16_t firstClusterLow;
-  uint32_t fileSize;
-} Fat16DirectoryEntry;
+// Directory entry offsets
+#define FAT16_DIR_FILENAME 0x00
+#define FAT16_DIR_ATTRIBUTES 0x0B
+#define FAT16_DIR_FIRST_CLUSTER_LOW 0x1A
+#define FAT16_DIR_FILE_SIZE 0x1C
 
 typedef struct __attribute__((packed)) Fat16File {
   uint16_t currentCluster;
