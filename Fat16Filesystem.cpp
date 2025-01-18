@@ -203,32 +203,21 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
 ) {
   Fat16DirectoryEntry entry;
   uint32_t entryOffset;
-  char createFile = '\0';
-  char append = '\0';
-  for (int ii = 0; mode[ii] != '\0'; ii++) {
-    // 'a' = 0x61
-    // 'b' = 0x62
-    // 'r' = 0x72
-    // 'w' = 0x77
-    // '+' = 0x2b
-    //
-    // '+' is always a read and some kind of write operation.
-    // Anything that involves writing must create the file.
-    // The presence of a 'b' does nothing.
-    //
-    // Given the ASCII character codes above, all of the characters that involve
-    // writing operations have odd values.  None of the other ones do.  So, if
-    // there is a mode character that has an odd value, we need to create the
-    // file.
-    //
-    // Also, 'a' is the only character that does not involve a binary 2 in its
-    // value.  We can initialize an append character variable to a NULL byte
-    // and bitwise OR it with the negation of each character bitwise ANDed with
-    // 0x2.  At the end of that, the variable will only be non-zero if an 'a'
-    // character was encountered.
-    createFile |= mode[ii] & 1;
-    append |= !(mode[ii] & 2);
-  }
+  // 'a' = 0x61
+  // 'b' = 0x62
+  // 'r' = 0x72
+  // 'w' = 0x77
+  // '+' = 0x2b
+  //
+  // A file is only created if the file mode starts with 'a' or 'w'.  Since
+  // both of these values are odd, we can determine whether or not we need to
+  // create the file by bitwise ANDing the first character with 1.
+  //
+  // A file is only appended to if the file mode starts with 'a', so we can
+  // determine whether or not we need to append to the file by comparing the
+  // first character with 'a'.
+  char createFile = (mode[0] & 1);
+  char append = (mode[0] == 'a');
 
   int result
     = fat16CreateOrFindFile(fs, pathname, createFile, &entry, &entryOffset);
