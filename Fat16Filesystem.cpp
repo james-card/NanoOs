@@ -132,7 +132,7 @@ int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
   const char *mode, Fat16DirectoryEntry *outEntry, uint32_t *outOffset
 ) {
   bool createFile = false;
-  while (mode) {
+  for (int ii = 0; mode[ii] != '\0'; ii++) {
     // 'a' = 0x61
     // 'b' = 0x62
     // 'r' = 0x72
@@ -147,12 +147,10 @@ int fat16CreateOrFindFile(FilesystemState *fs, const char *pathname,
     // writing operations have odd values.  None of the other ones do.  So, if
     // there is a mode character that has an odd value, we need to create the
     // file.
-    char modeChar = *mode;
-    if (modeChar & 1) {
+    if (mode[ii] & 1) {
       createFile = true;
       break;
     }
-    mode++;
   }
 
   // Read boot sector directly
@@ -227,9 +225,19 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
 ) {
   Fat16DirectoryEntry entry;
   uint32_t entryOffset;
+  bool createFile = false;
+  for (int ii = 0; mode[ii] != '\0'; ii++) {
+    // See the comment in fat16CreateOrFindFile for the rationale behind this
+    // logic.
+    if (mode[ii] & 1) {
+      createFile = true;
+      break;
+    }
+  }
+
   int result = fat16CreateOrFindFile(fs, pathname, mode, &entry, &entryOffset);
   
-  if (result < 0 || (result == 0 && !strchr(mode, 'w'))) {
+  if (result < 0 || ((result == 0) && (createFile == false))) {
     return NULL;
   }
 
@@ -264,29 +272,31 @@ uint32_t fat16GetNextCluster(FilesystemState *fs,
 int fat16Read(FilesystemState *fs, Fat16File *file,
   void *buffer, uint32_t length
 ) {
-  if (!fs || !file || !buffer || !length) {
-    return -EINVAL;
-  }
-
+  // Quick bounds check
   uint32_t remainingBytes = file->fileSize - file->currentPosition;
-  length = (length > remainingBytes) ? remainingBytes : length;
-  if (!length) {
+  if (!remainingBytes) {
     return 0;
   }
+  length = (length > remainingBytes) ? remainingBytes : length;
 
-  Fat16BootSector *bootSector = fat16ReadBootSector(fs);
-  if (!bootSector) {
-    return -EIO;
+  // Read boot sector directly
+  if (fs->blockDevice->readBlocks(fs->blockDevice->context, fs->startLba, 1,
+      fs->blockSize, fs->blockBuffer) != 0) {
+    return -1;
   }
+  Fat16BootSector *bootSector = (Fat16BootSector*) fs->blockBuffer;
 
-  uint32_t bytesRead = 0;
+  // Calculate key offsets once
+  uint32_t fatStart = fs->startLba + bootSector->reservedSectorCount;
   uint32_t bytesPerCluster = bootSector->bytesPerSector *
     bootSector->sectorsPerCluster;
-  uint32_t dataStart = fs->startLba + bootSector->reservedSectorCount +
-    (bootSector->numberOfFats * bootSector->sectorsPerFat) +
-    ((bootSector->rootEntryCount * 32) / bootSector->bytesPerSector);
+  uint32_t dataStart = fatStart + (bootSector->numberOfFats *
+    bootSector->sectorsPerFat) + ((bootSector->rootEntryCount * 32) /
+    bootSector->bytesPerSector);
+  uint32_t bytesRead = 0;
 
   while (bytesRead < length) {
+    // Calculate current block position
     uint32_t clusterOffset = file->currentPosition % bytesPerCluster;
     uint32_t blockInCluster = clusterOffset / bootSector->bytesPerSector;
     uint32_t offsetInBlock = clusterOffset % bootSector->bytesPerSector;
@@ -294,24 +304,39 @@ int fat16Read(FilesystemState *fs, Fat16File *file,
       ((file->currentCluster - 2) * bootSector->sectorsPerCluster) +
       blockInCluster;
 
-    if (fat16ReadBlock(fs, currentBlock, fs->blockBuffer) != 0) {
-      return bytesRead ? bytesRead : -EIO;
+    // Read current block
+    if (fs->blockDevice->readBlocks(fs->blockDevice->context, currentBlock, 1,
+        fs->blockSize, fs->blockBuffer) != 0) {
+      return bytesRead ? bytesRead : -1;
     }
 
+    // Copy data from block
     uint32_t bytesToCopy = bootSector->bytesPerSector - offsetInBlock;
     if (bytesToCopy > (length - bytesRead)) {
       bytesToCopy = length - bytesRead;
     }
+    memcpy((uint8_t*) buffer + bytesRead, fs->blockBuffer + offsetInBlock,
+      bytesToCopy);
 
-    memcpy((uint8_t*)buffer + bytesRead,
-      fs->blockBuffer + offsetInBlock, bytesToCopy);
+    // Update counters
     bytesRead += bytesToCopy;
     file->currentPosition += bytesToCopy;
 
+    // Check if we need to move to next cluster
     if ((file->currentPosition % bytesPerCluster) == 0 &&
         bytesRead < length) {
-      uint32_t nextCluster = fat16GetNextCluster(fs, bootSector,
-        file->currentCluster);
+      // Read FAT block
+      uint32_t fatBlockNum = fatStart + ((file->currentCluster * 2) /
+        fs->blockSize);
+      if (fs->blockDevice->readBlocks(fs->blockDevice->context, fatBlockNum, 1,
+          fs->blockSize, fs->blockBuffer) != 0) {
+        return bytesRead;
+      }
+
+      // Get next cluster number
+      uint16_t fatOffset = (file->currentCluster * 2) % fs->blockSize;
+      uint16_t nextCluster = *((uint16_t*) &fs->blockBuffer[fatOffset]);
+      
       if (nextCluster >= 0xFFF8) {
         break;
       }
