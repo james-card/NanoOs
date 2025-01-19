@@ -84,6 +84,7 @@ typedef struct __attribute__((packed)) Fat16File {
   uint32_t bytesPerCluster;
   uint32_t fatStart;
   uint32_t rootStart;
+  uint32_t dataStart;
 } Fat16File;
 
 // Exported functionality

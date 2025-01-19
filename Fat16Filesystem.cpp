@@ -84,6 +84,9 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   file->bytesPerCluster = file->bytesPerSector * file->sectorsPerCluster;
   file->fatStart = fs->startLba + file->reservedSectors;
   file->rootStart = file->fatStart + (file->numberOfFats * file->sectorsPerFat);
+  file->dataStart = file->rootStart
+    + ((file->rootEntries * 32 + file->bytesPerSector - 1)
+        / file->bytesPerSector);
   
   // Format filename
   char upperName[12];
@@ -143,13 +146,9 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
     return 0;
   }
   
-  uint32_t dataStart = file->rootStart + 
-    ((file->rootEntries * 32 + file->bytesPerSector - 1) / 
-    file->bytesPerSector);
-  
   uint32_t bytesRead = 0;
   while (bytesRead < length) {
-    uint32_t block = dataStart + ((file->currentCluster - 2) * 
+    uint32_t block = file->dataStart + ((file->currentCluster - 2) * 
       file->sectorsPerCluster);
       
     if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
@@ -186,10 +185,6 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
 
 int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     uint32_t length) {
-  uint32_t dataStart = file->rootStart + 
-    ((file->rootEntries * 32 + file->bytesPerSector - 1) / 
-    file->bytesPerSector);
-  
   uint32_t bytesWritten = 0;
   while (bytesWritten < length) {
     // Allocate new cluster if needed
@@ -236,7 +231,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     }
 
     // Write data block
-    uint32_t block = dataStart + ((file->currentCluster - 2) * 
+    uint32_t block = file->dataStart + ((file->currentCluster - 2) * 
       file->sectorsPerCluster);
     memcpy(fs->blockBuffer, buffer + bytesWritten,
       min(file->bytesPerSector, length - bytesWritten));
