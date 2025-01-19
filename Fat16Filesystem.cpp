@@ -148,14 +148,9 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
     return -1;
   }
   
-  uint16_t bytesPerSector = *((uint16_t*) &bootSector[FAT16_BOOT_BYTES_PER_SECTOR]);
-  uint32_t fatStart = fs->startLba + 
-    *((uint16_t*) &bootSector[FAT16_BOOT_RESERVED_SECTORS]);
-  uint32_t dataStart = fatStart +
-    (bootSector[FAT16_BOOT_NUMBER_OF_FATS] * 
-    *((uint16_t*) &bootSector[FAT16_BOOT_SECTORS_PER_FAT])) +
-    ((*((uint16_t*) &bootSector[FAT16_BOOT_ROOT_ENTRIES]) * 32 + 
-    bytesPerSector - 1) / bytesPerSector);
+  uint32_t dataStart = file->rootStart + 
+    ((file->rootEntries * 32 + file->bytesPerSector - 1) / 
+    file->bytesPerSector);
   
   uint32_t bytesRead = 0;
   while (bytesRead < length) {
@@ -166,25 +161,25 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
       break;
     }
     
-    uint16_t toCopy = min(bytesPerSector, length - bytesRead);
+    uint16_t toCopy = min(file->bytesPerSector, length - bytesRead);
     memcpy((uint8_t*) buffer + bytesRead, fs->blockBuffer, toCopy);
     bytesRead += toCopy;
     file->currentPosition += toCopy;
     
     // Get next cluster if needed
-    if (!(file->currentPosition % (bytesPerSector * 
+    if (!(file->currentPosition % (file->bytesPerSector * 
         bootSector[FAT16_BOOT_SECTORS_PER_CLUSTER]))) {
       // Read FAT
       uint32_t fatBlock = fs->startLba + 
         *((uint16_t*) &bootSector[FAT16_BOOT_RESERVED_SECTORS]) +
-        ((file->currentCluster * 2) / bytesPerSector);
+        ((file->currentCluster * 2) / file->bytesPerSector);
       
       if (fat16BlockOperation(fs, fatBlock, fs->blockBuffer, false)) {
         break;
       }
       
       uint16_t nextCluster = *((uint16_t*) &fs->blockBuffer
-        [(file->currentCluster * 2) % bytesPerSector]);
+        [(file->currentCluster * 2) % file->bytesPerSector]);
       if (nextCluster >= 0xFFF8) {
         break;
       }
@@ -202,23 +197,18 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     return -1;
   }
   
-  uint16_t bytesPerSector = *((uint16_t*) &bootSector[FAT16_BOOT_BYTES_PER_SECTOR]);
-  uint32_t fatStart = fs->startLba +
-    *((uint16_t*) &bootSector[FAT16_BOOT_RESERVED_SECTORS]);
-  uint32_t dataStart = fatStart +
-    (bootSector[FAT16_BOOT_NUMBER_OF_FATS] * 
-    *((uint16_t*) &bootSector[FAT16_BOOT_SECTORS_PER_FAT])) +
-    ((*((uint16_t*) &bootSector[FAT16_BOOT_ROOT_ENTRIES]) * 32 + 
-    bytesPerSector - 1) / bytesPerSector);
+  uint32_t dataStart = file->rootStart + 
+    ((file->rootEntries * 32 + file->bytesPerSector - 1) / 
+    file->bytesPerSector);
   
   uint32_t bytesWritten = 0;
   while (bytesWritten < length) {
     // Allocate new cluster if needed
     if (!file->currentCluster || 
-        !(file->currentPosition % (bytesPerSector * 
+        !(file->currentPosition % (file->bytesPerSector * 
         bootSector[FAT16_BOOT_SECTORS_PER_CLUSTER]))) {
       // Find free cluster
-      if (fat16BlockOperation(fs, fatStart, fs->blockBuffer, false)) {
+      if (fat16BlockOperation(fs, file->fatStart, fs->blockBuffer, false)) {
         return -1;
       }
       
@@ -243,7 +233,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
       
       // Write FAT copies
       for (uint8_t ii = 0; ii < bootSector[FAT16_BOOT_NUMBER_OF_FATS]; ii++) {
-        if (fat16BlockOperation(fs, fatStart + 
+        if (fat16BlockOperation(fs, file->fatStart + 
             (ii * *((uint16_t*) &bootSector[FAT16_BOOT_SECTORS_PER_FAT])),
             fs->blockBuffer, true)) {
           return -1;
@@ -260,19 +250,19 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     uint32_t block = dataStart + ((file->currentCluster - 2) * 
       bootSector[FAT16_BOOT_SECTORS_PER_CLUSTER]);
     memcpy(fs->blockBuffer, buffer + bytesWritten,
-      min(bytesPerSector, length - bytesWritten));
+      min(file->bytesPerSector, length - bytesWritten));
     
     if (fat16BlockOperation(fs, block, fs->blockBuffer, true)) {
       return -1;
     }
 
-    bytesWritten += bytesPerSector;
-    file->currentPosition += bytesPerSector;
+    bytesWritten += file->bytesPerSector;
+    file->currentPosition += file->bytesPerSector;
     file->fileSize = file->currentPosition;
   }
 
   // Update directory entry with new size
-  uint32_t rootDirStart = fatStart +
+  uint32_t rootDirStart = file->fatStart +
     (bootSector[FAT16_BOOT_NUMBER_OF_FATS] * 
     *((uint16_t*) &bootSector[FAT16_BOOT_SECTORS_PER_FAT]));
   uint16_t rootEntries = *((uint16_t*) &bootSector[FAT16_BOOT_ROOT_ENTRIES]);
@@ -284,12 +274,13 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
   }
 
   for (uint16_t ii = 0; ii < rootEntries; ii++) {
-    uint32_t block = rootDirStart + (ii / (bytesPerSector / 32));
+    uint32_t block = rootDirStart + (ii / (file->bytesPerSector / 32));
     if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
       return -1;
     }
     
-    uint8_t *entry = fs->blockBuffer + ((ii % (bytesPerSector / 32)) * 32);
+    uint8_t *entry
+      = fs->blockBuffer + ((ii % (file->bytesPerSector / 32)) * 32);
     if (memcmp(entry + FAT16_DIR_FILENAME, upperName, 8) == 0) {
       *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = file->fileSize;
       if (!*((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW])) {
