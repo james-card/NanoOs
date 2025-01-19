@@ -94,6 +94,7 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_CLOSE_FILE,
   FILESYSTEM_READ_FILE,
   FILESYSTEM_WRITE_FILE,
+  FILESYSTEM_REMOVE_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
@@ -110,6 +111,12 @@ int filesystemFClose(FILE *stream);
 #undef fclose
 #endif // fclose
 #define fclose filesystemFClose
+
+int filesystemRemove(const char *pathname);
+#ifdef remove
+#undef remove
+#endif // remove
+#define remove filesystemRemove
 
 #ifdef __cplusplus
 } // extern "C"
