@@ -44,6 +44,11 @@ extern "C"
 {
 #endif
 
+// Standard seek mode definitions
+#define FAT16_SEEK_SET 0
+#define FAT16_SEEK_CUR 1
+#define FAT16_SEEK_END 2
+
 /// @struct FilesystemState
 ///
 /// @brief State metadata the filesystem process uses to provide access to

@@ -378,6 +378,77 @@ int fat16Remove(FilesystemState *fs, const char *pathname) {
   return -1;  // File not found
 }
 
+int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
+    uint8_t whence) {
+  // Calculate target position
+  uint32_t newPosition = file->currentPosition;
+  switch (whence) {
+    case FAT16_SEEK_SET:
+      newPosition = offset;
+      break;
+    case FAT16_SEEK_CUR:
+      newPosition += offset;
+      break;
+    case FAT16_SEEK_END:
+      newPosition = file->fileSize + offset;
+      break;
+    default:
+      return -1;
+  }
+  
+  // Check bounds
+  if (newPosition > file->fileSize) {
+    return -1;
+  }
+  
+  // If seek target is before current position, reset to start
+  if (newPosition < file->currentPosition) {
+    file->currentPosition = 0;
+    file->currentCluster = file->firstCluster;
+  }
+  
+  // If no seeking needed, we're done
+  if (newPosition == file->currentPosition) {
+    return 0;
+  }
+  
+  // Read boot sector for cluster size calculation
+  if (fat16BlockOperation(fs, fs->startLba, fs->blockBuffer, false)) {
+    return -1;
+  }
+  
+  uint16_t bytesPerSector = *((uint16_t*)
+    &fs->blockBuffer[FAT16_BOOT_BYTES_PER_SECTOR]);
+  uint32_t bytesPerCluster = bytesPerSector *
+    fs->blockBuffer[FAT16_BOOT_SECTORS_PER_CLUSTER];
+  uint32_t fatStart = fs->startLba +
+    *((uint16_t*) &fs->blockBuffer[FAT16_BOOT_RESERVED_SECTORS]);
+  
+  // Skip through cluster chain until we reach target position
+  while (file->currentPosition + bytesPerCluster <= newPosition) {
+    // Read FAT entry
+    uint32_t fatBlock = fatStart + ((file->currentCluster * 2) /
+      bytesPerSector);
+    if (fat16BlockOperation(fs, fatBlock, fs->blockBuffer, false)) {
+      return -1;
+    }
+    
+    uint16_t nextCluster = *((uint16_t*) &fs->blockBuffer
+      [(file->currentCluster * 2) % bytesPerSector]);
+    
+    if (nextCluster >= 0xFFF8) {
+      return -1;  // End of chain reached too soon
+    }
+    
+    file->currentCluster = nextCluster;
+    file->currentPosition += bytesPerCluster;
+  }
+  
+  // Final position adjustment
+  file->currentPosition = newPosition;
+  return 0;
+}
+
 int getPartitionInfo(FilesystemState *fs) {
   if (fs->blockDevice->partitionNumber == 0) {
     return -1;
