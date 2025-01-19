@@ -318,6 +318,66 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
   return bytesWritten;
 }
 
+static inline void fat16FormatFilename(
+  const char *pathname, char *formattedName
+) {
+  memset(formattedName, ' ', 11);
+  const char *dot = strrchr(pathname, '.');
+  size_t nameLen = dot ? (dot - pathname) : strlen(pathname);
+  
+  for (uint8_t ii = 0; ii < 8 && ii < nameLen; ii++) {
+    formattedName[ii] = toupper(pathname[ii]);
+  }
+  
+  if (dot) {
+    for (uint8_t ii = 0; ii < 3 && dot[ii + 1]; ii++) {
+      formattedName[8 + ii] = toupper(dot[ii + 1]);
+    }
+  }
+}
+
+int fat16Remove(FilesystemState *fs, const char *pathname) {
+  uint8_t *buffer = fs->blockBuffer;
+  
+  // Read boot sector
+  if (fat16BlockOperation(fs, fs->startLba, buffer, false)) {
+    return -1;
+  }
+  
+  // Calculate directory location
+  uint16_t bytesPerSector = *((uint16_t*) &buffer[FAT16_BOOT_BYTES_PER_SECTOR]);
+  uint16_t rootEntries = *((uint16_t*) &buffer[FAT16_BOOT_ROOT_ENTRIES]);
+  uint32_t rootStart = fs->startLba + 
+    *((uint16_t*) &buffer[FAT16_BOOT_RESERVED_SECTORS]) +
+    (buffer[FAT16_BOOT_NUMBER_OF_FATS] * 
+    *((uint16_t*) &buffer[FAT16_BOOT_SECTORS_PER_FAT]));
+  
+  // Format filename
+  char upperName[12];
+  fat16FormatFilename(pathname, upperName);
+  upperName[11] = '\0';
+  
+  // Search for file in directory
+  for (uint16_t ii = 0; ii < rootEntries; ii++) {
+    uint32_t block = rootStart + (ii / (bytesPerSector / 32));
+    if (fat16BlockOperation(fs, block, buffer, false)) {
+      return -1;
+    }
+    
+    uint8_t *entry = buffer + ((ii % (bytesPerSector / 32)) * 32);
+    uint8_t firstChar = entry[FAT16_DIR_FILENAME];
+    
+    if (firstChar != 0xE5 && firstChar != 0 &&
+        memcmp(entry + FAT16_DIR_FILENAME, upperName, 11) == 0) {
+      // Found file - mark entry as deleted
+      entry[FAT16_DIR_FILENAME] = 0xE5;
+      return fat16BlockOperation(fs, block, buffer, true);
+    }
+  }
+  
+  return -1;  // File not found
+}
+
 int getPartitionInfo(FilesystemState *fs) {
   if (fs->blockDevice->partitionNumber == 0) {
     return -1;
@@ -478,6 +538,30 @@ int fat16FilesystemWriteFileCommandHandler(
   return returnValue;
 }
 
+/// @fn int fat16FilesystemRemoveFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemRemoveFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
+  int returnValue = fat16Remove(filesystemState, pathname);
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
@@ -486,6 +570,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
   fat16FilesystemReadFileCommandHandler,  // FILESYSTEM_READ_FILE
   fat16FilesystemWriteFileCommandHandler, // FILESYSTEM_WRITE_FILE
+  fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
 };
 
 
@@ -548,3 +633,12 @@ int filesystemFClose(FILE *stream) {
   return 0;
 }
 
+int filesystemRemove(const char *pathname) {
+  ProcessMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+    /* func= */ 0, (intptr_t) pathname, true);
+  processMessageWaitForDone(msg, NULL);
+  int returnValue = nanoOsMessageDataValue(msg, int);
+  processMessageRelease(msg);
+  return returnValue;
+}
