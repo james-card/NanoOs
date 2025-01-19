@@ -85,7 +85,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   file->fatStart = fs->startLba + file->reservedSectors;
   file->rootStart = file->fatStart + (file->numberOfFats * file->sectorsPerFat);
   file->dataStart = file->rootStart
-    + ((file->rootEntries * 32 + file->bytesPerSector - 1)
+    + (((file->rootEntries << 5) + file->bytesPerSector - 1)
         / file->bytesPerSector);
   
   // Format filename
@@ -95,13 +95,13 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   
   // Search directory
   for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = file->rootStart + (ii / (file->bytesPerSector / 32));
+    uint32_t block = file->rootStart + (ii / (file->bytesPerSector >> 5));
     if (fat16BlockOperation(fs, block, buffer, false)) {
       free(file);
       return NULL;
     }
     
-    uint8_t *entry = buffer + ((ii % (file->bytesPerSector / 32)) * 32);
+    uint8_t *entry = buffer + ((ii % (file->bytesPerSector >> 5)) << 5);
     uint8_t firstChar = entry[FAT16_DIR_FILENAME];
     
     if (firstChar != 0xE5 && firstChar != 0 &&
@@ -256,13 +256,13 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
   }
 
   for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = rootDirStart + (ii / (file->bytesPerSector / 32));
+    uint32_t block = rootDirStart + (ii / (file->bytesPerSector >> 5));
     if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
       return -1;
     }
     
     uint8_t *entry
-      = fs->blockBuffer + ((ii % (file->bytesPerSector / 32)) * 32);
+      = fs->blockBuffer + ((ii % (file->bytesPerSector >> 5)) << 5);
     if (memcmp(entry + FAT16_DIR_FILENAME, upperName, 8) == 0) {
       *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = file->fileSize;
       if (!*((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW])) {
@@ -293,14 +293,14 @@ int fat16Remove(FilesystemState *fs, const char *pathname) {
   
   // Search for file in directory
   for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = file->rootStart + (ii / (file->bytesPerSector / 32));
+    uint32_t block = file->rootStart + (ii / (file->bytesPerSector >> 5));
     if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
       free(file);
       return -1;
     }
     
     uint8_t *entry = fs->blockBuffer + 
-      ((ii % (file->bytesPerSector / 32)) * 32);
+      ((ii % (file->bytesPerSector >> 5)) << 5);
     uint8_t firstChar = entry[FAT16_DIR_FILENAME];
     
     if (firstChar != 0xE5 && firstChar != 0 &&
