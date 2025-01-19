@@ -45,6 +45,7 @@ extern "C"
 {
 #endif
 
+// General FAT16 specification values
 #define FAT16_BYTES_PER_DIRECTORY_ENTRY 32
 #define FAT16_ENTRIES_PER_CLUSTER 16
 #define FAT16_CLUSTER_CHAIN_END 0xFFF8
@@ -73,6 +74,12 @@ typedef struct __attribute__((packed)) Fat16File {
   uint32_t fileSize;
   uint16_t firstCluster;
   char *pathname;
+  // Added common values:
+  uint16_t bytesPerSector;
+  uint16_t rootEntries;
+  uint32_t bytesPerCluster;
+  uint32_t fatStart;
+  uint32_t rootStart;
 } Fat16File;
 
 // Exported functionality
