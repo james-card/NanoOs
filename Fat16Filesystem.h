@@ -76,7 +76,11 @@ typedef struct __attribute__((packed)) Fat16File {
   char *pathname;
   // Added common values:
   uint16_t bytesPerSector;
+  uint8_t  sectorsPerCluster;
+  uint16_t reservedSectors;
+  uint8_t  numberOfFats;
   uint16_t rootEntries;
+  uint16_t sectorsPerFat;
   uint32_t bytesPerCluster;
   uint32_t fatStart;
   uint32_t rootStart;
