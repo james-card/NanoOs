@@ -383,13 +383,13 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   // Calculate target position
   uint32_t newPosition = file->currentPosition;
   switch (whence) {
-    case FAT16_SEEK_SET:
+    case SEEK_SET:
       newPosition = offset;
       break;
-    case FAT16_SEEK_CUR:
+    case SEEK_CUR:
       newPosition += offset;
       break;
-    case FAT16_SEEK_END:
+    case SEEK_END:
       newPosition = file->fileSize + offset;
       break;
     default:
