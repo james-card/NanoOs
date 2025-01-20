@@ -574,15 +574,44 @@ int fat16FilesystemRemoveFileCommandHandler(
   return 0;
 }
 
+/// @fn int fat16FilesystemSeekFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_SEEK_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemSeekFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  FilesystemSeekParameters *filesystemSeekParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
+  int returnValue = fat16Seek(filesystemState,
+    (Fat16File*) filesystemSeekParameters->stream->file,
+    filesystemSeekParameters->offset,
+    filesystemSeekParameters->whence);
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
 const FilesystemCommandHandler filesystemCommandHandlers[] = {
-  fat16FilesystemOpenFileCommandHandler,  // FILESYSTEM_OPEN_FILE
-  fat16FilesystemCloseFileCommandHandler, // FILESYSTEM_CLOSE_FILE
-  fat16FilesystemReadFileCommandHandler,  // FILESYSTEM_READ_FILE
-  fat16FilesystemWriteFileCommandHandler, // FILESYSTEM_WRITE_FILE
+  fat16FilesystemOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
+  fat16FilesystemCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
+  fat16FilesystemReadFileCommandHandler,   // FILESYSTEM_READ_FILE
+  fat16FilesystemWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
   fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
+  fat16FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
 };
 
 
