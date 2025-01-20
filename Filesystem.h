@@ -84,6 +84,23 @@ typedef struct FilesystemIoCommandParameters {
   uint32_t length;
 } FilesystemIoCommandParameters;
 
+/// @struct FilesystemSeekParameters
+///
+/// @brief Parameters needed for an fseek function call on a file.
+///
+/// @param stream A pointer to the FILE object to adjust the position indicator
+///   of.
+/// @param offset The offset to apply to the position specified by the whence
+///   parameter.
+/// @param whence The position the offset is understood to be relative to.  One
+///   of SEEK_SET (beginning of the file), SEEK_CUR (the current position of
+///   the file) or SEEK_END (the end of the file).
+typedef struct FilesystemSeekParameters {
+  FILE *stream;
+  long offset;
+  int whence;
+} FilesystemSeekParameters;
+
 /// @typedef FilesystemCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
@@ -100,6 +117,7 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_READ_FILE,
   FILESYSTEM_WRITE_FILE,
   FILESYSTEM_REMOVE_FILE,
+  FILESYSTEM_SEEK_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
