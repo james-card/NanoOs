@@ -147,6 +147,12 @@ int filesystemFSeek(FILE *stream, long offset, int whence);
 #endif // fseek
 #define fseek filesystemFSeek
 
+/// @def rewind
+///
+/// @brief Function macro to implement the functionality of the standard C
+/// rewind function.
+///
+/// @param stream A pointer to a previously-opened FILE object.
 #define rewind(stream) \
   (void) fseek(stream, 0L, SEEK_SET)
 
