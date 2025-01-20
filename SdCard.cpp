@@ -307,17 +307,35 @@ int sdSpiWriteBlock(SdCardState *sdCardState,
     return EINVAL;
   }
   
+  // Check if card is responsive
+  digitalWrite(sdCardState->chipSelect, LOW);
+  uint8_t response = SPI.transfer(0xFF);
+  if (response != 0xFF) {
+    digitalWrite(sdCardState->chipSelect, HIGH);
+    return EIO;
+  }
+  
   uint32_t address = blockNumber;
   if (sdCardState->sdCardVersion == 1) {
     address *= sdCardState->blockSize; // Convert to byte address
   }
   
   // Send WRITE_BLOCK command
-  uint8_t response = sdSpiSendCommand(sdCardState->chipSelect, CMD24, address);
+  response = sdSpiSendCommand(sdCardState->chipSelect, CMD24, address);
   if (response != 0x00) {
     sdSpiEnd(sdCardState->chipSelect);
     return EIO; // Command failed
   }
+  
+  // Wait for card to be ready before sending data
+  uint16_t timeout = 10000;
+  do {
+    response = SPI.transfer(0xFF);
+    if (--timeout == 0) {
+      sdSpiEnd(sdCardState->chipSelect);
+      return EIO;
+    }
+  } while (response != 0xFF);
   
   // Send start token
   SPI.transfer(0xFE);
@@ -339,7 +357,7 @@ int sdSpiWriteBlock(SdCardState *sdCardState,
   }
   
   // Wait for write to complete
-  uint16_t timeout = 10000;
+  timeout = 10000;
   while (timeout--) {
     if (SPI.transfer(0xFF) != 0x00) {
       break;
