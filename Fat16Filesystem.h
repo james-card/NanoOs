@@ -69,22 +69,22 @@ extern "C"
 #define FAT16_DIR_FILE_SIZE 0x1C
 
 typedef struct __attribute__((packed)) Fat16File {
-  uint16_t currentCluster;
-  uint32_t currentPosition;
-  uint32_t fileSize;
-  uint16_t firstCluster;
-  char *pathname;
-  // Added common values:
-  uint16_t bytesPerSector;
-  uint8_t  sectorsPerCluster;
-  uint16_t reservedSectors;
-  uint8_t  numberOfFats;
-  uint16_t rootEntries;
-  uint16_t sectorsPerFat;
-  uint32_t bytesPerCluster;
-  uint32_t fatStart;
-  uint32_t rootStart;
-  uint32_t dataStart;
+  uint16_t  currentCluster;
+  uint32_t  currentPosition;
+  uint32_t  fileSize;
+  uint16_t  firstCluster;
+  char     *pathname;
+  // Common values:
+  uint16_t  bytesPerSector;
+  uint8_t   sectorsPerCluster;
+  uint16_t  reservedSectors;
+  uint8_t   numberOfFats;
+  uint16_t  rootEntries;
+  uint16_t  sectorsPerFat;
+  uint32_t  bytesPerCluster;
+  uint32_t  fatStart;
+  uint32_t  rootStart;
+  uint32_t  dataStart;
 } Fat16File;
 
 // Exported functionality
