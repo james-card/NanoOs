@@ -976,7 +976,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
     FilesystemIoCommandParameters filesystemIoCommandParameters = {
       .file = stream,
       .buffer = buffer,
-      .length = (uint32_t) size
+      .length = (uint32_t) size - 1
     };
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
       NANO_OS_FILESYSTEM_PROCESS_ID,
@@ -986,6 +986,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       true);
     processMessageWaitForDone(processMessage, NULL);
     if (filesystemIoCommandParameters.length > 0) {
+      buffer[filesystemIoCommandParameters.length] = '\0';
       returnValue = buffer;
     }
     processMessageRelease(processMessage);
