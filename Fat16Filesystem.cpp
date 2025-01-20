@@ -683,3 +683,19 @@ int filesystemRemove(const char *pathname) {
   processMessageRelease(msg);
   return returnValue;
 }
+
+int filesystemFSeek(FILE *stream, long offset, int whence) {
+ FilesystemSeekParameters filesystemSeekParameters = {
+    .stream = stream,
+    .offset = offset,
+    .whence = whence,
+  };
+  ProcessMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+    /* func= */ 0, (intptr_t) &filesystemSeekParameters, true);
+  processMessageWaitForDone(msg, NULL);
+  int returnValue = nanoOsMessageDataValue(msg, int);
+  processMessageRelease(msg);
+  return returnValue;
+}
+

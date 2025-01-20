@@ -141,6 +141,12 @@ int filesystemRemove(const char *pathname);
 #endif // remove
 #define remove filesystemRemove
 
+int filesystemFSeek(FILE *stream, long offset, int whence);
+#ifdef fseek
+#undef feek
+#endif // fseek
+#define fseek filesystemFSeek
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
