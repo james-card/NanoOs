@@ -147,6 +147,9 @@ int filesystemFSeek(FILE *stream, long offset, int whence);
 #endif // fseek
 #define fseek filesystemFSeek
 
+#define rewind(stream) \
+  (void) fseek(stream, 0L, SEEK_SET)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
