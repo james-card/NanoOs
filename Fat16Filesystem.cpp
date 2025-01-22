@@ -30,6 +30,12 @@
 
 #include "Fat16Filesystem.h"
 
+// Directory search result codes
+#define FAT16_DIR_SEARCH_ERROR -1
+#define FAT16_DIR_SEARCH_FOUND 0
+#define FAT16_DIR_SEARCH_DELETED 1
+#define FAT16_DIR_SEARCH_NOT_FOUND 2
+
 static int fat16BlockOperation(FilesystemState *fs, uint32_t block, 
     uint8_t *buffer, bool isWrite) {
   return isWrite ? 
@@ -57,11 +63,77 @@ static inline void fat16FormatFilename(
   }
 }
 
+/// @brief Search the root directory for a file entry
+///
+/// @param fs Pointer to the filesystem state structure
+/// @param file Pointer to the FAT16 file structure containing common values
+/// @param pathname The pathname to search for
+/// @param entry Pointer to where the directory entry buffer should be stored
+/// @param block Pointer to where the block number containing the entry should
+///   be stored
+/// @param entryIndex Pointer to where the entry index within the block should
+///   be stored
+///
+/// @return FAT16_DIR_SEARCH_ERROR on error, FAT16_DIR_SEARCH_FOUND if entry
+///   found, FAT16_DIR_SEARCH_DELETED if a deleted entry with matching name
+///   found, FAT16_DIR_SEARCH_NOT_FOUND if no matching entry found
+static int fat16FindDirectoryEntry(FilesystemState *fs, Fat16File *file,
+    const char *pathname, uint8_t **entry, uint32_t *block,
+    uint16_t *entryIndex)
+{
+  char upperName[FAT16_FULL_NAME_LENGTH + 1];
+  fat16FormatFilename(pathname, upperName);
+  upperName[FAT16_FULL_NAME_LENGTH] = '\0';
+  
+  for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
+    *block = file->rootStart + (ii / (file->bytesPerSector >>
+      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
+    if (fat16BlockOperation(fs, *block, fs->blockBuffer, false)) {
+      return FAT16_DIR_SEARCH_ERROR;
+    }
+    
+    *entry = fs->blockBuffer + ((ii % (file->bytesPerSector >>
+      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY);
+    uint8_t firstChar = (*entry)[FAT16_DIR_FILENAME];
+    
+    if (memcmp(*entry + FAT16_DIR_FILENAME, upperName,
+        FAT16_FULL_NAME_LENGTH) == 0) {
+      if (entryIndex) {
+        *entryIndex = ii;
+      }
+      if (firstChar == FAT16_DELETED_MARKER) {
+        return FAT16_DIR_SEARCH_DELETED;
+      } else if (firstChar != FAT16_EMPTY_ENTRY) {
+        return FAT16_DIR_SEARCH_FOUND;
+      }
+    } else if (firstChar == FAT16_EMPTY_ENTRY) {
+      // Once we hit an empty entry, there are no more entries to check
+      break;
+    }
+  }
+  
+  return FAT16_DIR_SEARCH_NOT_FOUND;
+}
+
+/// @brief Open a file in the FAT16 filesystem
+///
+/// @param fs Pointer to the filesystem state structure containing the block
+///   device and buffer information
+/// @param pathname The name of the file to open
+/// @param mode The mode to open the file in ("r" for read, "w" for write,
+///   "a" for append)
+///
+/// @return Pointer to a newly allocated Fat16File structure on success,
+///   NULL on failure. The caller is responsible for freeing the returned
+///   structure when finished with it.
 Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
-    const char *mode) {
+    const char *mode
+) {
   bool createFile = (mode[0] & 1); // 'w' and 'a' have LSB set
   bool append = (mode[0] == 'a');
   uint8_t *buffer = fs->blockBuffer;
+  uint8_t *entry = NULL;
+  uint32_t block = 0;
   
   // Read boot sector
   if (fat16BlockOperation(fs, fs->startLba, buffer, false)) {
@@ -88,64 +160,73 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     (((file->rootEntries * FAT16_BYTES_PER_DIRECTORY_ENTRY) +
     file->bytesPerSector - 1) / file->bytesPerSector);
   
-  // Format filename
-  char upperName[FAT16_FULL_NAME_LENGTH + 1];
-  fat16FormatFilename(pathname, upperName);
-  upperName[FAT16_FULL_NAME_LENGTH] = '\0';
+  int result = fat16FindDirectoryEntry(fs, file, pathname, &entry, &block,
+    NULL);
   
-  // Search directory
-  for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = file->rootStart +
-      (ii / (file->bytesPerSector >> FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
-    if (fat16BlockOperation(fs, block, buffer, false)) {
-      free(file);
-      return NULL;
-    }
-    
-    uint8_t *entry = buffer + ((ii % (file->bytesPerSector >>
-      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY);
-    uint8_t firstChar = entry[FAT16_DIR_FILENAME];
-    
-    if (firstChar != FAT16_DELETED_MARKER && firstChar != FAT16_EMPTY_ENTRY &&
-        memcmp(entry + FAT16_DIR_FILENAME, upperName,
-        FAT16_FULL_NAME_LENGTH) == 0) {
-      // Found existing file
+  if (result == FAT16_DIR_SEARCH_ERROR) {
+    free(file);
+    return NULL;
+  } else if (result == FAT16_DIR_SEARCH_FOUND) {
+    if (createFile) {
+      // File exists but we're in write/append mode - truncate it
+      file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
+      file->firstCluster = file->currentCluster;
+      file->fileSize = 0;
+      file->currentPosition = 0;
+    } else {
+      // Opening existing file for read
       file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
       file->fileSize = *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]);
       file->firstCluster = file->currentCluster;
       file->currentPosition = append ? file->fileSize : 0;
-      file->pathname = strdup(pathname);
-      return file;
+    }
+    file->pathname = strdup(pathname);
+    return file;
+  } else if (createFile && 
+      (result == FAT16_DIR_SEARCH_DELETED || 
+       result == FAT16_DIR_SEARCH_NOT_FOUND)) {
+    // Create new file using the entry location we found
+    char upperName[FAT16_FULL_NAME_LENGTH + 1];
+    fat16FormatFilename(pathname, upperName);
+    memcpy(entry + FAT16_DIR_FILENAME, upperName, FAT16_FULL_NAME_LENGTH);
+    entry[FAT16_DIR_ATTRIBUTES] = FAT16_ATTR_NORMAL_FILE;
+    memset(entry + FAT16_DIR_ATTRIBUTES + 1, FAT16_EMPTY_ENTRY,
+      FAT16_BYTES_PER_DIRECTORY_ENTRY - (FAT16_DIR_ATTRIBUTES + 1));
+    
+    if (fat16BlockOperation(fs, block, buffer, true)) {
+      free(file);
+      return NULL;
     }
     
-    // Handle file creation if needed
-    if (createFile && (firstChar == FAT16_DELETED_MARKER ||
-        firstChar == FAT16_EMPTY_ENTRY)) {
-      memcpy(entry + FAT16_DIR_FILENAME, upperName, FAT16_FULL_NAME_LENGTH);
-      entry[FAT16_DIR_ATTRIBUTES] = FAT16_ATTR_NORMAL_FILE;
-      memset(entry + FAT16_DIR_ATTRIBUTES + 1, FAT16_EMPTY_ENTRY,
-        FAT16_BYTES_PER_DIRECTORY_ENTRY - (FAT16_DIR_ATTRIBUTES + 1));
-      
-      if (fat16BlockOperation(fs, block, buffer, true)) {
-        free(file);
-        return NULL;
-      }
-      
-      file->currentCluster = FAT16_EMPTY_ENTRY;
-      file->fileSize = 0;
-      file->firstCluster = FAT16_EMPTY_ENTRY;
-      file->currentPosition = 0;
-      file->pathname = strdup(pathname);
-      return file;
-    }
+    file->currentCluster = FAT16_EMPTY_ENTRY;
+    file->fileSize = 0;
+    file->firstCluster = FAT16_EMPTY_ENTRY;
+    file->currentPosition = 0;
+    file->pathname = strdup(pathname);
+    return file;
   }
   
   free(file);
   return NULL;
 }
 
+/// @fn int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
+///   uint32_t length)
+///
+/// @brief Read an opened FAT file into a provided buffer up to the a specified
+/// number of bytes.
+///
+/// @param fs Pointer to the filesystem state structure containing the block
+///   device and buffer information maintained by the filesystem process.
+/// @param file A pointer to a previously-opened and initialized Fat16File
+///   object.
+/// @param buffer A pointer to the memory to read the file contents into.
+/// @param length The maximum number of bytes to read from the file.
+///
+/// @return Returns the number of bytes read from the file.
 int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
-    uint32_t length) {
+    uint32_t length
+) {
   if (!length || file->currentPosition >= file->fileSize) {
     return 0;
   }
@@ -191,6 +272,17 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
   return bytesRead;
 }
 
+/// @fn int fat16Write(FilesystemState *fs, Fat16File *file,
+///   const uint8_t *buffer, uint32_t length)
+///
+/// @brief Write data to a FAT16 file
+///
+/// @param fs Pointer to the filesystem state structure
+/// @param file Pointer to the FAT16 file structure containing file state
+/// @param buffer Pointer to the data to write
+/// @param length Number of bytes to write from the buffer
+///
+/// @return Number of bytes written on success, -1 on failure
 int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     uint32_t length) {
   uint32_t bytesWritten = 0;
@@ -273,39 +365,36 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     }
   }
 
-  // Update directory entry with new size
-  uint32_t rootDirStart = file->fatStart +
-    (file->numberOfFats * file->sectorsPerFat);
-  
-  char upperName[FAT16_FULL_NAME_LENGTH + 1];
-  fat16FormatFilename(file->pathname, upperName);
-
-  for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = rootDirStart + (ii / (file->bytesPerSector >>
-      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
-    if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
-      return -1;
-    }
+  // Update directory entry with new size and first cluster
+  uint8_t *entry;
+  uint32_t block;
+  int result = fat16FindDirectoryEntry(fs, file, file->pathname, &entry,
+    &block, NULL);
     
-    uint8_t *entry = fs->blockBuffer + ((ii % (file->bytesPerSector >>
-      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY);
-    if (memcmp(entry + FAT16_DIR_FILENAME, upperName,
-        FAT16_FULL_NAME_LENGTH) == 0) {
-      *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = file->fileSize;
-      if (!*((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW])) {
-        *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]) = file->firstCluster;
-      }
-      
-      if (fat16BlockOperation(fs, block, fs->blockBuffer, true)) {
-        return -1;
-      }
-      break;
-    }
+  if (result != FAT16_DIR_SEARCH_FOUND) {
+    return -1;
+  }
+
+  *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = file->fileSize;
+  if (!*((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW])) {
+    *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]) = file->firstCluster;
+  }
+  
+  if (fat16BlockOperation(fs, block, fs->blockBuffer, true)) {
+    return -1;
   }
 
   return bytesWritten;
 }
 
+/// @fn int fat16Remove(FilesystemState *fs, const char *pathname)
+///
+/// @brief Remove (delete) a file from the FAT16 filesystem
+///
+/// @param fs Pointer to the filesystem state structure
+/// @param pathname The name of the file to remove
+///
+/// @return 0 on success, -1 on failure
 int fat16Remove(FilesystemState *fs, const char *pathname) {
   // We need a file handle to access the cached values
   Fat16File *file = fat16Fopen(fs, pathname, "r");
@@ -313,42 +402,43 @@ int fat16Remove(FilesystemState *fs, const char *pathname) {
     return -1;
   }
   
-  // Format filename
-  char upperName[FAT16_FULL_NAME_LENGTH + 1];
-  fat16FormatFilename(pathname, upperName);
-  upperName[FAT16_FULL_NAME_LENGTH] = '\0';
-  
-  // Search for file in directory
-  for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
-    uint32_t block = file->rootStart + (ii / (file->bytesPerSector >>
-      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
-    if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
-      free(file);
-      return -1;
-    }
+  uint8_t *entry;
+  uint32_t block;
+  int result = fat16FindDirectoryEntry(fs, file, pathname, &entry, &block,
+    NULL);
     
-    uint8_t *entry = fs->blockBuffer + ((ii % (file->bytesPerSector >>
-      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY);
-    uint8_t firstChar = entry[FAT16_DIR_FILENAME];
-    
-    if (firstChar != FAT16_DELETED_MARKER && firstChar != FAT16_EMPTY_ENTRY &&
-        memcmp(entry + FAT16_DIR_FILENAME, upperName,
-        FAT16_FULL_NAME_LENGTH) == 0
-    ) {
-      // Found file - mark entry as deleted
-      entry[FAT16_DIR_FILENAME] = FAT16_DELETED_MARKER;
-      int result = fat16BlockOperation(fs, block, fs->blockBuffer, true);
-      free(file);
-      return result;
-    }
+  if (result != FAT16_DIR_SEARCH_FOUND) {
+    free(file);
+    return -1;
   }
   
+  // Mark the directory entry as deleted
+  entry[FAT16_DIR_FILENAME] = FAT16_DELETED_MARKER;
+  result = fat16BlockOperation(fs, block, fs->blockBuffer, true);
+  
   free(file);
-  return -1; // File not found
+  return result;
 }
 
+/// @fn int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
+///   uint8_t whence)
+///
+/// @brief Move the current position of the file to the specified position.
+///
+/// @param fs Pointer to the filesystem state structure maintained by the
+///   filesystem process.
+/// @param file A pointer to a previously-opened and initialized Fat16File
+///   object.
+/// @param offset A signed integer value that will be added to the specified
+///   position.
+/// @param whence The location within the file to apply the offset to.  Valid
+///   values are SEEK_SET (the beginning of the file), SEEK_CUR (the current
+///   file positon), and SEEK_END (the end of the file).
+///
+/// @return Returns 0 on success, -1 on failure.
 int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
-    uint8_t whence) {
+    uint8_t whence
+) {
   // Calculate target position
   uint32_t newPosition = file->currentPosition;
   switch (whence) {
@@ -404,6 +494,14 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   return 0;
 }
 
+/// @fn int getPartitionInfo(FilesystemState *fs)
+///
+/// @brief Get information about the partition for the provided filesystem.
+///
+/// @param fs Pointer to the filesystem state structure maintained by the
+///   filesystem process.
+///
+/// @return Returns 0 on success, negative error code on failure.
 int getPartitionInfo(FilesystemState *fs) {
   if (fs->blockDevice->partitionNumber == 0) {
     return -1;
@@ -633,7 +731,15 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
 };
 
 
-// Filesystem process
+/// @fn static void handleFilesystemMessages(FilesystemState *fs)
+///
+/// @brief Pop and handle all messages in the filesystem process's message
+/// queue until there are no more.
+///
+/// @param fs A pointer to the FilesystemState object maintained by the
+///   filesystem process.
+///
+/// @return This function returns no value.
 static void handleFilesystemMessages(FilesystemState *fs) {
   ProcessMessage *msg = processMessageQueuePop();
   while (msg != NULL) {
@@ -646,6 +752,14 @@ static void handleFilesystemMessages(FilesystemState *fs) {
   }
 }
 
+/// @fn void* runFat16Filesystem(void *args)
+///
+/// @brief Main process entry point for the FAT16 filesystem process.
+///
+/// @param args A pointer to an initialized BlockStorageDevice structure cast
+///   to a void*.
+///
+/// @return This function never returns, but would return NULL if it did.
 void* runFat16Filesystem(void *args) {
   FilesystemState fs;
   memset(&fs, 0, sizeof(fs));
@@ -672,7 +786,17 @@ void* runFat16Filesystem(void *args) {
   return NULL;
 }
 
-// Standard file operations
+/// @fn FILE* filesystemFOpen(const char *pathname, const char *mode)
+///
+/// @brief Implementation of the standard C fopen call.
+///
+/// @param pathname The full pathname to the file.  NOTE:  This implementation
+///   can only open files in the root directory.  Subdirectories are NOT
+///   supported.
+/// @param mode The standard C file mode to open the file as.
+///
+/// @return Returns a pointer to an initialized FILE object on success, NULL on
+/// failure.
 FILE* filesystemFOpen(const char *pathname, const char *mode) {
   ProcessMessage *msg = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
@@ -683,6 +807,13 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
   return file;
 }
 
+/// @fn int filesystemFClose(FILE *stream)
+///
+/// @brief Implementation of the standard C fclose call.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+///
+/// @return This function always succeeds and always returns 0.
 int filesystemFClose(FILE *stream) {
   ProcessMessage *msg = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
@@ -692,6 +823,15 @@ int filesystemFClose(FILE *stream) {
   return 0;
 }
 
+/// @fn int filesystemRemove(const char *pathname)
+///
+/// @brief Implementation of the standard C remove call.
+///
+/// @param pathname The full pathname to the file.  NOTE:  This implementation
+///   can only open files in the root directory.  Subdirectories are NOT
+///   supported.
+///
+/// @return Returns 0 on success, -1 on failure.
 int filesystemRemove(const char *pathname) {
   ProcessMessage *msg = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
@@ -702,6 +842,18 @@ int filesystemRemove(const char *pathname) {
   return returnValue;
 }
 
+/// @fn int filesystemFSeek(FILE *stream, long offset, int whence)
+///
+/// @brief Implementation of the standard C fseek call.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+/// @param offset A signed integer value that will be added to the specified
+///   position.
+/// @param whence The location within the file to apply the offset to.  Valid
+///   values are SEEK_SET (the beginning of the file), SEEK_CUR (the current
+///   file positon), and SEEK_END (the end of the file).
+///
+/// @return Returns 0 on success, -1 on failure.
 int filesystemFSeek(FILE *stream, long offset, int whence) {
  FilesystemSeekParameters filesystemSeekParameters = {
     .stream = stream,
