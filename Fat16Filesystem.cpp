@@ -36,8 +36,22 @@
 #define FAT16_DIR_SEARCH_DELETED 1
 #define FAT16_DIR_SEARCH_NOT_FOUND 2
 
+/// @fn int fat16BlockOperation(FilesystemState *fs, uint32_t block, 
+///   uint8_t *buffer, bool isWrite)
+///
+/// @brief Perform a single-block read or write operation on the storage device.
+///
+/// @param fs A pointer to the FilesystemState object maintained by the
+///   filesystem process.
+/// @param block The logical block address of the block to read from the device.
+/// @param buffer A pointer to the character buffer to read into or write from.
+/// @param isWrite Whether the operation is a write operation (true) or a read
+///   operation (false).
+///
+/// @return Returns 0 on success, standard POSIX error code on failure.
 static int fat16BlockOperation(FilesystemState *fs, uint32_t block, 
-    uint8_t *buffer, bool isWrite) {
+    uint8_t *buffer, bool isWrite
+) {
   return isWrite ? 
     fs->blockDevice->writeBlocks(fs->blockDevice->context, block, 1,
       fs->blockSize, buffer) :
@@ -45,9 +59,17 @@ static int fat16BlockOperation(FilesystemState *fs, uint32_t block,
       fs->blockSize, buffer);
 }
 
-static inline void fat16FormatFilename(
-  const char *pathname, char *formattedName
-) {
+/// @fn void fat16FormatFilename(const char *pathname, char *formattedName)
+///
+/// @brief Format a user-supplied pathname into a name formatted for easy
+/// comparison in a directory search.
+///
+/// @param pathname A pointer to the user-supplied path to format.
+/// @param formattedName A pointer to the character buffer that is to be
+///   populated by this function.
+///
+/// @return This function returns no value.
+static void fat16FormatFilename(const char *pathname, char *formattedName) {
   memset(formattedName, ' ', FAT16_FULL_NAME_LENGTH);
   const char *dot = strrchr(pathname, '.');
   size_t nameLen = dot ? (dot - pathname) : strlen(pathname);
