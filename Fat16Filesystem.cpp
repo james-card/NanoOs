@@ -36,26 +36,47 @@
 #define FAT16_DIR_SEARCH_DELETED 1
 #define FAT16_DIR_SEARCH_NOT_FOUND 2
 
-/// @fn int fat16BlockOperation(FilesystemState *fs, uint32_t block, 
-///   uint8_t *buffer, bool isWrite)
+/// @fn int fat16ReadBlock(FilesystemState *fs, uint32_t block,
+///   uint8_t *buffer)
 ///
-/// @brief Perform a single-block read or write operation on the storage device.
+/// @brief Read a single block from the underlying storage device for the
+/// filesystem.
 ///
 /// @param fs A pointer to the FilesystemState object maintained by the
-///   filesystem process.
-/// @param block The logical block address of the block to read from the device.
-/// @param buffer A pointer to the character buffer to read into or write from.
-/// @param isWrite Whether the operation is a write operation (true) or a read
-///   operation (false).
+///   filesystem process that contains information about how to access the
+///   underlying block storage device.
+/// @param block The logical block number of the storage device to read from.
+/// @param buffer A pointer to a character buffer that is one block in size to
+///   read the data into.
 ///
-/// @return Returns 0 on success, standard POSIX error code on failure.
-static int fat16BlockOperation(FilesystemState *fs, uint32_t block, 
-    uint8_t *buffer, bool isWrite
+/// @return Returns 0 on success, a standard POSIX error on failure.
+static inline int fat16ReadBlock(FilesystemState *fs, uint32_t block, 
+    uint8_t *buffer
 ) {
-  return isWrite ? 
-    fs->blockDevice->writeBlocks(fs->blockDevice->context, block, 1,
-      fs->blockSize, buffer) :
+  return
     fs->blockDevice->readBlocks(fs->blockDevice->context, block, 1, 
+      fs->blockSize, buffer);
+}
+
+/// @fn int fat16WriteBlock(FilesystemState *fs, uint32_t block,
+///   uint8_t *buffer)
+///
+/// @brief Write a single block to the underlying storage device for the
+/// filesystem.
+///
+/// @param fs A pointer to the FilesystemState object maintained by the
+///   filesystem process that contains information about how to access the
+///   underlying block storage device.
+/// @param block The logical block number of the storage device to write to.
+/// @param buffer A pointer to a character buffer that is one block in size to
+///   write the data from.
+///
+/// @return Returns 0 on success, a standard POSIX error on failure.
+static int fat16WriteBlock(FilesystemState *fs, uint32_t block, 
+    uint8_t *buffer
+) {
+  return
+    fs->blockDevice->writeBlocks(fs->blockDevice->context, block, 1,
       fs->blockSize, buffer);
 }
 
@@ -110,7 +131,7 @@ static int fat16FindDirectoryEntry(FilesystemState *fs, Fat16File *file,
   for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
     *block = file->rootStart + (ii / (file->bytesPerSector >>
       FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
-    if (fat16BlockOperation(fs, *block, fs->blockBuffer, false)) {
+    if (fat16ReadBlock(fs, *block, fs->blockBuffer)) {
       return FAT16_DIR_SEARCH_ERROR;
     }
     
@@ -158,7 +179,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   uint32_t block = 0;
   
   // Read boot sector
-  if (fat16BlockOperation(fs, fs->startLba, buffer, false)) {
+  if (fat16ReadBlock(fs, fs->startLba, buffer)) {
     return NULL;
   }
   
@@ -189,8 +210,8 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     free(file);
     return NULL;
   } else if (result == FAT16_DIR_SEARCH_FOUND) {
-    if (createFile) {
-      // File exists but we're in write/append mode - truncate it
+    if (createFile && !append) {
+      // File exists but we're in write mode - truncate it
       file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
       file->firstCluster = file->currentCluster;
       file->fileSize = 0;
@@ -215,7 +236,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     memset(entry + FAT16_DIR_ATTRIBUTES + 1, FAT16_EMPTY_ENTRY,
       FAT16_BYTES_PER_DIRECTORY_ENTRY - (FAT16_DIR_ATTRIBUTES + 1));
     
-    if (fat16BlockOperation(fs, block, buffer, true)) {
+    if (fat16WriteBlock(fs, block, buffer)) {
       free(file);
       return NULL;
     }
@@ -260,7 +281,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
     uint32_t block = file->dataStart + ((file->currentCluster -
       FAT16_MIN_DATA_CLUSTER) * file->sectorsPerCluster);
       
-    if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
+    if (fat16ReadBlock(fs, block, fs->blockBuffer)) {
       break;
     }
     
@@ -277,7 +298,7 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
       uint32_t fatBlock = fs->startLba + file->reservedSectors +
         ((file->currentCluster * sizeof(uint16_t)) / file->bytesPerSector);
       
-      if (fat16BlockOperation(fs, fatBlock, fs->blockBuffer, false)) {
+      if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
         break;
       }
       
@@ -314,7 +335,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
         (file->bytesPerSector * file->sectorsPerCluster))
     ) {
       // Find free cluster
-      if (fat16BlockOperation(fs, file->fatStart, fs->blockBuffer, false)) {
+      if (fat16ReadBlock(fs, file->fatStart, fs->blockBuffer)) {
         return -1;
       }
       
@@ -340,8 +361,8 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
       
       // Write FAT copies
       for (uint8_t ii = 0; ii < file->numberOfFats; ii++) {
-        if (fat16BlockOperation(fs, file->fatStart +
-            (ii * file->sectorsPerFat), fs->blockBuffer, true)) {
+        if (fat16WriteBlock(fs, file->fatStart +
+            (ii * file->sectorsPerFat), fs->blockBuffer)) {
           return -1;
         }
       }
@@ -361,7 +382,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     if ((sectorOffset != 0)
       || (length - bytesWritten < file->bytesPerSector)
     ) {
-      if (fat16BlockOperation(fs, block, fs->blockBuffer, false)) {
+      if (fat16ReadBlock(fs, block, fs->blockBuffer)) {
         return -1;
       }
     }
@@ -376,7 +397,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     memcpy(fs->blockBuffer + sectorOffset, buffer + bytesWritten,
       bytesThisWrite);
     
-    if (fat16BlockOperation(fs, block, fs->blockBuffer, true)) {
+    if (fat16WriteBlock(fs, block, fs->blockBuffer)) {
       return -1;
     }
 
@@ -402,7 +423,7 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
     *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]) = file->firstCluster;
   }
   
-  if (fat16BlockOperation(fs, block, fs->blockBuffer, true)) {
+  if (fat16WriteBlock(fs, block, fs->blockBuffer)) {
     return -1;
   }
 
@@ -436,7 +457,7 @@ int fat16Remove(FilesystemState *fs, const char *pathname) {
   
   // Mark the directory entry as deleted
   entry[FAT16_DIR_FILENAME] = FAT16_DELETED_MARKER;
-  result = fat16BlockOperation(fs, block, fs->blockBuffer, true);
+  result = fat16WriteBlock(fs, block, fs->blockBuffer);
   
   free(file);
   return result;
@@ -497,7 +518,7 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   while (file->currentPosition + file->bytesPerCluster <= newPosition) {
     uint32_t fatBlock = file->fatStart + ((file->currentCluster *
       sizeof(uint16_t)) / file->bytesPerSector);
-    if (fat16BlockOperation(fs, fatBlock, fs->blockBuffer, false)) {
+    if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
       return -1;
     }
     
