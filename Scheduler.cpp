@@ -2624,70 +2624,94 @@ __attribute__((noinline)) void startScheduler(
     printString("ERROR! schedulerState.hostname is NULL!\n");
   }
 
-  //// FILE *helloFile = kfopen(&schedulerState, "hello", "w");
-  //// if (helloFile != NULL) {
+  //// do {
+  ////   FILE *helloFile = kfopen(&schedulerState, "hello", "w");
+  ////   if (helloFile == NULL) {
+  ////     printDebug("ERROR: Could not open hello file for writing!\n");
+  ////     break;
+  ////   }
+
   ////   if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
   ////     printDebug("ERROR: Could not write to hello file!\n");
+  ////     kfclose(&schedulerState, helloFile);
+  ////     break;
   ////   }
   ////   kfclose(&schedulerState, helloFile);
+
   ////   helloFile = kfopen(&schedulerState, "hello", "r");
-  ////   if (helloFile != NULL) {
-  ////     char worldString[11] = {0};
-  ////     if (kFilesystemFGets(&schedulerState,
-  ////       worldString, sizeof(worldString), helloFile) == worldString
-  ////     ) {
-  ////       if (strcmp(worldString, "world") == 0) {
-  ////         printDebug("Successfully read \"world\" from \"hello\"!\n");
-  ////         kfclose(&schedulerState, helloFile);
-  ////         helloFile = kfopen(&schedulerState, "hello", "a");
-  ////         if (helloFile != NULL) {
-  ////           if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
-  ////             printDebug("ERROR: Could not append to hello file!\n");
-  ////           }
-  ////           kfclose(&schedulerState, helloFile);
-  ////           helloFile = kfopen(&schedulerState, "hello", "r");
-  ////           if (helloFile != NULL) {
-  ////             if (kFilesystemFGets(&schedulerState,
-  ////               worldString, sizeof(worldString), helloFile) == worldString
-  ////             ) {
-  ////                 if (strcmp(worldString, "worldworld") == 0) {
-  ////                   printDebug(
-  ////                     "Successfully read \"worldworld\" from \"hello\"!\n");
-  ////                 } else {
-  ////                   printDebug("ERROR: Expected \"worldworld\", read \"");
-  ////                   printDebug(worldString);
-  ////                   printDebug("\"!\n");
-  ////                 }
-  ////             } else {
-  ////               printDebug(
-  ////                 "ERROR: Could not read worldString after append!\n");
-  ////             }
-  ////             kfclose(&schedulerState, helloFile);
-  ////           } else {
-  ////             printDebug(
-  ////               "ERROR: Could not open hello file for reading after append!\n");
-  ////           }
-  ////         } else {
-  ////           printDebug("ERROR: Could not open hello file for appending!\n");
-  ////         }
-  ////       } else {
-  ////         printDebug("ERROR: Expected \"world\", read \"");
-  ////         printDebug(worldString);
-  ////         printDebug("\"!\n");
-  ////       }
-  ////     } else {
-  ////       printDebug("ERROR: Could not read worldString after write!\n");
-  ////     }
-  ////     kfclose(&schedulerState, helloFile);
-  ////   } else {
+  ////   if (helloFile == NULL) {
   ////     printDebug("ERROR: Could not open hello file for reading after write!\n");
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
   ////   }
+
+  ////   char worldString[11] = {0};
+  ////   if (kFilesystemFGets(&schedulerState,
+  ////     worldString, sizeof(worldString), helloFile) != worldString
+  ////   ) {
+  ////     printDebug("ERROR: Could not read worldString after write!\n");
+  ////     kfclose(&schedulerState, helloFile);
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+
+  ////   if (strcmp(worldString, "world") != 0) {
+  ////     printDebug("ERROR: Expected \"world\", read \"");
+  ////     printDebug(worldString);
+  ////     printDebug("\"!\n");
+  ////     kfclose(&schedulerState, helloFile);
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+  ////   printDebug("Successfully read \"world\" from \"hello\"!\n");
+  ////   kfclose(&schedulerState, helloFile);
+
+  ////   helloFile = kfopen(&schedulerState, "hello", "a");
+  ////   if (helloFile == NULL) {
+  ////     printDebug("ERROR: Could not open hello file for appending!\n");
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+
+  ////   if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
+  ////     printDebug("ERROR: Could not append to hello file!\n");
+  ////     kfclose(&schedulerState, helloFile);
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+  ////   kfclose(&schedulerState, helloFile);
+
+  ////   helloFile = kfopen(&schedulerState, "hello", "r");
+  ////   if (helloFile == NULL) {
+  ////     printDebug(
+  ////       "ERROR: Could not open hello file for reading after append!\n");
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+
+  ////   if (kFilesystemFGets(&schedulerState,
+  ////     worldString, sizeof(worldString), helloFile) != worldString
+  ////   ) {
+  ////     printDebug( "ERROR: Could not read worldString after append!\n");
+  ////     kfclose(&schedulerState, helloFile);
+  ////     kremove(&schedulerState, "hello");
+  ////     break;
+  ////   }
+
+  ////   if (strcmp(worldString, "worldworld") == 0) {
+  ////     printDebug(
+  ////       "Successfully read \"worldworld\" from \"hello\"!\n");
+  ////   } else {
+  ////     printDebug("ERROR: Expected \"worldworld\", read \"");
+  ////     printDebug(worldString);
+  ////     printDebug("\"!\n");
+  ////   }
+
+  ////   kfclose(&schedulerState, helloFile);
   ////   if (kremove(&schedulerState, "hello") != 0) {
   ////     printDebug("ERROR: kremove failed to remove the \"hello\" file.\n");
   ////   }
-  //// } else {
-  ////   printDebug("ERROR: Could not open hello file for writing!\n");
-  //// }
+  //// } while (0);
 
   // Run our scheduler.
   while (1) {
