@@ -61,12 +61,15 @@ extern "C"
 ///   bytes in length.
 /// @param startLba The address of the first block of the filesystem.
 /// @param endLba The address of the last block of the filesystem.
+/// @param numOpenFiles The number of files currently open by the filesystem.
+///   If this number is zero then the blockBuffer pointer may be NULL.
 typedef struct FilesystemState {
   BlockStorageDevice *blockDevice;
   uint16_t blockSize;
   uint8_t *blockBuffer;
   uint32_t startLba;
   uint32_t endLba;
+  uint8_t  numOpenFiles;
 } FilesystemState;
 
 /// @struct FilesystemIoCommandParameters
