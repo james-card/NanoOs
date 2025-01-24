@@ -174,19 +174,33 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
 ) {
   bool createFile = (mode[0] & 1); // 'w' and 'a' have LSB set
   bool append = (mode[0] == 'a');
-  uint8_t *buffer = fs->blockBuffer;
+  uint8_t *buffer = NULL;
   uint8_t *entry = NULL;
   uint32_t block = 0;
+  Fat16File *file = NULL;
+  int result = 0;
+  char upperName[FAT16_FULL_NAME_LENGTH + 1];
   
+  if (fs->numOpenFiles == 0) {
+    fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+    if (fs->blockBuffer == NULL) {
+      printDebug("ERROR: malloc of fs->blockBuffer returned NULL!\n");
+      goto exit;
+    }
+  }
+  buffer = fs->blockBuffer;
+
   // Read boot sector
   if (fat16ReadBlock(fs, fs->startLba, buffer)) {
-    return NULL;
+    printDebug("ERROR: Reading boot sector failed!\n");
+    goto exit;
   }
   
   // Create file structure to hold common values
-  Fat16File *file = (Fat16File*) malloc(sizeof(Fat16File));
+  file = (Fat16File*) malloc(sizeof(Fat16File));
   if (!file) {
-    return NULL;
+    printDebug("ERROR: malloc of Fat16File failed!\n");
+    goto exit;
   }
   
   // Store common boot sector values
@@ -203,13 +217,9 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     (((file->rootEntries * FAT16_BYTES_PER_DIRECTORY_ENTRY) +
     file->bytesPerSector - 1) / file->bytesPerSector);
   
-  int result = fat16FindDirectoryEntry(fs, file, pathname, &entry, &block,
-    NULL);
+  result = fat16FindDirectoryEntry(fs, file, pathname, &entry, &block, NULL);
   
-  if (result == FAT16_DIR_SEARCH_ERROR) {
-    free(file);
-    return NULL;
-  } else if (result == FAT16_DIR_SEARCH_FOUND) {
+  if (result == FAT16_DIR_SEARCH_FOUND) {
     if (createFile && !append) {
       // File exists but we're in write mode - truncate it
       file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
@@ -224,12 +234,11 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
       file->currentPosition = append ? file->fileSize : 0;
     }
     file->pathname = strdup(pathname);
-    return file;
+    fs->numOpenFiles++;
   } else if (createFile && 
       (result == FAT16_DIR_SEARCH_DELETED || 
        result == FAT16_DIR_SEARCH_NOT_FOUND)) {
     // Create new file using the entry location we found
-    char upperName[FAT16_FULL_NAME_LENGTH + 1];
     fat16FormatFilename(pathname, upperName);
     memcpy(entry + FAT16_DIR_FILENAME, upperName, FAT16_FULL_NAME_LENGTH);
     entry[FAT16_DIR_ATTRIBUTES] = FAT16_ATTR_NORMAL_FILE;
@@ -237,8 +246,9 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
       FAT16_BYTES_PER_DIRECTORY_ENTRY - (FAT16_DIR_ATTRIBUTES + 1));
     
     if (fat16WriteBlock(fs, block, buffer)) {
-      free(file);
-      return NULL;
+      free(file); file = NULL;
+      printDebug("ERROR: Writing name of new file failed!\n");
+      goto exit;
     }
     
     file->currentCluster = FAT16_EMPTY_ENTRY;
@@ -246,11 +256,16 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     file->firstCluster = FAT16_EMPTY_ENTRY;
     file->currentPosition = 0;
     file->pathname = strdup(pathname);
-    return file;
+    fs->numOpenFiles++;
+  } else {
+    free(file); file = NULL;
   }
   
-  free(file);
-  return NULL;
+exit:
+  if (fs->numOpenFiles == 0) {
+    free(fs->blockBuffer); fs->blockBuffer = NULL;
+  }
+  return file;
 }
 
 /// @fn int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
@@ -632,6 +647,10 @@ int fat16FilesystemCloseFileCommandHandler(
   free(fat16File->pathname);
   free(fat16File);
   free(nanoOsFile);
+  filesystemState->numOpenFiles--;
+  if (filesystemState->numOpenFiles == 0) {
+    free(filesystemState->blockBuffer); filesystemState->blockBuffer = NULL;
+  }
 
   processMessageSetDone(processMessage);
   return 0;
@@ -809,9 +828,10 @@ void* runFat16Filesystem(void *args) {
   fs.blockDevice = (BlockStorageDevice*) args;
   fs.blockSize = 512;
   coroutineYield(NULL);
-  fs.blockBuffer = (uint8_t*) malloc(fs.blockSize);
   
+  fs.blockBuffer = (uint8_t*) malloc(fs.blockSize);
   getPartitionInfo(&fs);
+  free(fs.blockBuffer); fs.blockBuffer = NULL;
   
   ProcessMessage *msg = NULL;
   while (1) {
