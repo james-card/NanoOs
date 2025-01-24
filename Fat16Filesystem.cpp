@@ -647,9 +647,11 @@ int fat16FilesystemCloseFileCommandHandler(
   free(fat16File->pathname);
   free(fat16File);
   free(nanoOsFile);
-  filesystemState->numOpenFiles--;
-  if (filesystemState->numOpenFiles == 0) {
-    free(filesystemState->blockBuffer); filesystemState->blockBuffer = NULL;
+  if (filesystemState->numOpenFiles > 0) {
+    filesystemState->numOpenFiles--;
+    if (filesystemState->numOpenFiles == 0) {
+      free(filesystemState->blockBuffer); filesystemState->blockBuffer = NULL;
+    }
   }
 
   processMessageSetDone(processMessage);
