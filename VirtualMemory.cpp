@@ -28,6 +28,9 @@
 // Doxygen marker
 /// @file
 
+// Custom includes
+#include "VirtualMemory.h"
+
 /// @fn int32_t virtualMemoryInit(
 ///   VirtualMemoryState *state, const char *filename)
 ///
@@ -40,6 +43,8 @@
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename
 ) {
+  (void) state;
+  (void) filename;
   return 0;
 }
 
@@ -51,6 +56,7 @@ int32_t virtualMemoryInit(
 ///
 /// @return This function returns no value.
 void virtualMemoryCleanup(VirtualMemoryState *state) {
+  (void) state;
 }
 
 /// @fn int32_t virtualMemoryRead8(
@@ -66,6 +72,9 @@ void virtualMemoryCleanup(VirtualMemoryState *state) {
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
@@ -82,6 +91,9 @@ int32_t virtualMemoryRead8(
 int32_t virtualMemoryRead32(
   VirtualMemoryState *state, uint32_t offset, uint32_t *value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
@@ -98,6 +110,9 @@ int32_t virtualMemoryRead32(
 int32_t virtualMemoryRead64(
   VirtualMemoryState *state, uint32_t offset, uint64_t *value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
@@ -114,6 +129,9 @@ int32_t virtualMemoryRead64(
 int32_t virtualMemoryWrite8(
   VirtualMemoryState *state, uint32_t offset, uint8_t value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
@@ -130,6 +148,9 @@ int32_t virtualMemoryWrite8(
 int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
@@ -146,6 +167,9 @@ int32_t virtualMemoryWrite32(
 int32_t virtualMemoryWrite64(
   VirtualMemoryState *state, uint32_t offset, uint64_t value
 ) {
+  (void) state;
+  (void) offset;
+  (void) value;
   return 0;
 }
 
