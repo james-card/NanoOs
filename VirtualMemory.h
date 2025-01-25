@@ -71,6 +71,12 @@ int32_t virtualMemoryRead32(
   VirtualMemoryState *state, uint32_t offset, uint32_t *value);
 int32_t virtualMemoryRead64(
   VirtualMemoryState *state, uint32_t offset, uint64_t *value);
+int32_t virtualMemoryWrite8(
+  VirtualMemoryState *state, uint32_t offset, uint8_t value);
+int32_t virtualMemoryWrite32(
+  VirtualMemoryState *state, uint32_t offset, uint32_t value);
+int32_t virtualMemoryWrite64(
+  VirtualMemoryState *state, uint32_t offset, uint64_t value);
 
 
 #ifdef __cplusplus
