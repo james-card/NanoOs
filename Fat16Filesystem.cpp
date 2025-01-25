@@ -307,8 +307,9 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
     file->currentPosition += toCopy;
     
     // Get next cluster if we've read a full cluster
-    if (!(file->currentPosition % (file->bytesPerSector *
-        file->sectorsPerCluster))) {
+    if ((file->currentPosition
+        % (file->bytesPerSector * file->sectorsPerCluster)) == 0
+    ) {
       // Calculate FAT sector containing our current cluster entry
       uint32_t fatBlock = fs->startLba + file->reservedSectors +
         ((file->currentCluster * sizeof(uint16_t)) / file->bytesPerSector);
