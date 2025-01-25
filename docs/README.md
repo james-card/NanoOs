@@ -35,3 +35,5 @@ This work started out as an experiment to see if I could implement an operating 
 [2025-01-01: Filesystem Part I](2025-01-01_Filesystem-Part-I.md)
 
 [2025-01-08: Pipes](2025-01-08_Pipes.md)
+
+[2025-01-24: Filesystem Part II](2025-01-24_Filesystem-Part-II.md)
