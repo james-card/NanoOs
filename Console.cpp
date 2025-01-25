@@ -975,15 +975,15 @@ void* runConsole(void *args) {
             consolePort->consoleIndex);
           bufferCopy[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
-          if (handleCommand(ii, bufferCopy) == processSuccess) {
-            // If the command has already returned or wrote to the console
-            // before its first yield, we may need to display its output.
-            // Handle the next next message in our queue just in case.
-            handleConsoleMessages(&consoleState);
-          } else {
-            consolePort->printString("Unknown command.\n");
-            consolePort->printString("> ");
-          }
+          //// if (handleCommand(ii, bufferCopy) == processSuccess) {
+          ////   // If the command has already returned or wrote to the console
+          ////   // before its first yield, we may need to display its output.
+          ////   // Handle the next next message in our queue just in case.
+          ////   handleConsoleMessages(&consoleState);
+          //// } else {
+          ////   consolePort->printString("Unknown command.\n");
+          ////   consolePort->printString("> ");
+          //// }
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
