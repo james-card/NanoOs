@@ -31,6 +31,7 @@
 // Custom includes
 #include "Processes.h"
 #include "Scheduler.h"
+#include "WasiVm.h"
 
 /// @var messages
 ///
@@ -194,8 +195,6 @@ void* startCommand(void *args) {
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
-  CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
@@ -232,7 +231,7 @@ void* startCommand(void *args) {
   }
 
   // Call the process function.
-  int returnValue = commandEntry->func(argc, argv);
+  int returnValue = wasiMain(argc, argv);
   free(argv); argv = NULL;
 
   if (callingProcessId != getRunningProcessId()) {
