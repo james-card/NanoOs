@@ -406,3 +406,24 @@ cleanup:
   return returnValue;
 }
 
+/// @fn int32_t wasmInitializeStacks(WasmVm *wasmVm)
+///
+/// @brief Initialize the VM stacks to prepare for execution
+///
+/// @param wasmVm Pointer to WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmInitializeStacks(WasmVm *wasmVm) {
+  // Initialize global stack for operands
+  if (wasmStackInit(&wasmVm->globalStack) != 0) {
+    return -1;
+  }
+  
+  // Initialize call stack for function calls
+  if (wasmStackInit(&wasmVm->callStack) != 0) {
+    return -1;
+  }
+  
+  return 0;
+}
+
