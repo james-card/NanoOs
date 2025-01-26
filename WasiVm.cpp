@@ -139,6 +139,54 @@ void wasiVmCleanup(WasiVm *wasiVm) {
   return;
 }
 
+/// @fn int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv)
+///
+/// @brief Get sizes needed for storing command line arguments in WASI
+///
+/// @param wasiVm Pointer to WASI VM state
+/// @param hostArgc Number of command line arguments from host
+/// @param hostArgv Array of command line argument strings from host
+///
+/// @return Returns 0 on success, negative value on error
+int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv) {
+  // Pop memory locations from operand stack
+  uint32_t argvBufSizePtr;
+  uint32_t argcPtr;
+  
+  // Pop in reverse order since they were pushed in the opposite order
+  if (wasmStackPop32(&wasiVm->wasmVm.globalStack, &argvBufSizePtr) != 0) {
+    return -1;
+  }
+  if (wasmStackPop32(&wasiVm->wasmVm.globalStack, &argcPtr) != 0) {
+    return -1;
+  }
+
+  // Calculate total size needed for all arguments including null terminators
+  uint32_t totalSize = 0;
+  for (int ii = 0; ii < hostArgc; ii++) {
+    totalSize += strlen(hostArgv[ii]) + 1;  // +1 for null terminator
+  }
+
+  // Write values to linear memory
+  if (virtualMemoryWrite32(&wasiVm->wasmVm.linearMemory, argcPtr,
+    (uint32_t) hostArgc) != 0
+  ) {
+    return -1;
+  }
+  if (virtualMemoryWrite32(&wasiVm->wasmVm.linearMemory, argvBufSizePtr,
+    totalSize) != 0
+  ) {
+    return -1;
+  }
+
+  // Push success return value (0) onto operand stack
+  if (wasmStackPush32(&wasiVm->wasmVm.globalStack, 0) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
 /// @fn int wasiVmMain(int argc, char **argv)
 ///
 /// @brief Main entry point for running a WASI-compiled binary.
