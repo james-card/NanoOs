@@ -71,7 +71,7 @@ typedef struct WasiVm {
 } WasiVm;
 
 
-int wasiMain(int argc, char **argv);
+int wasiVmMain(int argc, char **argv);
 
 #ifdef __cplusplus
 } // extern "C"

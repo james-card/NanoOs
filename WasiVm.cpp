@@ -30,7 +30,7 @@
 
 #include "WasiVm.h"
 
-int wasiMain(int argc, char **argv) {
+int wasiVmMain(int argc, char **argv) {
   int returnValue = 0;
   WasiVm wasiVm = {};
   char tempFilename[13];

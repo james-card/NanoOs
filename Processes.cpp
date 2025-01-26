@@ -231,7 +231,7 @@ void* startCommand(void *args) {
   }
 
   // Call the process function.
-  int returnValue = wasiMain(argc, argv);
+  int returnValue = wasiVmMain(argc, argv);
   free(argv); argv = NULL;
 
   if (callingProcessId != getRunningProcessId()) {
