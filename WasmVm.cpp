@@ -458,3 +458,58 @@ int32_t wasmInitializeStacks(WasmVm *wasmVm) {
   return 0;
 }
 
+/// @fn int32_t wasmParseMemorySection(WasmVm *wasmVm)
+///
+/// @brief Parse the memory section of a WASM module to configure linear memory
+///
+/// @param wasmVm Pointer to WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmParseMemorySection(WasmVm *wasmVm) {
+  uint32_t sectionOffset;
+  uint32_t sectionSize;
+  
+  // Find memory section (section ID 5)
+  if (wasmFindSection(wasmVm,
+    WASM_SECTION_MEMORY, &sectionOffset, &sectionSize) != 0
+  ) {
+    return -1;
+  }
+  
+  // Parse memory section content
+  uint32_t count;
+  uint32_t bytesRead = readLeb128(&wasmVm->codeSegment, sectionOffset, &count);
+  if (bytesRead == 0) {
+    return -1;
+  }
+  
+  // Only handle one memory entry for now
+  if (count != 1) {
+    return -1;
+  }
+  
+  // Read limits
+  uint32_t offset = sectionOffset + bytesRead;
+  uint8_t flags;
+  if (virtualMemoryRead8(&wasmVm->codeSegment, offset, &flags) != 0) {
+    return -1;
+  }
+  offset++;
+  
+  uint32_t initialPages;
+  bytesRead = readLeb128(&wasmVm->codeSegment, offset, &initialPages);
+  if (bytesRead == 0) {
+    return -1;
+  }
+  
+  // Allocate initial memory (64KB per page)
+  uint32_t memorySize = initialPages * 65536;
+  if (virtualMemoryWrite(&wasmVm->linearMemory, 0, memorySize, NULL) 
+    != memorySize
+  ) {
+    return -1;
+  }
+  
+  return 0;
+}
+
