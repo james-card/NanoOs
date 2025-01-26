@@ -67,7 +67,7 @@ typedef struct VirtualMemoryState {
 
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename);
-void virtualMemoryCleanup(VirtualMemoryState *state);
+void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile);
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value);
 int32_t virtualMemoryRead32(

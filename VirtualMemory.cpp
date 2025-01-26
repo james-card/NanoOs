@@ -63,16 +63,20 @@ int32_t virtualMemoryInit(
   return 0;
 }
 
-/// @fn void virtualMemoryCleanup(VirtualMemoryState *state)
+/// @fn void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile)
 ///
 /// @brief Clean up virtual memory system resources.
 ///
 /// @param state Pointer to state structure to clean up.
+/// @param removeFile Whether or not the backing file should be removed from
+///   the filesystem.
 ///
 /// @return This function returns no value.
-void virtualMemoryCleanup(VirtualMemoryState *state) {
+void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
   fclose(state->fileHandle); state->fileHandle = NULL;
-  remove(state->filename);
+  if (removeFile) {
+    remove(state->filename);
+  }
   *state->filename = '\0';
 }
 
