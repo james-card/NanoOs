@@ -904,6 +904,12 @@ void* runFat16Filesystem(void *args) {
 /// @return Returns a pointer to an initialized FILE object on success, NULL on
 /// failure.
 FILE* filesystemFOpen(const char *pathname, const char *mode) {
+  if ((pathname == NULL) || (*pathname == '\0')
+    || (mode == NULL) || (*mode == '\0')
+  ) {
+    return NULL;
+  }
+
   ProcessMessage *msg = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
     (intptr_t) mode, (intptr_t) pathname, true);
@@ -942,7 +948,7 @@ int filesystemFClose(FILE *stream) {
 /// @return Returns 0 on success, -1 on failure.
 int filesystemRemove(const char *pathname) {
   int returnValue = 0;
-  if ((pathname) && (*pathname)) {
+  if ((pathname != NULL) && (*pathname != '\0')) {
     ProcessMessage *msg = sendNanoOsMessageToPid(
       NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
       /* func= */ 0, (intptr_t) pathname, true);
@@ -966,7 +972,11 @@ int filesystemRemove(const char *pathname) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int filesystemFSeek(FILE *stream, long offset, int whence) {
- FilesystemSeekParameters filesystemSeekParameters = {
+  if (stream == NULL) {
+    return -1;
+  }
+
+  FilesystemSeekParameters filesystemSeekParameters = {
     .stream = stream,
     .offset = offset,
     .whence = whence,
@@ -995,6 +1005,10 @@ int filesystemFSeek(FILE *stream, long offset, int whence) {
 /// file.
 size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   size_t returnValue = 0;
+  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
+    // Nothing to do.
+    return returnValue; // 0
+  }
 
   FilesystemIoCommandParameters filesystemIoCommandParameters = {
     .file = stream,
@@ -1031,6 +1045,10 @@ size_t filesystemFWrite(
   void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
   size_t returnValue = 0;
+  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
+    // Nothing to do.
+    return returnValue; // 0
+  }
 
   FilesystemIoCommandParameters filesystemIoCommandParameters = {
     .file = stream,
@@ -1060,7 +1078,7 @@ size_t filesystemFWrite(
 /// @return Returns the current position of the file on success, -1 on failure.
 long filesystemFTell(FILE *stream) {
   if (stream == NULL) {
-    return 0;
+    return -1;
   }
 
   return (long) ((Fat16File*) stream->file)->fileSize;
