@@ -242,6 +242,57 @@ int32_t wasmFindImportFunction(const char *fullName,
   return -1;
 }
 
+/// @fn int32_t wasmFindSection(WasmVm *wasmVm, uint8_t sectionId,
+///   uint32_t *sectionOffset, uint32_t *sectionSize)
+///
+/// @brief Find a specific section in a WASM module
+///
+/// @param wasmVm Pointer to WASM VM state
+/// @param sectionId ID of the section to find
+/// @param sectionOffset Where to store the offset of section content
+/// @param sectionSize Where to store the size of section content
+///
+/// @return Returns 0 if found, -1 if not found or error
+int32_t wasmFindSection(WasmVm *wasmVm, uint8_t sectionId,
+  uint32_t *sectionOffset, uint32_t *sectionSize
+) {
+  uint32_t offset = 8; // Skip WASM header
+  uint8_t currentSectionId;
+  uint32_t currentSectionSize;
+  uint32_t bytesRead;
+  
+  while (1) {
+    if (virtualMemoryRead8(&wasmVm->codeSegment, offset,
+      &currentSectionId) != 0
+    ) {
+      return -1;
+    }
+    offset++;
+    
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset, &currentSectionSize);
+    if (bytesRead == 0) {
+      return -1;
+    }
+    offset += bytesRead;
+    
+    if (currentSectionId == sectionId) {
+      *sectionOffset = offset;
+      *sectionSize = currentSectionSize;
+      return 0;
+    }
+    
+    offset += currentSectionSize;
+    
+    // Check if we've reached the end
+    uint8_t nextByte;
+    if (virtualMemoryRead8(&wasmVm->codeSegment, offset, &nextByte) != 0) {
+      break;
+    }
+  }
+  
+  return -1; // Section not found
+}
+
 /// @fn int32_t wasmParseImports(
 ///   WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength)
 ///
@@ -256,7 +307,6 @@ int32_t wasmParseImports(
   WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength
 ) {
   uint32_t offset = 8;  // Skip WASM header
-  uint8_t sectionId;
   uint32_t sectionSize;
   uint32_t importCount;
   char *importName = NULL;
@@ -264,30 +314,11 @@ int32_t wasmParseImports(
   uint32_t tableIndex = 0;  // Current index in table space
   uint32_t bytesRead = 0;
   
-  // Find imports section (section ID 2)
-  while (1) {
-    if (virtualMemoryRead8(&wasmVm->codeSegment, offset,
-      &sectionId) != 0
-    ) {
-      return -1;
-    }
-    
-    offset++;
-    
-    bytesRead = readLeb128(&wasmVm->codeSegment, offset,
-      &sectionSize);
-    if (bytesRead == 0) {
-      return -1;
-    }
-    
-    offset += bytesRead;
-    
-    if (sectionId == 2) {  // Found imports section
-      break;
-    }
-    
-    // Skip to next section
-    offset += sectionSize;
+  // Find imports section
+  if (
+    wasmFindSection(wasmVm, WASM_SECTION_IMPORTS, &offset, &sectionSize) != 0
+  ) {
+    return -1;
   }
   
   // Read number of imports
