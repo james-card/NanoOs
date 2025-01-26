@@ -941,12 +941,15 @@ int filesystemFClose(FILE *stream) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int filesystemRemove(const char *pathname) {
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
-    /* func= */ 0, (intptr_t) pathname, true);
-  processMessageWaitForDone(msg, NULL);
-  int returnValue = nanoOsMessageDataValue(msg, int);
-  processMessageRelease(msg);
+  int returnValue = 0;
+  if ((pathname) && (*pathname)) {
+    ProcessMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+      /* func= */ 0, (intptr_t) pathname, true);
+    processMessageWaitForDone(msg, NULL);
+    returnValue = nanoOsMessageDataValue(msg, int);
+    processMessageRelease(msg);
+  }
   return returnValue;
 }
 
