@@ -93,3 +93,87 @@ void wasmVmCleanup(WasmVm *wasmVm) {
   return;
 }
 
+/// @fn int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value)
+///
+/// @brief Push a 32-bit value onto a WASM stack
+///
+/// @param stack Pointer to virtual memory representing the stack
+/// @param value The 32-bit value to push
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value) {
+  // Get current stack pointer (top of stack)
+  uint32_t stackPointer;
+  if (virtualMemoryRead32(stack, 0, &stackPointer) != 0) {
+    return -1;
+  }
+
+  // Check for stack overflow
+  if (stackPointer >= stack->fileSize - sizeof(uint32_t)) {
+    return -1;
+  }
+
+  // Write value to stack
+  if (virtualMemoryWrite32(
+    stack, stackPointer + sizeof(stackPointer), value) != 0
+  ) {
+    return -1;
+  }
+
+  // Update stack pointer
+  stackPointer += sizeof(uint32_t);
+  if (virtualMemoryWrite32(stack, 0, stackPointer) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/// @fn int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value)
+///
+/// @brief Pop a 32-bit value from a WASM stack
+///
+/// @param stack Pointer to virtual memory representing the stack
+/// @param value Pointer where to store the popped value
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value) {
+  // Get current stack pointer
+  uint32_t stackPointer;
+  if (virtualMemoryRead32(stack, 0, &stackPointer) != 0) {
+    return -1;
+  }
+
+  // Check for stack underflow
+  if (stackPointer < sizeof(uint32_t)) {
+    return -1;
+  }
+
+  // Update stack pointer first
+  stackPointer -= sizeof(uint32_t);
+  if (virtualMemoryWrite32(stack, 0, stackPointer) != 0) {
+    return -1;
+  }
+
+  // Read value from stack
+  if (virtualMemoryRead32(
+    stack, stackPointer + sizeof(stackPointer), value) != 0
+  ) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/// @fn int32_t wasmStackInit(VirtualMemoryState *stack)
+///
+/// @brief Initialize a WASM stack
+///
+/// @param stack Pointer to virtual memory representing the stack
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmStackInit(VirtualMemoryState *stack) {
+  // Initialize stack pointer to 0
+  return virtualMemoryWrite32(stack, 0, 0);
+}
+

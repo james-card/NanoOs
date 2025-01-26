@@ -542,6 +542,9 @@ typedef struct WasmVm {
 
 void wasmVmCleanup(WasmVm *wasmVm);
 int wasmVmInit(WasmVm *wasmVm, const char *programPath);
+int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value);
+int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value);
+int32_t wasmStackInit(VirtualMemoryState *stack);
 
 #ifdef __cplusplus
 } // extern "C"
