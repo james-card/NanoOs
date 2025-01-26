@@ -539,6 +539,9 @@ typedef struct WasmVm {
   VirtualMemoryState tableSpace;
 } WasmVm;
 
+/// @typedef WasmImportFunc
+///
+/// @brief Type of function pointer that can be imported by a WASM program.
 typedef int32_t (*WasmImportFunc)(WasmVm*);
 
 /// @struct WasmImport
