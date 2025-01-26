@@ -49,6 +49,8 @@ extern "C"
 ///
 /// @brief State information for a WASI process.
 ///
+/// @param programCounter The offset into the codeSegment of the next
+///   instruction to be evaluated.
 /// @param codeSegment Virtual memory for the compiled code of the program.
 ///   Backing for this will be the compiled, on-disk binary.
 /// @param linearMemory Virtual memory for the WASM linear memory segment.
@@ -62,6 +64,7 @@ extern "C"
 /// @param tableSpace Virtual memory for the WASM function table segment.
 ///   Backing for this will be an on-disk file with a random filename.
 typedef struct WasiVm {
+  uint32_t           programCounter;
   VirtualMemoryState codeSegment;
   VirtualMemoryState linearMemory;
   VirtualMemoryState globalStack;
