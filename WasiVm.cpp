@@ -105,10 +105,20 @@ void wasiVmCleanup(WasiVm *wasiVm) {
 int wasiVmMain(int argc, char **argv) {
   int returnValue = 0;
   WasiVm wasiVm = {};
+  uint8_t opcode = 0;
 
   if (wasiVmInit(&wasiVm, argv[0]) != 0) {
     returnValue = -1;
     goto exit;
+  }
+
+  while (1) {
+    if (virtualMemoryRead8(
+      &wasiVm.codeSegment, wasiVm.programCounter++, &opcode) != 0
+    ) {
+      returnValue = -2;
+      goto exit;
+    }
   }
 
 exit:
