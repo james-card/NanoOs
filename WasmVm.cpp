@@ -177,3 +177,232 @@ int32_t wasmStackInit(VirtualMemoryState *stack) {
   return virtualMemoryWrite32(stack, 0, 0);
 }
 
+/// @fn uint32_t readLeb128(VirtualMemoryState *memory, uint32_t offset,
+///   uint32_t *value)
+///
+/// @brief Read a LEB128 encoded integer from memory
+///
+/// @param memory Virtual memory to read from
+/// @param offset Offset to read from
+/// @param value Pointer to store decoded value
+///
+/// @return Number of bytes read, or 0 on error
+uint32_t readLeb128(VirtualMemoryState *memory, uint32_t offset, 
+  uint32_t *value
+) {
+  uint32_t result = 0;
+  uint32_t shift = 0;
+  uint32_t bytesRead = 0;
+  uint8_t byte;
+
+  do {
+    if (virtualMemoryRead8(memory, offset + bytesRead, &byte) != 0) {
+      return 0;
+    }
+    result |= ((byte & 0x7f) << shift);
+    shift += 7;
+    bytesRead++;
+  } while (byte & 0x80);
+
+  *value = result;
+  return bytesRead;
+}
+
+/// @fn int32_t wasmFindImportFunction(const char *fullName, 
+///   const WasmImport *importTable, uint32_t importCount, uint32_t *index)
+///
+/// @brief Find import function using binary search
+///
+/// @param fullName Full function name (module.field)
+/// @param importTable Array of import functions to search
+/// @param importCount Number of entries in importTable
+/// @param index Where to store the found index
+///
+/// @return Returns 0 if found, -1 if not found
+int32_t wasmFindImportFunction(const char *fullName, 
+  const WasmImport *importTable, uint32_t importCount, uint32_t *index
+) {
+  int32_t left = 0;
+  int32_t right = importCount - 1;
+  
+  while (left <= right) {
+    int32_t mid = (left + right) / 2;
+    int32_t comparison = strcmp(fullName, importTable[mid].functionName);
+    
+    if (comparison == 0) {
+      *index = mid;
+      return 0;
+    } else if (comparison < 0) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
+  }
+  
+  return -1;
+}
+
+/// @fn int32_t wasmParseImports(
+///   WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength)
+///
+/// @brief Parse the imports section of a WASM module and populate table space
+///
+/// @param wasmVm Pointer to WASI VM state
+/// @param importTable Array of import functions to use
+/// @param importTableLength Number of entries in importTable
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmParseImports(
+  WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength
+) {
+  uint32_t offset = 8;  // Skip WASM header
+  uint8_t sectionId;
+  uint32_t sectionSize;
+  uint32_t importCount;
+  char *importName = NULL;
+  int32_t returnValue = -1;
+  uint32_t tableIndex = 0;  // Current index in table space
+  uint32_t bytesRead = 0;
+  
+  // Find imports section (section ID 2)
+  while (1) {
+    if (virtualMemoryRead8(&wasmVm->codeSegment, offset,
+      &sectionId) != 0
+    ) {
+      return -1;
+    }
+    
+    offset++;
+    
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset,
+      &sectionSize);
+    if (bytesRead == 0) {
+      return -1;
+    }
+    
+    offset += bytesRead;
+    
+    if (sectionId == 2) {  // Found imports section
+      break;
+    }
+    
+    // Skip to next section
+    offset += sectionSize;
+  }
+  
+  // Read number of imports
+  bytesRead = readLeb128(&wasmVm->codeSegment, offset, &importCount);
+  if (bytesRead == 0) {
+    return -1;
+  }
+  offset += bytesRead;
+  
+  // Process each import
+  for (uint32_t ii = 0; ii < importCount; ii++) {
+    uint32_t moduleNameLength;
+    
+    // Read module name length
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset,
+      &moduleNameLength);
+    if (bytesRead == 0) {
+      goto cleanup;
+    }
+    offset += bytesRead;
+    
+    // Allocate space for module name + '.' + null terminator
+    importName = (char *) malloc(moduleNameLength + 2);
+    if (importName == NULL) {
+      goto cleanup;
+    }
+    
+    // Read module name and add '.'
+    if (virtualMemoryRead(&wasmVm->codeSegment, offset, moduleNameLength,
+      importName) != moduleNameLength
+    ) {
+      goto cleanup;
+    }
+    importName[moduleNameLength] = '.';
+    importName[moduleNameLength + 1] = '\0';
+    offset += moduleNameLength;
+    
+    // Read field name length
+    uint32_t fieldNameLength;
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset,
+      &fieldNameLength);
+    if (bytesRead == 0) {
+      goto cleanup;
+    }
+    offset += bytesRead;
+    
+    // Reallocate to make room for field name
+    char *newPtr = (char *) realloc(importName, 
+      moduleNameLength + fieldNameLength + 2);
+    if (newPtr == NULL) {
+      goto cleanup;
+    }
+    importName = newPtr;
+    
+    // Read field name
+    if (virtualMemoryRead(&wasmVm->codeSegment, offset, fieldNameLength,
+      importName + moduleNameLength + 1) != fieldNameLength
+    ) {
+      goto cleanup;
+    }
+    importName[moduleNameLength + fieldNameLength + 1] = '\0';
+    offset += fieldNameLength;
+    
+    // Read import kind
+    uint8_t importKind;
+    if (virtualMemoryRead8(&wasmVm->codeSegment, offset,
+      &importKind) != 0
+    ) {
+      goto cleanup;
+    }
+    offset++;
+    
+    // For functions, read the type index and add to table
+    if (importKind == 0) {
+      uint32_t typeIndex;
+      bytesRead = readLeb128(&wasmVm->codeSegment, offset, &typeIndex);
+      if (bytesRead == 0) {
+        goto cleanup;
+      }
+      offset += bytesRead;
+      
+      // Find the function in our table using binary search
+      uint32_t functionIndex;
+      if (wasmFindImportFunction(importName, importTable, importTableLength,
+        &functionIndex) == 0
+      ) {
+        // Write function index to table space
+        if (virtualMemoryWrite32(&wasmVm->tableSpace,
+          tableIndex * sizeof(uint32_t), functionIndex) != 0
+        ) {
+          goto cleanup;
+        }
+        tableIndex++;
+      }
+    } else {
+      // Skip other import kinds for now
+      // TODO: Handle table, memory, and global imports
+    }
+
+    // Free current name before next iteration
+    free(importName);
+    importName = NULL;
+  }
+  
+  // Store total end of table marker.
+  if (virtualMemoryWrite32(&wasmVm->tableSpace, 
+    tableIndex * sizeof(uint32_t), 0xFFFFFFFF) != 0
+  ) {
+    goto cleanup;
+  }
+  
+  returnValue = 0;
+
+cleanup:
+  free(importName);
+  return returnValue;
+}
+

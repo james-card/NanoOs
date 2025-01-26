@@ -539,12 +539,28 @@ typedef struct WasmVm {
   VirtualMemoryState tableSpace;
 } WasmVm;
 
+typedef int32_t (*WasmImportFunc)(WasmVm*);
+
+/// @struct WasmImport
+///
+/// @brief Structure of an entry in a WASM import table.
+///
+/// @param functionName Full name of the function in the format "module.field".
+/// @param function WasmImportFunc function pointer to the implementation of
+///   the function.
+typedef struct WasmImport {
+  const char *functionName;
+  WasmImportFunc function;
+} WasmImport;
+
 
 void wasmVmCleanup(WasmVm *wasmVm);
 int wasmVmInit(WasmVm *wasmVm, const char *programPath);
 int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value);
 int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value);
 int32_t wasmStackInit(VirtualMemoryState *stack);
+int32_t wasmParseImports(
+  WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength);
 
 #ifdef __cplusplus
 } // extern "C"
