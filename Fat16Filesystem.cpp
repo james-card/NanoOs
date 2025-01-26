@@ -921,11 +921,13 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
 ///
 /// @return This function always succeeds and always returns 0.
 int filesystemFClose(FILE *stream) {
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
-    0, (intptr_t) stream, true);
-  processMessageWaitForDone(msg, NULL);
-  processMessageRelease(msg);
+  if (stream != NULL) {
+    ProcessMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
+      0, (intptr_t) stream, true);
+    processMessageWaitForDone(msg, NULL);
+    processMessageRelease(msg);
+  }
   return 0;
 }
 
