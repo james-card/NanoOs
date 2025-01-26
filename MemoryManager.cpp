@@ -733,8 +733,11 @@ void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
 ///
 /// @return This function always succeeds and returns no value.
 void memoryManagerFree(void *ptr) {
-  sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
-    (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
+  if (ptr != NULL) {
+    sendNanoOsMessageToPid(
+      NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE,
+      (NanoOsMessageData) 0, (NanoOsMessageData) ((intptr_t) ptr), false);
+  }
   return;
 }
 
