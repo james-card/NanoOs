@@ -65,6 +65,7 @@ typedef struct VirtualMemoryState {
   uint32_t  bufferValidBytes;
 } VirtualMemoryState;
 
+
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename);
 void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile);
@@ -80,7 +81,6 @@ int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value);
 int32_t virtualMemoryWrite64(
   VirtualMemoryState *state, uint32_t offset, uint64_t value);
-
 
 #ifdef __cplusplus
 } // extern "C"
