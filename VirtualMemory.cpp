@@ -76,6 +76,48 @@ void virtualMemoryCleanup(VirtualMemoryState *state) {
   *state->filename = '\0';
 }
 
+/// @fn void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset)
+///
+/// @brief Get a pointer to the place in virtual memory specified by the
+/// provided offset.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to read from.
+///
+/// @return Returns a pointer to the specified memory on success, NULL on
+/// failure.
+void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
+  if ((state == NULL) || (state->fileHandle == NULL)) {
+    return NULL;
+  }
+
+  // Check if requested byte is in buffer
+  if ((offset >= state->bufferBaseOffset) && 
+      (offset < state->bufferBaseOffset + state->bufferValidBytes)) {
+    return &state->buffer[offset - state->bufferBaseOffset];
+  }
+
+  // Need to load new data into buffer
+  if (state->bufferValidBytes > 0) {
+    // Write current buffer if it contains data
+    fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
+    fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
+  }
+
+  // Read new buffer from requested location
+  state->bufferBaseOffset
+    = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
+  fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
+  state->bufferValidBytes
+    = fread(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+
+  if (state->bufferValidBytes == 0) {
+    return NULL;
+  }
+
+  return &state->buffer[offset - state->bufferBaseOffset];
+}
+
 /// @fn int32_t virtualMemoryRead8(
 ///   VirtualMemoryState *state, uint32_t offset, uint8_t *value)
 ///
@@ -89,10 +131,21 @@ void virtualMemoryCleanup(VirtualMemoryState *state) {
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  // The state variable and its necessary components will be verified by
+  // virtualMemoryGet, so just check value here.
+  if (value == NULL) {
+    return -1;
+  }
+
+  int returnValue = 0;
+  uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *value = *memoryAddr;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
 /// @fn int32_t virtualMemoryRead32(
@@ -108,10 +161,21 @@ int32_t virtualMemoryRead8(
 int32_t virtualMemoryRead32(
   VirtualMemoryState *state, uint32_t offset, uint32_t *value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  // The state variable and its necessary components will be verified by
+  // virtualMemoryGet, so just check value here.
+  if (value == NULL) {
+    return -1;
+  }
+
+  int returnValue = 0;
+  uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *value = *memoryAddr;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
 /// @fn int32_t virtualMemoryRead64(
@@ -127,10 +191,21 @@ int32_t virtualMemoryRead32(
 int32_t virtualMemoryRead64(
   VirtualMemoryState *state, uint32_t offset, uint64_t *value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  // The state variable and its necessary components will be verified by
+  // virtualMemoryGet, so just check value here.
+  if (value == NULL) {
+    return -1;
+  }
+
+  int returnValue = 0;
+  uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *value = *memoryAddr;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
 /// @fn int32_t virtualMemoryWrite8(
@@ -146,10 +221,15 @@ int32_t virtualMemoryRead64(
 int32_t virtualMemoryWrite8(
   VirtualMemoryState *state, uint32_t offset, uint8_t value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  int returnValue = 0;
+  uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *memoryAddr = value;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
 /// @fn int32_t virtualMemoryWrite32(
@@ -165,10 +245,15 @@ int32_t virtualMemoryWrite8(
 int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  int returnValue = 0;
+  uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *memoryAddr = value;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
 /// @fn int32_t virtualMemoryWrite64(
@@ -184,9 +269,14 @@ int32_t virtualMemoryWrite32(
 int32_t virtualMemoryWrite64(
   VirtualMemoryState *state, uint32_t offset, uint64_t value
 ) {
-  (void) state;
-  (void) offset;
-  (void) value;
-  return 0;
+  int returnValue = 0;
+  uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *memoryAddr = value;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
 }
 
