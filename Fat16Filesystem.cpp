@@ -1029,7 +1029,7 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 }
 
 /// @fn size_t filesystemFWrite(
-///   void *ptr, size_t size, size_t nmemb, FILE *stream)
+///   const void *ptr, size_t size, size_t nmemb, FILE *stream)
 ///
 /// @brief Write data to a previously-opened file.
 ///
@@ -1042,7 +1042,7 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 /// @return Returns the total number of objects successfully written to the
 /// file.
 size_t filesystemFWrite(
-  void *ptr, size_t size, size_t nmemb, FILE *stream
+  const void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
   size_t returnValue = 0;
   if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
