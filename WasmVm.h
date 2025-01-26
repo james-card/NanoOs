@@ -45,7 +45,9 @@ extern "C"
 {
 #endif
 
+// WASM section codes
 #define WASM_SECTION_IMPORTS 2
+#define WASM_SECTION_MEMORY  5
 
 /// @enum WasmOpcode
 ///
