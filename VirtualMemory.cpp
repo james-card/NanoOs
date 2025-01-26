@@ -43,8 +43,23 @@
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename
 ) {
-  (void) state;
-  (void) filename;
+  // Validate parameters
+  if ((state == NULL) || (filename == NULL)) {
+    return -1;
+  }
+
+  // Open backing store file
+  state->fileHandle = fopen(filename, "w+b");
+  if (state->fileHandle == NULL) {
+    return -1;
+  }
+
+  // Initialize buffer state
+  state->bufferBaseOffset = 0;
+  state->bufferValidBytes = 0;
+  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+  strcpy(state->filename, filename);
+
   return 0;
 }
 
