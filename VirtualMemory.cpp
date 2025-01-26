@@ -71,7 +71,9 @@ int32_t virtualMemoryInit(
 ///
 /// @return This function returns no value.
 void virtualMemoryCleanup(VirtualMemoryState *state) {
-  (void) state;
+  fclose(state->fileHandle); state->fileHandle = NULL;
+  remove(state->filename);
+  *state->filename = '\0';
 }
 
 /// @fn int32_t virtualMemoryRead8(
