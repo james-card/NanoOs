@@ -1,13 +1,4 @@
-#include "VirtualMemory.h"
-
-typedef struct WasiVm {
-  VirtualMemoryState codeSegment;
-  VirtualMemoryState linearMemory;
-  VirtualMemoryState globalStack;
-  VirtualMemoryState callStack;
-  VirtualMemoryState globalStorage;
-  VirtualMemoryState tableSpace;
-} WasiVm;
+#include "WasiVm.h"
 
 int wasiMain(int argc, char **argv) {
   int returnValue = 0;
@@ -70,3 +61,4 @@ cleanupCodeSegment:
 exit:
   return returnValue;
 }
+
