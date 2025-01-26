@@ -106,19 +106,24 @@ void wasiFdTableCleanup(WasiFdTable *table) {
   table->nextFreeFd = 0;
 }
 
-/// @fn int wasiVmInit(WasiVm *wasiVm, const char *programPath)
+/// @fn int wasiVmInit(WasiVm *wasiVm, int argc, char **argv)
 ///
 /// @brief Initialize all the state information for starting a WASI VM process.
 ///
 /// @param wasiVm A pointer to the WasiVm state object maintained by the
 ///   wasiVmMain function.
-/// @param programPath The full path to the WASI binary on disk.
+/// @param argc The value of the argc argument provided to the main function.
+/// @param argv The value of the argv argument provided to the main function.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int wasiVmInit(WasiVm *wasiVm, const char *programPath) {
-  int returnValue = wasmVmInit(&wasiVm->wasmVm, programPath);
+int wasiVmInit(WasiVm *wasiVm, int argc, char **argv) {
+  int returnValue = wasmVmInit(&wasiVm->wasmVm, argv[0]);
   if (returnValue == 0) {
     returnValue = wasiFdTableInit(&wasiVm->wasiFdTable);
+  }
+  if (returnValue == 0) {
+    wasiVm->argc = argc;
+    wasiVm->argv = argv;
   }
 
   return returnValue;
@@ -139,19 +144,18 @@ void wasiVmCleanup(WasiVm *wasiVm) {
   return;
 }
 
-/// @fn int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv)
+/// @fn int32_t wasiArgsSizesGet(WasmVm *wasmVm, void *args)
 ///
-/// @brief Get sizes needed for storing command line arguments in WASI
+/// @brief Get sizes needed for storing command line arguments in WASI.
 ///
-/// @param wasiVm Pointer to WASI VM state
-/// @param hostArgc Number of command line arguments from host
-/// @param hostArgv Array of command line argument strings from host
+/// @param args A pointer to a WasiVm structure cast to a void*.
 ///
-/// @return Returns 0 on success, negative value on error
-int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv) {
+/// @return Returns 0 on success, negative value on error.
+int32_t wasiArgsSizesGet(void *args) {
   // Pop memory locations from operand stack
   uint32_t argvBufSizePtr;
   uint32_t argcPtr;
+  WasiVm *wasiVm = (WasiVm*) args;
   
   // Pop in reverse order since they were pushed in the opposite order
   if (wasmStackPop32(&wasiVm->wasmVm.globalStack, &argvBufSizePtr) != 0) {
@@ -163,13 +167,14 @@ int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv) {
 
   // Calculate total size needed for all arguments including null terminators
   uint32_t totalSize = 0;
-  for (int ii = 0; ii < hostArgc; ii++) {
-    totalSize += strlen(hostArgv[ii]) + 1;  // +1 for null terminator
+  for (int ii = 0; ii < wasiVm->argc; ii++) {
+    // +1 for null terminator
+    totalSize += strlen(wasiVm->argv[ii]) + 1;
   }
 
   // Write values to linear memory
   if (virtualMemoryWrite32(&wasiVm->wasmVm.linearMemory, argcPtr,
-    (uint32_t) hostArgc) != 0
+    (uint32_t) wasiVm->argc) != 0
   ) {
     return -1;
   }
@@ -187,6 +192,25 @@ int32_t wasiArgsSizesGet(WasiVm *wasiVm, int hostArgc, char **hostArgv) {
   return 0;
 }
 
+/// @var wasiImports
+///
+/// @brief Table of supported WASI functions (alphabetically ordered by
+/// functionName)
+static const WasmImport wasiImports[] = {
+  //// { "wasi_snapshot_preview1.args_get", wasiArgsGet },
+  { "wasi_snapshot_preview1.args_sizes_get", wasiArgsSizesGet },
+  //// { "wasi_snapshot_preview1.fd_close", wasiFdClose },
+  //// { "wasi_snapshot_preview1.fd_read", wasiFdRead },
+  //// { "wasi_snapshot_preview1.fd_write", wasiFdWrite }
+  // Add other WASI functions here, maintaining alphabetical order
+};
+
+/// @var wasiImportCount
+///
+/// @brief The number of elements in the wasiImports table.
+static const uint32_t wasiImportCount
+  = sizeof(wasiImports) / sizeof(wasiImports[0]);
+
 /// @fn int wasiVmMain(int argc, char **argv)
 ///
 /// @brief Main entry point for running a WASI-compiled binary.
@@ -201,7 +225,12 @@ int wasiVmMain(int argc, char **argv) {
   WasiVm wasiVm = {};
   uint8_t opcode = 0;
 
-  if (wasiVmInit(&wasiVm, argv[0]) != 0) {
+  if (wasiVmInit(&wasiVm, argc, argv) != 0) {
+    returnValue = -1;
+    goto exit;
+  }
+
+  if (wasmParseImports(&wasiVm.wasmVm, wasiImports, wasiImportCount) != 0) {
     returnValue = -1;
     goto exit;
   }
