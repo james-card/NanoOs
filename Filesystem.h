@@ -150,6 +150,12 @@ int filesystemFSeek(FILE *stream, long offset, int whence);
 #endif // fseek
 #define fseek filesystemFSeek
 
+size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream);
+#ifdef fread
+#undef fread
+#endif // fread
+#define fread filesystemFRead
+
 /// @def rewind
 ///
 /// @brief Function macro to implement the functionality of the standard C

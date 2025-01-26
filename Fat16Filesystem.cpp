@@ -935,3 +935,47 @@ int filesystemFSeek(FILE *stream, long offset, int whence) {
   return returnValue;
 }
 
+/// @fn size_t filesystemFRead(
+///   void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Read data from a previously-opened file.
+///
+/// @param ptr A pointer to the memory to read data into.
+/// @param size The size, in bytes, of each element that is to be read from the
+///   file.
+/// @param nmemb The number of elements that are to be read from the file.
+/// @param stream A pointer to the previously-opened file.
+///
+/// @return Returns the total number of objects successfully read from the
+/// file.
+size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  size_t returnValue = 0;
+
+  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+    .file = stream,
+    .buffer = ptr,
+    .length = (uint32_t) (size * nmemb)
+  };
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    FILESYSTEM_READ_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &filesystemIoCommandParameters,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  returnValue = (filesystemIoCommandParameters.length / size);
+  processMessageRelease(processMessage);
+
+  return returnValue;
+}
+
+size_t filesystemFWrite(
+  const void *ptr, size_t size, size_t nmemb, FILE *stream
+) {
+  (void) ptr;
+  (void) size;
+  (void) nmemb;
+  (void) stream;
+  return 0;
+}
+
