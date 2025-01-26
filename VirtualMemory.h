@@ -45,17 +45,19 @@ extern "C"
 {
 #endif
 
-#define BUFFER_SIZE 24
+#define BUFFER_SIZE 16
 
 /// @struct VirtualMemoryState
 ///
 /// @brief Structure to maintain virtual memory state
 ///
+/// @param filename The FAT16 name of the backing file.
 /// @param fileHandle Handle to the memory file.
 /// @param buffer Buffer for cached data.
 /// @param bufferBaseOffset File offset where buffer starts.
 /// @param bufferValidBytes Number of valid bytes in buffer.
 typedef struct VirtualMemoryState {
+  char      filename[13];
   FILE     *fileHandle;
   uint8_t   buffer[BUFFER_SIZE];
   uint32_t  bufferBaseOffset;
