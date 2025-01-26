@@ -135,9 +135,13 @@ typedef struct WasiFdTable {
 ///   generic WASM process.
 /// @param wasiFdTable The table of file descriptors that are available for use
 ///   by the WASI process.
+/// @param argc The value of the argc argument passed to the main function.
+/// @param argv The value of the argv argument passed to the main function.
 typedef struct WasiVm {
-  WasmVm      wasmVm;
-  WasiFdTable wasiFdTable;
+  WasmVm        wasmVm;
+  WasiFdTable   wasiFdTable;
+  int           argc;
+  char        **argv;
 } WasiVm;
 
 
