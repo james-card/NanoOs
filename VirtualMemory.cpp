@@ -49,9 +49,12 @@ int32_t virtualMemoryInit(
   }
 
   // Open backing store file
-  state->fileHandle = fopen(filename, "w+b");
+  state->fileHandle = fopen(filename, "r+b");
   if (state->fileHandle == NULL) {
-    return -1;
+    state->fileHandle = fopen(filename, "w+b");
+    if (state->fileHandle == NULL) {
+      return -1;
+    }
   }
 
   // Initialize buffer state
