@@ -45,7 +45,7 @@ extern "C"
 {
 #endif
 
-#define BUFFER_SIZE 16
+#define VIRTUAL_MEMORY_BUFFER_SIZE 16
 
 /// @struct VirtualMemoryState
 ///
@@ -59,7 +59,7 @@ extern "C"
 typedef struct VirtualMemoryState {
   char      filename[13];
   FILE     *fileHandle;
-  uint8_t   buffer[BUFFER_SIZE];
+  uint8_t   buffer[VIRTUAL_MEMORY_BUFFER_SIZE];
   uint32_t  bufferBaseOffset;
   uint32_t  bufferValidBytes;
 } VirtualMemoryState;
