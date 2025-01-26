@@ -162,6 +162,12 @@ size_t filesystemFWrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
 #endif // fwrite
 #define fwrite filesystemFWrite
 
+long filesystemFTell(FILE *stream);
+#ifdef ftell
+#undef ftell
+#endif ftell
+#define ftell filesystemFTell
+
 /// @def rewind
 ///
 /// @brief Function macro to implement the functionality of the standard C
