@@ -106,44 +106,6 @@ void wasiFdTableCleanup(WasiFdTable *table) {
   table->nextFreeFd = 0;
 }
 
-/// @fn int wasiVmInit(WasiVm *wasiVm, int argc, char **argv)
-///
-/// @brief Initialize all the state information for starting a WASI VM process.
-///
-/// @param wasiVm A pointer to the WasiVm state object maintained by the
-///   wasiVmMain function.
-/// @param argc The value of the argc argument provided to the main function.
-/// @param argv The value of the argv argument provided to the main function.
-///
-/// @return Returns 0 on success, -1 on failure.
-int wasiVmInit(WasiVm *wasiVm, int argc, char **argv) {
-  int returnValue = wasmVmInit(&wasiVm->wasmVm, argv[0]);
-  if (returnValue == 0) {
-    returnValue = wasiFdTableInit(&wasiVm->wasiFdTable);
-  }
-  if (returnValue == 0) {
-    wasiVm->argc = argc;
-    wasiVm->argv = argv;
-  }
-
-  return returnValue;
-}
-
-/// @fn void wasiVmCleanup(WasiVm *wasiVm)
-///
-/// @brief Release all the resources allocated and held by a WASI VM state.
-///
-/// @param wasiVm A pointer to the WasiVm state object maintained by the
-///   wasiVmMain function.
-///
-/// @return This function returns no value.
-void wasiVmCleanup(WasiVm *wasiVm) {
-  wasiFdTableCleanup(&wasiVm->wasiFdTable);
-  wasmVmCleanup(&wasiVm->wasmVm);
-
-  return;
-}
-
 /// @fn int32_t wasiArgsSizesGet(WasmVm *wasmVm, void *args)
 ///
 /// @brief Get sizes needed for storing command line arguments in WASI.
@@ -211,6 +173,54 @@ static const WasmImport wasiImports[] = {
 static const uint32_t wasiImportCount
   = sizeof(wasiImports) / sizeof(wasiImports[0]);
 
+/// @fn int wasiVmInit(WasiVm *wasiVm, int argc, char **argv)
+///
+/// @brief Initialize all the state information for starting a WASI VM process.
+///
+/// @param wasiVm A pointer to the WasiVm state object maintained by the
+///   wasiVmMain function.
+/// @param argc The value of the argc argument provided to the main function.
+/// @param argv The value of the argv argument provided to the main function.
+///
+/// @return Returns 0 on success, -1 on failure.
+int wasiVmInit(WasiVm *wasiVm, int argc, char **argv) {
+  int returnValue = wasmVmInit(&wasiVm->wasmVm, argv[0]);
+  if (returnValue == 0) {
+    returnValue = wasiFdTableInit(&wasiVm->wasiFdTable);
+  }
+
+  if (returnValue == 0) {
+    returnValue
+      = wasmParseImports(&wasiVm->wasmVm, wasiImports, wasiImportCount);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmInitializeStacks(&wasiVm->wasmVm);
+  }
+
+  if (returnValue == 0) {
+    wasiVm->argc = argc;
+    wasiVm->argv = argv;
+  }
+
+  return returnValue;
+}
+
+/// @fn void wasiVmCleanup(WasiVm *wasiVm)
+///
+/// @brief Release all the resources allocated and held by a WASI VM state.
+///
+/// @param wasiVm A pointer to the WasiVm state object maintained by the
+///   wasiVmMain function.
+///
+/// @return This function returns no value.
+void wasiVmCleanup(WasiVm *wasiVm) {
+  wasiFdTableCleanup(&wasiVm->wasiFdTable);
+  wasmVmCleanup(&wasiVm->wasmVm);
+
+  return;
+}
+
 /// @fn int wasiVmMain(int argc, char **argv)
 ///
 /// @brief Main entry point for running a WASI-compiled binary.
@@ -226,11 +236,6 @@ int wasiVmMain(int argc, char **argv) {
   uint8_t opcode = 0;
 
   if (wasiVmInit(&wasiVm, argc, argv) != 0) {
-    returnValue = -1;
-    goto exit;
-  }
-
-  if (wasmParseImports(&wasiVm.wasmVm, wasiImports, wasiImportCount) != 0) {
     returnValue = -1;
     goto exit;
   }
