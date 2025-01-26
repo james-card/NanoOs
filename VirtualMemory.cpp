@@ -104,6 +104,19 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
     fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
   }
 
+  // Clear out anything that was in the buffer.
+  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+
+  // Make sure the data exists
+  for (
+    uint32_t ii = state->fileSize;
+    ii < offset;
+    ii += VIRTUAL_MEMORY_BUFFER_SIZE
+  ) {
+    fwrite(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+    state->fileSize += VIRTUAL_MEMORY_BUFFER_SIZE;
+  }
+
   // Read new buffer from requested location
   state->bufferBaseOffset
     = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
