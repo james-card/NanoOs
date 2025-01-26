@@ -972,10 +972,23 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 size_t filesystemFWrite(
   const void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
-  (void) ptr;
-  (void) size;
-  (void) nmemb;
-  (void) stream;
-  return 0;
+  size_t returnValue = 0;
+
+  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+    .file = stream,
+    .buffer = (void*) ptr,
+    .length = (uint32_t) (size * nmemb)
+  };
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    FILESYSTEM_WRITE_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &filesystemIoCommandParameters,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  returnValue = (filesystemIoCommandParameters.length / size);
+  processMessageRelease(processMessage);
+
+  return returnValue;
 }
 

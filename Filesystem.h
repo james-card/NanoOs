@@ -156,6 +156,12 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream);
 #endif // fread
 #define fread filesystemFRead
 
+size_t filesystemFWrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
+#ifdef fwrite
+#undef fwrite
+#endif // fwrite
+#define fwrite filesystemFWrite
+
 /// @def rewind
 ///
 /// @brief Function macro to implement the functionality of the standard C
