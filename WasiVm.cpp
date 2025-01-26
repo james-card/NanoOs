@@ -1,63 +1,71 @@
 #include "VirtualMemory.h"
 
+typedef struct WasiVm {
+  VirtualMemoryState codeSegment;
+  VirtualMemoryState linearMemory;
+  VirtualMemoryState globalStack;
+  VirtualMemoryState callStack;
+  VirtualMemoryState globalStorage;
+  VirtualMemoryState tableSpace;
+} WasiVm;
+
 int wasiMain(int argc, char **argv) {
   int returnValue = 0;
-  VirtualMemoryState codeSegment = {}, linearMemory = {}, globalStack = {},
-    callStack = {}, globalStorage = {}, tableSpace = {};
+  WasiVm wasiVm = {};
   char tempFilename[13];
 
-  if (virtualMemoryInit(&codeSegment, argv[0]) != 0) {
+  if (virtualMemoryInit(&wasiVm.codeSegment, argv[0]) != 0) {
     returnValue = -1;
     goto exit;
   }
 
   sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&linearMemory, tempFilename) != 0) {
+  if (virtualMemoryInit(&wasiVm.linearMemory, tempFilename) != 0) {
     returnValue = -1;
     goto cleanupCodeSegment;
   }
 
   sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&globalStack, tempFilename) != 0) {
+  if (virtualMemoryInit(&wasiVm.globalStack, tempFilename) != 0) {
     returnValue = -1;
     goto cleanupLinearMemory;
   }
 
   sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&callStack, tempFilename) != 0) {
+  if (virtualMemoryInit(&wasiVm.callStack, tempFilename) != 0) {
     returnValue = -1;
     goto cleanupGlobalStack;
   }
 
   sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&globalStorage, tempFilename) != 0) {
+  if (virtualMemoryInit(&wasiVm.globalStorage, tempFilename) != 0) {
     returnValue = -1;
     goto cleanupCallStack;
   }
 
   sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&tableSpace, tempFilename) != 0) {
+  if (virtualMemoryInit(&wasiVm.tableSpace, tempFilename) != 0) {
     returnValue = -1;
     goto cleanupGlobalStorage;
   }
 
 cleanupTableSpace:
-  virtualMemoryCleanup(&tableSpace, true);
+  virtualMemoryCleanup(&wasiVm.tableSpace, true);
 
 cleanupGlobalStorage:
-  virtualMemoryCleanup(&globalStorage, true);
+  virtualMemoryCleanup(&wasiVm.globalStorage, true);
 
 cleanupCallStack:
-  virtualMemoryCleanup(&callStack, true);
+  virtualMemoryCleanup(&wasiVm.callStack, true);
 
 cleanupGlobalStack:
-  virtualMemoryCleanup(&globalStack, true);
+  virtualMemoryCleanup(&wasiVm.globalStack, true);
 
 cleanupLinearMemory:
-  virtualMemoryCleanup(&linearMemory, true);
+  virtualMemoryCleanup(&wasiVm.linearMemory, true);
 
 cleanupCodeSegment:
-  virtualMemoryCleanup(&codeSegment, false);
+  virtualMemoryCleanup(&wasiVm.codeSegment, false);
 
 exit:
   return returnValue;
