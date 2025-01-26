@@ -114,7 +114,7 @@ int wasiVmMain(int argc, char **argv) {
 
   while (1) {
     if (virtualMemoryRead8(
-      &wasiVm.codeSegment, wasiVm.programCounter++, &opcode) != 0
+      &wasiVm.codeSegment, wasiVm.programCounter, &opcode) != 0
     ) {
       returnValue = -2;
       goto exit;
