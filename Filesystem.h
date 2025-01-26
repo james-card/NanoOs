@@ -156,7 +156,8 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream);
 #endif // fread
 #define fread filesystemFRead
 
-size_t filesystemFWrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
+size_t filesystemFWrite(
+  const void *ptr, size_t size, size_t nmemb, FILE *stream);
 #ifdef fwrite
 #undef fwrite
 #endif // fwrite
