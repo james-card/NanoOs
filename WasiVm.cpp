@@ -30,65 +30,89 @@
 
 #include "WasiVm.h"
 
+/// @fn int wasiVmInit(WasiVm *wasiVm, const char *programPath)
+///
+/// @brief Initialize all the state information for starting a WASI VM process.
+///
+/// @param wasiVm A pointer to the WasiVm state object maintained by the
+///   wasiVmMain function.
+/// @param programPath The full path to the WASI binary on disk.
+///
+/// @return Returns 0 on success, -1 on failure.
+int wasiVmInit(WasiVm *wasiVm, const char *programPath) {
+  char tempFilename[13];
+
+  if (virtualMemoryInit(&wasiVm->codeSegment, programPath) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasiVm->linearMemory, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasiVm->globalStack, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasiVm->callStack, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasiVm->globalStorage, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasiVm->tableSpace, tempFilename) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/// @fn void wasiVmCleanup(WasiVm *wasiVm)
+///
+/// @brief Release all the resources allocated and held by a WASI VM state.
+///
+/// @param wasiVm A pointer to the WasiVm state object maintained by the
+///   wasiVmMain function.
+///
+/// @return This function returns no value.
+void wasiVmCleanup(WasiVm *wasiVm) {
+  virtualMemoryCleanup(&wasiVm->tableSpace,    true);
+  virtualMemoryCleanup(&wasiVm->globalStorage, true);
+  virtualMemoryCleanup(&wasiVm->callStack,     true);
+  virtualMemoryCleanup(&wasiVm->globalStack,   true);
+  virtualMemoryCleanup(&wasiVm->linearMemory,  true);
+  virtualMemoryCleanup(&wasiVm->codeSegment,   false);
+
+  return;
+}
+
+/// @fn int wasiVmMain(int argc, char **argv)
+///
+/// @brief Main entry point for running a WASI-compiled binary.
+///
+/// @param argc The number of arguments parsed from the command line.
+/// @param argv The array of string pointers to parsed command line arguments.
+///
+/// @return Returns 0 on success, negative error value on VM error, positive
+/// error value on program error.
 int wasiVmMain(int argc, char **argv) {
   int returnValue = 0;
   WasiVm wasiVm = {};
-  char tempFilename[13];
 
-  if (virtualMemoryInit(&wasiVm.codeSegment, argv[0]) != 0) {
+  if (wasiVmInit(&wasiVm, argv[0]) != 0) {
     returnValue = -1;
     goto exit;
   }
 
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasiVm.linearMemory, tempFilename) != 0) {
-    returnValue = -1;
-    goto cleanupCodeSegment;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasiVm.globalStack, tempFilename) != 0) {
-    returnValue = -1;
-    goto cleanupLinearMemory;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasiVm.callStack, tempFilename) != 0) {
-    returnValue = -1;
-    goto cleanupGlobalStack;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasiVm.globalStorage, tempFilename) != 0) {
-    returnValue = -1;
-    goto cleanupCallStack;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasiVm.tableSpace, tempFilename) != 0) {
-    returnValue = -1;
-    goto cleanupGlobalStorage;
-  }
-
-cleanupTableSpace:
-  virtualMemoryCleanup(&wasiVm.tableSpace, true);
-
-cleanupGlobalStorage:
-  virtualMemoryCleanup(&wasiVm.globalStorage, true);
-
-cleanupCallStack:
-  virtualMemoryCleanup(&wasiVm.callStack, true);
-
-cleanupGlobalStack:
-  virtualMemoryCleanup(&wasiVm.globalStack, true);
-
-cleanupLinearMemory:
-  virtualMemoryCleanup(&wasiVm.linearMemory, true);
-
-cleanupCodeSegment:
-  virtualMemoryCleanup(&wasiVm.codeSegment, false);
-
 exit:
+  wasiVmCleanup(&wasiVm);
   return returnValue;
 }
 
