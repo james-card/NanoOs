@@ -30,6 +30,82 @@
 
 #include "WasiVm.h"
 
+/// @fn int wasiFdTableInit(WasiFdTable *table)
+///
+/// @brief Initialize a WASI file descriptor table with standard streams.
+///
+/// @param table Pointer to file descriptor table to initialize.
+///
+/// @return Returns 0 on success, negative value on error.
+int wasiFdTableInit(WasiFdTable *table) {
+  // Start with space for 8 file descriptors
+  table->maxFds = 8;
+  table->nextFreeFd = 0;
+  
+  table->entries = (WasiFdEntry*) malloc(sizeof(WasiFdEntry) * table->maxFds);
+  if (table->entries == NULL) {
+    return -1;
+  }
+
+  // Initialize stdin
+  table->entries[0].hostFd = 0;
+  table->entries[0].type = __WASI_FILETYPE_CHARACTER_DEVICE;
+  table->entries[0].flags = 0;
+  table->entries[0].rights = __WASI_RIGHT_FD_READ
+                           | __WASI_RIGHT_FD_ADVISE
+                           | __WASI_RIGHT_FD_TELL
+                           | __WASI_RIGHT_POLL_FD_READWRITE;
+  table->entries[0].rightsInherit = 0;
+  table->entries[0].offset = 0;
+  table->entries[0].isPreopened = true;
+  table->nextFreeFd++;
+
+  // Initialize stdout
+  table->entries[1].hostFd = 1;
+  table->entries[1].type = __WASI_FILETYPE_CHARACTER_DEVICE;
+  table->entries[1].flags = 0;
+  table->entries[1].rights = __WASI_RIGHT_FD_WRITE
+                           | __WASI_RIGHT_FD_ADVISE
+                           | __WASI_RIGHT_FD_TELL
+                           | __WASI_RIGHT_POLL_FD_READWRITE;
+  table->entries[1].rightsInherit = 0;
+  table->entries[1].offset = 0;
+  table->entries[1].isPreopened = true;
+  table->nextFreeFd++;
+
+  // Initialize stderr
+  table->entries[2].hostFd = 2;
+  table->entries[2].type = __WASI_FILETYPE_CHARACTER_DEVICE;
+  table->entries[2].flags = 0;
+  table->entries[2].rights = __WASI_RIGHT_FD_WRITE
+                           | __WASI_RIGHT_FD_ADVISE
+                           | __WASI_RIGHT_FD_TELL
+                           | __WASI_RIGHT_POLL_FD_READWRITE;
+  table->entries[2].rightsInherit = 0;
+  table->entries[2].offset = 0;
+  table->entries[2].isPreopened = true;
+  table->nextFreeFd++;
+
+  return 0;
+}
+
+/// @fn void wasiFdTableCleanup(WasiFdTable *table)
+///
+/// @brief Clean up resources used by a WASI file descriptor table.
+///
+/// @param table Pointer to a previously-initialized file descriptor table to
+///   clean up.
+///
+/// @return This function returns no value.
+void wasiFdTableCleanup(WasiFdTable *table) {
+  if (table->entries != NULL) {
+    free(table->entries);
+    table->entries = NULL;
+  }
+  table->maxFds = 0;
+  table->nextFreeFd = 0;
+}
+
 /// @fn int wasiVmInit(WasiVm *wasiVm, const char *programPath)
 ///
 /// @brief Initialize all the state information for starting a WASI VM process.
@@ -41,6 +117,9 @@
 /// @return Returns 0 on success, -1 on failure.
 int wasiVmInit(WasiVm *wasiVm, const char *programPath) {
   int returnValue = wasmVmInit(&wasiVm->wasmVm, programPath);
+  if (returnValue == 0) {
+    returnValue = wasiFdTableInit(&wasiVm->wasiFdTable);
+  }
 
   return returnValue;
 }
@@ -54,6 +133,7 @@ int wasiVmInit(WasiVm *wasiVm, const char *programPath) {
 ///
 /// @return This function returns no value.
 void wasiVmCleanup(WasiVm *wasiVm) {
+  wasiFdTableCleanup(&wasiVm->wasiFdTable);
   wasmVmCleanup(&wasiVm->wasmVm);
 
   return;
