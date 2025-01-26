@@ -471,9 +471,49 @@ int fat16Remove(FilesystemState *fs, const char *pathname) {
     return -1;
   }
   
+  // Get the first cluster of the file's chain
+  uint16_t currentCluster = 
+    *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
+
   // Mark the directory entry as deleted
   entry[FAT16_DIR_FILENAME] = FAT16_DELETED_MARKER;
   result = fat16WriteBlock(fs, block, fs->blockBuffer);
+  if (result != 0) {
+    free(file);
+    return -1;
+  }
+
+  // Follow cluster chain to mark all clusters as free
+  while (currentCluster != 0 && currentCluster < FAT16_CLUSTER_CHAIN_END) {
+    // Calculate FAT sector containing current cluster entry
+    uint32_t fatBlock = file->fatStart + 
+      ((currentCluster * sizeof(uint16_t)) / file->bytesPerSector);
+
+    // Read the FAT block
+    if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
+      free(file);
+      return -1;
+    }
+
+    // Get next cluster in chain before marking current as free
+    uint16_t nextCluster = *((uint16_t*) &fs->blockBuffer
+      [(currentCluster * sizeof(uint16_t)) % file->bytesPerSector]);
+
+    // Mark current cluster as free (0x0000)
+    *((uint16_t*) &fs->blockBuffer
+      [(currentCluster * sizeof(uint16_t)) % file->bytesPerSector]) = 0;
+
+    // Write updated FAT block
+    for (uint8_t ii = 0; ii < file->numberOfFats; ii++) {
+      if (fat16WriteBlock(fs, fatBlock + (ii * file->sectorsPerFat),
+          fs->blockBuffer)) {
+        free(file);
+        return -1;
+      }
+    }
+
+    currentCluster = nextCluster;
+  }
   
   free(file);
   return result;
