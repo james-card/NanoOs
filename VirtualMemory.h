@@ -59,6 +59,7 @@ extern "C"
 typedef struct VirtualMemoryState {
   char      filename[13];
   FILE     *fileHandle;
+  uint32_t  fileSize;
   uint8_t   buffer[VIRTUAL_MEMORY_BUFFER_SIZE];
   uint32_t  bufferBaseOffset;
   uint32_t  bufferValidBytes;
