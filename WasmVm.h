@@ -45,6 +45,8 @@ extern "C"
 {
 #endif
 
+#define WASM_SECTION_IMPORTS 2
+
 /// @enum WasmOpcode
 ///
 /// @brief Enumeration of WASM base instruction opcodes.
