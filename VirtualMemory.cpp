@@ -351,3 +351,34 @@ uint32_t virtualMemoryRead(VirtualMemoryState *state,
   return fread(buffer, 1, length, state->fileHandle);
 }
 
+/// @fn uint32_t virtualMemoryWrite(VirtualMemoryState *state,
+///   uint32_t offset, uint32_t length, const void *buffer)
+///
+/// @brief Write a specified number of bytes starting from a given offset from
+///   a block of virtual memory into a provided buffer.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to write to.
+/// @param length The number of bytes to write.
+/// @param buffer A pointer to a block of memory to write from.
+///
+/// @return Returns the number of bytes successfully written.
+uint32_t virtualMemoryWrite(VirtualMemoryState *state,
+  uint32_t offset, uint32_t length, const void *buffer
+) {
+  if ((state == NULL) || (state->fileHandle == NULL)
+    || (length == 0) || (buffer == NULL)
+  ) {
+    return 0;
+  }
+
+  virtualMemoryPrepare(state, offset + length);
+  // Invalidate the in-memory data.
+  state->bufferValidBytes = 0;
+  state->bufferBaseOffset = 0;
+
+  // Write the data from the requested location
+  fseek(state->fileHandle, offset, SEEK_SET);
+  return fwrite(buffer, 1, length, state->fileHandle);
+}
+
