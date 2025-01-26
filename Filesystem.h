@@ -165,7 +165,7 @@ size_t filesystemFWrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
 long filesystemFTell(FILE *stream);
 #ifdef ftell
 #undef ftell
-#endif ftell
+#endif // ftell
 #define ftell filesystemFTell
 
 /// @def rewind
