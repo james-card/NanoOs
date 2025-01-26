@@ -983,6 +983,7 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 /// @return Returns the total number of objects successfully written to the
 /// file.
 size_t filesystemFWrite(
+  void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
   size_t returnValue = 0;
 
@@ -1017,6 +1018,6 @@ long filesystemFTell(FILE *stream) {
     return 0;
   }
 
-  return (long) stream->fileSize;
+  return (long) ((Fat16File*) stream->file)->fileSize;
 }
 
