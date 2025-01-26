@@ -81,6 +81,8 @@ int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value);
 int32_t virtualMemoryWrite64(
   VirtualMemoryState *state, uint32_t offset, uint64_t value);
+uint32_t virtualMemoryRead(VirtualMemoryState *state,
+  uint32_t offset, uint32_t length, void *buffer);
 
 #ifdef __cplusplus
 } // extern "C"

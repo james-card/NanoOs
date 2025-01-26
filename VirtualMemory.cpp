@@ -83,6 +83,43 @@ void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
   *state->filename = '\0';
 }
 
+/// @fn void virtualMemoryPrepare(
+///   VirtualMemoryState *state, uint32_t endOffset)
+///
+/// @brief Prepare the virtual memory for reading or writing.
+///
+/// @param state A pointer to the VirtualMemoryState that manages the virtual
+///   memory storage.
+/// @param endOffset The offset of the last byte in the virtual memory that is
+///   to be read or written.
+///
+/// @return This function returns no value.
+void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
+  if (state->bufferValidBytes > 0) {
+    // Write current buffer if it contains data
+    fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
+    fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
+  }
+
+  // Clear out anything that was in the buffer.
+  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+
+  // Make sure the data exists
+  if (state->fileSize < endOffset) {
+    fseek(state->fileHandle, state->fileSize, SEEK_SET);
+    for (
+      uint32_t ii = state->fileSize;
+      ii < endOffset;
+      ii += VIRTUAL_MEMORY_BUFFER_SIZE
+    ) {
+      fwrite(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+      state->fileSize += VIRTUAL_MEMORY_BUFFER_SIZE;
+    }
+  }
+
+  return;
+}
+
 /// @fn void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset)
 ///
 /// @brief Get a pointer to the place in virtual memory specified by the
@@ -98,33 +135,16 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
     return NULL;
   }
 
-  // Check if requested byte is in buffer
+  // Check if requested memory is in the buffer.
   if ((offset >= state->bufferBaseOffset) && 
       (offset < state->bufferBaseOffset + state->bufferValidBytes)) {
     return &state->buffer[offset - state->bufferBaseOffset];
   }
 
-  // Need to load new data into buffer
-  if (state->bufferValidBytes > 0) {
-    // Write current buffer if it contains data
-    fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
-    fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
-  }
+  // Need to load new data into the buffer.
+  virtualMemoryPrepare(state, offset + VIRTUAL_MEMORY_BUFFER_SIZE);
 
-  // Clear out anything that was in the buffer.
-  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
-
-  // Make sure the data exists
-  for (
-    uint32_t ii = state->fileSize;
-    ii < offset;
-    ii += VIRTUAL_MEMORY_BUFFER_SIZE
-  ) {
-    fwrite(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
-    state->fileSize += VIRTUAL_MEMORY_BUFFER_SIZE;
-  }
-
-  // Read new buffer from requested location
+  // Read new buffer from the requested location.
   state->bufferBaseOffset
     = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
@@ -298,5 +318,36 @@ int32_t virtualMemoryWrite64(
   }
 
   return returnValue;
+}
+
+/// @fn uint32_t virtualMemoryRead(VirtualMemoryState *state,
+///   uint32_t offset, uint32_t length, void *buffer)
+///
+/// @brief Read a specified number of bytes starting from a given offset from
+///   a block of virtual memory into a provided buffer.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to read from.
+/// @param length The number of bytes to read.
+/// @param buffer A pointer to a block of memory to read into.
+///
+/// @return Returns the number of bytes successfully read.
+uint32_t virtualMemoryRead(VirtualMemoryState *state,
+  uint32_t offset, uint32_t length, void *buffer
+) {
+  if ((state == NULL) || (state->fileHandle == NULL)
+    || (length == 0) || (buffer == NULL)
+  ) {
+    return 0;
+  }
+
+  virtualMemoryPrepare(state, offset + length);
+  // Invalidate the in-memory data.
+  state->bufferValidBytes = 0;
+  state->bufferBaseOffset = 0;
+
+  // Read the data from the requested location
+  fseek(state->fileHandle, offset, SEEK_SET);
+  return fread(buffer, 1, length, state->fileHandle);
 }
 
