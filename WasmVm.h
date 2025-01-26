@@ -542,7 +542,7 @@ typedef struct WasmVm {
 /// @typedef WasmImportFunc
 ///
 /// @brief Type of function pointer that can be imported by a WASM program.
-typedef int32_t (*WasmImportFunc)(WasmVm*);
+typedef int32_t (*WasmImportFunc)(void *args);
 
 /// @struct WasmImport
 ///
