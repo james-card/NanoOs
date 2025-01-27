@@ -513,3 +513,90 @@ int32_t wasmParseMemorySection(WasmVm *wasmVm) {
   return 0;
 }
 
+/// @fn int32_t wasmFindStartFunction(WasmVm *wasmVm)
+///
+/// @brief Find the start function in the export section and set program counter
+///
+/// @param wasmVm Pointer to WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmFindStartFunction(WasmVm *wasmVm) {
+  uint32_t sectionOffset;
+  uint32_t sectionSize;
+  
+  // Find export section (section ID 7)
+  if (
+    wasmFindSection(wasmVm,
+      WASM_SECTION_EXPORT, &sectionOffset, &sectionSize) != 0
+  ) {
+    return -1;
+  }
+  
+  // Parse export section
+  uint32_t exportCount;
+  uint32_t bytesRead = readLeb128(
+    &wasmVm->codeSegment, sectionOffset, &exportCount);
+  if (bytesRead == 0) {
+    return -1;
+  }
+  uint32_t offset = sectionOffset + bytesRead;
+  
+  // Look for "_start" export
+  for (uint32_t ii = 0; ii < exportCount; ii++) {
+    uint32_t nameLen;
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset, &nameLen);
+    if (bytesRead == 0) {
+      return -1;
+    }
+    offset += bytesRead;
+    
+    // Check if name matches "_start"
+    char name[7];
+    if (nameLen == 6) {
+      if (virtualMemoryRead(&wasmVm->codeSegment, offset, 6, name) != 6) {
+        return -1;
+      }
+      if (strncmp(name, "_start", 6) == 0) {
+        // Found it - read kind and index
+        offset += 6;
+        uint8_t kind;
+        if (virtualMemoryRead8(&wasmVm->codeSegment, offset, &kind) != 0) {
+          return -1;
+        }
+        offset++;
+        
+        if (kind == 0) { // Function export
+          uint32_t functionIndex;
+          bytesRead = readLeb128(
+            &wasmVm->codeSegment, offset, &functionIndex);
+          if (bytesRead == 0) {
+            return -1;
+          }
+          
+          // Get function address from code section
+          // Will need lookup in code section
+          wasmVm->programCounter = functionIndex;
+          return 0;
+        }
+      }
+    }
+    
+    // Skip to next export
+    offset += nameLen;
+    uint8_t exportKind;
+    if (virtualMemoryRead8(&wasmVm->codeSegment, offset, &exportKind) != 0) {
+      return -1;
+    }
+    offset++;
+    
+    uint32_t exportIndex;
+    bytesRead = readLeb128(&wasmVm->codeSegment, offset, &exportIndex);
+    if (bytesRead == 0) {
+      return -1;
+    }
+    offset += bytesRead;
+  }
+  
+  return -1; // No start function found
+}
+
