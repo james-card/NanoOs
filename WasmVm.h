@@ -541,6 +541,23 @@ typedef struct WasmCodeState {
   uint32_t      codeSectionOffset;
 } WasmCodeState;
 
+/// @typedef WasmImportFunc
+///
+/// @brief Type of function pointer that can be imported by a WASM program.
+typedef int32_t (*WasmImportFunc)(void *args);
+
+/// @struct WasmImport
+///
+/// @brief Structure of an entry in a WASM import table.
+///
+/// @param functionName Full name of the function in the format "module.field".
+/// @param function WasmImportFunc function pointer to the implementation of
+///   the function.
+typedef struct WasmImport {
+  const char *functionName;
+  WasmImportFunc function;
+} WasmImport;
+
 /// @struct WasmVm
 ///
 /// @brief State information for a WASM process.
@@ -561,33 +578,21 @@ typedef struct WasmCodeState {
 ///   Backing for this will be an on-disk file with a random filename.
 /// @param codeState The WasmCodeState object to keep track of the functions
 ///   defined within the codeSegment
+/// @param importTable A pointer to the array of WasmImport functions provided
+///   by the host environment.
+/// @param importTableLength The number of elements in the importTable array.
 typedef struct WasmVm {
-  uint32_t           programCounter;
-  VirtualMemoryState codeSegment;
-  VirtualMemoryState linearMemory;
-  VirtualMemoryState globalStack;
-  VirtualMemoryState callStack;
-  VirtualMemoryState globalStorage;
-  VirtualMemoryState tableSpace;
-  WasmCodeState      codeState;
+  uint32_t            programCounter;
+  VirtualMemoryState  codeSegment;
+  VirtualMemoryState  linearMemory;
+  VirtualMemoryState  globalStack;
+  VirtualMemoryState  callStack;
+  VirtualMemoryState  globalStorage;
+  VirtualMemoryState  tableSpace;
+  WasmCodeState       codeState;
+  const WasmImport   *importTable;
+  uint32_t            importTableLength;
 } WasmVm;
-
-/// @typedef WasmImportFunc
-///
-/// @brief Type of function pointer that can be imported by a WASM program.
-typedef int32_t (*WasmImportFunc)(void *args);
-
-/// @struct WasmImport
-///
-/// @brief Structure of an entry in a WASM import table.
-///
-/// @param functionName Full name of the function in the format "module.field".
-/// @param function WasmImportFunc function pointer to the implementation of
-///   the function.
-typedef struct WasmImport {
-  const char *functionName;
-  WasmImportFunc function;
-} WasmImport;
 
 
 void wasmVmCleanup(WasmVm *wasmVm);
@@ -602,6 +607,7 @@ int32_t wasmGetLocal(WasmVm *wasmVm, uint32_t index, uint32_t *value);
 int32_t wasmSetLocal(WasmVm *wasmVm, uint32_t index, uint32_t value);
 int32_t wasmGetReturnAddress(WasmVm *wasmVm, uint32_t *returnAddress);
 int32_t wasmGetFrameStackBase(WasmVm *wasmVm, uint32_t *stackBase);
+int32_t wasmHandleOpcode(WasmVm *wasmVm);
 
 #ifdef __cplusplus
 } // extern "C"

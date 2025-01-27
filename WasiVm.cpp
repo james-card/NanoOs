@@ -233,11 +233,17 @@ int wasiVmMain(int argc, char **argv) {
   }
 
   while (1) {
+    // Handle next instruction
+    if (wasmHandleOpcode(&wasiVm.wasmVm) != 0) {
+      returnValue = -2;
+      goto exit;
+    }
+    
+    // Check for program end (when PC reaches end of code section)
     if (virtualMemoryRead8(
       &wasiVm.wasmVm.codeSegment, wasiVm.wasmVm.programCounter, &opcode) != 0
     ) {
-      returnValue = -2;
-      goto exit;
+      break; // End of program
     }
   }
 

@@ -893,6 +893,468 @@ int32_t wasmGetFrameStackBase(WasmVm *wasmVm, uint32_t *stackBase) {
     stackBase);
 }
 
+/// @fn int32_t wasmHandleControlOperation(WasmVm *wasmVm, uint8_t opcode)
+///
+/// @brief Handle WASM control operations (0x00-0x11)
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param opcode The opcode to execute
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmHandleControlOperation(WasmVm *wasmVm, uint8_t opcode) {
+  uint32_t functionIndex = 0;
+  uint32_t returnAddress = 0;
+  uint32_t blockType = 0;
+  uint32_t bytesRead = 0;
+  uint32_t condition = 0;
+  uint32_t blockStart = 0;
+  
+  switch (opcode) {
+    case WASM_OP_UNREACHABLE: {
+      // Trap - immediate error condition
+      return -1;
+    }
+    
+    case WASM_OP_NOP: {
+      // Do nothing, just increment PC
+      wasmVm->programCounter++;
+      break;
+    }
+    
+    case WASM_OP_BLOCK: {
+      // Read block type
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &blockType);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Store block info on call stack for later matching end
+      if (wasmStackPush32(&wasmVm->callStack, WASM_OP_BLOCK) != 0) {
+        return -1;
+      }
+      if (wasmStackPush32(&wasmVm->callStack,
+        wasmVm->programCounter + bytesRead + 1) != 0) {
+        return -1;
+      }
+      
+      wasmVm->programCounter += bytesRead + 1;
+      break;
+    }
+    
+    case WASM_OP_LOOP: {
+      // Read loop type
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &blockType);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Store loop info on call stack
+      if (wasmStackPush32(&wasmVm->callStack, WASM_OP_LOOP) != 0) {
+        return -1;
+      }
+      if (wasmStackPush32(&wasmVm->callStack,
+        wasmVm->programCounter + bytesRead + 1) != 0) {
+        return -1;
+      }
+      
+      wasmVm->programCounter += bytesRead + 1;
+      break;
+    }
+    
+    case WASM_OP_IF: {
+      // Read block type
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &blockType);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Pop condition from operand stack
+      if (wasmStackPop32(&wasmVm->globalStack, &condition) != 0) {
+        return -1;
+      }
+      
+      // Store if info on call stack
+      if (wasmStackPush32(&wasmVm->callStack, WASM_OP_IF) != 0) {
+        return -1;
+      }
+      if (wasmStackPush32(&wasmVm->callStack,
+        wasmVm->programCounter + bytesRead + 1) != 0) {
+        return -1;
+      }
+      if (wasmStackPush32(&wasmVm->callStack, condition) != 0) {
+        return -1;
+      }
+      
+      wasmVm->programCounter += bytesRead + 1;
+      break;
+    }
+    
+    case WASM_OP_ELSE: {
+      // Pop if condition
+      if (wasmStackPop32(&wasmVm->callStack, &condition) != 0) {
+        return -1;
+      }
+      
+      // Skip else block if condition was true
+      if (condition) {
+        // Find matching end by counting nested blocks
+        uint32_t nesting = 1;
+        uint32_t current = wasmVm->programCounter + 1;
+        uint8_t currentOp;
+        
+        while (nesting > 0) {
+          if (virtualMemoryRead8(&wasmVm->codeSegment,
+            current, &currentOp) != 0) {
+            return -1;
+          }
+          
+          if (currentOp == WASM_OP_BLOCK || currentOp == WASM_OP_LOOP ||
+            currentOp == WASM_OP_IF) {
+            nesting++;
+          } else if (currentOp == WASM_OP_END) {
+            nesting--;
+          }
+          current++;
+        }
+        wasmVm->programCounter = current - 1;
+      } else {
+        wasmVm->programCounter++;
+      }
+      break;
+    }
+    
+    case WASM_OP_END: {
+      // Pop block/loop/if info
+      uint32_t blockStart;
+      uint32_t blockType;
+      
+      if (wasmStackPop32(&wasmVm->callStack, &blockStart) != 0) {
+        return -1;
+      }
+      if (wasmStackPop32(&wasmVm->callStack, &blockType) != 0) {
+        return -1;
+      }
+      
+      // For loops, go back to start. For blocks/if just continue
+      if (blockType == WASM_OP_LOOP) {
+        wasmVm->programCounter = blockStart;
+      } else {
+        wasmVm->programCounter++;
+      }
+      break;
+    }
+    
+    case WASM_OP_BR: {
+      // Read break target level
+      uint32_t level;
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &level);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Unwind stack to target block/loop
+      for (uint32_t ii = 0; ii <= level; ii++) {
+        if (wasmStackPop32(&wasmVm->callStack, &blockStart) != 0) {
+          return -1;
+        }
+        if (wasmStackPop32(&wasmVm->callStack, &blockType) != 0) {
+          return -1;
+        }
+        
+        // For loops, break goes to start. For blocks, break goes after end
+        if (blockType == WASM_OP_LOOP) {
+          wasmVm->programCounter = blockStart;
+          break;
+        } else if (ii == level) {
+          // Find the end of this block
+          uint32_t nesting = 1;
+          uint32_t current = blockStart;
+          uint8_t currentOp;
+          
+          while (nesting > 0) {
+            if (virtualMemoryRead8(&wasmVm->codeSegment,
+              current, &currentOp) != 0) {
+              return -1;
+            }
+            
+            if (currentOp == WASM_OP_BLOCK || currentOp == WASM_OP_LOOP ||
+              currentOp == WASM_OP_IF) {
+              nesting++;
+            } else if (currentOp == WASM_OP_END) {
+              nesting--;
+            }
+            current++;
+          }
+          wasmVm->programCounter = current;
+        }
+      }
+      break;
+    }
+    
+    case WASM_OP_BR_IF: {
+      // Read break target level
+      uint32_t level;
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &level);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Pop condition
+      if (wasmStackPop32(&wasmVm->globalStack, &condition) != 0) {
+        return -1;
+      }
+      
+      if (condition) {
+        // Same as br
+        for (uint32_t ii = 0; ii <= level; ii++) {
+          if (wasmStackPop32(&wasmVm->callStack, &blockStart) != 0) {
+            return -1;
+          }
+          if (wasmStackPop32(&wasmVm->callStack, &blockType) != 0) {
+            return -1;
+          }
+          
+          if (blockType == WASM_OP_LOOP) {
+            wasmVm->programCounter = blockStart;
+            break;
+          } else if (ii == level) {
+            uint32_t nesting = 1;
+            uint32_t current = blockStart;
+            uint8_t currentOp;
+            
+            while (nesting > 0) {
+              if (virtualMemoryRead8(&wasmVm->codeSegment,
+                current, &currentOp) != 0) {
+                return -1;
+              }
+              
+              if (currentOp == WASM_OP_BLOCK || currentOp == WASM_OP_LOOP ||
+                currentOp == WASM_OP_IF) {
+                nesting++;
+              } else if (currentOp == WASM_OP_END) {
+                nesting--;
+              }
+              current++;
+            }
+            wasmVm->programCounter = current;
+          }
+        }
+      } else {
+        wasmVm->programCounter += bytesRead + 1;
+      }
+      break;
+    }
+    
+    case WASM_OP_RETURN: {
+      // Pop current frame
+      if (wasmGetReturnAddress(wasmVm, &returnAddress) != 0) {
+        return -1;
+      }
+      
+      if (wasmPopFrame(wasmVm) != 0) {
+        return -1;
+      }
+      
+      wasmVm->programCounter = returnAddress;
+      break;
+    }
+    
+    case WASM_OP_CALL: {
+      // Read function index
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &functionIndex);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Calculate return address (after the call instruction)
+      returnAddress = wasmVm->programCounter + bytesRead + 1;
+      
+      // Check if this is an imported function
+      uint32_t importIndex;
+      if (virtualMemoryRead32(&wasmVm->tableSpace,
+        functionIndex * sizeof(uint32_t), &importIndex) == 0
+      ) {
+        // Look up the import function
+        uint32_t tableEndMarker;
+        if (virtualMemoryRead32(&wasmVm->tableSpace,
+          (functionIndex + 1) * sizeof(uint32_t), &tableEndMarker) == 0 &&
+          tableEndMarker != 0xFFFFFFFF
+        ) {
+          // Call the imported function
+          const WasmImport *importEntry = &wasmVm->importTable[importIndex];
+          if (importEntry->function(wasmVm) != 0) {
+            return -1;
+          }
+          
+          // Move past the call instruction
+          wasmVm->programCounter = returnAddress;
+          break;
+        }
+      }
+      
+      // Not an import - handle as local function call
+      
+      // Save current PC for frame creation  
+      uint32_t savedPc = wasmVm->programCounter;
+      
+      // Set PC to function start for frame creation
+      wasmVm->programCounter 
+        = wasmVm->codeState.functionTable[functionIndex].codeOffset;
+      
+      // Push new frame with return address
+      if (wasmPushFrame(wasmVm, functionIndex) != 0) {
+        wasmVm->programCounter = savedPc;  // Restore PC on error
+        return -1;
+      }
+      
+      // Write proper return address into frame
+      uint32_t frameBase;
+      if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+        return -1;
+      }
+      if (virtualMemoryWrite32(&wasmVm->callStack,
+        frameBase + offsetof(WasmStackFrame, returnAddress),
+        returnAddress) != 0
+      ) {
+        return -1;
+      }
+      break;
+    }
+    
+    case WASM_OP_CALL_INDIRECT: {
+      // Read type index
+      uint32_t typeIndex;
+      bytesRead = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1, &typeIndex);
+      if (bytesRead == 0) {
+        return -1;
+      }
+      
+      // Read table index (should be 0 in MVP)
+      uint32_t tableIndex;
+      uint32_t moreBytes = readLeb128(&wasmVm->codeSegment,
+        wasmVm->programCounter + 1 + bytesRead, &tableIndex);
+      if (moreBytes == 0) {
+        return -1;
+      }
+      
+      // Check table index is 0 (only one table in MVP)
+      if (tableIndex != 0) {
+        return -1;
+      }
+      
+      // Pop function index from stack
+      uint32_t functionTableIndex;
+      if (wasmStackPop32(&wasmVm->globalStack, &functionTableIndex) != 0) {
+        return -1;
+      }
+      
+      // Read actual function index from table space
+      uint32_t actualFunctionIndex;
+      if (virtualMemoryRead32(&wasmVm->tableSpace,
+        functionTableIndex * sizeof(uint32_t), &actualFunctionIndex) != 0
+      ) {
+        return -1;
+      }
+      
+      // Check for table bounds
+      uint32_t tableEndMarker;
+      if (virtualMemoryRead32(&wasmVm->tableSpace,
+        (functionTableIndex + 1) * sizeof(uint32_t),
+        &tableEndMarker) == 0 && tableEndMarker == 0xFFFFFFFF
+      ) {
+        return -1;  // End of table reached
+      }
+      
+      // Check that function types match
+      if (wasmVm->codeState.functionTable[actualFunctionIndex].typeIndex
+        != typeIndex
+      ) {
+        return -1;
+      }
+      
+      // Calculate return address
+      returnAddress = wasmVm->programCounter + bytesRead + moreBytes + 1;
+      
+      // Save current PC for frame creation
+      uint32_t savedPc = wasmVm->programCounter;
+      
+      // Set PC to function start for frame creation
+      wasmVm->programCounter
+        = wasmVm->codeState.functionTable[actualFunctionIndex].codeOffset;
+      
+      // Push new frame with return address
+      if (wasmPushFrame(wasmVm, actualFunctionIndex) != 0) {
+        wasmVm->programCounter = savedPc;  // Restore PC on error
+        return -1;
+      }
+      
+      // Write proper return address into frame
+      uint32_t frameBase;
+      if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+        return -1;
+      }
+      if (virtualMemoryWrite32(&wasmVm->callStack,
+        frameBase + offsetof(WasmStackFrame, returnAddress),
+        returnAddress) != 0
+      ) {
+        return -1;
+      }
+      break;
+    }
+    
+    default:
+      // Not a control opcode
+      return -1;
+  }
+  
+  return 0;
+}
+
+/// @fn int32_t wasmHandleOpcode(WasmVm *wasmVm)
+///
+/// @brief Main opcode dispatch function
+///
+/// @param wasmVm Pointer to the WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmHandleOpcode(WasmVm *wasmVm) {
+  uint8_t opcode;
+  
+  if (virtualMemoryRead8(&wasmVm->codeSegment,
+    wasmVm->programCounter, &opcode) != 0) {
+    return -1;
+  }
+  
+  // Dispatch based on opcode type
+  switch (opcode) {
+    // Control flow
+    case WASM_OP_UNREACHABLE:
+    case WASM_OP_NOP:
+    case WASM_OP_BLOCK:
+    case WASM_OP_LOOP:
+    case WASM_OP_IF:
+    case WASM_OP_ELSE:
+    case WASM_OP_END:
+    case WASM_OP_BR:
+    case WASM_OP_BR_IF:
+    case WASM_OP_BR_TABLE:
+    case WASM_OP_RETURN:
+    case WASM_OP_CALL:
+    case WASM_OP_CALL_INDIRECT:
+      return wasmHandleControlOperation(wasmVm, opcode);
+      
+    default:
+      return -1;
+  }
+}
+
 /// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
 ///   const WasmImport *importTable, uint32_t importTableLength)
 ///
@@ -908,6 +1370,10 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
 ) {
   char tempFilename[13];
   int returnValue = 0;
+
+  // Store import table info
+  wasmVm->importTable = importTable;
+  wasmVm->importTableLength = importTableLength;
 
   // Interleve virtual memory initializations and other operations that depend
   // on them in order to give variation to the filenames that get used (which
