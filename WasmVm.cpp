@@ -30,7 +30,8 @@
 
 #include "WasmVm.h"
 
-/// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath)
+/// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
+///   const WasmImport *importTable, uint32_t importTableLength)
 ///
 /// @brief Initialize all the state information for starting a WASI VM process.
 ///
@@ -39,7 +40,9 @@
 /// @param programPath The full path to the WASI binary on disk.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int wasmVmInit(WasmVm *wasmVm, const char *programPath) {
+int wasmVmInit(WasmVm *wasmVm, const char *programPath,
+  const WasmImport *importTable, uint32_t importTableLength
+) {
   char tempFilename[13];
 
   if (virtualMemoryInit(&wasmVm->codeSegment, programPath) != 0) {
@@ -71,7 +74,21 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath) {
     return -1;
   }
 
-  return 0;
+  int returnValue = wasmParseImports(wasmVm, importTable, importTableLength);
+
+  if (returnValue == 0) {
+    returnValue = wasmInitializeStacks(wasmVm);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmParseMemorySection(wasmVm);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmFindStartFunction(wasmVm);
+  }
+
+  return returnValue;
 }
 
 /// @fn void wasmVmCleanup(WasmVm *wasmVm)

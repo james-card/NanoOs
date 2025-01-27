@@ -563,7 +563,8 @@ typedef struct WasmImport {
 
 
 void wasmVmCleanup(WasmVm *wasmVm);
-int wasmVmInit(WasmVm *wasmVm, const char *programPath);
+int wasmVmInit(WasmVm *wasmVm, const char *programPath,
+  const WasmImport *importTable, uint32_t importTableLength);
 int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value);
 int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value);
 int32_t wasmStackInit(VirtualMemoryState *stack);

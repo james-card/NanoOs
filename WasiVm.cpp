@@ -184,18 +184,10 @@ static const uint32_t wasiImportCount
 ///
 /// @return Returns 0 on success, -1 on failure.
 int wasiVmInit(WasiVm *wasiVm, int argc, char **argv) {
-  int returnValue = wasmVmInit(&wasiVm->wasmVm, argv[0]);
+  int returnValue
+    = wasmVmInit(&wasiVm->wasmVm, argv[0], wasiImports, wasiImportCount);
   if (returnValue == 0) {
     returnValue = wasiFdTableInit(&wasiVm->wasiFdTable);
-  }
-
-  if (returnValue == 0) {
-    returnValue
-      = wasmParseImports(&wasiVm->wasmVm, wasiImports, wasiImportCount);
-  }
-
-  if (returnValue == 0) {
-    returnValue = wasmInitializeStacks(&wasiVm->wasmVm);
   }
 
   if (returnValue == 0) {
