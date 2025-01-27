@@ -30,86 +30,6 @@
 
 #include "WasmVm.h"
 
-/// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
-///   const WasmImport *importTable, uint32_t importTableLength)
-///
-/// @brief Initialize all the state information for starting a WASI VM process.
-///
-/// @param wasmVm A pointer to the WasmVm state object maintained by the
-///   wasmVmMain function.
-/// @param programPath The full path to the WASI binary on disk.
-///
-/// @return Returns 0 on success, -1 on failure.
-int wasmVmInit(WasmVm *wasmVm, const char *programPath,
-  const WasmImport *importTable, uint32_t importTableLength
-) {
-  char tempFilename[13];
-
-  if (virtualMemoryInit(&wasmVm->codeSegment, programPath) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->linearMemory, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->globalStack, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->callStack, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->globalStorage, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->tableSpace, tempFilename) != 0) {
-    return -1;
-  }
-
-  int returnValue = wasmParseImports(wasmVm, importTable, importTableLength);
-
-  if (returnValue == 0) {
-    returnValue = wasmInitializeStacks(wasmVm);
-  }
-
-  if (returnValue == 0) {
-    returnValue = wasmParseMemorySection(wasmVm);
-  }
-
-  if (returnValue == 0) {
-    returnValue = wasmFindStartFunction(wasmVm);
-  }
-
-  return returnValue;
-}
-
-/// @fn void wasmVmCleanup(WasmVm *wasmVm)
-///
-/// @brief Release all the resources allocated and held by a WASI VM state.
-///
-/// @param wasmVm A pointer to the WasmVm state object maintained by the
-///   wasmVmMain function.
-///
-/// @return This function returns no value.
-void wasmVmCleanup(WasmVm *wasmVm) {
-  virtualMemoryCleanup(&wasmVm->tableSpace,    true);
-  virtualMemoryCleanup(&wasmVm->globalStorage, true);
-  virtualMemoryCleanup(&wasmVm->callStack,     true);
-  virtualMemoryCleanup(&wasmVm->globalStack,   true);
-  virtualMemoryCleanup(&wasmVm->linearMemory,  true);
-  virtualMemoryCleanup(&wasmVm->codeSegment,   false);
-
-  return;
-}
-
 /// @fn int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value)
 ///
 /// @brief Push a 32-bit value onto a WASM stack
@@ -615,5 +535,85 @@ int32_t wasmFindStartFunction(WasmVm *wasmVm) {
   }
   
   return -1; // No start function found
+}
+
+/// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
+///   const WasmImport *importTable, uint32_t importTableLength)
+///
+/// @brief Initialize all the state information for starting a WASI VM process.
+///
+/// @param wasmVm A pointer to the WasmVm state object maintained by the
+///   wasmVmMain function.
+/// @param programPath The full path to the WASI binary on disk.
+///
+/// @return Returns 0 on success, -1 on failure.
+int wasmVmInit(WasmVm *wasmVm, const char *programPath,
+  const WasmImport *importTable, uint32_t importTableLength
+) {
+  char tempFilename[13];
+
+  if (virtualMemoryInit(&wasmVm->codeSegment, programPath) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasmVm->linearMemory, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasmVm->globalStack, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasmVm->callStack, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasmVm->globalStorage, tempFilename) != 0) {
+    return -1;
+  }
+
+  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+  if (virtualMemoryInit(&wasmVm->tableSpace, tempFilename) != 0) {
+    return -1;
+  }
+
+  int returnValue = wasmParseImports(wasmVm, importTable, importTableLength);
+
+  if (returnValue == 0) {
+    returnValue = wasmInitializeStacks(wasmVm);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmParseMemorySection(wasmVm);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmFindStartFunction(wasmVm);
+  }
+
+  return returnValue;
+}
+
+/// @fn void wasmVmCleanup(WasmVm *wasmVm)
+///
+/// @brief Release all the resources allocated and held by a WASI VM state.
+///
+/// @param wasmVm A pointer to the WasmVm state object maintained by the
+///   wasmVmMain function.
+///
+/// @return This function returns no value.
+void wasmVmCleanup(WasmVm *wasmVm) {
+  virtualMemoryCleanup(&wasmVm->tableSpace,    true);
+  virtualMemoryCleanup(&wasmVm->globalStorage, true);
+  virtualMemoryCleanup(&wasmVm->callStack,     true);
+  virtualMemoryCleanup(&wasmVm->globalStack,   true);
+  virtualMemoryCleanup(&wasmVm->linearMemory,  true);
+  virtualMemoryCleanup(&wasmVm->codeSegment,   false);
+
+  return;
 }
 

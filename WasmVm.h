@@ -567,12 +567,6 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
   const WasmImport *importTable, uint32_t importTableLength);
 int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value);
 int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value);
-int32_t wasmStackInit(VirtualMemoryState *stack);
-int32_t wasmParseImports(
-  WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength);
-int32_t wasmInitializeStacks(WasmVm *wasmVm);
-int32_t wasmParseMemorySection(WasmVm *wasmVm);
-int32_t wasmFindStartFunction(WasmVm *wasmVm);
 
 #ifdef __cplusplus
 } // extern "C"
