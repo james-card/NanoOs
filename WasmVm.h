@@ -48,6 +48,7 @@ extern "C"
 // WASM section codes
 #define WASM_SECTION_IMPORTS 2
 #define WASM_SECTION_MEMORY  5
+#define WASM_SECTION_EXPORT  7
 
 /// @enum WasmOpcode
 ///
@@ -569,6 +570,8 @@ int32_t wasmStackInit(VirtualMemoryState *stack);
 int32_t wasmParseImports(
   WasmVm *wasmVm, const WasmImport *importTable, uint32_t importTableLength);
 int32_t wasmInitializeStacks(WasmVm *wasmVm);
+int32_t wasmParseMemorySection(WasmVm *wasmVm);
+int32_t wasmFindStartFunction(WasmVm *wasmVm);
 
 #ifdef __cplusplus
 } // extern "C"
