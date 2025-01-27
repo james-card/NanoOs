@@ -374,27 +374,6 @@ cleanup:
   return returnValue;
 }
 
-/// @fn int32_t wasmInitializeStacks(WasmVm *wasmVm)
-///
-/// @brief Initialize the VM stacks to prepare for execution
-///
-/// @param wasmVm Pointer to WASM VM state
-///
-/// @return Returns 0 on success, -1 on error
-int32_t wasmInitializeStacks(WasmVm *wasmVm) {
-  // Initialize global stack for operands
-  if (wasmStackInit(&wasmVm->globalStack) != 0) {
-    return -1;
-  }
-  
-  // Initialize call stack for function calls
-  if (wasmStackInit(&wasmVm->callStack) != 0) {
-    return -1;
-  }
-  
-  return 0;
-}
-
 /// @fn int32_t wasmParseMemorySection(WasmVm *wasmVm)
 ///
 /// @brief Parse the memory section of a WASM module to configure linear memory
@@ -537,6 +516,88 @@ int32_t wasmFindStartFunction(WasmVm *wasmVm) {
   return -1; // No start function found
 }
 
+/// @fn int32_t wasmInitCodeState(WasmVm *wasmVm)
+///
+/// @brief Find the code section and build the function table mapping
+///
+/// @param wasmVm Pointer to WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmInitCodeState(WasmVm *wasmVm) {
+  uint32_t sectionOffset;
+  uint32_t sectionSize;
+  uint32_t currentOffset;
+  uint32_t bytesRead;
+  
+  // Find code section (section ID 10)
+  if (wasmFindSection(wasmVm,
+    WASM_SECTION_CODE, &sectionOffset, &sectionSize) != 0
+  ) {
+    return -1;
+  }
+  
+  // Read number of functions
+  uint32_t functionCount;
+  bytesRead = readLeb128(&wasmVm->codeSegment, sectionOffset, &functionCount);
+  if (bytesRead == 0) {
+    return -1;
+  }
+  currentOffset = sectionOffset + bytesRead;
+  
+  // Allocate function table
+  wasmVm->codeState.functionTable = (WasmFunction *) malloc(
+    sizeof(WasmFunction) * functionCount
+  );
+  if (wasmVm->codeState.functionTable == NULL) {
+    return -1;
+  }
+  wasmVm->codeState.functionCount = functionCount;
+  wasmVm->codeState.codeSectionOffset = sectionOffset;
+  
+  // Process each function
+  for (uint32_t ii = 0; ii < functionCount; ii++) {
+    // Read function body size
+    uint32_t bodySize;
+    bytesRead = readLeb128(&wasmVm->codeSegment, currentOffset, &bodySize);
+    if (bytesRead == 0) {
+      free(wasmVm->codeState.functionTable);
+      wasmVm->codeState.functionTable = NULL;
+      return -1;
+    }
+    
+    // Store function location
+    wasmVm->codeState.functionTable[ii].codeOffset = currentOffset + bytesRead;
+    
+    // Skip local declarations to find actual code start
+    uint32_t localSetCount;
+    uint32_t localOffset = currentOffset + bytesRead;
+    bytesRead = readLeb128(&wasmVm->codeSegment, localOffset, &localSetCount);
+    if (bytesRead == 0) {
+      free(wasmVm->codeState.functionTable);
+      wasmVm->codeState.functionTable = NULL;
+      return -1;
+    }
+    localOffset += bytesRead;
+    
+    // Skip each local declaration set
+    for (uint32_t jj = 0; jj < localSetCount; jj++) {
+      uint32_t localCount;
+      bytesRead = readLeb128(&wasmVm->codeSegment, localOffset, &localCount);
+      if (bytesRead == 0) {
+        free(wasmVm->codeState.functionTable);
+        wasmVm->codeState.functionTable = NULL;
+        return -1;
+      }
+      localOffset += bytesRead + 1; // +1 for value type byte
+    }
+    
+    // Update offset to next function
+    currentOffset += bytesRead + bodySize;
+  }
+  
+  return 0;
+}
+
 /// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
 ///   const WasmImport *importTable, uint32_t importTableLength)
 ///
@@ -551,40 +612,17 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
   const WasmImport *importTable, uint32_t importTableLength
 ) {
   char tempFilename[13];
+  int returnValue = 0;
 
-  if (virtualMemoryInit(&wasmVm->codeSegment, programPath) != 0) {
-    return -1;
-  }
+  // Interleve virtual memory initializations and other operations that depend
+  // on them in order to give variation to the filenames that get used (which
+  // are based on time).
 
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->linearMemory, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->globalStack, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->callStack, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->globalStorage, tempFilename) != 0) {
-    return -1;
-  }
-
-  sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
-  if (virtualMemoryInit(&wasmVm->tableSpace, tempFilename) != 0) {
-    return -1;
-  }
-
-  int returnValue = wasmParseImports(wasmVm, importTable, importTableLength);
+  returnValue = virtualMemoryInit(&wasmVm->codeSegment, programPath);
 
   if (returnValue == 0) {
-    returnValue = wasmInitializeStacks(wasmVm);
+    sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+    returnValue = virtualMemoryInit(&wasmVm->linearMemory, tempFilename);
   }
 
   if (returnValue == 0) {
@@ -592,7 +630,44 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
   }
 
   if (returnValue == 0) {
+    returnValue = wasmParseImports(wasmVm, importTable, importTableLength);
+  }
+
+  if (returnValue == 0) {
+    sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+    returnValue = virtualMemoryInit(&wasmVm->globalStack, tempFilename);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmStackInit(&wasmVm->globalStack);
+  }
+
+  if (returnValue == 0) {
+    sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+    returnValue = virtualMemoryInit(&wasmVm->callStack, tempFilename);
+  }
+
+  if (returnValue == 0) {
+    returnValue = wasmStackInit(&wasmVm->callStack);
+  }
+
+  if (returnValue == 0) {
+    sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+    returnValue = virtualMemoryInit(&wasmVm->globalStorage, tempFilename);
+  }
+
+  if (returnValue == 0) {
     returnValue = wasmFindStartFunction(wasmVm);
+  }
+
+  if (returnValue == 0) {
+    sprintf(tempFilename, "%lu.mem", getElapsedMilliseconds(0) % 1000000000);
+    returnValue = virtualMemoryInit(&wasmVm->tableSpace, tempFilename);
+  }
+
+  // wasmInitCodeState has to come last.
+  if (returnValue == 0) {
+    returnValue = wasmInitCodeState(wasmVm);
   }
 
   return returnValue;
@@ -607,6 +682,9 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
 ///
 /// @return This function returns no value.
 void wasmVmCleanup(WasmVm *wasmVm) {
+  if (wasmVm->codeState.functionTable != NULL) {
+    free(wasmVm->codeState.functionTable);
+  }
   virtualMemoryCleanup(&wasmVm->tableSpace,    true);
   virtualMemoryCleanup(&wasmVm->globalStorage, true);
   virtualMemoryCleanup(&wasmVm->callStack,     true);

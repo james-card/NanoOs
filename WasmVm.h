@@ -46,9 +46,10 @@ extern "C"
 #endif
 
 // WASM section codes
-#define WASM_SECTION_IMPORTS 2
-#define WASM_SECTION_MEMORY  5
-#define WASM_SECTION_EXPORT  7
+#define WASM_SECTION_IMPORTS  2
+#define WASM_SECTION_MEMORY   5
+#define WASM_SECTION_EXPORT   7
+#define WASM_SECTION_CODE    10
 
 /// @enum WasmOpcode
 ///
@@ -516,6 +517,30 @@ typedef enum WasmVectorOpcode {
   WASM_OP_F64X2_MAX            = 0xF4
 } WasmVectorOpcode;
 
+/// @struct WasmFunction
+///
+/// @brief Structure to track a WASM function's location and type
+///
+/// @param codeOffset Offset in code section where function bytecode begins
+/// @param typeIndex Index into type section for function signature
+typedef struct WasmFunction {
+  uint32_t codeOffset;
+  uint32_t typeIndex;
+} WasmFunction;
+
+/// @struct WasmCodeState
+///
+/// @brief Structure to track code section state
+///
+/// @param functionTable Array mapping function indices to their info
+/// @param functionCount Number of functions defined
+/// @param codeSectionOffset Start of code section content
+typedef struct WasmCodeState {
+  WasmFunction *functionTable;
+  uint32_t      functionCount;
+  uint32_t      codeSectionOffset;
+} WasmCodeState;
+
 /// @struct WasmVm
 ///
 /// @brief State information for a WASM process.
@@ -534,6 +559,8 @@ typedef enum WasmVectorOpcode {
 ///   Backing for this will be an on-disk file with a random filename.
 /// @param tableSpace Virtual memory for the WASM function table segment.
 ///   Backing for this will be an on-disk file with a random filename.
+/// @param codeState The WasmCodeState object to keep track of the functions
+///   defined within the codeSegment
 typedef struct WasmVm {
   uint32_t           programCounter;
   VirtualMemoryState codeSegment;
@@ -542,6 +569,7 @@ typedef struct WasmVm {
   VirtualMemoryState callStack;
   VirtualMemoryState globalStorage;
   VirtualMemoryState tableSpace;
+  WasmCodeState      codeState;
 } WasmVm;
 
 /// @typedef WasmImportFunc
