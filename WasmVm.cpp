@@ -598,6 +598,301 @@ int32_t wasmInitCodeState(WasmVm *wasmVm) {
   return 0;
 }
 
+/// @struct WasmStackFrame
+///
+/// @brief Structure to track function call stack frames
+///
+/// @param functionIndex Index of the currently executing function
+/// @param returnAddress Address to return to after function completion
+/// @param localCount Number of local variables in this frame
+/// @param stackBase Base of operand stack for this frame
+/// @param locals Flexible array member for local variables
+typedef struct WasmStackFrame {
+  uint32_t functionIndex;
+  uint32_t returnAddress;
+  uint32_t localCount;
+  uint32_t stackBase;
+  uint32_t locals[1];  // Flexible array member
+} WasmStackFrame;
+
+/// @fn uint32_t wasmGetFrameSize(uint32_t localCount)
+///
+/// @brief Calculate total size needed for a stack frame
+///
+/// @param localCount Number of local variables in the frame
+///
+/// @return Size in bytes needed for the frame
+uint32_t wasmGetFrameSize(uint32_t localCount) {
+  return sizeof(WasmStackFrame) 
+    + ((localCount > 1) ? (localCount - 1) * sizeof(uint32_t) : 0);
+}
+
+/// @fn int32_t wasmPushFrame(WasmVm *wasmVm, uint32_t functionIndex)
+///
+/// @brief Push a new stack frame for a function call
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param functionIndex Index of the function being called
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmPushFrame(WasmVm *wasmVm, uint32_t functionIndex) {
+  uint32_t currentStackPointer;
+  if (virtualMemoryRead32(&wasmVm->callStack, 0, &currentStackPointer) != 0) {
+    return -1;
+  }
+
+  // Read local variable count from function header
+  uint32_t localCount;
+  uint32_t bytesRead;
+  uint32_t localOffset = wasmVm->codeState.functionTable[functionIndex]
+    .codeOffset;
+  bytesRead = readLeb128(&wasmVm->codeSegment, localOffset, &localCount);
+  if (bytesRead == 0) {
+    return -1;
+  }
+
+  // Calculate frame size
+  uint32_t frameSize = wasmGetFrameSize(localCount);
+  uint32_t frameStart = currentStackPointer + sizeof(uint32_t);
+
+  // Write frame header fields
+  if (virtualMemoryWrite32(&wasmVm->callStack,
+    frameStart + offsetof(WasmStackFrame, functionIndex),
+    functionIndex) != 0
+  ) {
+    return -1;
+  }
+
+  if (virtualMemoryWrite32(&wasmVm->callStack,
+    frameStart + offsetof(WasmStackFrame, returnAddress),
+    wasmVm->programCounter) != 0
+  ) {
+    return -1;
+  }
+
+  if (virtualMemoryWrite32(&wasmVm->callStack,
+    frameStart + offsetof(WasmStackFrame, localCount),
+    localCount) != 0
+  ) {
+    return -1;
+  }
+
+  // Get current operand stack pointer as frame's stack base
+  uint32_t stackBase;
+  if (virtualMemoryRead32(&wasmVm->globalStack, 0, &stackBase) != 0) {
+    return -1;
+  }
+
+  if (virtualMemoryWrite32(&wasmVm->callStack,
+    frameStart + offsetof(WasmStackFrame, stackBase),
+    stackBase) != 0
+  ) {
+    return -1;
+  }
+
+  // Initialize locals to 0
+  for (uint32_t ii = 0; ii < localCount; ii++) {
+    if (virtualMemoryWrite32(&wasmVm->callStack,
+      frameStart + offsetof(WasmStackFrame, locals) + (ii * sizeof(uint32_t)),
+      0) != 0
+    ) {
+      return -1;
+    }
+  }
+
+  // Write frame size after frame
+  if (virtualMemoryWrite32(&wasmVm->callStack,
+    frameStart + frameSize,
+    frameSize) != 0
+  ) {
+    return -1;
+  }
+
+  // Update stack pointer
+  currentStackPointer += sizeof(uint32_t) + frameSize + sizeof(uint32_t);
+  if (virtualMemoryWrite32(&wasmVm->callStack, 0,
+    currentStackPointer) != 0
+  ) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/// @fn int32_t wasmPopFrame(WasmVm *wasmVm)
+///
+/// @brief Pop the top stack frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmPopFrame(WasmVm *wasmVm) {
+  uint32_t currentStackPointer;
+  if (virtualMemoryRead32(&wasmVm->callStack, 0, &currentStackPointer) != 0) {
+    return -1;
+  }
+
+  // Check for underflow
+  if (currentStackPointer < sizeof(uint32_t)) {
+    return -1;
+  }
+
+  // Read frame size
+  uint32_t frameSize;
+  if (virtualMemoryRead32(&wasmVm->callStack,
+    currentStackPointer - sizeof(uint32_t),
+    &frameSize) != 0
+  ) {
+    return -1;
+  }
+
+  // Update stack pointer
+  currentStackPointer -= (sizeof(uint32_t) + frameSize + sizeof(uint32_t));
+  if (virtualMemoryWrite32(&wasmVm->callStack, 0,
+    currentStackPointer) != 0
+  ) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/// @fn int32_t wasmGetCurrentFrameBase(WasmVm *wasmVm, uint32_t *frameBase)
+///
+/// @brief Get the base address of the current stack frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param frameBase Pointer to store the frame base address
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmGetCurrentFrameBase(WasmVm *wasmVm, uint32_t *frameBase) {
+  uint32_t currentStackPointer;
+  if (virtualMemoryRead32(&wasmVm->callStack, 0, &currentStackPointer) != 0) {
+    return -1;
+  }
+
+  // Check for empty stack
+  if (currentStackPointer < sizeof(uint32_t)) {
+    return -1;
+  }
+
+  // Read frame size
+  uint32_t frameSize;
+  if (virtualMemoryRead32(&wasmVm->callStack,
+    currentStackPointer - sizeof(uint32_t),
+    &frameSize) != 0
+  ) {
+    return -1;
+  }
+
+  *frameBase = currentStackPointer - sizeof(uint32_t) - frameSize;
+  return 0;
+}
+
+/// @fn int32_t wasmGetLocal(WasmVm *wasmVm, uint32_t index, uint32_t *value)
+///
+/// @brief Get value of a local variable from current frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param index Index of the local variable
+/// @param value Pointer to store the variable value
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmGetLocal(WasmVm *wasmVm, uint32_t index, uint32_t *value) {
+  uint32_t frameBase;
+  if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+    return -1;
+  }
+
+  // Read local count to validate index
+  uint32_t localCount;
+  if (virtualMemoryRead32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, localCount),
+    &localCount) != 0
+  ) {
+    return -1;
+  }
+
+  if (index >= localCount) {
+    return -1;
+  }
+
+  return virtualMemoryRead32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, locals) + (index * sizeof(uint32_t)),
+    value);
+}
+
+/// @fn int32_t wasmSetLocal(WasmVm *wasmVm, uint32_t index, uint32_t value)
+///
+/// @brief Set value of a local variable in current frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param index Index of the local variable
+/// @param value Value to set
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmSetLocal(WasmVm *wasmVm, uint32_t index, uint32_t value) {
+  uint32_t frameBase;
+  if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+    return -1;
+  }
+
+  // Read local count to validate index
+  uint32_t localCount;
+  if (virtualMemoryRead32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, localCount),
+    &localCount) != 0
+  ) {
+    return -1;
+  }
+
+  if (index >= localCount) {
+    return -1;
+  }
+
+  return virtualMemoryWrite32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, locals) + (index * sizeof(uint32_t)),
+    value);
+}
+
+/// @fn int32_t wasmGetReturnAddress(WasmVm *wasmVm, uint32_t *returnAddress)
+///
+/// @brief Get return address from current frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param returnAddress Pointer to store the return address
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmGetReturnAddress(WasmVm *wasmVm, uint32_t *returnAddress) {
+  uint32_t frameBase;
+  if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+    return -1;
+  }
+
+  return virtualMemoryRead32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, returnAddress),
+    returnAddress);
+}
+
+/// @fn int32_t wasmGetFrameStackBase(WasmVm *wasmVm, uint32_t *stackBase)
+///
+/// @brief Get operand stack base from current frame
+///
+/// @param wasmVm Pointer to the WASM VM state
+/// @param stackBase Pointer to store the stack base
+///
+/// @return Returns 0 on success, -1 on error
+int32_t wasmGetFrameStackBase(WasmVm *wasmVm, uint32_t *stackBase) {
+  uint32_t frameBase;
+  if (wasmGetCurrentFrameBase(wasmVm, &frameBase) != 0) {
+    return -1;
+  }
+
+  return virtualMemoryRead32(&wasmVm->callStack,
+    frameBase + offsetof(WasmStackFrame, stackBase),
+    stackBase);
+}
+
 /// @fn int wasmVmInit(WasmVm *wasmVm, const char *programPath,
 ///   const WasmImport *importTable, uint32_t importTableLength)
 ///

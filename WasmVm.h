@@ -595,6 +595,13 @@ int wasmVmInit(WasmVm *wasmVm, const char *programPath,
   const WasmImport *importTable, uint32_t importTableLength);
 int32_t wasmStackPush32(VirtualMemoryState *stack, uint32_t value);
 int32_t wasmStackPop32(VirtualMemoryState *stack, uint32_t *value);
+int32_t wasmPushFrame(WasmVm *wasmVm, uint32_t functionIndex);
+int32_t wasmPopFrame(WasmVm *wasmVm);
+int32_t wasmGetCurrentFrameBase(WasmVm *wasmVm, uint32_t *frameBase);
+int32_t wasmGetLocal(WasmVm *wasmVm, uint32_t index, uint32_t *value);
+int32_t wasmSetLocal(WasmVm *wasmVm, uint32_t index, uint32_t value);
+int32_t wasmGetReturnAddress(WasmVm *wasmVm, uint32_t *returnAddress);
+int32_t wasmGetFrameStackBase(WasmVm *wasmVm, uint32_t *stackBase);
 
 #ifdef __cplusplus
 } // extern "C"
