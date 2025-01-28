@@ -360,7 +360,7 @@ int32_t wasmParseImports(
     importName = NULL;
   }
   
-  // Store total end of table marker.
+  // Store end of table marker.
   if (virtualMemoryWrite32(&wasmVm->tableSpace, 
     tableIndex * sizeof(uint32_t), 0xFFFFFFFF) != 0
   ) {
