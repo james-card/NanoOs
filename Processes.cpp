@@ -31,6 +31,7 @@
 // Custom includes
 #include "Processes.h"
 #include "Scheduler.h"
+#include "Rv32iVm.h"
 
 /// @var messages
 ///
@@ -194,8 +195,8 @@ void* startCommand(void *args) {
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
-  CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
+  //// CommandEntry *commandEntry
+  ////   = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
@@ -232,7 +233,8 @@ void* startCommand(void *args) {
   }
 
   // Call the process function.
-  int returnValue = commandEntry->func(argc, argv);
+  //// int returnValue = commandEntry->func(argc, argv);
+  int returnValue = runRv32iProcess(argc, argv);
   free(argv); argv = NULL;
 
   if (callingProcessId != getRunningProcessId()) {
