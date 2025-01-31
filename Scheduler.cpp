@@ -1736,7 +1736,7 @@ int schedulerRunProcessCommandHandler(
       strcpy(commandLine, charAt);
     }
 
-    const CommandEntry *commandEntry = NULL; //// getCommandEntryFromInput(commandLine);
+    const CommandEntry *commandEntry = getCommandEntryFromInput(commandLine);
     nanoOsMessage->func = (intptr_t) commandEntry;
     commandDescriptor->consoleInput = commandLine;
 
@@ -2301,59 +2301,59 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 
   // Check the shells and restart them if needed.
-  //// if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
-  ////   && (processRunning(processDescriptor->processHandle) == false)
-  //// ) {
-  ////   if ((schedulerState->hostname == NULL)
-  ////     || (*schedulerState->hostname == '\0')
-  ////   ) {
-  ////     // We're not done initializing yet.  Put the process back on the ready
-  ////     // queue and try again later.
-  ////     processQueuePush(&schedulerState->ready, processDescriptor);
-  ////     return;
-  ////   }
+  if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
+    && (processRunning(processDescriptor->processHandle) == false)
+  ) {
+    if ((schedulerState->hostname == NULL)
+      || (*schedulerState->hostname == '\0')
+    ) {
+      // We're not done initializing yet.  Put the process back on the ready
+      // queue and try again later.
+      processQueuePush(&schedulerState->ready, processDescriptor);
+      return;
+    }
 
-  ////   // Restart the shell.
-  ////   allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
-  ////     = NUM_STANDARD_FILE_DESCRIPTORS;
-  ////   allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
-  ////     = (FileDescriptor*) standardUserFileDescriptors;
-  ////   if (processCreate(&processDescriptor->processHandle,
-  ////       runShell, schedulerState->hostname
-  ////     ) == processError
-  ////   ) {
-  ////     printString(
-  ////       "ERROR!!!  Could not configure process for USB shell.\n");
-  ////   }
-  ////   processDescriptor->name = "USB shell";
-  ////   coroutineResume(processDescriptor->processHandle, NULL);
-  //// } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
-  ////   && (processRunning(processDescriptor->processHandle) == false)
-  //// ) {
-  ////   if ((schedulerState->hostname == NULL)
-  ////     || (*schedulerState->hostname == '\0')
-  ////   ) {
-  ////     // We're not done initializing yet.  Put the process back on the ready
-  ////     // queue and try again later.
-  ////     processQueuePush(&schedulerState->ready, processDescriptor);
-  ////     return;
-  ////   }
+    // Restart the shell.
+    allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
+      = NUM_STANDARD_FILE_DESCRIPTORS;
+    allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
+      = (FileDescriptor*) standardUserFileDescriptors;
+    if (processCreate(&processDescriptor->processHandle,
+        runShell, schedulerState->hostname
+      ) == processError
+    ) {
+      printString(
+        "ERROR!!!  Could not configure process for USB shell.\n");
+    }
+    processDescriptor->name = "USB shell";
+    coroutineResume(processDescriptor->processHandle, NULL);
+  } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
+    && (processRunning(processDescriptor->processHandle) == false)
+  ) {
+    if ((schedulerState->hostname == NULL)
+      || (*schedulerState->hostname == '\0')
+    ) {
+      // We're not done initializing yet.  Put the process back on the ready
+      // queue and try again later.
+      processQueuePush(&schedulerState->ready, processDescriptor);
+      return;
+    }
 
-  ////   // Restart the shell.
-  ////   allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
-  ////     = NUM_STANDARD_FILE_DESCRIPTORS;
-  ////   allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
-  ////     = (FileDescriptor*) standardUserFileDescriptors;
-  ////   if (processCreate(&processDescriptor->processHandle,
-  ////       runShell, schedulerState->hostname
-  ////     ) == processError
-  ////   ) {
-  ////     printString(
-  ////       "ERROR!!!  Could not configure process for GPIO shell.\n");
-  ////   }
-  ////   processDescriptor->name = "GPIO shell";
-  ////   coroutineResume(processDescriptor->processHandle, NULL);
-  //// }
+    // Restart the shell.
+    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
+      = NUM_STANDARD_FILE_DESCRIPTORS;
+    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
+      = (FileDescriptor*) standardUserFileDescriptors;
+    if (processCreate(&processDescriptor->processHandle,
+        runShell, schedulerState->hostname
+      ) == processError
+    ) {
+      printString(
+        "ERROR!!!  Could not configure process for GPIO shell.\n");
+    }
+    processDescriptor->name = "GPIO shell";
+    coroutineResume(processDescriptor->processHandle, NULL);
+  }
 
   if (processReturnValue == COROUTINE_WAIT) {
     processQueuePush(&schedulerState->waiting, processDescriptor);
