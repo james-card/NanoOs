@@ -39,6 +39,7 @@
 
 // Custom includes
 #include "NanoOs.h"
+#include "VirtualMemory.h"
 
 #ifdef __cplusplus
 extern "C"
