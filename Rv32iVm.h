@@ -46,10 +46,12 @@ extern "C"
 {
 #endif
 
-#define RV32I_INSTRUCTION_SIZE                 4
-#define RV32I_PROGRAM_START               0x1000
-#define RV32I_MEMORY_SIZE              0x1000000
-#define RV32I_STACK_START      RV32I_MEMORY_SIZE
+#define RV32I_INSTRUCTION_SIZE                          4
+#define RV32I_PROGRAM_START                        0x1000
+#define RV32I_MEMORY_SIZE                       0x1000000
+#define RV32I_STACK_START               RV32I_MEMORY_SIZE
+#define RV32I_CLINT_BASE_ADDR                  0x02000000
+#define RV32I_CLINT_ADDR_MASK (RV32I_CLINT_BASE_ADDR - 1)
 
 /// @struct Rv32iCoreRegisters
 ///
