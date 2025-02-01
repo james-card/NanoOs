@@ -141,6 +141,66 @@ int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   }
 }
 
+/// @fn int32_t fetchInstruction(Rv32iVm *rv32iVm, uint32_t *instruction)
+///
+/// @brief Fetch the next instruction from memory at the current PC
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param instruction Pointer to store the fetched instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t fetchInstruction(
+  Rv32iVm *rv32iVm, uint32_t *instruction
+) {
+  return
+    rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
+}
+
+/// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
+///
+/// @brief Execute a single RV32I instruction
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param instruction The instruction to execute
+///
+/// @return 0 on success, negative on error, positive for program exit
+int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
+  // Decode instruction fields
+  uint32_t opcode = instruction & 0x7F;
+  uint32_t rd = (instruction >> 7) & 0x1F;
+  uint32_t funct3 = (instruction >> 12) & 0x7;
+  uint32_t rs1 = (instruction >> 15) & 0x1F;
+  uint32_t rs2 = (instruction >> 20) & 0x1F;
+  uint32_t funct7 = (instruction >> 25) & 0x7F;
+  
+  // R-type immediate
+  int32_t immI = ((int32_t) instruction) >> 20;
+  
+  // S-type immediate
+  int32_t immS = (((int32_t) instruction) >> 20 & ~0x1F) | 
+    ((instruction >> 7) & 0x1F);
+    
+  // B-type immediate
+  int32_t immB = (((int32_t) instruction >> 19) & ~0x1FFF) |
+    ((instruction & 0x80) << 4) | // imm[11]
+    ((instruction >> 20) & 0x7E0) | // imm[10:5]
+    ((instruction >> 7) & 0x1E); // imm[4:1]
+    
+  // U-type immediate
+  int32_t immU = (int32_t) instruction & 0xFFFFF000;
+  
+  // J-type immediate
+  int32_t immJ = (((int32_t) instruction >> 11) & ~0x1FFFFF) |
+    ((instruction & 0xFF000) | // imm[19:12]
+    ((instruction & 0x100000) >> 9) | // imm[11]
+    ((instruction & 0x7FE00000) >> 20)); // imm[10:1]
+
+  // Always increment PC by default
+  uint32_t nextPc = rv32iVm->rv32iCoreRegisters.pc + 4;
+  
+  return 0;
+}
+
 /// @fn int runRv32iProcess(int argc, char **argv);
 ///
 /// @brief Run a process compiled to the RV32I instruction set.
@@ -165,7 +225,17 @@ int runRv32iProcess(int argc, char **argv) {
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
   rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
 
+  int returnValue = 0;
+  uint32_t instruction = 0;
+  while (returnValue = 0) {
+    if (fetchInstruction(&rv32iVm, &instruction) != 0) {
+      returnValue = -1;
+      break;
+    }
+    returnValue = executeInstruction(&rv32iVm, instruction);
+  }
+
   rv32iVmCleanup(&rv32iVm);
-  return 0;
+  return returnValue;
 }
 
