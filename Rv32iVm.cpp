@@ -344,6 +344,70 @@ static inline int32_t executeImmediateOperation(
   return 0;
 }
 
+/// @fn static inline int32_t executeLoad(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+///   uint32_t funct3)
+///
+/// @brief Execute a load operation from memory
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 Source register number (base address)
+/// @param immediate Sign-extended 12-bit immediate offset
+/// @param funct3 The funct3 field from instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeLoad(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+  uint32_t funct3
+) {
+  // Calculate effective address
+  uint32_t address = rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+  
+  // Read full word from memory
+  uint32_t value = 0;
+  int32_t result = rv32iMemoryRead32(rv32iVm, address, &value);
+  if (result != 0) {
+    return result;
+  }
+  
+  // Extract and sign extend based on load type
+  switch (funct3) {
+    case RV32I_FUNCT3_LB: {
+      // Load byte and sign extend
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        ((int32_t) (value & 0xFF) << 24) >> 24;
+      break;
+    }
+    case RV32I_FUNCT3_LH: {
+      // Load halfword and sign extend
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        ((int32_t) (value & 0xFFFF) << 16) >> 16;
+      break;
+    }
+    case RV32I_FUNCT3_LW: {
+      // Load word (no sign extension needed)
+      rv32iVm->rv32iCoreRegisters.x[rd] = value;
+      break;
+    }
+    case RV32I_FUNCT3_LBU: {
+      // Load byte unsigned (zero extend)
+      rv32iVm->rv32iCoreRegisters.x[rd] = value & 0xFF;
+      break;
+    }
+    case RV32I_FUNCT3_LHU: {
+      // Load halfword unsigned (zero extend)
+      rv32iVm->rv32iCoreRegisters.x[rd] = value & 0xFFFF;
+      break;
+    }
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+  
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
