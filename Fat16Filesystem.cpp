@@ -580,7 +580,7 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
 }
 
 /// @fn size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile,
-///   off_t srcStart, Fat16File *dstFile, off_t dstStart, size_t len)
+///   off_t srcStart, Fat16File *dstFile, off_t dstStart, size_t length)
 ///
 /// @brief Copy a specified number of bytes from one file to another at the
 /// specified offsets. If the destination file's size is less than dstStart,
@@ -592,17 +592,17 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
 /// @param srcStart The offset within the source file to start copying from.
 /// @param dstFile A pointer to the destination Fat16File to copy to.
 /// @param dstStart The offset within the destination file to start copying to.
-/// @param len The number of bytes to copy.
+/// @param length The number of bytes to copy.
 ///
 /// @return Returns the number of bytes successfully copied.
 size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
-    Fat16File *dstFile, off_t dstStart, size_t len
+    Fat16File *dstFile, off_t dstStart, size_t length
 ) {
   // Verify assumptions
   if ((srcFile->bytesPerSector != dstFile->bytesPerSector)
-      || ((srcStart % srcFile->bytesPerSector) != 0)
-      || ((dstStart % dstFile->bytesPerSector) != 0)
-      || ((len % dstFile->bytesPerSector) != 0)
+      || ((srcStart & (srcFile->bytesPerSector - 1)) != 0)
+      || ((dstStart & (dstFile->bytesPerSector - 1)) != 0)
+      || ((length & (dstFile->bytesPerSector - 1)) != 0)
   ) {
     return 0;
   }
@@ -637,20 +637,20 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     return 0;
   }
 
-  size_t remainingBytes = len;
+  size_t remainingBytes = length;
   while (remainingBytes > 0) {
     // Read source block
     uint32_t srcBlock = srcFile->dataStart + ((srcFile->currentCluster -
       FAT16_MIN_DATA_CLUSTER) * srcFile->sectorsPerCluster);
     if (fat16ReadBlock(fs, srcBlock, fs->blockBuffer)) {
-      return len - remainingBytes;
+      return length - remainingBytes;
     }
 
     // Write to destination
     uint32_t dstBlock = dstFile->dataStart + ((dstFile->currentCluster -
       FAT16_MIN_DATA_CLUSTER) * dstFile->sectorsPerCluster);
     if (fat16WriteBlock(fs, dstBlock, fs->blockBuffer)) {
-      return len - remainingBytes;
+      return length - remainingBytes;
     }
 
     // Update positions
@@ -665,13 +665,13 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     // Handle cluster transitions
     if (fat16HandleClusterTransition(fs, srcFile, false) ||
         fat16HandleClusterTransition(fs, dstFile, true)) {
-      return len - remainingBytes;
+      return length - remainingBytes;
     }
   }
 
   fat16UpdateDirectoryEntry(fs, dstFile);
 
-  return len - remainingBytes;
+  return length - remainingBytes;
 }
 
 /// @fn int fat16Remove(FilesystemState *fs, const char *pathname)
