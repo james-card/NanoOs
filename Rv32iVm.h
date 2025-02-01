@@ -107,6 +107,106 @@ typedef enum Rv32iRegisterFunct7 {
   RV32I_FUNCT7_SRL     = 0x00, // Shift Right Logical
   RV32I_FUNCT7_SRA     = 0x20  // Shift Right Arithmetic
 } Rv32iRegisterFunct7;
+
+/// @enum Rv32iImmediateFunct3
+///
+/// @brief Function 3 codes for I-type immediate operations
+typedef enum Rv32iImmediateFunct3 {
+  RV32I_FUNCT3_ADDI  = 0x0,  // Add Immediate
+  RV32I_FUNCT3_SLLI  = 0x1,  // Shift Left Logical Immediate
+  RV32I_FUNCT3_SLTI  = 0x2,  // Set Less Than Immediate
+  RV32I_FUNCT3_SLTIU = 0x3,  // Set Less Than Immediate Unsigned
+  RV32I_FUNCT3_XORI  = 0x4,  // XOR Immediate
+  RV32I_FUNCT3_SRLI_SRAI = 0x5,  // Shift Right Logical/Arithmetic Immediate
+  RV32I_FUNCT3_ORI   = 0x6,  // OR Immediate
+  RV32I_FUNCT3_ANDI  = 0x7   // AND Immediate
+} Rv32iImmediateFunct3;
+
+/// @enum Rv32iLoadFunct3
+///
+/// @brief Function 3 codes for load operations
+typedef enum Rv32iLoadFunct3 {
+  RV32I_FUNCT3_LB  = 0x0,  // Load Byte
+  RV32I_FUNCT3_LH  = 0x1,  // Load Halfword
+  RV32I_FUNCT3_LW  = 0x2,  // Load Word
+  RV32I_FUNCT3_LBU = 0x4,  // Load Byte Unsigned
+  RV32I_FUNCT3_LHU = 0x5   // Load Halfword Unsigned
+} Rv32iLoadFunct3;
+
+/// @enum Rv32iStoreFunct3
+///
+/// @brief Function 3 codes for store operations
+typedef enum Rv32iStoreFunct3 {
+  RV32I_FUNCT3_SB = 0x0,  // Store Byte
+  RV32I_FUNCT3_SH = 0x1,  // Store Halfword
+  RV32I_FUNCT3_SW = 0x2   // Store Word
+} Rv32iStoreFunct3;
+
+/// @enum Rv32iBranchFunct3
+///
+/// @brief Function 3 codes for branch operations
+typedef enum Rv32iBranchFunct3 {
+  RV32I_FUNCT3_BEQ  = 0x0,  // Branch Equal
+  RV32I_FUNCT3_BNE  = 0x1,  // Branch Not Equal
+  RV32I_FUNCT3_BLT  = 0x4,  // Branch Less Than
+  RV32I_FUNCT3_BGE  = 0x5,  // Branch Greater Than or Equal
+  RV32I_FUNCT3_BLTU = 0x6,  // Branch Less Than Unsigned
+  RV32I_FUNCT3_BGEU = 0x7   // Branch Greater Than or Equal Unsigned
+} Rv32iBranchFunct3;
+
+/// @enum Rv32iSystemFunct3
+///
+/// @brief Function 3 codes for system operations
+typedef enum Rv32iSystemFunct3 {
+  RV32I_FUNCT3_ECALL_EBREAK = 0x0,  // Environment Call / Environment Break
+  RV32I_FUNCT3_CSRRW   = 0x1,  // CSR Read/Write
+  RV32I_FUNCT3_CSRRS   = 0x2,  // CSR Read and Set Bits
+  RV32I_FUNCT3_CSRRC   = 0x3,  // CSR Read and Clear Bits
+  RV32I_FUNCT3_CSRRWI  = 0x5,  // CSR Read/Write Immediate
+  RV32I_FUNCT3_CSRRSI  = 0x6,  // CSR Read and Set Bits Immediate
+  RV32I_FUNCT3_CSRRCI  = 0x7   // CSR Read and Clear Bits Immediate
+} Rv32iSystemFunct3;
+
+/// @enum Rv32iSystemImm12
+///
+/// @brief 12-bit immediate values for system calls
+typedef enum Rv32iSystemImm12 {
+  RV32I_IMM12_ECALL  = 0x000,  // Environment Call
+  RV32I_IMM12_EBREAK = 0x001   // Environment Break
+} Rv32iSystemImm12;
+
+/// @enum Rv32iImmediateFunct7
+///
+/// @brief Function 7 codes for immediate shift operations
+typedef enum Rv32iImmediateFunct7 {
+  RV32I_FUNCT7_SRLI = 0x00,  // Shift Right Logical Immediate
+  RV32I_FUNCT7_SRAI = 0x20   // Shift Right Arithmetic Immediate
+} Rv32iImmediateFunct7;
+
+/// @enum Rv32iCsrAddresses
+///
+/// @brief Standard CSR addresses
+typedef enum Rv32iCsrAddresses {
+  // Machine Information Registers
+  RV32I_CSR_MVENDORID = 0xF11,  // Vendor ID
+  RV32I_CSR_MARCHID   = 0xF12,  // Architecture ID
+  RV32I_CSR_MIMPID    = 0xF13,  // Implementation ID
+  RV32I_CSR_MHARTID   = 0xF14,  // Hardware Thread ID
+  
+  // Machine Trap Setup
+  RV32I_CSR_MSTATUS   = 0x300,  // Machine Status
+  RV32I_CSR_MISA      = 0x301,  // ISA and Extensions
+  RV32I_CSR_MIE       = 0x304,  // Machine Interrupt Enable
+  RV32I_CSR_MTVEC     = 0x305,  // Machine Trap Vector
+  
+  // Machine Trap Handling
+  RV32I_CSR_MSCRATCH  = 0x340,  // Scratch Register
+  RV32I_CSR_MEPC      = 0x341,  // Exception Program Counter
+  RV32I_CSR_MCAUSE    = 0x342,  // Trap Cause
+  RV32I_CSR_MTVAL     = 0x343,  // Trap Value
+  RV32I_CSR_MIP       = 0x344   // Machine Interrupt Pending
+} Rv32iCsrAddresses;
+
 /// @struct Rv32iCoreRegisters
 ///
 /// @brief Structure to keep track of the state of a single virtual RV32I core.
