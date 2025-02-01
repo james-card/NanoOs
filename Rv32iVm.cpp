@@ -31,19 +31,22 @@
 // Custom includes
 #include "Rv32iVm.h"
 
+static char virtualMemoryFilename[13] = {};
+
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
-  (void) argv;
   Rv32iCoreState rv32iCoreState = {};
-  char virtualMemoryFilename[13] = {};
-  VirtualMemoryState rv32iMemory = {};
+  VirtualMemoryState physicalMemory = {};
+  VirtualMemoryState mappedMemory = {};
+  VirtualMemoryState programBinary = {};
 
   sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
-  virtualMemoryInit(&rv32iMemory, virtualMemoryFilename);
-  virtualMemoryRead32(&rv32iMemory, 0, &rv32iCoreState.x[1]);
-  rv32iCoreState.x[1] ^= 0x56;
-  virtualMemoryWrite32(&rv32iMemory, 0, rv32iCoreState.x[1]);
-  virtualMemoryCleanup(&rv32iMemory, true);
+  virtualMemoryInit(&physicalMemory, virtualMemoryFilename);
+  virtualMemoryInit(&programBinary, argv[0]);
+  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
+  virtualMemoryInit(&mappedMemory, virtualMemoryFilename);
+
+  virtualMemoryCleanup(&physicalMemory, true);
   
   return 0;
 }
