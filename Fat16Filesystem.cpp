@@ -605,6 +605,173 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   return 0;
 }
 
+/// @fn int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
+///   Fat16File *dstFile, off_t dstStart, size_t len)
+///
+/// @brief Copy a specified number of bytes from one file to another at the
+/// specified offsets. If the destination file's size is less than dstStart,
+/// the file will be padded with zeros up to dstStart before copying begins.
+///
+/// @param fs A pointer to the filesystem state structure maintained by the
+///   filesystem process.
+/// @param srcFile A pointer to the source Fat16File to copy from.
+/// @param srcStart The offset within the source file to start copying from.
+/// @param dstFile A pointer to the destination Fat16File to copy to.
+/// @param dstStart The offset within the destination file to start copying to.
+/// @param len The number of bytes to copy.
+///
+/// @return Returns 0 on success, -1 on error.
+int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
+    Fat16File *dstFile, off_t dstStart, size_t len
+) {
+  // If destination file needs padding, fill with zeros up to dstStart
+  if (dstFile->fileSize < dstStart) {
+    // Position at current end of file
+    if (fat16Seek(fs, dstFile, dstFile->fileSize, SEEK_SET) != 0) {
+      return -1;
+    }
+
+    // Fill with zeros until we reach dstStart
+    memset(fs->blockBuffer, 0, fs->blockSize);
+    while (dstFile->fileSize < dstStart) {
+      uint32_t dstBlock = dstFile->dataStart + ((dstFile->currentCluster -
+        FAT16_MIN_DATA_CLUSTER) * dstFile->sectorsPerCluster);
+      uint32_t dstOffset = dstFile->currentPosition % dstFile->bytesPerSector;
+      uint32_t bytesToWrite = dstFile->bytesPerSector - dstOffset;
+
+      // Don't write past dstStart
+      if (dstFile->fileSize + bytesToWrite > dstStart) {
+        bytesToWrite = dstStart - dstFile->fileSize;
+      }
+
+      if (fat16WriteBlock(fs, dstBlock, fs->blockBuffer)) {
+        return -1;
+      }
+
+      dstFile->currentPosition += bytesToWrite;
+      dstFile->fileSize = dstFile->currentPosition;
+
+      // Handle cluster transitions
+      if ((dstFile->currentPosition %
+          (dstFile->bytesPerSector * dstFile->sectorsPerCluster)) == 0) {
+        uint32_t fatBlock = fs->startLba + dstFile->reservedSectors +
+          ((dstFile->currentCluster * sizeof(uint16_t)) /
+          dstFile->bytesPerSector);
+
+        if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
+          return -1;
+        }
+
+        dstFile->currentCluster = *((uint16_t*) &fs->blockBuffer
+          [(dstFile->currentCluster * sizeof(uint16_t)) %
+          dstFile->bytesPerSector]);
+      }
+    }
+  }
+
+  // Position both files at their respective starting points
+  if (fat16Seek(fs, srcFile, srcStart, SEEK_SET) != 0) {
+    return -1;
+  }
+  if (fat16Seek(fs, dstFile, dstStart, SEEK_SET) != 0) {
+    return -1;
+  }
+
+  size_t remainingBytes = len;
+  while (remainingBytes > 0) {
+    // Calculate source block location
+    uint32_t srcBlock = srcFile->dataStart + ((srcFile->currentCluster -
+      FAT16_MIN_DATA_CLUSTER) * srcFile->sectorsPerCluster);
+    
+    // Read source block
+    if (fat16ReadBlock(fs, srcBlock, fs->blockBuffer)) {
+      return -1;
+    }
+
+    // Calculate bytes to copy from this block
+    uint32_t srcOffset = srcFile->currentPosition % srcFile->bytesPerSector;
+    uint32_t bytesThisBlock = srcFile->bytesPerSector - srcOffset;
+    if (bytesThisBlock > remainingBytes) {
+      bytesThisBlock = remainingBytes;
+    }
+
+    // Calculate destination block and position
+    uint32_t dstBlock = dstFile->dataStart + ((dstFile->currentCluster -
+      FAT16_MIN_DATA_CLUSTER) * dstFile->sectorsPerCluster);
+    uint32_t dstOffset = dstFile->currentPosition % dstFile->bytesPerSector;
+
+    // If writing a partial block, need to read destination first
+    if (dstOffset != 0 || bytesThisBlock < dstFile->bytesPerSector) {
+      if (fat16ReadBlock(fs, dstBlock, fs->blockBuffer)) {
+        return -1;
+      }
+    }
+
+    // Update file positions
+    srcFile->currentPosition += bytesThisBlock;
+    dstFile->currentPosition += bytesThisBlock;
+    if (dstFile->currentPosition > dstFile->fileSize) {
+      dstFile->fileSize = dstFile->currentPosition;
+    }
+    remainingBytes -= bytesThisBlock;
+
+    // Write block to destination
+    if (fat16WriteBlock(fs, dstBlock, fs->blockBuffer)) {
+      return -1;
+    }
+
+    // Move to next cluster if needed in source file
+    if ((srcFile->currentPosition % 
+        (srcFile->bytesPerSector * srcFile->sectorsPerCluster)) == 0) {
+      uint32_t fatBlock = fs->startLba + srcFile->reservedSectors +
+        ((srcFile->currentCluster * sizeof(uint16_t)) /
+        srcFile->bytesPerSector);
+
+      if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
+        return -1;
+      }
+
+      srcFile->currentCluster = *((uint16_t*) &fs->blockBuffer
+        [(srcFile->currentCluster * sizeof(uint16_t)) %
+        srcFile->bytesPerSector]);
+    }
+
+    // Move to next cluster if needed in destination file
+    if ((dstFile->currentPosition %
+        (dstFile->bytesPerSector * dstFile->sectorsPerCluster)) == 0) {
+      uint32_t fatBlock = fs->startLba + dstFile->reservedSectors +
+        ((dstFile->currentCluster * sizeof(uint16_t)) /
+        dstFile->bytesPerSector);
+
+      if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
+        return -1;
+      }
+
+      dstFile->currentCluster = *((uint16_t*) &fs->blockBuffer
+        [(dstFile->currentCluster * sizeof(uint16_t)) %
+        dstFile->bytesPerSector]);
+    }
+  }
+
+  // Update directory entry for destination file
+  uint8_t *entry;
+  uint32_t block;
+  int result = fat16FindDirectoryEntry(fs, dstFile, dstFile->pathname, &entry,
+    &block, NULL);
+    
+  if (result != FAT16_DIR_SEARCH_FOUND) {
+    return -1;
+  }
+
+  *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = dstFile->fileSize;
+  
+  if (fat16WriteBlock(fs, block, fs->blockBuffer)) {
+    return -1;
+  }
+
+  return 0;
+}
+
 /// @fn int getPartitionInfo(FilesystemState *fs)
 ///
 /// @brief Get information about the partition for the provided filesystem.
@@ -835,6 +1002,36 @@ int fat16FilesystemSeekFileCommandHandler(
   return 0;
 }
 
+/// @fn int fat16FilesystemCopyFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_COPY_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemCopyFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  FcopyArgs *fcopyArgs = nanoOsMessageDataPointer(processMessage, FcopyArgs*);
+  int returnValue
+    = fat16Copy(filesystemState,
+      (Fat16File*) fcopyArgs->srcFile->file,
+      fcopyArgs->srcStart,
+      (Fat16File*) fcopyArgs->dstFile->file,
+      fcopyArgs->dstStart,
+      fcopyArgs->len);
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
@@ -845,6 +1042,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
   fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
   fat16FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
+  fat16FilesystemCopyFileCommandHandler,   // FILESYSTEM_COPY_FILE
 };
 
 
@@ -1118,6 +1316,14 @@ long filesystemFTell(FILE *stream) {
 int fcopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t len
 ) {
+  if ((srcFile == NULL) || (dstFile == NULL)) {
+    // Can't proceed.
+    return -1;
+  } else if (len == 0) {
+    // Nothing to do.
+    return 0;
+  }
+
   FcopyArgs fcopyArgs = {
     .srcFile = srcFile,
     .srcStart = srcStart,
