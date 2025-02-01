@@ -36,6 +36,18 @@
 #define FAT16_DIR_SEARCH_DELETED 1
 #define FAT16_DIR_SEARCH_NOT_FOUND 2
 
+/// @struct FcopyArgs
+///
+/// @brief Structure for holding the arguments needed for an fcopy call.  See
+/// that function for descriptions of these member variables.
+typedef struct FcopyArgs {
+  FILE *srcFile;
+  off_t srcStart;
+  FILE *dstFile;
+  off_t dstStart;
+  size_t len;
+} FcopyArgs;
+
 /// @fn int fat16ReadBlock(FilesystemState *fs, uint32_t block,
 ///   uint8_t *buffer)
 ///
@@ -1081,6 +1093,54 @@ long filesystemFTell(FILE *stream) {
     return -1;
   }
 
-  return (long) ((Fat16File*) stream->file)->fileSize;
+  return (long) ((Fat16File*) stream->file)->currentPosition;
+}
+
+/// @fn int fcopy(FILE *srcFile, off_t srcStart,
+///   FILE *dstFile, off_t dstStart, size_t len)
+///
+/// @brief Copy a specified number of bytes from one position in a source file
+///   to another position in a destination file.
+///
+/// @param srcFile A pointer to the FILE to copy from.  The file must be at
+///   least srcStart + len bytes long.
+/// @param srcStart The starting position, in bytes, to copy data from in the
+///   source file.
+/// @param dstFile A pointer to the FILE to copy to.  If the file is not
+///   already dstStart + len bytes long, it will be padded with 0s until the
+///   dstStart position is reached.
+/// @param dstStart The starting position, in bytes, to copy data to in the
+///   destination file.
+/// @param len The number of bytes to copy from the source file to the
+///   destination file.
+///
+/// @return Returns 0 on success, -1 on failure.
+int fcopy(FILE *srcFile, off_t srcStart,
+  FILE *dstFile, off_t dstStart, size_t len
+) {
+  FcopyArgs fcopyArgs = {
+    .srcFile = srcFile,
+    .srcStart = srcStart,
+    .dstFile = dstFile,
+    .dstStart  = dstStart,
+    .len = len,
+  };
+
+  if ((srcStart + len) < ((Fat16File*) srcFile->file)->fileSize) {
+    // Inadequate data to copy from.  Fail.
+    return -1;
+  }
+
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    FILESYSTEM_COPY_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &fcopyArgs,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  int returnValue = nanoOsMessageDataValue(processMessage, int);
+  processMessageRelease(processMessage);
+
+  return returnValue;
 }
 
