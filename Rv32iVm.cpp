@@ -408,6 +408,49 @@ static inline int32_t executeLoad(
   return 0;
 }
 
+/// @fn static inline int32_t executeStore(
+///   Rv32iVm *rv32iVm, uint32_t rs1, uint32_t rs2, int32_t immediate,
+///   uint32_t funct3)
+///
+/// @brief Execute a store operation to memory
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rs1 Source register number (base address)
+/// @param rs2 Source register number (value to store)
+/// @param immediate Sign-extended 12-bit immediate offset
+/// @param funct3 The funct3 field from instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeStore(
+  Rv32iVm *rv32iVm, uint32_t rs1, uint32_t rs2, int32_t immediate,
+  uint32_t funct3
+) {
+  // Calculate effective address
+  uint32_t address = rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+  
+  // Get value to store from rs2
+  uint32_t value = rv32iVm->rv32iCoreRegisters.x[rs2];
+  
+  // Perform store based on width
+  switch (funct3) {
+    case RV32I_FUNCT3_SB: {
+      // Store byte (lowest 8 bits)
+      return rv32iMemoryWrite32(rv32iVm, address, value & 0xFF);
+    }
+    case RV32I_FUNCT3_SH: {
+      // Store halfword (lowest 16 bits)
+      return rv32iMemoryWrite32(rv32iVm, address, value & 0xFFFF);
+    }
+    case RV32I_FUNCT3_SW: {
+      // Store word (all 32 bits)
+      return rv32iMemoryWrite32(rv32iVm, address, value);
+    }
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
