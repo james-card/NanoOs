@@ -104,6 +104,18 @@ typedef struct FilesystemSeekParameters {
   int whence;
 } FilesystemSeekParameters;
 
+/// @struct FcopyArgs
+///
+/// @brief Structure for holding the arguments needed for an fcopy call.  See
+/// that function for descriptions of these member variables.
+typedef struct FcopyArgs {
+  FILE *srcFile;
+  off_t srcStart;
+  FILE *dstFile;
+  off_t dstStart;
+  size_t length;
+} FcopyArgs;
+
 /// @typedef FilesystemCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
@@ -122,6 +134,7 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_REMOVE_FILE,
   FILESYSTEM_SEEK_FILE,
   FILESYSTEM_COPY_FILE,
+  FILESYSTEM_ZERO_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
@@ -171,7 +184,9 @@ long filesystemFTell(FILE *stream);
 #define ftell filesystemFTell
 
 size_t fcopy(FILE *srcFile, off_t srcStart,
-  FILE *dstFile, off_t dstStart, size_t len);
+  FILE *dstFile, off_t dstStart, size_t length);
+
+size_t fzero(FILE *stream, off_t start, size_t length);
 
 /// @def rewind
 ///
