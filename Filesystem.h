@@ -183,10 +183,10 @@ long filesystemFTell(FILE *stream);
 #endif // ftell
 #define ftell filesystemFTell
 
-size_t fcopy(FILE *srcFile, off_t srcStart,
+size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t length);
 
-size_t fzero(FILE *stream, off_t start, size_t length);
+size_t filesystemFZero(FILE *stream, off_t start, size_t length);
 
 /// @def rewind
 ///

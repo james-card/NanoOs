@@ -1298,7 +1298,7 @@ long filesystemFTell(FILE *stream) {
   return (long) ((Fat16File*) stream->file)->currentPosition;
 }
 
-/// @fn size_t fcopy(FILE *srcFile, off_t srcStart,
+/// @fn size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
 ///   FILE *dstFile, off_t dstStart, size_t length)
 ///
 /// @brief Copy a specified number of bytes from one position in a source file
@@ -1317,7 +1317,7 @@ long filesystemFTell(FILE *stream) {
 ///   destination file.
 ///
 /// @return Returns the number of bytes successfully copied.
-size_t fcopy(FILE *srcFile, off_t srcStart,
+size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t length
 ) {
   if ((srcFile == NULL) || (dstFile == NULL)) {
@@ -1349,7 +1349,7 @@ size_t fcopy(FILE *srcFile, off_t srcStart,
   return returnValue;
 }
 
-/// @fn size_t fzero(FILE *stream, off_t start, size_t length)
+/// @fn size_t filesystemFZero(FILE *stream, off_t start, size_t length)
 ///
 /// @brief Write zeros from a specified start point for a given length of
 /// bytes.  If the file's size is less than start + length bytes at the time
@@ -1361,7 +1361,7 @@ size_t fcopy(FILE *srcFile, off_t srcStart,
 /// @param length The total number of zero bytes to write to the file.
 ///
 /// @return Returns the number of bytes successfully written to the file.
-size_t fzero(FILE *stream, off_t start, size_t length) {
+size_t filesystemFZero(FILE *stream, off_t start, size_t length) {
   if ((stream == NULL) || (length == 0)) {
     // Can't proceed or nothing to do.
     return 0;

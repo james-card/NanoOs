@@ -430,7 +430,9 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   }
 
   // Copy the data from the source file to the destination file.
-  return
-    fcopy(srcVm->fileHandle, srcStart, dstVm->fileHandle, dstStart, length);
+  return filesystemFCopy(
+    srcVm->fileHandle, srcStart,
+    dstVm->fileHandle, dstStart,
+    length);
 }
 
