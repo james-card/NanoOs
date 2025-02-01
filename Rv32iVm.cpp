@@ -31,10 +31,18 @@
 // Custom includes
 #include "Rv32iVm.h"
 
-int rv32iVmInit(Rv32iVm *rv32iVm, const char *programName) {
+/// @fn int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath)
+///
+/// @brief Initialize an Rv32iVm structure.
+///
+/// @param rv32iVm A pointer to the Rv32iVm structure to initialize.
+/// @param programPath The full path to the command binary on the filesystem.
+///
+/// @return Returns 0 on success, -1 on failure.
+int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
   VirtualMemoryState programBinary = {};
-  if (virtualMemoryInit(&programBinary, programName) != 0) {
+  if (virtualMemoryInit(&programBinary, programPath) != 0) {
     return -1;
   }
 
@@ -61,11 +69,32 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programName) {
   return 0;
 }
 
+/// @fn void rv32iVmCleanup(Rv32iVm *rv32iVm)
+///
+/// @brief Release all the resources being used by an Rv32iVm object.
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the resources to
+///   release.
+///
+/// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->mappedMemory, true);
   virtualMemoryCleanup(&rv32iVm->physicalMemory, true);
 }
 
+/// @fn int runRv32iProcess(int argc, char **argv);
+///
+/// @brief Run a process compiled to the RV32I instruction set.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  argv[0] must be the full path to the command
+///   on the filesystem.
+///
+/// @return Returns a negative error code if there was a problem internal to
+/// the VM, 0 on success, positive error code from the program if the program
+/// itself failed.
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
