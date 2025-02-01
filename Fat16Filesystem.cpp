@@ -619,19 +619,26 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
   }
 
   // Position both files
-  if ((fat16Seek(fs, srcFile, srcStart, SEEK_SET) != 0)
-    || (fat16Seek(fs, dstFile, dstStart, SEEK_SET) != 0)
-  ) {
+  if (srcFile != NULL) {
+    if (fat16Seek(fs, srcFile, srcStart, SEEK_SET) != 0) {
+      return 0;
+    }
+  } else {
+    memset(fs->blockBuffer, 0, dstFile->bytesPerSector);
+  }
+  if (fat16Seek(fs, dstFile, dstStart, SEEK_SET) != 0) {
     return 0;
   }
 
   size_t remainingBytes = length;
   while (remainingBytes > 0) {
-    // Read source block
-    uint32_t srcBlock = srcFile->dataStart + ((srcFile->currentCluster -
-      FAT16_MIN_DATA_CLUSTER) * srcFile->sectorsPerCluster);
-    if (fat16ReadBlock(fs, srcBlock, fs->blockBuffer)) {
-      return length - remainingBytes;
+    if (srcFile != NULL) {
+      // Read source block
+      uint32_t srcBlock = srcFile->dataStart + ((srcFile->currentCluster -
+        FAT16_MIN_DATA_CLUSTER) * srcFile->sectorsPerCluster);
+      if (fat16ReadBlock(fs, srcBlock, fs->blockBuffer)) {
+        return length - remainingBytes;
+      }
     }
 
     // Write to destination
@@ -642,17 +649,20 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     }
 
     // Update positions
-    srcFile->currentPosition += srcFile->bytesPerSector;
     dstFile->currentPosition += srcFile->bytesPerSector;
-    remainingBytes -= srcFile->bytesPerSector;
-
+    remainingBytes -= dstFile->bytesPerSector;
     if (dstFile->currentPosition > dstFile->fileSize) {
       dstFile->fileSize = dstFile->currentPosition;
     }
 
     // Handle cluster transitions
-    if (fat16HandleClusterTransition(fs, srcFile, false) ||
-        fat16HandleClusterTransition(fs, dstFile, true)) {
+    if (srcFile != NULL) {
+      srcFile->currentPosition += srcFile->bytesPerSector;
+      if (fat16HandleClusterTransition(fs, srcFile, false) != 0) {
+        return length - remainingBytes;
+      }
+    }
+    if (fat16HandleClusterTransition(fs, dstFile, true) != 0) {
       return length - remainingBytes;
     }
   }
@@ -995,6 +1005,36 @@ int fat16FilesystemCopyFileCommandHandler(
   return 0;
 }
 
+/// @fn int fat16FilesystemZeroFileCommandHandler(
+///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_ZERO_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int fat16FilesystemZeroFileCommandHandler(
+  FilesystemState *filesystemState, ProcessMessage *processMessage
+) {
+  FcopyArgs *fcopyArgs = nanoOsMessageDataPointer(processMessage, FcopyArgs*);
+  size_t returnValue
+    = fat16Copy(filesystemState,
+      (Fat16File*) NULL,
+      0,
+      (Fat16File*) fcopyArgs->dstFile->file,
+      fcopyArgs->dstStart,
+      fcopyArgs->length);
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
@@ -1006,6 +1046,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
   fat16FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
   fat16FilesystemCopyFileCommandHandler,   // FILESYSTEM_COPY_FILE
+  fat16FilesystemZeroFileCommandHandler,   // FILESYSTEM_ZERO_FILE
 };
 
 
