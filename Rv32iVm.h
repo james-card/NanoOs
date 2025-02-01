@@ -53,6 +53,37 @@ extern "C"
 #define RV32I_CLINT_BASE_ADDR                  0x02000000
 #define RV32I_CLINT_ADDR_MASK (RV32I_CLINT_BASE_ADDR - 1)
 
+/// @enum Rv32iOpCode
+///
+/// @brief Standard RISC-V RV32I base instruction set opcodes (7 bits)
+typedef enum Rv32iOpCode {
+  RV32I_LOAD          = 0x03, // Load instructions (lb, lh, lw, lbu, lhu)
+  RV32I_LOAD_FP       = 0x07, // Floating-point load (not in RV32I)
+  RV32I_CUSTOM_0      = 0x0B, // Custom instruction space 0
+  RV32I_MISC_MEM      = 0x0F, // Misc memory operations (fence)
+  RV32I_OP_IMM        = 0x13, // Integer register-immediate instructions
+  RV32I_AUIPC         = 0x17, // Add upper immediate to PC
+  RV32I_OP_IMM_32     = 0x1B, // 32-bit integer register-immediate (RV64I)
+  RV32I_STORE         = 0x23, // Store instructions (sb, sh, sw)
+  RV32I_STORE_FP      = 0x27, // Floating-point store (not in RV32I)
+  RV32I_CUSTOM_1      = 0x2B, // Custom instruction space 1
+  RV32I_AMO           = 0x2F, // Atomic memory operations
+  RV32I_OP            = 0x33, // Integer register-register instructions
+  RV32I_LUI           = 0x37, // Load upper immediate
+  RV32I_OP_32         = 0x3B, // 32-bit integer register-register (RV64I)
+  RV32I_MADD          = 0x43, // Multiply-add (not in RV32I)
+  RV32I_MSUB          = 0x47, // Multiply-subtract (not in RV32I)
+  RV32I_NMSUB         = 0x4B, // Negative multiply-subtract (not in RV32I)
+  RV32I_NMADD         = 0x4F, // Negative multiply-add (not in RV32I)
+  RV32I_OP_FP         = 0x53, // Floating-point operations (not in RV32I)
+  RV32I_CUSTOM_2      = 0x5B, // Custom instruction space 2
+  RV32I_BRANCH        = 0x63, // Conditional branch instructions
+  RV32I_JALR          = 0x67, // Jump and link register
+  RV32I_JAL           = 0x6F, // Jump and link
+  RV32I_SYSTEM        = 0x73, // System/CSR instructions
+  RV32I_CUSTOM_3      = 0x7B  // Custom instruction space 3
+} Rv32iOpCode;
+
 /// @struct Rv32iCoreRegisters
 ///
 /// @brief Structure to keep track of the state of a single virtual RV32I core.
