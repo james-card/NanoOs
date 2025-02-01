@@ -46,6 +46,7 @@ extern "C"
 #endif
 
 #define VIRTUAL_MEMORY_BUFFER_SIZE 16
+#define VIRTUAL_MEMORY_PAGE_SIZE 512
 
 /// @struct VirtualMemoryState
 ///
