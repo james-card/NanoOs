@@ -121,6 +121,7 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_WRITE_FILE,
   FILESYSTEM_REMOVE_FILE,
   FILESYSTEM_SEEK_FILE,
+  FILESYSTEM_COPY_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;
@@ -168,6 +169,9 @@ long filesystemFTell(FILE *stream);
 #undef ftell
 #endif // ftell
 #define ftell filesystemFTell
+
+int fcopy(FILE *srcFile, off_t srcStart,
+  FILE *dstFile, off_t dstStart, size_t len);
 
 /// @def rewind
 ///
