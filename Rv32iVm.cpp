@@ -51,15 +51,15 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
-  if (virtualMemoryZero(&rv32iVm->physicalMemory, 0, RISCV_MEMORY_SIZE)
-    != RISCV_MEMORY_SIZE
+  if (virtualMemoryZero(&rv32iVm->physicalMemory, 0, RV32I_MEMORY_SIZE)
+    != RV32I_MEMORY_SIZE
   ) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
 
   if (virtualMemoryCopy(&programBinary, 0,
-    &rv32iVm->physicalMemory, RISCV_PROGRAM_START,
+    &rv32iVm->physicalMemory, RV32I_PROGRAM_START,
     virtualMemorySize(&programBinary)) < programBinary.fileSize
   ) {
     virtualMemoryCleanup(&programBinary, false);
@@ -162,8 +162,8 @@ int runRv32iProcess(int argc, char **argv) {
   }
 
   // VM logic goes here
-  rv32iVm.rv32iCoreRegisters.pc = RISCV_PROGRAM_START;
-  rv32iVm.rv32iCoreRegisters.x[2] = RISCV_STACK_START;
+  rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
+  rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
 
   rv32iVmCleanup(&rv32iVm);
   return 0;
