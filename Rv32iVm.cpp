@@ -578,6 +578,193 @@ static inline int32_t executeJumpAndLink(
   return 0;
 }
 
+/// @fn static inline int32_t executeJumpAndLinkRegister(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+///   uint32_t *nextPc)
+///
+/// @brief Execute a jump and link register instruction
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 Source register number containing base address
+/// @param immediate The I-type immediate offset value
+/// @param nextPc Pointer to next program counter value to update
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeJumpAndLinkRegister(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+  uint32_t *nextPc
+) {
+  // Save the return address before calculating target
+  rv32iVm->rv32iCoreRegisters.x[rd] = rv32iVm->rv32iCoreRegisters.pc + 4;
+  
+  // Calculate target address: (rs1 + immediate) & ~1
+  // The & ~1 clears the least significant bit as per RISC-V spec
+  *nextPc = (rv32iVm->rv32iCoreRegisters.x[rs1] + immediate) & ~1;
+  
+  return 0;
+}
+
+/// @fn static inline int32_t executeSystem(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+///   uint32_t funct3)
+///
+/// @brief Execute a system instruction (CSR access, ECALL, or EBREAK)
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 Source register number for CSR operations
+/// @param immediate Contains CSR number or immediate value
+/// @param funct3 The funct3 field from instruction
+///
+/// @return 0 on success, negative on error, positive for ECALL/EBREAK
+static inline int32_t executeSystem(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+  uint32_t funct3
+) {
+  // Handle ECALL/EBREAK first (funct3 == 0)
+  if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
+    if (immediate == RV32I_IMM12_ECALL) {
+      // ECALL - return positive value to signal environment call
+      return 1;
+    } else if (immediate == RV32I_IMM12_EBREAK) {
+      // EBREAK - return different positive value for breakpoint
+      return 2;
+    } else {
+      return -1; // Invalid immediate for ECALL/EBREAK
+    }
+  }
+  
+  // Extract CSR number from immediate field
+  uint32_t csrNumber = (uint32_t) immediate & 0xFFF;
+  
+  // Read current CSR value based on number
+  uint32_t oldCsrValue = 0;
+  switch (csrNumber) {
+    case RV32I_CSR_MSTATUS:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mstatus;
+      break;
+    case RV32I_CSR_MISA:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.misa;
+      break;
+    case RV32I_CSR_MIE:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mie;
+      break;
+    case RV32I_CSR_MTVEC:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mtvec;
+      break;
+    case RV32I_CSR_MSCRATCH:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mscratch;
+      break;
+    case RV32I_CSR_MEPC:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mepc;
+      break;
+    case RV32I_CSR_MCAUSE:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mcause;
+      break;
+    case RV32I_CSR_MTVAL:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mtval;
+      break;
+    case RV32I_CSR_MIP:
+      oldCsrValue = rv32iVm->rv32iCoreRegisters.mip;
+      break;
+    case RV32I_CSR_MVENDORID:
+    case RV32I_CSR_MARCHID:
+    case RV32I_CSR_MIMPID:
+    case RV32I_CSR_MHARTID:
+      // Read-only CSRs return 0 in our implementation
+      oldCsrValue = 0;
+      break;
+    default:
+      return -1; // Unsupported CSR
+  }
+  
+  // Always capture old value in rd (unless rd is x0)
+  rv32iVm->rv32iCoreRegisters.x[rd] = oldCsrValue;
+  
+  // Calculate new CSR value based on instruction type
+  uint32_t newCsrValue = oldCsrValue;
+  uint32_t writeValue;
+  
+  switch (funct3) {
+    case RV32I_FUNCT3_CSRRW: // CSR Read/Write
+      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      newCsrValue = writeValue;
+      break;
+      
+    case RV32I_FUNCT3_CSRRS: // CSR Read and Set Bits
+      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      if (rs1 != 0) {
+        newCsrValue = oldCsrValue | writeValue;
+      }
+      break;
+      
+    case RV32I_FUNCT3_CSRRC: // CSR Read and Clear Bits
+      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      if (rs1 != 0) {
+        newCsrValue = oldCsrValue & ~writeValue;
+      }
+      break;
+      
+    case RV32I_FUNCT3_CSRRWI: // CSR Read/Write Immediate
+      writeValue = rs1; // rs1 field holds the immediate value
+      newCsrValue = writeValue;
+      break;
+      
+    case RV32I_FUNCT3_CSRRSI: // CSR Read and Set Bits Immediate
+      writeValue = rs1; // rs1 field holds the immediate value
+      if (writeValue != 0) {
+        newCsrValue = oldCsrValue | writeValue;
+      }
+      break;
+      
+    case RV32I_FUNCT3_CSRRCI: // CSR Read and Clear Bits Immediate
+      writeValue = rs1; // rs1 field holds the immediate value
+      if (writeValue != 0) {
+        newCsrValue = oldCsrValue & ~writeValue;
+      }
+      break;
+      
+    default:
+      return -1;
+  }
+  
+  // Update CSR if value changed and not a read-only CSR
+  if (newCsrValue != oldCsrValue) {
+    switch (csrNumber) {
+      case RV32I_CSR_MSTATUS:
+        rv32iVm->rv32iCoreRegisters.mstatus = newCsrValue;
+        break;
+      case RV32I_CSR_MISA:
+        // MISA is read-only in our implementation
+        break;
+      case RV32I_CSR_MIE:
+        rv32iVm->rv32iCoreRegisters.mie = newCsrValue;
+        break;
+      case RV32I_CSR_MTVEC:
+        rv32iVm->rv32iCoreRegisters.mtvec = newCsrValue;
+        break;
+      case RV32I_CSR_MSCRATCH:
+        rv32iVm->rv32iCoreRegisters.mscratch = newCsrValue;
+        break;
+      case RV32I_CSR_MEPC:
+        rv32iVm->rv32iCoreRegisters.mepc = newCsrValue;
+        break;
+      case RV32I_CSR_MCAUSE:
+        rv32iVm->rv32iCoreRegisters.mcause = newCsrValue;
+        break;
+      case RV32I_CSR_MTVAL:
+        rv32iVm->rv32iCoreRegisters.mtval = newCsrValue;
+        break;
+      case RV32I_CSR_MIP:
+        rv32iVm->rv32iCoreRegisters.mip = newCsrValue;
+        break;
+    }
+  }
+  
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
@@ -730,7 +917,7 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  while (returnValue = 0) {
+  while (returnValue == 0) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
       break;
