@@ -66,6 +66,14 @@ typedef struct VirtualMemoryState {
   uint32_t  bufferValidBytes;
 } VirtualMemoryState;
 
+/// @def virtualMemorySize
+///
+/// @brief Get the current allocated size of a piece of virtual memory given a
+/// pointer to its VirtualMemoryState structure.
+///
+/// @param virtualMemory The pointer to the VirtualMemoryState structure.
+#define virtualMemorySize(virtualMemory) \
+  (virtualMemory)->fileSize
 
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename);
