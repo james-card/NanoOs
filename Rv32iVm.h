@@ -46,7 +46,7 @@ extern "C"
 {
 #endif
 
-/// @struct Rv32iCoreState
+/// @struct Rv32iCoreRegisters
 ///
 /// @brief Structure to keep track of the state of a single virtual RV32I core.
 ///
@@ -61,7 +61,7 @@ extern "C"
 /// @param mcause The machine cause register.
 /// @param mtval The machine trap value.
 /// @param mip The machine interrupt pending.
-typedef struct Rv32iCoreState {
+typedef struct Rv32iCoreRegisters {
   uint32_t x[32];
   uint32_t pc;
   uint32_t mstatus;
@@ -73,7 +73,22 @@ typedef struct Rv32iCoreState {
   uint32_t mcause;
   uint32_t mtval;
   uint32_t mip;
-} Rv32iCoreState;
+} Rv32iCoreRegisters;
+
+/// @struct Rv32iVm
+///
+/// @brief Full state needed to run an RV32I process.
+///
+/// @param rv32iCoreRegisters The registers for a single RV32I core.
+/// @param physicalMemory The VirtualMemoryState that allows for access to the
+///   virtual memory that will correpsond to the physical memory of the VM.
+/// @param mappedMemory The VirtualMemoryState that allows for access to the
+///   virtual memory that will correpsond to the mapped memory of the VM.
+typedef struct Rv32iVm {
+  Rv32iCoreRegisters rv32iCoreRegisters;
+  VirtualMemoryState physicalMemory;
+  VirtualMemoryState mappedMemory;
+} Rv32iVm;
 
 int runRv32iProcess(int argc, char **argv);
 
