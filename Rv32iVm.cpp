@@ -46,6 +46,10 @@ int runRv32iProcess(int argc, char **argv) {
   sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
   virtualMemoryInit(&mappedMemory, virtualMemoryFilename);
 
+  // VM logic goes here
+
+  virtualMemoryCleanup(&mappedMemory, true);
+  virtualMemoryCleanup(&programBinary, false);
   virtualMemoryCleanup(&physicalMemory, true);
   
   return 0;
