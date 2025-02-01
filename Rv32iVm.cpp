@@ -451,6 +451,75 @@ static inline int32_t executeStore(
   }
 }
 
+/// @fn static inline int32_t executeBranch(
+///   Rv32iVm *rv32iVm, uint32_t rs1, uint32_t rs2, int32_t immediate,
+///   uint32_t funct3, uint32_t *nextPc)
+///
+/// @brief Execute a branch operation
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rs1 First source register number
+/// @param rs2 Second source register number
+/// @param immediate Sign-extended branch offset
+/// @param funct3 The funct3 field from instruction
+/// @param nextPc Pointer to next program counter value to update on branch
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeBranch(
+  Rv32iVm *rv32iVm, uint32_t rs1, uint32_t rs2, int32_t immediate,
+  uint32_t funct3, uint32_t *nextPc
+) {
+  bool takeBranch = false;
+  
+  switch (funct3) {
+    case RV32I_FUNCT3_BEQ: {
+      // Branch if equal
+      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] == 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    case RV32I_FUNCT3_BNE: {
+      // Branch if not equal
+      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] != 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    case RV32I_FUNCT3_BLT: {
+      // Branch if less than (signed)
+      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < 
+        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]);
+      break;
+    }
+    case RV32I_FUNCT3_BGE: {
+      // Branch if greater than or equal (signed)
+      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >= 
+        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]);
+      break;
+    }
+    case RV32I_FUNCT3_BLTU: {
+      // Branch if less than (unsigned)
+      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] < 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    case RV32I_FUNCT3_BGEU: {
+      // Branch if greater than or equal (unsigned)
+      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] >= 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+  
+  if (takeBranch) {
+    *nextPc = rv32iVm->rv32iCoreRegisters.pc + immediate;
+  }
+  
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
