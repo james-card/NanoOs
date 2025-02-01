@@ -89,6 +89,58 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->physicalMemory, true);
 }
 
+/// @fn int32_t rv32iMemoryRead32(
+///   Rv32iVm *rv32iVm, uint32_t address, uint32_t *value);
+///
+/// @brief Read memory at the given address, handling both physical and mapped
+/// memory.
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 31 determines physical vs mapped).
+/// @param value Pointer to store the read value.
+///
+/// @return 0 on success, negative on error.
+int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
+  if (address & 0x80000000) {
+    // Mapped memory access - mask off the high bit
+    return virtualMemoryRead32(
+      &rv32iVm->mappedMemory,
+      address & 0x7fffffff,
+      value
+    );
+  } else {
+    // Physical memory access
+    return virtualMemoryRead32(&rv32iVm->physicalMemory, address, value);
+  }
+}
+
+/// @fn int32_t rv32iMemoryWrite32(
+///   Rv32iVm *rv32iVm, uint32_t address, uint32_t value)
+///
+/// @brief Write memory at the given address, handling both physical and mapped
+/// memory
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 31 determines physical vs mapped).
+/// @param value Value to write.
+///
+/// @return 0 on success, negative on error.
+int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  if (address & 0x80000000) {
+    // Mapped memory access - mask off the high bit
+    return virtualMemoryWrite32(
+      &rv32iVm->mappedMemory,
+      address & 0x7fffffff,
+      value
+    );
+  } else {
+    // Physical memory access
+    return virtualMemoryWrite32(&rv32iVm->physicalMemory, address, value);
+  }
+}
+
 /// @fn int runRv32iProcess(int argc, char **argv);
 ///
 /// @brief Run a process compiled to the RV32I instruction set.
