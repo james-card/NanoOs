@@ -191,13 +191,93 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   
   // J-type immediate
   int32_t immJ = (((int32_t) instruction >> 11) & ~0x1FFFFF) |
-    ((instruction & 0xFF000) | // imm[19:12]
+    (instruction & 0xFF000) | // imm[19:12]
     ((instruction & 0x100000) >> 9) | // imm[11]
-    ((instruction & 0x7FE00000) >> 20)); // imm[10:1]
+    ((instruction & 0x7FE00000) >> 20); // imm[10:1]
 
   // Always increment PC by default
-  uint32_t nextPc = rv32iVm->rv32iCoreRegisters.pc + 4;
+  uint32_t nextPc = rv32iVm->rv32iCoreRegisters.pc + RV32I_INSTRUCTION_SIZE;
   
+  int32_t result = 0;
+
+  switch (opcode) {
+    case RV32I_OP: {
+      result = executeRegisterOperation(
+        rv32iVm, rd, rs1, rs2, funct3, funct7);
+      break;
+    }
+    
+    case RV32I_OP_IMM: {
+      result = executeImmediateOperation(
+        rv32iVm, rd, rs1, immI, funct3);
+      break;
+    }
+
+    case RV32I_LOAD: {
+      result = executeLoad(
+        rv32iVm, rd, rs1, immI, funct3);
+      break;
+    }
+
+    case RV32I_STORE: {
+      result = executeStore(
+        rv32iVm, rs1, rs2, immS, funct3);
+      break;
+    }
+
+    case RV32I_BRANCH: {
+      result = executeBranch(
+        rv32iVm, rs1, rs2, immB, funct3, &nextPc);
+      break;
+    }
+
+    case RV32I_LUI: {
+      result = executeLoadUpperImmediate(
+        rv32iVm, rd, immU);
+      break;
+    }
+
+    case RV32I_AUIPC: {
+      result = executeAddUpperImmediatePc(
+        rv32iVm, rd, immU);
+      break;
+    }
+
+    case RV32I_JAL: {
+      result = executeJumpAndLink(
+        rv32iVm, rd, immJ, &nextPc);
+      break;
+    }
+
+    case RV32I_JALR: {
+      result = executeJumpAndLinkRegister(
+        rv32iVm, rd, rs1, immI, &nextPc);
+      break;
+    }
+
+    case RV32I_SYSTEM: {
+      result = executeSystem(
+        rv32iVm, rd, rs1, immI, funct3);
+      break;
+    }
+
+    case RV32I_FENCE: {
+      // Fence is a no-op in our implementation
+      break;
+    }
+
+    default: {
+      // Invalid opcode
+      return -1;
+    }
+  }
+
+  if (result != 0) {
+    return result;
+  }
+
+  // Update PC to next instruction
+  rv32iVm->rv32iCoreRegisters.pc = nextPc;
   return 0;
 }
 
@@ -223,6 +303,7 @@ int runRv32iProcess(int argc, char **argv) {
 
   // VM logic goes here
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
+  rv32iVm.rv32iCoreRegisters.x[0] = 0;
   rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
 
   int returnValue = 0;
@@ -232,6 +313,7 @@ int runRv32iProcess(int argc, char **argv) {
       returnValue = -1;
       break;
     }
+
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
 
