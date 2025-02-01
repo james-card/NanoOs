@@ -382,17 +382,43 @@ uint32_t virtualMemoryWrite(VirtualMemoryState *state,
   return fwrite(buffer, 1, length, state->fileHandle);
 }
 
+/// @fn uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
+///   VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length)
+///
+/// @brief Do a direct copy from a source piece of virtual memory to a
+/// destination piece of virtual memory.
+///
+/// @param srcVm A pointer to the source virtual memory state.
+/// @param srcStart The byte offset within the source virtual memory to start
+///   copying from.
+/// @param dstVm A pointer to the destination virtual memory state.
+/// @param dstStart The byte offset within the destination virtual memory to
+///   start copying to.
+/// @param length The number of bytes to copy from the source virtual memory to
+///   the destination virtual memory.
+///
+/// @return Returns the number of bytes successfully copied.
 uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length
 ) {
-  virtualMemoryPrepare(srcVm, srcStart + length);
+  // First, flush the buffers if there's anything in them.
+  if (srcVm->bufferValidBytes > 0) {
+    // Write current buffer if it contains data
+    fseek(srcVm->fileHandle, srcVm->bufferBaseOffset, SEEK_SET);
+    fwrite(srcVm->buffer, 1, srcVm->bufferValidBytes, srcVm->fileHandle);
+  }
   srcVm->bufferValidBytes = 0;
   srcVm->bufferBaseOffset = 0;
 
-  virtualMemoryPrepare(dstVm, dstStart + length);
+  if (dstVm->bufferValidBytes > 0) {
+    // Write current buffer if it contains data
+    fseek(dstVm->fileHandle, dstVm->bufferBaseOffset, SEEK_SET);
+    fwrite(dstVm->buffer, 1, dstVm->bufferValidBytes, dstVm->fileHandle);
+  }
   dstVm->bufferValidBytes = 0;
   dstVm->bufferBaseOffset = 0;
 
+  // Copy the data from the source file to the destination file.
   return
     fcopy(srcVm->fileHandle, srcStart, dstVm->fileHandle, dstStart, length);
 }
