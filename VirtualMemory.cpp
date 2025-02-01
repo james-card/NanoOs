@@ -382,3 +382,18 @@ uint32_t virtualMemoryWrite(VirtualMemoryState *state,
   return fwrite(buffer, 1, length, state->fileHandle);
 }
 
+uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
+  VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length
+) {
+  virtualMemoryPrepare(srcVm, srcStart + length);
+  srcVm->bufferValidBytes = 0;
+  srcVm->bufferBaseOffset = 0;
+
+  virtualMemoryPrepare(dstVm, dstStart + length);
+  dstVm->bufferValidBytes = 0;
+  dstVm->bufferBaseOffset = 0;
+
+  return
+    fcopy(srcVm->fileHandle, srcStart, dstVm->fileHandle, dstStart, length);
+}
+
