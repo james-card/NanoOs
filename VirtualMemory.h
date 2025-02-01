@@ -88,6 +88,8 @@ uint32_t virtualMemoryWrite(VirtualMemoryState *state,
   uint32_t offset, uint32_t length, const void *buffer);
 uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length);
+uint32_t virtualMemoryZero(VirtualMemoryState *state,
+  uint32_t start, uint32_t length);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -436,3 +436,38 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
     length);
 }
 
+/// @fn uint32_t virtualMemoryZero(VirtualMemoryState *state,
+///   uint32_t start, uint32_t length)
+///
+/// @brief Zero out virtual memory to the desired length.
+///
+/// @param state A pointer to the VirtualMemoryState that holds the file handle
+///   of the file to zero.
+/// @param start The start byte to zero from.
+/// @param length The number of bytes to zero.
+///
+/// @return Returns the number of bytes successfully zeroed.
+uint32_t virtualMemoryZero(VirtualMemoryState *state,
+  uint32_t start, uint32_t length
+) {
+  // First, flush the buffers if there's anything in them.
+  if (state->bufferValidBytes > 0) {
+    // Write current buffer if it contains data
+    fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
+    fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
+  }
+  state->bufferValidBytes = 0;
+  state->bufferBaseOffset = 0;
+
+  // Align the length if we need to.
+  if (length & (((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1)) {
+    length &= ~(((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1);
+    length += VIRTUAL_MEMORY_PAGE_SIZE;
+  }
+
+  // Copy the data from the source file to the destination file.
+  return filesystemFZero(
+    state->fileHandle, start,
+    length);
+}
+
