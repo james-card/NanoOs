@@ -520,6 +520,23 @@ static inline int32_t executeBranch(
   return 0;
 }
 
+/// @fn static inline int32_t executeLoadUpperImmediate(
+///   Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate)
+///
+/// @brief Execute a load upper immediate instruction
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param immediate The U-type immediate value (already shifted for upper 20 bits)
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeLoadUpperImmediate(
+  Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate
+) {
+  rv32iVm->rv32iCoreRegisters.x[rd] = immediate;
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
