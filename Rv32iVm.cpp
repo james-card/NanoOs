@@ -60,7 +60,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   if (virtualMemoryCopy(&programBinary, 0,
     &rv32iVm->physicalMemory, RISCV_PROGRAM_START,
-    programBinary.fileSize) < programBinary.fileSize
+    virtualMemorySize(&programBinary)) < programBinary.fileSize
   ) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
