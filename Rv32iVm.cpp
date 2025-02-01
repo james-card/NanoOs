@@ -156,6 +156,114 @@ static inline int32_t fetchInstruction(
     rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
 }
 
+/// @fn static inline int32_t executeRegisterOperation(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
+///   uint32_t funct3, uint32_t funct7)
+///
+/// @brief Execute a register-register operation (R-type instruction)
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 First source register number
+/// @param rs2 Second source register number
+/// @param funct3 The funct3 field from instruction
+/// @param funct7 The funct7 field from instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeRegisterOperation(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
+  uint32_t funct3, uint32_t funct7
+) {
+  switch (funct3) {
+    case RV32I_FUNCT3_ADD_SUB: {
+      if (funct7 == RV32I_FUNCT7_ADD) { // ADD
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          rv32iVm->rv32iCoreRegisters.x[rs1] + 
+          rv32iVm->rv32iCoreRegisters.x[rs2];
+      } else if (funct7 == RV32I_FUNCT7_SUB) { // SUB
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          rv32iVm->rv32iCoreRegisters.x[rs1] - 
+          rv32iVm->rv32iCoreRegisters.x[rs2];
+      } else {
+        return -1; // Invalid funct7
+      }
+      break;
+    }
+    case RV32I_FUNCT3_SLL: { // SLL (Shift Left Logical)
+      if (funct7 != RV32I_FUNCT7_ADD) { // Uses ADD's funct7 encoding
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] << 
+        (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+      break;
+    }
+    case RV32I_FUNCT3_SLT: { // SLT (Set Less Than)
+      if (funct7 != RV32I_FUNCT7_ADD) {
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < 
+        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]) ? 1 : 0;
+      break;
+    }
+    case RV32I_FUNCT3_SLTU: { // SLTU (Set Less Than Unsigned)
+      if (funct7 != RV32I_FUNCT7_ADD) {
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] < 
+        rv32iVm->rv32iCoreRegisters.x[rs2] ? 1 : 0;
+      break;
+    }
+    case RV32I_FUNCT3_XOR: { // XOR
+      if (funct7 != RV32I_FUNCT7_ADD) {
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] ^ 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    case RV32I_FUNCT3_SRL_SRA: {
+      if (funct7 == RV32I_FUNCT7_SRL) { // SRL (Shift Right Logical)
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          rv32iVm->rv32iCoreRegisters.x[rs1] >> 
+          (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+      } else if (funct7 == RV32I_FUNCT7_SRA) { // SRA (Shift Right Arithmetic)
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >> 
+          (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+      } else {
+        return -1; // Invalid funct7
+      }
+      break;
+    }
+    case RV32I_FUNCT3_OR: { // OR
+      if (funct7 != RV32I_FUNCT7_ADD) {
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] | 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    case RV32I_FUNCT3_AND: { // AND
+      if (funct7 != RV32I_FUNCT7_ADD) {
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] & 
+        rv32iVm->rv32iCoreRegisters.x[rs2];
+      break;
+    }
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
