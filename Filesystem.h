@@ -170,7 +170,7 @@ long filesystemFTell(FILE *stream);
 #endif // ftell
 #define ftell filesystemFTell
 
-int fcopy(FILE *srcFile, off_t srcStart,
+size_t fcopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t len);
 
 /// @def rewind

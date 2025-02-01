@@ -579,8 +579,8 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   return 0;
 }
 
-/// @fn int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
-///   Fat16File *dstFile, off_t dstStart, size_t len)
+/// @fn size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile,
+///   off_t srcStart, Fat16File *dstFile, off_t dstStart, size_t len)
 ///
 /// @brief Copy a specified number of bytes from one file to another at the
 /// specified offsets. If the destination file's size is less than dstStart,
@@ -594,8 +594,8 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
 /// @param dstStart The offset within the destination file to start copying to.
 /// @param len The number of bytes to copy.
 ///
-/// @return Returns 0 on success, -1 on error.
-int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
+/// @return Returns the number of bytes successfully copied.
+size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     Fat16File *dstFile, off_t dstStart, size_t len
 ) {
   // Verify assumptions
@@ -604,13 +604,13 @@ int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
       || ((dstStart % dstFile->bytesPerSector) != 0)
       || ((len % dstFile->bytesPerSector) != 0)
   ) {
-    return -1;
+    return 0;
   }
 
   // Handle padding the destination file if needed
   if (dstFile->fileSize < dstStart) {
     if (fat16Seek(fs, dstFile, dstFile->fileSize, SEEK_SET) != 0) {
-      return -1;
+      return 0;
     }
     
     memset(fs->blockBuffer, 0, dstFile->bytesPerSector);
@@ -618,14 +618,14 @@ int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
       uint32_t block = dstFile->dataStart + ((dstFile->currentCluster -
         FAT16_MIN_DATA_CLUSTER) * dstFile->sectorsPerCluster);
       if (fat16WriteBlock(fs, block, fs->blockBuffer)) {
-        return -1;
+        return 0;
       }
 
       dstFile->currentPosition += dstFile->bytesPerSector;
       dstFile->fileSize = dstFile->currentPosition;
 
       if (fat16HandleClusterTransition(fs, dstFile, true)) {
-        return -1;
+        return 0;
       }
     }
   }
@@ -634,7 +634,7 @@ int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
   if ((fat16Seek(fs, srcFile, srcStart, SEEK_SET) != 0)
     || (fat16Seek(fs, dstFile, dstStart, SEEK_SET) != 0)
   ) {
-    return -1;
+    return 0;
   }
 
   size_t remainingBytes = len;
@@ -643,14 +643,14 @@ int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     uint32_t srcBlock = srcFile->dataStart + ((srcFile->currentCluster -
       FAT16_MIN_DATA_CLUSTER) * srcFile->sectorsPerCluster);
     if (fat16ReadBlock(fs, srcBlock, fs->blockBuffer)) {
-      return -1;
+      return len - remainingBytes;
     }
 
     // Write to destination
     uint32_t dstBlock = dstFile->dataStart + ((dstFile->currentCluster -
       FAT16_MIN_DATA_CLUSTER) * dstFile->sectorsPerCluster);
     if (fat16WriteBlock(fs, dstBlock, fs->blockBuffer)) {
-      return -1;
+      return len - remainingBytes;
     }
 
     // Update positions
@@ -665,11 +665,13 @@ int fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     // Handle cluster transitions
     if (fat16HandleClusterTransition(fs, srcFile, false) ||
         fat16HandleClusterTransition(fs, dstFile, true)) {
-      return -1;
+      return len - remainingBytes;
     }
   }
 
-  return fat16UpdateDirectoryEntry(fs, dstFile);
+  fat16UpdateDirectoryEntry(fs, dstFile);
+
+  return len - remainingBytes;
 }
 
 /// @fn int fat16Remove(FilesystemState *fs, const char *pathname)
@@ -942,7 +944,7 @@ int fat16FilesystemRemoveFileCommandHandler(
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) returnValue;
+  nanoOsMessage->data = returnValue;
   processMessageSetDone(processMessage);
   return 0;
 }
@@ -970,7 +972,7 @@ int fat16FilesystemSeekFileCommandHandler(
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) returnValue;
+  nanoOsMessage->data = returnValue;
   processMessageSetDone(processMessage);
   return 0;
 }
@@ -990,7 +992,7 @@ int fat16FilesystemCopyFileCommandHandler(
   FilesystemState *filesystemState, ProcessMessage *processMessage
 ) {
   FcopyArgs *fcopyArgs = nanoOsMessageDataPointer(processMessage, FcopyArgs*);
-  int returnValue
+  size_t returnValue
     = fat16Copy(filesystemState,
       (Fat16File*) fcopyArgs->srcFile->file,
       fcopyArgs->srcStart,
@@ -1000,7 +1002,7 @@ int fat16FilesystemCopyFileCommandHandler(
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) returnValue;
+  nanoOsMessage->data = returnValue;
   processMessageSetDone(processMessage);
   return 0;
 }
@@ -1267,7 +1269,7 @@ long filesystemFTell(FILE *stream) {
   return (long) ((Fat16File*) stream->file)->currentPosition;
 }
 
-/// @fn int fcopy(FILE *srcFile, off_t srcStart,
+/// @fn size_t fcopy(FILE *srcFile, off_t srcStart,
 ///   FILE *dstFile, off_t dstStart, size_t len)
 ///
 /// @brief Copy a specified number of bytes from one position in a source file
@@ -1286,7 +1288,7 @@ long filesystemFTell(FILE *stream) {
 ///   destination file.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int fcopy(FILE *srcFile, off_t srcStart,
+size_t fcopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t len
 ) {
   if ((srcFile == NULL) || (dstFile == NULL)) {
@@ -1317,7 +1319,7 @@ int fcopy(FILE *srcFile, off_t srcStart,
     /* data= */ (intptr_t) &fcopyArgs,
     true);
   processMessageWaitForDone(processMessage, NULL);
-  int returnValue = nanoOsMessageDataValue(processMessage, int);
+  size_t returnValue = nanoOsMessageDataValue(processMessage, size_t);
   processMessageRelease(processMessage);
 
   return returnValue;
