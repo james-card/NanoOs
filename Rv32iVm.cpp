@@ -31,27 +31,51 @@
 // Custom includes
 #include "Rv32iVm.h"
 
-static char virtualMemoryFilename[13] = {};
+int rv32iVmInit(Rv32iVm *rv32iVm, const char *programName) {
+  char virtualMemoryFilename[13];
+  VirtualMemoryState programBinary = {};
+  if (virtualMemoryInit(&programBinary, programName) != 0) {
+    return -1;
+  }
+
+  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
+  if (virtualMemoryInit(&rv32iVm->physicalMemory, virtualMemoryFilename) != 0) {
+    virtualMemoryCleanup(&programBinary, false);
+    return -1;
+  }
+
+  if (virtualMemoryCopy(&programBinary, 0, &rv32iVm->physicalMemory, 0x1000,
+    programBinary.fileSize) < programBinary.fileSize
+  ) {
+    virtualMemoryCleanup(&programBinary, false);
+    return -1;
+  }
+
+  virtualMemoryCleanup(&programBinary, false);
+
+  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
+  if (virtualMemoryInit(&rv32iVm->mappedMemory, virtualMemoryFilename) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+void rv32iVmCleanup(Rv32iVm *rv32iVm) {
+  virtualMemoryCleanup(&rv32iVm->mappedMemory, true);
+  virtualMemoryCleanup(&rv32iVm->physicalMemory, true);
+}
 
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
-  Rv32iCoreState rv32iCoreState = {};
-  VirtualMemoryState physicalMemory = {};
-  VirtualMemoryState mappedMemory = {};
-  VirtualMemoryState programBinary = {};
-
-  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
-  virtualMemoryInit(&physicalMemory, virtualMemoryFilename);
-  virtualMemoryInit(&programBinary, argv[0]);
-  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
-  virtualMemoryInit(&mappedMemory, virtualMemoryFilename);
+  Rv32iVm rv32iVm = {};
+  if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
+    rv32iVmCleanup(&rv32iVm);
+  }
 
   // VM logic goes here
 
-  virtualMemoryCleanup(&mappedMemory, true);
-  virtualMemoryCleanup(&programBinary, false);
-  virtualMemoryCleanup(&physicalMemory, true);
-  
+  rv32iVmCleanup(&rv32iVm);
   return 0;
 }
 
