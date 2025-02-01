@@ -870,7 +870,7 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
       break;
     }
 
-    case RV32I_FENCE: {
+    case RV32I_MISC_MEM: {
       // Fence is a no-op in our implementation
       break;
     }
