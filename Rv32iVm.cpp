@@ -555,6 +555,29 @@ static inline int32_t executeAddUpperImmediatePc(
   return 0;
 }
 
+/// @fn static inline int32_t executeJumpAndLink(
+///   Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate, uint32_t *nextPc)
+///
+/// @brief Execute a jump and link instruction
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param immediate The J-type immediate value (already sign-extended)
+/// @param nextPc Pointer to next program counter value to update
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeJumpAndLink(
+  Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate, uint32_t *nextPc
+) {
+  // Store return address (pc + 4) in rd
+  rv32iVm->rv32iCoreRegisters.x[rd] = rv32iVm->rv32iCoreRegisters.pc + 4;
+  
+  // Calculate target address
+  *nextPc = rv32iVm->rv32iCoreRegisters.pc + immediate;
+  
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
