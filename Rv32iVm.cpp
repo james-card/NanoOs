@@ -264,6 +264,86 @@ static inline int32_t executeRegisterOperation(
   return 0;
 }
 
+/// @fn static inline int32_t executeImmediateOperation(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+///   uint32_t funct3)
+///
+/// @brief Execute an immediate operation (I-type instruction)
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 Source register number
+/// @param immediate Sign-extended 12-bit immediate value
+/// @param funct3 The funct3 field from instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeImmediateOperation(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
+  uint32_t funct3
+) {
+  switch (funct3) {
+    case RV32I_FUNCT3_ADDI: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+      break;
+    }
+    case RV32I_FUNCT3_SLLI: {
+      uint32_t shamt = immediate & 0x1F; // Shift amount is bottom 5 bits
+      if ((immediate & 0xFE0) != 0) { // Top bits must be zero
+        return -1;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] << shamt;
+      break;
+    }
+    case RV32I_FUNCT3_SLTI: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < immediate ? 1 : 0;
+      break;
+    }
+    case RV32I_FUNCT3_SLTIU: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] < 
+        (uint32_t) immediate ? 1 : 0;
+      break;
+    }
+    case RV32I_FUNCT3_XORI: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] ^ immediate;
+      break;
+    }
+    case RV32I_FUNCT3_SRLI_SRAI: {
+      uint32_t shamt = immediate & 0x1F; // Shift amount is bottom 5 bits
+      uint32_t funct7 = (immediate >> 5) & 0x7F;
+      
+      if (funct7 == RV32I_FUNCT7_SRLI) {
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          rv32iVm->rv32iCoreRegisters.x[rs1] >> shamt;
+      } else if (funct7 == RV32I_FUNCT7_SRAI) {
+        rv32iVm->rv32iCoreRegisters.x[rd] = 
+          ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >> shamt;
+      } else {
+        return -1; // Invalid funct7
+      }
+      break;
+    }
+    case RV32I_FUNCT3_ORI: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] | immediate;
+      break;
+    }
+    case RV32I_FUNCT3_ANDI: {
+      rv32iVm->rv32iCoreRegisters.x[rd] = 
+        rv32iVm->rv32iCoreRegisters.x[rs1] & immediate;
+      break;
+    }
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+  return 0;
+}
+
 /// @fn int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction)
 ///
 /// @brief Execute a single RV32I instruction
