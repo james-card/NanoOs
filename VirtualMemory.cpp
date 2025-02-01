@@ -63,6 +63,11 @@ int32_t virtualMemoryInit(
   memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
   strcpy(state->filename, filename);
 
+  // Set the initial size of the memory block.
+  fseek(state->fileHandle, 0, SEEK_END);
+  state->fileSize = ftell(state->fileHandle);
+  fseek(state->fileHandle, 0, SEEK_SET);
+
   return 0;
 }
 
@@ -417,6 +422,12 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   }
   dstVm->bufferValidBytes = 0;
   dstVm->bufferBaseOffset = 0;
+
+  // Align the length if we need to.
+  if (length & (((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1)) {
+    length &= ~(((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1);
+    length += VIRTUAL_MEMORY_PAGE_SIZE;
+  }
 
   // Copy the data from the source file to the destination file.
   return
