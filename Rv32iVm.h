@@ -46,10 +46,10 @@ extern "C"
 {
 #endif
 
-#define RISCV_INSTRUCTION_SIZE                                            4
-#define RISCV_PROGRAM_START                                          0x1000
-#define RISCV_MEMORY_SIZE                                         0x1000000
-#define RISCV_STACK_START      (RISCV_MEMORY_SIZE - RISCV_INSTRUCTION_SIZE)
+#define RISCV_INSTRUCTION_SIZE                 4
+#define RISCV_PROGRAM_START               0x1000
+#define RISCV_MEMORY_SIZE              0x1000000
+#define RISCV_STACK_START      RISCV_MEMORY_SIZE
 
 /// @struct Rv32iCoreRegisters
 ///
