@@ -632,21 +632,15 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       }
       
       // Read string from VM memory
-      char buffer[RV32I_MAX_WRITE_LENGTH];
-      uint32_t bytesRead = 0;
-      
-      for (uint32_t ii = 0; ii < length; ii++) {
-        uint8_t byte;
-        if (virtualMemoryRead8(&rv32iVm->physicalMemory,
-          bufferAddress + ii, &byte) != 0) {
-          break;
-        }
-        buffer[ii] = (char) byte;
-        bytesRead++;
-      }
+      char *buffer = (char*) malloc(length);
+      uint32_t bytesRead = virtualMemoryRead(&rv32iVm->physicalMemory,
+        bufferAddress, length, buffer);
       
       // Write to Serial
       Serial.write(buffer, bytesRead);
+
+      // Free the host-side memory
+      free(buffer); buffer = NULL;
       
       // Return number of bytes written
       rv32iVm->rv32iCoreRegisters.x[10] = bytesRead;
