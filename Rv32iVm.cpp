@@ -51,12 +51,6 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
-  if (virtualMemoryZero(&rv32iVm->physicalMemory, 0, RV32I_MEMORY_SIZE)
-    != RV32I_MEMORY_SIZE
-  ) {
-    virtualMemoryCleanup(&programBinary, false);
-    return -1;
-  }
 
   if (virtualMemoryCopy(&programBinary, 0,
     &rv32iVm->physicalMemory, RV32I_PROGRAM_START,
