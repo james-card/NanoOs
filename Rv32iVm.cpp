@@ -686,7 +686,6 @@ static inline int32_t executeSystem(
   // Handle ECALL/EBREAK first (funct3 == 0)
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
-      // ECALL - return positive value to signal environment call
       return handleSyscall(rv32iVm);
     } else if (immediate == RV32I_IMM12_EBREAK) {
       // EBREAK - return different positive value for breakpoint
