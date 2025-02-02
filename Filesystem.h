@@ -186,8 +186,6 @@ long filesystemFTell(FILE *stream);
 size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t length);
 
-size_t filesystemFZero(FILE *stream, off_t start, size_t length);
-
 /// @def rewind
 ///
 /// @brief Function macro to implement the functionality of the standard C

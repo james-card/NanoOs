@@ -1320,11 +1320,8 @@ long filesystemFTell(FILE *stream) {
 size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
   FILE *dstFile, off_t dstStart, size_t length
 ) {
-  if ((srcFile == NULL) || (dstFile == NULL)) {
-    // Can't proceed.
-    return 0;
-  } else if (length == 0) {
-    // Nothing to do.
+  if ((dstFile == NULL) || (length == 0)) {
+    // Can't proceed or nothing to do.
     return 0;
   }
 
@@ -1339,45 +1336,6 @@ size_t filesystemFCopy(FILE *srcFile, off_t srcStart,
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID,
     FILESYSTEM_COPY_FILE,
-    /* func= */ 0,
-    /* data= */ (intptr_t) &fcopyArgs,
-    true);
-  processMessageWaitForDone(processMessage, NULL);
-  size_t returnValue = nanoOsMessageDataValue(processMessage, size_t);
-  processMessageRelease(processMessage);
-
-  return returnValue;
-}
-
-/// @fn size_t filesystemFZero(FILE *stream, off_t start, size_t length)
-///
-/// @brief Write zeros from a specified start point for a given length of
-/// bytes.  If the file's size is less than start + length bytes at the time
-/// this call is made, the file will be extended with zeros until the desired
-/// length has been written.
-///
-/// @param stream A pointer to the previously-opened FILE object to zero.
-/// @param start The offet, in bytes, of where to start zeroing data.
-/// @param length The total number of zero bytes to write to the file.
-///
-/// @return Returns the number of bytes successfully written to the file.
-size_t filesystemFZero(FILE *stream, off_t start, size_t length) {
-  if ((stream == NULL) || (length == 0)) {
-    // Can't proceed or nothing to do.
-    return 0;
-  }
-
-  FcopyArgs fcopyArgs = {
-    .srcFile = NULL,
-    .srcStart = 0,
-    .dstFile = stream,
-    .dstStart  = start,
-    .length = length,
-  };
-
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
-    FILESYSTEM_ZERO_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &fcopyArgs,
     true);
