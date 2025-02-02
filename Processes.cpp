@@ -195,8 +195,6 @@ void* startCommand(void *args) {
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
-  //// CommandEntry *commandEntry
-  ////   = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
