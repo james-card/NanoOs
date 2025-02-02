@@ -2417,7 +2417,7 @@ __attribute__((noinline)) void startScheduler(
   // Create the console process.
   ProcessHandle processHandle = 0;
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
-    printString("Could not create console process.\n");
+    //// printString("Could not create console process.\n");
   }
   processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
@@ -2430,25 +2430,25 @@ __attribute__((noinline)) void startScheduler(
   coroutineResume(
     allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
 
-  printString("\n");
-  printString("Main stack size = ");
-  printInt(ABS_DIFF(
-    ((intptr_t) schedulerProcess),
-    ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
-  ));
-  printString(" bytes\n");
-  printString("schedulerState size = ");
-  printInt(sizeof(SchedulerState));
-  printString(" bytes\n");
-  printString("messagesStorage size = ");
-  printInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
-  printString(" bytes\n");
-  printString("nanoOsMessagesStorage size = ");
-  printInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
-  printString(" bytes\n");
-  printString("ConsoleState size = ");
-  printInt(sizeof(ConsoleState));
-  printString(" bytes\n");
+  //// printString("\n");
+  //// printString("Main stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((intptr_t) schedulerProcess),
+  ////   ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
+  //// ));
+  //// printString(" bytes\n");
+  //// printString("schedulerState size = ");
+  //// printInt(sizeof(SchedulerState));
+  //// printString(" bytes\n");
+  //// printString("messagesStorage size = ");
+  //// printInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
+  //// printString(" bytes\n");
+  //// printString("nanoOsMessagesStorage size = ");
+  //// printInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
+  //// printString(" bytes\n");
+  //// printString("ConsoleState size = ");
+  //// printInt(sizeof(ConsoleState));
+  //// printString(" bytes\n");
 
   // Create the SD card process.
   processHandle = 0;
@@ -2456,7 +2456,7 @@ __attribute__((noinline)) void startScheduler(
     (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
     != processSuccess
   ) {
-    printString("Could not start SD card process.\n");
+    //// printString("Could not start SD card process.\n");
   }
   processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
@@ -2473,7 +2473,7 @@ __attribute__((noinline)) void startScheduler(
   if (processCreate(&processHandle, runFat16Filesystem, sdDevice)
     != processSuccess
   ) {
-    printString("Could not start filesystem process.\n");
+    //// printString("Could not start filesystem process.\n");
   }
   processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
@@ -2493,9 +2493,9 @@ __attribute__((noinline)) void startScheduler(
     if (processCreate(&processHandle,
       dummyProcess, NULL) != processSuccess
     ) {
-      printString("Could not create process ");
-      printInt(ii);
-      printString(".\n");
+      //// printString("Could not create process ");
+      //// printInt(ii);
+      //// printString(".\n");
     }
     processSetId(processHandle, ii);
     allProcesses[ii].processId = ii;
@@ -2503,29 +2503,29 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[ii].userId = NO_USER_ID;
   }
 
-  printString("Console stack size = ");
-  printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
-    - sizeof(Coroutine)
-  );
-  printString(" bytes\n");
+  //// printString("Console stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
+  ////   - sizeof(Coroutine)
+  //// );
+  //// printString(" bytes\n");
 
-  printString("Coroutine stack size = ");
-  printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
-    - sizeof(Coroutine)
-  );
-  printString(" bytes\n");
+  //// printString("Coroutine stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
+  ////   - sizeof(Coroutine)
+  //// );
+  //// printString(" bytes\n");
 
-  printString("Coroutine size = ");
-  printInt(sizeof(Coroutine));
-  printString("\n");
+  //// printString("Coroutine size = ");
+  //// printInt(sizeof(Coroutine));
+  //// printString("\n");
 
-  printString("standardKernelFileDescriptors size = ");
-  printInt(sizeof(standardKernelFileDescriptors));
-  printString("\n");
+  //// printString("standardKernelFileDescriptors size = ");
+  //// printInt(sizeof(standardKernelFileDescriptors));
+  //// printString("\n");
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
@@ -2533,7 +2533,7 @@ __attribute__((noinline)) void startScheduler(
   if (processCreate(&processHandle,
     runMemoryManager, NULL) != processSuccess
   ) {
-    printString("Could not create memory manager process.\n");
+    //// printString("Could not create memory manager process.\n");
   }
   processSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
@@ -2551,8 +2551,8 @@ __attribute__((noinline)) void startScheduler(
     if (schedulerAssignPortToPid(&schedulerState,
       ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != processSuccess
     ) {
-      printString(
-        "WARNING:  Could not assign console port to memory manager.\n");
+      //// printString(
+      ////   "WARNING:  Could not assign console port to memory manager.\n");
     }
   }
 
@@ -2560,14 +2560,14 @@ __attribute__((noinline)) void startScheduler(
   if (schedulerSetPortShell(&schedulerState,
     USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
-    printString("WARNING:  Could not set shell for USB serial port.\n");
-    printString("          Undefined behavior will result.\n");
+    //// printString("WARNING:  Could not set shell for USB serial port.\n");
+    //// printString("          Undefined behavior will result.\n");
   }
   if (schedulerSetPortShell(&schedulerState,
     GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
-    printString("WARNING:  Could not set shell for GPIO serial port.\n");
-    printString("          Undefined behavior will result.\n");
+    //// printString("WARNING:  Could not set shell for GPIO serial port.\n");
+    //// printString("          Undefined behavior will result.\n");
   }
 
   // The scheduler will take care of cleaning up the dummy processes.
@@ -2603,7 +2603,7 @@ __attribute__((noinline)) void startScheduler(
       if (kFilesystemFGets(&schedulerState,
         schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
       ) {
-        printString("ERROR! fgets did not read hostname!\n");
+        //// printString("ERROR! fgets did not read hostname!\n");
       }
       if (strchr(schedulerState.hostname, '\r')) {
         *strchr(schedulerState.hostname, '\r') = '\0';
@@ -2614,10 +2614,10 @@ __attribute__((noinline)) void startScheduler(
       }
       kfclose(&schedulerState, hostnameFile);
     } else {
-      printString("ERROR! kfopen of hostname returned NULL!\n");
+      //// printString("ERROR! kfopen of hostname returned NULL!\n");
     }
   } else {
-    printString("ERROR! schedulerState.hostname is NULL!\n");
+    //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
 
   //// do {
