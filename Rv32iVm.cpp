@@ -59,8 +59,12 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
-
   virtualMemoryCleanup(&programBinary, false);
+
+  // Initialize the rest of the program's memory space up to where the stack
+  // will start.
+  virtualMemoryWrite32(&rv32iVm->physicalMemory,
+    RV32I_STACK_START - RV32I_INSTRUCTION_SIZE, 0);
 
   sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
   if (virtualMemoryInit(&rv32iVm->mappedMemory, virtualMemoryFilename) != 0) {
