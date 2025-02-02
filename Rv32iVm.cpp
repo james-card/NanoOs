@@ -605,6 +605,69 @@ static inline int32_t executeJumpAndLinkRegister(
   return 0;
 }
 
+/// @fn int32_t handleSyscall(Rv32iVm *rv32iVm)
+///
+/// @brief Handle system calls from the running program
+///
+/// @param rv32iVm Pointer to the VM state
+///
+/// @return Returns 0 on success, negative on error, positive for program exit
+static int32_t handleSyscall(Rv32iVm *rv32iVm) {
+  // Get syscall number from a7 (x17)
+  uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters.x[17];
+  
+  switch (syscallNumber) {
+    case RV32I_SYSCALL_WRITE: {
+      // Get parameters from a0-a2 (x10-x12)
+      uint32_t fileDescriptor = rv32iVm->rv32iCoreRegisters.x[10];
+      uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters.x[11];
+      uint32_t length = rv32iVm->rv32iCoreRegisters.x[12];
+      
+      // Only handle stdout for now
+      if (fileDescriptor != RV32I_STDOUT_FILENO) {
+        return -1;
+      }
+      
+      // Limit maximum write length
+      if (length > RV32I_MAX_WRITE_LENGTH) {
+        length = RV32I_MAX_WRITE_LENGTH;
+      }
+      
+      // Read string from VM memory
+      char buffer[RV32I_MAX_WRITE_LENGTH];
+      uint32_t bytesRead = 0;
+      
+      for (uint32_t ii = 0; ii < length; ii++) {
+        uint8_t byte;
+        if (virtualMemoryRead8(&rv32iVm->physicalMemory,
+          bufferAddress + ii, &byte) != 0) {
+          break;
+        }
+        buffer[ii] = (char) byte;
+        bytesRead++;
+      }
+      
+      // Write to Serial
+      Serial.write(buffer, bytesRead);
+      
+      // Return number of bytes written
+      rv32iVm->rv32iCoreRegisters.x[10] = bytesRead;
+      return 0;
+    }
+    
+    case RV32I_SYSCALL_EXIT: {
+      // Get exit code from a0 (x10)
+      rv32iVm->running = false;
+      rv32iVm->exitCode = rv32iVm->rv32iCoreRegisters.x[10];
+      return 0;
+    }
+    
+    default: {
+      return -1;
+    }
+  }
+}
+
 /// @fn static inline int32_t executeSystem(
 ///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
 ///   uint32_t funct3)
@@ -626,7 +689,7 @@ static inline int32_t executeSystem(
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
       // ECALL - return positive value to signal environment call
-      return 1;
+      return handleSyscall(rv32iVm);
     } else if (immediate == RV32I_IMM12_EBREAK) {
       // EBREAK - return different positive value for breakpoint
       return 2;
@@ -917,13 +980,18 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  while (returnValue == 0) {
+  while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
       break;
     }
 
     returnValue = executeInstruction(&rv32iVm, instruction);
+  }
+
+  if (rv32iVm.running == false) {
+    // VM exited gracefully.  Pull the status the process exited with.
+    returnValue = rv32iVm.exitCode;
   }
 
   rv32iVmCleanup(&rv32iVm);
