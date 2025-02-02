@@ -64,31 +64,31 @@ extern "C"
 ///
 /// @brief Standard RISC-V RV32I base instruction set opcodes (7 bits)
 typedef enum Rv32iOpCode {
-  RV32I_LOAD           = 0x03, // Load instructions (lb, lh, lw, lbu, lhu)
-  RV32I_LOAD_FP        = 0x07, // Floating-point load (not in RV32I)
-  RV32I_CUSTOM_0       = 0x0B, // Custom instruction space 0
-  RV32I_MISC_MEM       = 0x0F, // Misc memory operations (fence)
-  RV32I_OP_IMM         = 0x13, // Integer register-immediate instructions
-  RV32I_AUIPC          = 0x17, // Add upper immediate to PC
-  RV32I_OP_IMM_32      = 0x1B, // 32-bit integer register-immediate (RV64I)
-  RV32I_STORE          = 0x23, // Store instructions (sb, sh, sw)
-  RV32I_STORE_FP       = 0x27, // Floating-point store (not in RV32I)
-  RV32I_CUSTOM_1       = 0x2B, // Custom instruction space 1
-  RV32I_AMO            = 0x2F, // Atomic memory operations
-  RV32I_OP             = 0x33, // Integer register-register instructions
-  RV32I_LUI            = 0x37, // Load upper immediate
-  RV32I_OP_32          = 0x3B, // 32-bit integer register-register (RV64I)
-  RV32I_MADD           = 0x43, // Multiply-add (not in RV32I)
-  RV32I_MSUB           = 0x47, // Multiply-subtract (not in RV32I)
-  RV32I_NMSUB          = 0x4B, // Negative multiply-subtract (not in RV32I)
-  RV32I_NMADD          = 0x4F, // Negative multiply-add (not in RV32I)
-  RV32I_OP_FP          = 0x53, // Floating-point operations (not in RV32I)
-  RV32I_CUSTOM_2       = 0x5B, // Custom instruction space 2
-  RV32I_BRANCH         = 0x63, // Conditional branch instructions
-  RV32I_JALR           = 0x67, // Jump and link register
-  RV32I_JAL            = 0x6F, // Jump and link
-  RV32I_SYSTEM         = 0x73, // System/CSR instructions
-  RV32I_CUSTOM_3       = 0x7B  // Custom instruction space 3
+  RV32I_LOAD      = 0x03, // Load instructions (lb, lh, lw, lbu, lhu)
+  RV32I_LOAD_FP   = 0x07, // Floating-point load (not in RV32I)
+  RV32I_CUSTOM_0  = 0x0B, // Custom instruction space 0
+  RV32I_MISC_MEM  = 0x0F, // Misc memory operations (fence)
+  RV32I_OP_IMM    = 0x13, // Integer register-immediate instructions
+  RV32I_AUIPC     = 0x17, // Add upper immediate to PC
+  RV32I_OP_IMM_32 = 0x1B, // 32-bit integer register-immediate (RV64I)
+  RV32I_STORE     = 0x23, // Store instructions (sb, sh, sw)
+  RV32I_STORE_FP  = 0x27, // Floating-point store (not in RV32I)
+  RV32I_CUSTOM_1  = 0x2B, // Custom instruction space 1
+  RV32I_AMO       = 0x2F, // Atomic memory operations
+  RV32I_OP        = 0x33, // Integer register-register instructions
+  RV32I_LUI       = 0x37, // Load upper immediate
+  RV32I_OP_32     = 0x3B, // 32-bit integer register-register (RV64I)
+  RV32I_MADD      = 0x43, // Multiply-add (not in RV32I)
+  RV32I_MSUB      = 0x47, // Multiply-subtract (not in RV32I)
+  RV32I_NMSUB     = 0x4B, // Negative multiply-subtract (not in RV32I)
+  RV32I_NMADD     = 0x4F, // Negative multiply-add (not in RV32I)
+  RV32I_OP_FP     = 0x53, // Floating-point operations (not in RV32I)
+  RV32I_CUSTOM_2  = 0x5B, // Custom instruction space 2
+  RV32I_BRANCH    = 0x63, // Conditional branch instructions
+  RV32I_JALR      = 0x67, // Jump and link register
+  RV32I_JAL       = 0x6F, // Jump and link
+  RV32I_SYSTEM    = 0x73, // System/CSR instructions
+  RV32I_CUSTOM_3  = 0x7B  // Custom instruction space 3
 } Rv32iOpCode;
 
 /// @enum Rv32iRegisterFunct3
@@ -109,24 +109,24 @@ typedef enum Rv32iRegisterFunct3 {
 ///
 /// @brief Function 7 codes for R-type register operations
 typedef enum Rv32iRegisterFunct7 {
-  RV32I_FUNCT7_ADD     = 0x00, // Addition
-  RV32I_FUNCT7_SUB     = 0x20, // Subtraction
-  RV32I_FUNCT7_SRL     = 0x00, // Shift Right Logical
-  RV32I_FUNCT7_SRA     = 0x20  // Shift Right Arithmetic
+  RV32I_FUNCT7_ADD = 0x00, // Addition
+  RV32I_FUNCT7_SUB = 0x20, // Subtraction
+  RV32I_FUNCT7_SRL = 0x00, // Shift Right Logical
+  RV32I_FUNCT7_SRA = 0x20  // Shift Right Arithmetic
 } Rv32iRegisterFunct7;
 
 /// @enum Rv32iImmediateFunct3
 ///
 /// @brief Function 3 codes for I-type immediate operations
 typedef enum Rv32iImmediateFunct3 {
-  RV32I_FUNCT3_ADDI  = 0x0,  // Add Immediate
-  RV32I_FUNCT3_SLLI  = 0x1,  // Shift Left Logical Immediate
-  RV32I_FUNCT3_SLTI  = 0x2,  // Set Less Than Immediate
-  RV32I_FUNCT3_SLTIU = 0x3,  // Set Less Than Immediate Unsigned
-  RV32I_FUNCT3_XORI  = 0x4,  // XOR Immediate
+  RV32I_FUNCT3_ADDI      = 0x0,  // Add Immediate
+  RV32I_FUNCT3_SLLI      = 0x1,  // Shift Left Logical Immediate
+  RV32I_FUNCT3_SLTI      = 0x2,  // Set Less Than Immediate
+  RV32I_FUNCT3_SLTIU     = 0x3,  // Set Less Than Immediate Unsigned
+  RV32I_FUNCT3_XORI      = 0x4,  // XOR Immediate
   RV32I_FUNCT3_SRLI_SRAI = 0x5,  // Shift Right Logical/Arithmetic Immediate
-  RV32I_FUNCT3_ORI   = 0x6,  // OR Immediate
-  RV32I_FUNCT3_ANDI  = 0x7   // AND Immediate
+  RV32I_FUNCT3_ORI       = 0x6,  // OR Immediate
+  RV32I_FUNCT3_ANDI      = 0x7   // AND Immediate
 } Rv32iImmediateFunct3;
 
 /// @enum Rv32iLoadFunct3
@@ -166,12 +166,12 @@ typedef enum Rv32iBranchFunct3 {
 /// @brief Function 3 codes for system operations
 typedef enum Rv32iSystemFunct3 {
   RV32I_FUNCT3_ECALL_EBREAK = 0x0,  // Environment Call / Environment Break
-  RV32I_FUNCT3_CSRRW   = 0x1,  // CSR Read/Write
-  RV32I_FUNCT3_CSRRS   = 0x2,  // CSR Read and Set Bits
-  RV32I_FUNCT3_CSRRC   = 0x3,  // CSR Read and Clear Bits
-  RV32I_FUNCT3_CSRRWI  = 0x5,  // CSR Read/Write Immediate
-  RV32I_FUNCT3_CSRRSI  = 0x6,  // CSR Read and Set Bits Immediate
-  RV32I_FUNCT3_CSRRCI  = 0x7   // CSR Read and Clear Bits Immediate
+  RV32I_FUNCT3_CSRRW        = 0x1,  // CSR Read/Write
+  RV32I_FUNCT3_CSRRS        = 0x2,  // CSR Read and Set Bits
+  RV32I_FUNCT3_CSRRC        = 0x3,  // CSR Read and Clear Bits
+  RV32I_FUNCT3_CSRRWI       = 0x5,  // CSR Read/Write Immediate
+  RV32I_FUNCT3_CSRRSI       = 0x6,  // CSR Read and Set Bits Immediate
+  RV32I_FUNCT3_CSRRCI       = 0x7   // CSR Read and Clear Bits Immediate
 } Rv32iSystemFunct3;
 
 /// @enum Rv32iSystemImm12
