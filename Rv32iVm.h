@@ -53,6 +53,13 @@ extern "C"
 #define RV32I_CLINT_BASE_ADDR                  0x02000000
 #define RV32I_CLINT_ADDR_MASK (RV32I_CLINT_BASE_ADDR - 1)
 
+// ECALL support
+#define RV32I_SYSCALL_WRITE 64
+#define RV32I_SYSCALL_EXIT 93
+#define RV32I_STDOUT_FILENO 1
+#define RV32I_STDERR_FILENO 2
+#define RV32I_MAX_WRITE_LENGTH 256
+
 /// @enum Rv32iOpCode
 ///
 /// @brief Standard RISC-V RV32I base instruction set opcodes (7 bits)
@@ -245,10 +252,15 @@ typedef struct Rv32iCoreRegisters {
 ///   virtual memory that will correpsond to the physical memory of the VM.
 /// @param mappedMemory The VirtualMemoryState that allows for access to the
 ///   virtual memory that will correpsond to the mapped memory of the VM.
+/// @param running Whether or not the VM is currently in a running state.
+/// @param exitCode The exit code to return to the caller when the process
+///   exits.
 typedef struct Rv32iVm {
   Rv32iCoreRegisters rv32iCoreRegisters;
   VirtualMemoryState physicalMemory;
   VirtualMemoryState mappedMemory;
+  bool running;
+  int exitCode;
 } Rv32iVm;
 
 int runRv32iProcess(int argc, char **argv);
