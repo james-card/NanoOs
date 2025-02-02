@@ -386,10 +386,10 @@ int16_t sdSpiGetBlockSize(uint8_t chipSelect) {
   uint8_t response = sdSpiSendCommand(chipSelect, CMD9, 0);
   if (response != 0x00) {
     sdSpiEnd(chipSelect);
-    printString(__func__);
-    printString(": ERROR! CMD9 returned ");
-    printInt(response);
-    printString("\n");
+    //// printString(__func__);
+    //// printString(": ERROR! CMD9 returned ");
+    //// printInt(response);
+    //// printString("\n");
     return -1;
   }
 
@@ -433,10 +433,10 @@ int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
   uint8_t response = sdSpiSendCommand(chipSelect, CMD9, 0);
   if (response != 0x00) {
     sdSpiEnd(chipSelect);
-    printString(__func__);
-    printString(": ERROR! CMD9 returned ");
-    printInt(response);
-    printString("\n");
+    //// printString(__func__);
+    //// printString(": ERROR! CMD9 returned ");
+    //// printInt(response);
+    //// printString("\n");
     return -1;
   }
   
@@ -512,8 +512,8 @@ int sdCardGetReadWriteParameters(
     ? (blockSize % sdCardState->blockSize)
     : (sdCardState->blockSize % blockSize);
   if (remainder != 0) {
-    printString(__func__);
-    printString(": ERROR! Invalid block size\n");
+    //// printString(__func__);
+    //// printString(": ERROR! Invalid block size\n");
     return EINVAL;
   }
 
@@ -522,8 +522,8 @@ int sdCardGetReadWriteParameters(
   *numSdBlocks = (sdCommandParams->numBlocks * ((uint32_t) blockSize))
     / ((uint32_t) sdCardState->blockSize);
   if ((*startSdBlock + *numSdBlocks) > sdCardState->numBlocks) {
-    printString(__func__);
-    printString(": ERROR! Invalid R/W range\n");
+    //// printString(__func__);
+    //// printString(": ERROR! Invalid R/W range\n");
     return EINVAL;
   }
 
@@ -743,23 +743,23 @@ void* runSdCard(void *args) {
     sdCardState.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
     sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
 #ifdef SD_CARD_DEBUG
-    printString("Card is ");
-    printString((sdCardState.sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
-    printString("\n");
+    //// printString("Card is ");
+    //// printString((sdCardState.sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
+    //// printString("\n");
 
-    printString("Card block size = ");
-    printInt(sdCardState.blockSize);
-    printString("\n");
+    //// printString("Card block size = ");
+    //// printInt(sdCardState.blockSize);
+    //// printString("\n");
     printLong(sdCardState.numBlocks);
-    printString(" total blocks (");
+    //// printString(" total blocks (");
     printLongLong(((int64_t) sdCardState.numBlocks)
       * ((int64_t) sdCardState.blockSize));
-    printString(" total bytes)\n");
+    //// printString(" total bytes)\n");
 #endif // SD_CARD_DEBUG
   } else {
-    printString("ERROR! sdSpiCardInit returned status ");
-    printInt(sdCardState.sdCardVersion);
-    printString("\n");
+    //// printString("ERROR! sdSpiCardInit returned status ");
+    //// printInt(sdCardState.sdCardVersion);
+    //// printString("\n");
   }
 
   ProcessMessage *schedulerMessage = NULL;
@@ -774,9 +774,9 @@ void* runSdCard(void *args) {
       if (messageType < NUM_SD_CARD_COMMANDS) {
         sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
       } else {
-        printString("ERROR!!!  Received unknown sdCard command ");
-        printInt(messageType);
-        printString(" from scheduler.\n");
+        //// printString("ERROR!!!  Received unknown sdCard command ");
+        //// printInt(messageType);
+        //// printString(" from scheduler.\n");
       }
     } else {
       handleSdCardMessages(&sdCardState);
