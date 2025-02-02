@@ -1681,8 +1681,6 @@ int schedulerRunProcessCommandHandler(
     return 0;
   }
 
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
   CommandDescriptor *commandDescriptor
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
@@ -1736,8 +1734,6 @@ int schedulerRunProcessCommandHandler(
       strcpy(commandLine, charAt);
     }
 
-    const CommandEntry *commandEntry = NULL; //// getCommandEntryFromInput(commandLine);
-    nanoOsMessage->func = (intptr_t) commandEntry;
     commandDescriptor->consoleInput = commandLine;
 
     if (backgroundProcess == false) {
