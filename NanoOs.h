@@ -143,7 +143,7 @@ extern "C"
 /// @def printDebug
 ///
 /// @brief Macro to identify debugging prints when necessary.
-#define printDebug(message) Serial.print(message)
+#define printDebug Serial.print
 
 #else // NANO_OS_DEBUG
 
