@@ -134,7 +134,6 @@ typedef enum FilesystemCommandResponse {
   FILESYSTEM_REMOVE_FILE,
   FILESYSTEM_SEEK_FILE,
   FILESYSTEM_COPY_FILE,
-  FILESYSTEM_ZERO_FILE,
   NUM_FILESYSTEM_COMMANDS,
   // Responses:
 } FilesystemCommandResponse;

@@ -1005,36 +1005,6 @@ int fat16FilesystemCopyFileCommandHandler(
   return 0;
 }
 
-/// @fn int fat16FilesystemZeroFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
-///
-/// @brief Command handler for FILESYSTEM_ZERO_FILE command.
-///
-/// @param filesystemState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
-///
-/// @return Returns 0 on success, a standard POSIX error code on failure.
-int fat16FilesystemZeroFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
-) {
-  FcopyArgs *fcopyArgs = nanoOsMessageDataPointer(processMessage, FcopyArgs*);
-  size_t returnValue
-    = fat16Copy(filesystemState,
-      (Fat16File*) NULL,
-      0,
-      (Fat16File*) fcopyArgs->dstFile->file,
-      fcopyArgs->dstStart,
-      fcopyArgs->length);
-
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = returnValue;
-  processMessageSetDone(processMessage);
-  return 0;
-}
-
 /// @var filesystemCommandHandlers
 ///
 /// @brief Array of FilesystemCommandHandler function pointers.
@@ -1046,7 +1016,6 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
   fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
   fat16FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
   fat16FilesystemCopyFileCommandHandler,   // FILESYSTEM_COPY_FILE
-  fat16FilesystemZeroFileCommandHandler,   // FILESYSTEM_ZERO_FILE
 };
 
 
