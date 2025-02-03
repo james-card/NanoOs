@@ -587,6 +587,17 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     Fat16File *dstFile, off_t dstStart, size_t length
 ) {
   // Verify assumptions
+  printDebug("Copying ");
+  printDebug(length);
+  printDebug(" bytes from 0x");
+  printDebug((uintptr_t) srcFile, HEX);
+  printDebug(" at offset 0x");
+  printDebug(srcStart, HEX);
+  printDebug(" to 0x");
+  printDebug((uintptr_t) dstFile, HEX);
+  printDebug(" at offset 0x");
+  printDebug(dstStart, HEX);
+  printDebug("\n");
   if ((srcFile->bytesPerSector != dstFile->bytesPerSector)
       || ((srcStart & (srcFile->bytesPerSector - 1)) != 0)
       || ((dstStart & (dstFile->bytesPerSector - 1)) != 0)
@@ -1165,7 +1176,7 @@ int filesystemFSeek(FILE *stream, long offset, int whence) {
     .whence = whence,
   };
   ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_SEEK_FILE,
     /* func= */ 0, (intptr_t) &filesystemSeekParameters, true);
   processMessageWaitForDone(msg, NULL);
   int returnValue = nanoOsMessageDataValue(msg, int);
