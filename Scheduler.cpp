@@ -1241,7 +1241,7 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
+static ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
   ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
   ProcessDescriptor *processDescriptor, bool backgroundProcess
 ) {
@@ -1314,7 +1314,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-static inline ProcessDescriptor* launchForegroundProcess(
+static ProcessDescriptor* launchForegroundProcess(
   SchedulerState *schedulerState, ProcessMessage *processMessage,
   CommandDescriptor *commandDescriptor
 ) {
@@ -1380,7 +1380,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
 ///
 /// @return Returns a pointer to the ProcessDescriptor used to launch the
 /// process on success, NULL on failure.
-static inline ProcessDescriptor* launchBackgroundProcess(
+static ProcessDescriptor* launchBackgroundProcess(
   SchedulerState *schedulerState, ProcessMessage *processMessage,
   CommandDescriptor *commandDescriptor
 ) {
