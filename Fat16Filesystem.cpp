@@ -184,7 +184,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   if (fs->numOpenFiles == 0) {
     fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
     if (fs->blockBuffer == NULL) {
-      printDebug("ERROR: malloc of fs->blockBuffer returned NULL!\n");
+      //// printDebug("ERROR: malloc of fs->blockBuffer returned NULL!\n");
       goto exit;
     }
   }
@@ -192,14 +192,14 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
 
   // Read boot sector
   if (fat16ReadBlock(fs, fs->startLba, buffer)) {
-    printDebug("ERROR: Reading boot sector failed!\n");
+    //// printDebug("ERROR: Reading boot sector failed!\n");
     goto exit;
   }
   
   // Create file structure to hold common values
   file = (Fat16File*) malloc(sizeof(Fat16File));
   if (!file) {
-    printDebug("ERROR: malloc of Fat16File failed!\n");
+    //// printDebug("ERROR: malloc of Fat16File failed!\n");
     goto exit;
   }
   
@@ -247,7 +247,7 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
     
     if (fat16WriteBlock(fs, block, buffer)) {
       free(file); file = NULL;
-      printDebug("ERROR: Writing name of new file failed!\n");
+      //// printDebug("ERROR: Writing name of new file failed!\n");
       goto exit;
     }
     
