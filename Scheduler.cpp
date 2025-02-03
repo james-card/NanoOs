@@ -1251,7 +1251,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 
   if (processDescriptor != NULL) {
     processDescriptor->userId = schedulerState->allProcesses[
-      processId(processMessageFrom(processMessage))].userId;
+      commandDescriptor->callingProcess].userId;
     processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
     processDescriptor->fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
@@ -1319,7 +1319,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
   CommandDescriptor *commandDescriptor
 ) {
   ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
-    processId(processMessageFrom(processMessage))];
+    commandDescriptor->callingProcess];
   // The process should be blocked in processMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
@@ -1343,7 +1343,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
   }
 
   // Kill and clear out the calling process.
-  processTerminate(processMessageFrom(processMessage));
+  processTerminate(schedulerGetProcessByPid(commandDescriptor->callingProcess));
   processSetId(
     processDescriptor->processHandle, processDescriptor->processId);
 
@@ -2367,6 +2367,57 @@ void runScheduler(SchedulerState *schedulerState) {
   return;
 }
 
+/// @fn int schedulerRunSchedulerProcess(
+///   SchedulerState *schedulerState, const char *commandString)
+///
+/// @brief Run a process from the scheduler itself.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param commandString The string that holds the full command to run
+///   including the path to the command file on the filesystem and all
+///   arguments.
+///
+/// @return Returns 0 on success, 1 on error.
+int schedulerRunSchedulerProcess(
+  SchedulerState *schedulerState, const char *commandString
+) {
+  int returnValue = 1;
+
+  char *consoleInput = (char*) kmalloc(strlen(commandString) + 1);
+  if (consoleInput == NULL) {
+    printString("ERROR!  Could not allocate consoleInput.\n");
+    return returnValue; // 1
+  }
+  strcpy(consoleInput, commandString);
+
+  CommandDescriptor *commandDescriptor
+    = (CommandDescriptor*) kmalloc(sizeof(CommandDescriptor));
+  if (commandDescriptor == NULL) {
+    printString("ERROR!  Could not allocate CommandDescriptor.\n");
+    return returnValue; // 1
+  }
+  commandDescriptor->consoleInput = consoleInput;
+  commandDescriptor->consolePort = USB_SERIAL_PORT;
+  commandDescriptor->callingProcess = USB_SERIAL_PORT_SHELL_PID;
+
+  ProcessMessage *processMessage = getAvailableMessage();
+  while (processMessage == NULL) {
+    runScheduler(schedulerState);
+    processMessage = getAvailableMessage();
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = (uintptr_t) commandDescriptor;
+
+
+  returnValue
+    = schedulerRunProcessCommandHandler(schedulerState, processMessage);
+  return returnValue;
+}
+
 /// @fn void startScheduler(SchedulerState **coroutineStatePointer)
 ///
 /// @brief Initialize and run the round-robin scheduler.
@@ -2708,6 +2759,12 @@ __attribute__((noinline)) void startScheduler(
   ////     printDebug("ERROR: kremove failed to remove the \"hello\" file.\n");
   ////   }
   //// } while (0);
+
+  for (int ii = 0; ii < 32; ii++) {
+    runScheduler(&schedulerState);
+  }
+
+  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin");
 
   // Run our scheduler.
   while (1) {
