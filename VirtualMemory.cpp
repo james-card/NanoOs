@@ -192,6 +192,36 @@ int32_t virtualMemoryRead8(
   return returnValue;
 }
 
+/// @fn int32_t virtualMemoryRead16(
+///   VirtualMemoryState *state, uint32_t offset, uint16_t *value)
+///
+/// @brief Read a 16-bit value from virtual memory.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to read from.
+/// @param value Pointer to store read value.
+///
+/// @return Returns 0 on success, -1 on error.
+int32_t virtualMemoryRead16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t *value
+) {
+  // The state variable and its necessary components will be verified by
+  // virtualMemoryGet, so just check value here.
+  if (value == NULL) {
+    return -1;
+  }
+
+  int returnValue = 0;
+  uint16_t *memoryAddr = (uint16_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *value = *memoryAddr;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
+}
+
 /// @fn int32_t virtualMemoryRead32(
 ///   VirtualMemoryState *state, uint32_t offset, uint32_t *value)
 ///
@@ -267,6 +297,30 @@ int32_t virtualMemoryWrite8(
 ) {
   int returnValue = 0;
   uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *memoryAddr = value;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
+}
+
+/// @fn int32_t virtualMemoryWrite16(
+///   VirtualMemoryState *state, uint32_t offset, uint16_t *value)
+///
+/// @brief Write a 16-bit value to virtual memory.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to write to.
+/// @param value Value to write to virtual memory.
+///
+/// @return Returns 0 on success, -1 on error.
+int32_t virtualMemoryWrite16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t value
+) {
+  int returnValue = 0;
+  uint16_t *memoryAddr = (uint16_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
   } else {
