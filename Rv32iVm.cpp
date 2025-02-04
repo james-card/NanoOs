@@ -46,7 +46,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     return -1;
   }
 
-  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
+  sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->physicalMemory, virtualMemoryFilename) != 0) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
@@ -54,19 +54,30 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   if (virtualMemoryCopy(&programBinary, 0,
     &rv32iVm->physicalMemory, RV32I_PROGRAM_START,
-    virtualMemorySize(&programBinary)) < programBinary.fileSize
+    virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
   virtualMemoryCleanup(&programBinary, false);
 
+  uint32_t instruction = 0;
+  virtualMemoryRead32(&rv32iVm->physicalMemory,
+    RV32I_PROGRAM_START, &instruction);
+  printDebug("Read instruction ");
+  printDebug(instruction, HEX);
+  printDebug(" before initializing stack.\n");
   // Initialize the rest of the program's memory space up to where the stack
   // will start.
   virtualMemoryWrite32(&rv32iVm->physicalMemory,
     RV32I_STACK_START - RV32I_INSTRUCTION_SIZE, 0);
+  virtualMemoryRead32(&rv32iVm->physicalMemory,
+    RV32I_PROGRAM_START, &instruction);
+  printDebug("Read instruction ");
+  printDebug(instruction, HEX);
+  printDebug(" after initializing stack.\n");
 
-  sprintf(virtualMemoryFilename, "%lu.mem", getElapsedMilliseconds(0));
+  sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->mappedMemory, virtualMemoryFilename) != 0) {
     return -1;
   }
@@ -103,7 +114,7 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
 int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
   if (address & RV32I_CLINT_BASE_ADDR) {
     // Mapped memory access - mask off the high bits
-    printDebug("Reading 32 bits from mapped memory.\n");
+    //// printDebug("Reading 32 bits from mapped memory.\n");
     return virtualMemoryRead32(
       &rv32iVm->mappedMemory,
       address & RV32I_CLINT_ADDR_MASK,
@@ -111,7 +122,7 @@ int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
     );
   } else {
     // Physical memory access
-    printDebug("Reading 32 bits from physical memory.\n");
+    //// printDebug("Reading 32 bits from physical memory.\n");
     return virtualMemoryRead32(&rv32iVm->physicalMemory, address, value);
   }
 }
@@ -616,9 +627,9 @@ static inline int32_t executeJumpAndLinkRegister(
 static int32_t handleSyscall(Rv32iVm *rv32iVm) {
   // Get syscall number from a7 (x17)
   uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters.x[17];
-  printDebug("Handling syscall ");
-  printDebug(syscallNumber);
-  printDebug("\n");
+  //// printDebug("Handling syscall ");
+  //// printDebug(syscallNumber);
+  //// printDebug("\n");
   
   switch (syscallNumber) {
     case RV32I_SYSCALL_WRITE: {
@@ -976,26 +987,26 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  printDebug("Entering main RV32I instruction loop.\n");
+  //// printDebug("Entering main RV32I instruction loop.\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
-      printDebug("Fetching instruction failed.\n");
+      //// printDebug("Fetching instruction failed.\n");
       returnValue = -1;
       break;
     }
-    printDebug("Got instruction 0x");
-    printDebug(instruction, HEX);
-    printDebug("\n");
+    //// printDebug("Got instruction 0x");
+    //// printDebug(instruction, HEX);
+    //// printDebug("\n");
 
     returnValue = executeInstruction(&rv32iVm, instruction);
     if (returnValue != 0) {
-      printDebug("Executing instruction 0x");
-      printDebug(instruction, HEX);
-      printDebug(" returned status ");
-      printDebug(returnValue);
+      //// printDebug("Executing instruction 0x");
+      //// printDebug(instruction, HEX);
+      //// printDebug(" returned status ");
+      //// printDebug(returnValue);
     }
   }
-  printDebug("RV32I process exited.\n");
+  //// printDebug("RV32I process exited.\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
