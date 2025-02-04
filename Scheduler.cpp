@@ -2670,6 +2670,9 @@ __attribute__((noinline)) void startScheduler(
   } else {
     //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
+  //// printDebug("Using hostname \"");
+  //// printDebug(schedulerState.hostname);
+  //// printDebug("\n");
 
   //// do {
   ////   FILE *helloFile = kfopen(&schedulerState, "hello", "w");
