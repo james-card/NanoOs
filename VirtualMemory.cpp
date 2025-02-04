@@ -67,11 +67,6 @@ int32_t virtualMemoryInit(
   fseek(state->fileHandle, 0, SEEK_END);
   state->fileSize = ftell(state->fileHandle);
   fseek(state->fileHandle, 0, SEEK_SET);
-  printDebug("Virtual memory file ");
-  printDebug(state->filename);
-  printDebug(" is ");
-  printDebug(state->fileSize);
-  printDebug(" bytes in size.\n");
 
   return 0;
 }
@@ -151,23 +146,14 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
   }
 
   // Need to load new data into the buffer.
-  printDebug("Offset 0x");
-  printDebug(offset, HEX);
-  printDebug(" is not in buffer\n");
   virtualMemoryPrepare(state, offset + VIRTUAL_MEMORY_BUFFER_SIZE);
 
   // Read new buffer from the requested location.
   state->bufferBaseOffset
     = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
-  printDebug("Seeking to base offset 0x");
-  printDebug(state->bufferBaseOffset, HEX);
-  printDebug("\n");
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
     = fread(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
-  printDebug("Read ");
-  printDebug(state->bufferValidBytes);
-  printDebug(" bytes\n");
 
   if (state->bufferValidBytes == 0) {
     return NULL;
@@ -226,9 +212,6 @@ int32_t virtualMemoryRead32(
   }
 
   int returnValue = 0;
-  printDebug("Reading offset 0x");
-  printDebug(offset, HEX);
-  printDebug("\n");
   uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *value = *memoryAddr;
