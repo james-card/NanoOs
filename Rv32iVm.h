@@ -60,6 +60,15 @@ extern "C"
 #define RV32I_STDERR_FILENO 2
 #define RV32I_MAX_WRITE_LENGTH 256
 
+/// @enum Rv32iMemorySegment
+///
+/// @brief Memory segments that are managed by the Rv32iVm state.
+typedef enum Rv32iMemorySegment {
+  RV32I_PHYSICAL_MEMORY,
+  RV32I_MAPPED_MEMORY,
+  RV32I_NUM_MEMORY_SEGMENTS
+} Rv32iMemorySegment;
+
 /// @enum Rv32iOpCode
 ///
 /// @brief Standard RISC-V RV32I base instruction set opcodes (7 bits)
@@ -248,17 +257,14 @@ typedef struct Rv32iCoreRegisters {
 /// @brief Full state needed to run an RV32I process.
 ///
 /// @param rv32iCoreRegisters The registers for a single RV32I core.
-/// @param physicalMemory The VirtualMemoryState that allows for access to the
-///   virtual memory that will correpsond to the physical memory of the VM.
-/// @param mappedMemory The VirtualMemoryState that allows for access to the
-///   virtual memory that will correpsond to the mapped memory of the VM.
+/// @param memorySegments The VirtualMemoryState objects that allow for access
+///   to the virtual memory segments used by the VM.
 /// @param running Whether or not the VM is currently in a running state.
 /// @param exitCode The exit code to return to the caller when the process
 ///   exits.
 typedef struct Rv32iVm {
   Rv32iCoreRegisters rv32iCoreRegisters;
-  VirtualMemoryState physicalMemory;
-  VirtualMemoryState mappedMemory;
+  VirtualMemoryState memorySegments[RV32I_NUM_MEMORY_SEGMENTS];
   bool running;
   int exitCode;
 } Rv32iVm;

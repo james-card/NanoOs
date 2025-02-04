@@ -47,13 +47,16 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   }
 
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
-  if (virtualMemoryInit(&rv32iVm->physicalMemory, virtualMemoryFilename) != 0) {
+  if (virtualMemoryInit(
+    &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
+    virtualMemoryFilename) != 0
+  ) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
 
   if (virtualMemoryCopy(&programBinary, 0,
-    &rv32iVm->physicalMemory, RV32I_PROGRAM_START,
+    &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY], RV32I_PROGRAM_START,
     virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
     virtualMemoryCleanup(&programBinary, false);
@@ -62,17 +65,17 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   virtualMemoryCleanup(&programBinary, false);
 
   uint32_t instruction = 0;
-  virtualMemoryRead32(&rv32iVm->physicalMemory,
+  virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
     RV32I_PROGRAM_START, &instruction);
   // Initialize the rest of the program's memory space up to where the stack
   // will start.
-  virtualMemoryWrite32(&rv32iVm->physicalMemory,
+  virtualMemoryWrite32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
     RV32I_STACK_START - RV32I_INSTRUCTION_SIZE, 0);
-  virtualMemoryRead32(&rv32iVm->physicalMemory,
+  virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
     RV32I_PROGRAM_START, &instruction);
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
-  if (virtualMemoryInit(&rv32iVm->mappedMemory, virtualMemoryFilename) != 0) {
+  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], virtualMemoryFilename) != 0) {
     return -1;
   }
 
@@ -89,8 +92,8 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 ///
 /// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
-  virtualMemoryCleanup(&rv32iVm->mappedMemory, false);
-  virtualMemoryCleanup(&rv32iVm->physicalMemory, false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY], false);
 }
 
 /// @fn int32_t rv32iMemoryRead32(
@@ -106,17 +109,51 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
 ///
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
-  if (address & RV32I_CLINT_BASE_ADDR) {
-    // Mapped memory access - mask off the high bits
-    return virtualMemoryRead32(
-      &rv32iVm->mappedMemory,
-      address & RV32I_CLINT_ADDR_MASK,
-      value
-    );
-  } else {
-    // Physical memory access
-    return virtualMemoryRead32(&rv32iVm->physicalMemory, address, value);
-  }
+  return virtualMemoryRead32(
+    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+    address & RV32I_CLINT_ADDR_MASK,
+    value
+  );
+}
+
+/// @fn int32_t rv32iMemoryRead16(
+///   Rv32iVm *rv32iVm, uint32_t address, uint16_t *value);
+///
+/// @brief Read memory at the given address, handling both physical and mapped
+/// memory.
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 25 determines physical vs mapped).
+/// @param value Pointer to store the read value.
+///
+/// @return 0 on success, negative on error.
+int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
+  return virtualMemoryRead16(
+    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+    address & RV32I_CLINT_ADDR_MASK,
+    value
+  );
+}
+
+/// @fn int32_t rv32iMemoryRead8(
+///   Rv32iVm *rv32iVm, uint32_t address, uint8_t *value);
+///
+/// @brief Read memory at the given address, handling both physical and mapped
+/// memory.
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 25 determines physical vs mapped).
+/// @param value Pointer to store the read value.
+///
+/// @return 0 on success, negative on error.
+int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
+  return virtualMemoryRead8(
+    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+    address & RV32I_CLINT_ADDR_MASK,
+    value
+  );
 }
 
 /// @fn int32_t rv32iMemoryWrite32(
@@ -131,17 +168,96 @@ int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
 /// @param value Value to write.
 ///
 /// @return 0 on success, negative on error.
-int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+__attribute__((noinline)) int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  //// return virtualMemoryWrite32(
+  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+  ////   address & RV32I_CLINT_ADDR_MASK,
+  ////   value
+  //// );
   if (address & RV32I_CLINT_BASE_ADDR) {
     // Mapped memory access - mask off the high bits
     return virtualMemoryWrite32(
-      &rv32iVm->mappedMemory,
+      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
       address & RV32I_CLINT_ADDR_MASK,
       value
     );
   } else {
     // Physical memory access
-    return virtualMemoryWrite32(&rv32iVm->physicalMemory, address, value);
+    return virtualMemoryWrite32(
+      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
+      address,
+      value
+    );
+  }
+}
+
+/// @fn int32_t rv32iMemoryWrite16(
+///   Rv32iVm *rv32iVm, uint32_t address, uint32_t value)
+///
+/// @brief Write memory at the given address, handling both physical and mapped
+/// memory
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 25 determines physical vs mapped).
+/// @param value Value to write.
+///
+/// @return 0 on success, negative on error.
+__attribute__((noinline)) int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  //// return virtualMemoryWrite16(
+  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+  ////   address & RV32I_CLINT_ADDR_MASK,
+  ////   value
+  //// );
+  if (address & RV32I_CLINT_BASE_ADDR) {
+    // Mapped memory access - mask off the high bits
+    return virtualMemoryWrite16(
+      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
+      address & RV32I_CLINT_ADDR_MASK,
+      value
+    );
+  } else {
+    // Physical memory access
+    return virtualMemoryWrite16(
+      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
+      address,
+      value
+    );
+  }
+}
+
+/// @fn int32_t rv32iMemoryWrite8(
+///   Rv32iVm *rv32iVm, uint32_t address, uint32_t value)
+///
+/// @brief Write memory at the given address, handling both physical and mapped
+/// memory
+///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
+/// @param address 32-bit address (bit 25 determines physical vs mapped).
+/// @param value Value to write.
+///
+/// @return 0 on success, negative on error.
+__attribute__((noinline)) int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  //// return virtualMemoryWrite8(
+  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
+  ////   address & RV32I_CLINT_ADDR_MASK,
+  ////   value
+  //// );
+  if (address & RV32I_CLINT_BASE_ADDR) {
+    // Mapped memory access - mask off the high bits
+    return virtualMemoryWrite8(
+      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
+      address & RV32I_CLINT_ADDR_MASK,
+      value
+    );
+  } else {
+    // Physical memory access
+    return virtualMemoryWrite8(
+      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
+      address,
+      value
+    );
   }
 }
 
@@ -160,11 +276,11 @@ static inline int32_t fetchInstruction(
   uint32_t readStatus
     = rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
   //// printDebug("Read instruction\n");
-  printDebug("Got instruction 0x");
-  printDebug(*instruction, HEX);
-  printDebug(" at 0x");
-  printDebug(rv32iVm->rv32iCoreRegisters.pc, HEX);
-  printDebug("\n");
+  //// printDebug("Got instruction 0x");
+  //// printDebug(*instruction, HEX);
+  //// printDebug(" at 0x");
+  //// printDebug(rv32iVm->rv32iCoreRegisters.pc, HEX);
+  //// printDebug("\n");
 
   return readStatus;
 }
@@ -448,11 +564,11 @@ static inline int32_t executeStore(
   switch (funct3) {
     case RV32I_FUNCT3_SB: {
       // Store byte (lowest 8 bits)
-      return rv32iMemoryWrite32(rv32iVm, address, value & 0xFF);
+      return rv32iMemoryWrite8(rv32iVm, address, value & 0xFF);
     }
     case RV32I_FUNCT3_SH: {
       // Store halfword (lowest 16 bits)
-      return rv32iMemoryWrite32(rv32iVm, address, value & 0xFFFF);
+      return rv32iMemoryWrite16(rv32iVm, address, value & 0xFFFF);
     }
     case RV32I_FUNCT3_SW: {
       // Store word (all 32 bits)
@@ -493,6 +609,13 @@ static inline int32_t executeBranch(
     }
     case RV32I_FUNCT3_BNE: {
       // Branch if not equal
+      //// printDebug("pc = 0x");
+      //// printDebug(rv32iVm->rv32iCoreRegisters.pc, HEX);
+      //// printDebug("x7 = 0x");
+      //// printDebug(rv32iVm->rv32iCoreRegisters.x[7], HEX);
+      //// printDebug("x15 = 0x");
+      //// printDebug(rv32iVm->rv32iCoreRegisters.x[15], HEX);
+      printDebug("BNE\n");
       takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] != 
         rv32iVm->rv32iCoreRegisters.x[rs2];
       break;
@@ -651,7 +774,8 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       
       // Read string from VM memory
       char *buffer = (char*) malloc(length);
-      uint32_t bytesRead = virtualMemoryRead(&rv32iVm->physicalMemory,
+      uint32_t bytesRead
+        = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
         bufferAddress, length, buffer);
       
       // Write to Serial
@@ -696,6 +820,7 @@ static inline int32_t executeSystem(
   uint32_t funct3
 ) {
   // Handle ECALL/EBREAK first (funct3 == 0)
+  printDebug("executeSystem\n");
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
       return handleSyscall(rv32iVm);
@@ -1001,13 +1126,16 @@ int runRv32iProcess(int argc, char **argv) {
     //// printDebug("\n");
 
     returnValue = executeInstruction(&rv32iVm, instruction);
-    if (returnValue != 0) {
+    /*if (returnValue != 0) {
       //// printDebug("Exec instruction 0x");
       //// printDebug(instruction, HEX);
       //// printDebug(" returned status ");
       //// printDebug(returnValue);
       //// printDebug("\n");
-    }
+    } else if (rv32iVm.rv32iCoreRegisters.pc < 0x1000) {
+      //// printDebug("PC set before program\n");
+      returnValue = -1;
+    }*/
   }
   //// uint32_t runTime = getElapsedMilliseconds(startTime);
   //// printDebug("RV32I process exited.\n");
