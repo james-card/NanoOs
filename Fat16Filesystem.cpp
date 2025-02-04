@@ -587,20 +587,18 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     Fat16File *dstFile, off_t dstStart, size_t length
 ) {
   // Verify assumptions
-  printDebug("Copying ");
-  printDebug(length);
-  printDebug(" bytes from 0x");
-  printDebug((uintptr_t) srcFile, HEX);
-  printDebug(" at offset 0x");
-  printDebug(srcStart, HEX);
-  printDebug(" to 0x");
-  printDebug((uintptr_t) dstFile, HEX);
-  printDebug(" at offset 0x");
-  printDebug(dstStart, HEX);
-  printDebug("\n");
-  if ((srcFile->bytesPerSector != dstFile->bytesPerSector)
+  if (dstFile == NULL) {
+    // Nothing to copy to
+    return 0;
+  } else if ((srcFile != NULL)
+    && ((srcFile->bytesPerSector != dstFile->bytesPerSector)
       || ((srcStart & (srcFile->bytesPerSector - 1)) != 0)
-      || ((dstStart & (dstFile->bytesPerSector - 1)) != 0)
+    )
+  ) {
+    // Can't work with this
+    return 0;
+  } else if (
+      ((dstStart & (dstFile->bytesPerSector - 1)) != 0)
       || ((length & (dstFile->bytesPerSector - 1)) != 0)
   ) {
     return 0;
@@ -660,7 +658,7 @@ size_t fat16Copy(FilesystemState *fs, Fat16File *srcFile, off_t srcStart,
     }
 
     // Update positions
-    dstFile->currentPosition += srcFile->bytesPerSector;
+    dstFile->currentPosition += dstFile->bytesPerSector;
     remainingBytes -= dstFile->bytesPerSector;
     if (dstFile->currentPosition > dstFile->fileSize) {
       dstFile->fileSize = dstFile->currentPosition;
