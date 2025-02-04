@@ -62,6 +62,11 @@ extern "C"
 
 typedef uint32_t off_t;
 
+#ifdef size_t
+#undef size_t
+#endif // size_t
+#define size_t uint32_t
+
 typedef struct NanoOsFile NanoOsFile;
 #ifdef FILE
 #undef FILE
