@@ -493,40 +493,58 @@ static inline int32_t executeLoad(
   // Calculate effective address
   uint32_t address = rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
   
-  // Read full word from memory
-  uint32_t value = 0;
-  int32_t result = rv32iMemoryRead32(rv32iVm, address, &value);
-  if (result != 0) {
-    return result;
-  }
-  
-  // Extract and sign extend based on load type
+  // Read based on the load type
   switch (funct3) {
     case RV32I_FUNCT3_LB: {
       // Load byte and sign extend
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        ((int32_t) (value & 0xFF) << 24) >> 24;
+      uint8_t byteValue = 0;
+      int32_t result = rv32iMemoryRead8(rv32iVm, address, &byteValue);
+      if (result != 0) {
+        return result;
+      }
+      // Sign extend the byte
+      rv32iVm->rv32iCoreRegisters.x[rd] = ((int8_t) byteValue);
       break;
     }
     case RV32I_FUNCT3_LH: {
       // Load halfword and sign extend
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        ((int32_t) (value & 0xFFFF) << 16) >> 16;
+      uint16_t halfwordValue = 0;
+      int32_t result = rv32iMemoryRead16(rv32iVm, address, &halfwordValue);
+      if (result != 0) {
+        return result;
+      }
+      // Sign extend the halfword
+      rv32iVm->rv32iCoreRegisters.x[rd] = ((int16_t) halfwordValue);
       break;
     }
     case RV32I_FUNCT3_LW: {
       // Load word (no sign extension needed)
-      rv32iVm->rv32iCoreRegisters.x[rd] = value;
+      uint32_t wordValue = 0;
+      int32_t result = rv32iMemoryRead32(rv32iVm, address, &wordValue);
+      if (result != 0) {
+        return result;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = wordValue;
       break;
     }
     case RV32I_FUNCT3_LBU: {
       // Load byte unsigned (zero extend)
-      rv32iVm->rv32iCoreRegisters.x[rd] = value & 0xFF;
+      uint8_t byteValue = 0;
+      int32_t result = rv32iMemoryRead8(rv32iVm, address, &byteValue);
+      if (result != 0) {
+        return result;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = byteValue;
       break;
     }
     case RV32I_FUNCT3_LHU: {
       // Load halfword unsigned (zero extend)
-      rv32iVm->rv32iCoreRegisters.x[rd] = value & 0xFFFF;
+      uint16_t halfwordValue = 0;
+      int32_t result = rv32iMemoryRead16(rv32iVm, address, &halfwordValue);
+      if (result != 0) {
+        return result;
+      }
+      rv32iVm->rv32iCoreRegisters.x[rd] = halfwordValue;
       break;
     }
     default: {
@@ -615,7 +633,9 @@ static inline int32_t executeBranch(
       //// printDebug(rv32iVm->rv32iCoreRegisters.x[7], HEX);
       //// printDebug("x15 = 0x");
       //// printDebug(rv32iVm->rv32iCoreRegisters.x[15], HEX);
-      printDebug("BNE\n");
+      //// printDebug("BNE\n");
+      printDebug(immediate);
+      printDebug("\n");
       takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] != 
         rv32iVm->rv32iCoreRegisters.x[rs2];
       break;
@@ -820,7 +840,7 @@ static inline int32_t executeSystem(
   uint32_t funct3
 ) {
   // Handle ECALL/EBREAK first (funct3 == 0)
-  printDebug("executeSystem\n");
+  //// printDebug("executeSystem\n");
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
       return handleSyscall(rv32iVm);
@@ -987,10 +1007,16 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
     ((instruction >> 7) & 0x1F);
     
   // B-type immediate
-  int32_t immB = (((int32_t) instruction >> 19) & ~0x1FFF) |
-    ((instruction & 0x80) << 4) | // imm[11]
-    ((instruction >> 20) & 0x7E0) | // imm[10:5]
-    ((instruction >> 7) & 0x1E); // imm[4:1]
+  int32_t immB = (
+    // Sign extension from bit 12 (bit 31 of instruction)
+    ((int32_t)(instruction & 0x80000000) >> 19) |
+    // imm[11] (bit 7 of instruction)
+    ((instruction & 0x00000080) << 4) | 
+    // imm[10:5] (bits 30:25 of instruction)
+    ((instruction >> 20) & 0x7E0) |
+    // imm[4:1] (bits 11:8 of instruction)
+    ((instruction >> 7) & 0x1E)
+  );
     
   // U-type immediate
   int32_t immU = (int32_t) instruction & 0xFFFFF000;
