@@ -509,7 +509,8 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
 /// @fn int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
 ///   uint8_t whence)
 ///
-/// @brief Move the current position of the file to the specified position.
+/// @brief Move the current position of the file to the specified position
+/// using optimized cluster traversal.
 ///
 /// @param fs Pointer to the filesystem state structure maintained by the
 ///   filesystem process.
@@ -517,9 +518,8 @@ int fat16Write(FilesystemState *fs, Fat16File *file, const uint8_t *buffer,
 ///   object.
 /// @param offset A signed integer value that will be added to the specified
 ///   position.
-/// @param whence The location within the file to apply the offset to.  Valid
-///   values are SEEK_SET (the beginning of the file), SEEK_CUR (the current
-///   file positon), and SEEK_END (the end of the file).
+/// @param whence The location within the file to apply the offset to. Valid
+///   values are SEEK_SET (beginning), SEEK_CUR (current), SEEK_END (end).
 ///
 /// @return Returns 0 on success, -1 on failure.
 int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
@@ -546,36 +546,60 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
     return -1;
   }
   
-  // If seek target is before current position, reset to start
-  if (newPosition < file->currentPosition) {
-    file->currentPosition = 0;
-    file->currentCluster = file->firstCluster;
-  }
-  
-  // If no seeking needed, we're done
+  // If no movement needed, return early
   if (newPosition == file->currentPosition) {
     return 0;
   }
   
-  // Skip through cluster chain until we reach target position
-  while (file->currentPosition + file->bytesPerCluster <= newPosition) {
-    uint32_t fatBlock = file->fatStart + ((file->currentCluster *
-      sizeof(uint16_t)) / file->bytesPerSector);
-    if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
-      return -1;
+  // Calculate cluster positions
+  uint32_t currentClusterIndex = file->currentPosition / file->bytesPerCluster;
+  uint32_t targetClusterIndex = newPosition / file->bytesPerCluster;
+  uint32_t clustersToTraverse;
+  
+  // Reset to start if seeking backwards
+  if (newPosition < file->currentPosition) {
+    file->currentPosition = 0;
+    file->currentCluster = file->firstCluster;
+    clustersToTraverse = targetClusterIndex;
+  } else {
+    clustersToTraverse = targetClusterIndex - currentClusterIndex;
+  }
+  
+  // Fast path: no cluster traversal needed
+  if (clustersToTraverse == 0) {
+    file->currentPosition = newPosition;
+    return 0;
+  }
+  
+  // Read multiple FAT entries at once
+  uint32_t currentFatBlock = (uint32_t) -1;
+  uint16_t *fatEntries = (uint16_t*) fs->blockBuffer;
+  
+  while (clustersToTraverse > 0) {
+    uint32_t fatBlock = file->fatStart + 
+      ((file->currentCluster * sizeof(uint16_t)) / file->bytesPerSector);
+    
+    // Only read FAT block if different from current
+    if (fatBlock != currentFatBlock) {
+      if (fat16ReadBlock(fs, fatBlock, fs->blockBuffer)) {
+        return -1;
+      }
+      currentFatBlock = fatBlock;
     }
     
-    uint16_t nextCluster = *((uint16_t*) &fs->blockBuffer
-      [(file->currentCluster * sizeof(uint16_t)) % file->bytesPerSector]);
+    uint16_t nextCluster = fatEntries[(file->currentCluster * sizeof(uint16_t))
+      % file->bytesPerSector / sizeof(uint16_t)];
+      
     if (nextCluster >= FAT16_CLUSTER_CHAIN_END) {
       return -1;
     }
     
     file->currentCluster = nextCluster;
     file->currentPosition += file->bytesPerCluster;
+    clustersToTraverse--;
   }
   
-  // Final position adjustment
+  // Final position adjustment within cluster
   file->currentPosition = newPosition;
   return 0;
 }
