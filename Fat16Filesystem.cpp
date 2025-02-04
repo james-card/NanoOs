@@ -411,6 +411,8 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
   }
   
   uint32_t bytesRead = 0;
+  uint32_t startByte
+    = file->currentPosition & (((uint32_t) file->bytesPerSector) - 1);
   while (bytesRead < length) {
     uint32_t sectorInCluster = (((uint32_t) file->currentPosition) / 
       ((uint32_t) file->bytesPerSector))
@@ -423,14 +425,15 @@ int fat16Read(FilesystemState *fs, Fat16File *file, void *buffer,
       break;
     }
     
-    uint16_t toCopy = min(file->bytesPerSector, length - bytesRead);
-    memcpy((uint8_t*) buffer + bytesRead, fs->blockBuffer, toCopy);
+    uint16_t toCopy = min(file->bytesPerSector - startByte, length - bytesRead);
+    memcpy((uint8_t*) buffer + bytesRead, &fs->blockBuffer[startByte], toCopy);
     bytesRead += toCopy;
     file->currentPosition += toCopy;
     
     if (fat16HandleClusterTransition(fs, file, false)) {
       break;
     }
+    startByte = 0;
   }
   
   return bytesRead;
