@@ -210,7 +210,8 @@ Fat16File* fat16Fopen(FilesystemState *fs, const char *pathname,
   file->numberOfFats = buffer[FAT16_BOOT_NUMBER_OF_FATS];
   file->rootEntries = *((uint16_t*) &buffer[FAT16_BOOT_ROOT_ENTRIES]);
   file->sectorsPerFat = *((uint16_t*) &buffer[FAT16_BOOT_SECTORS_PER_FAT]);
-  file->bytesPerCluster = file->bytesPerSector * file->sectorsPerCluster;
+  file->bytesPerCluster
+    = (uint32_t) file->bytesPerSector * (uint32_t) file->sectorsPerCluster;
   file->fatStart = fs->startLba + file->reservedSectors;
   file->rootStart = file->fatStart + (file->numberOfFats * file->sectorsPerFat);
   file->dataStart = file->rootStart +
