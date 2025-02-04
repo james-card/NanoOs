@@ -67,6 +67,11 @@ int32_t virtualMemoryInit(
   fseek(state->fileHandle, 0, SEEK_END);
   state->fileSize = ftell(state->fileHandle);
   fseek(state->fileHandle, 0, SEEK_SET);
+  printDebug("Virtual memory file ");
+  printDebug(state->filename);
+  printDebug(" is ");
+  printDebug(state->fileSize);
+  printDebug(" bytes in size.\n");
 
   return 0;
 }
@@ -111,8 +116,14 @@ void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
 
   // Make sure the data exists
   if (state->fileSize < endOffset) {
-    filesystemFCopy(NULL, 0,
-      state->fileHandle, state->fileSize, endOffset - state->fileSize);
+    // Align the length if we need to.
+    uint32_t length = endOffset - state->fileSize;
+    if (length & (((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1)) {
+      length &= ~(((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1);
+      length += VIRTUAL_MEMORY_PAGE_SIZE;
+    }
+
+    filesystemFCopy(NULL, 0, state->fileHandle, state->fileSize, length);
   }
 
   return;
@@ -140,14 +151,23 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
   }
 
   // Need to load new data into the buffer.
+  printDebug("Offset 0x");
+  printDebug(offset, HEX);
+  printDebug(" is not in buffer\n");
   virtualMemoryPrepare(state, offset + VIRTUAL_MEMORY_BUFFER_SIZE);
 
   // Read new buffer from the requested location.
   state->bufferBaseOffset
     = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
+  printDebug("Seeking to base offset 0x");
+  printDebug(state->bufferBaseOffset, HEX);
+  printDebug("\n");
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
     = fread(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+  printDebug("Read ");
+  printDebug(state->bufferValidBytes);
+  printDebug(" bytes\n");
 
   if (state->bufferValidBytes == 0) {
     return NULL;
@@ -206,6 +226,9 @@ int32_t virtualMemoryRead32(
   }
 
   int returnValue = 0;
+  printDebug("Reading offset 0x");
+  printDebug(offset, HEX);
+  printDebug("\n");
   uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *value = *memoryAddr;
@@ -401,7 +424,7 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
 ) {
   // First, flush the buffers if there's anything in them.
   if (srcVm->bufferValidBytes > 0) {
-    // Write current buffer if it contains data
+    // Write current source buffer if it contains data
     fseek(srcVm->fileHandle, srcVm->bufferBaseOffset, SEEK_SET);
     fwrite(srcVm->buffer, 1, srcVm->bufferValidBytes, srcVm->fileHandle);
   }
@@ -409,7 +432,7 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   srcVm->bufferBaseOffset = 0;
 
   if (dstVm->bufferValidBytes > 0) {
-    // Write current buffer if it contains data
+    // Write current destination buffer if it contains data
     fseek(dstVm->fileHandle, dstVm->bufferBaseOffset, SEEK_SET);
     fwrite(dstVm->buffer, 1, dstVm->bufferValidBytes, dstVm->fileHandle);
   }
