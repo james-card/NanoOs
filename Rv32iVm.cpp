@@ -272,15 +272,8 @@ __attribute__((noinline)) int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t a
 static inline int32_t fetchInstruction(
   Rv32iVm *rv32iVm, uint32_t *instruction
 ) {
-  //// printDebug("Reading instruction\n");
   uint32_t readStatus
     = rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
-  //// printDebug("Read instruction\n");
-  //// printDebug("Got instruction 0x");
-  //// printDebug(*instruction, HEX);
-  //// printDebug(" at 0x");
-  //// printDebug(rv32iVm->rv32iCoreRegisters.pc, HEX);
-  //// printDebug("\n");
 
   return readStatus;
 }
@@ -627,15 +620,6 @@ static inline int32_t executeBranch(
     }
     case RV32I_FUNCT3_BNE: {
       // Branch if not equal
-      //// printDebug("pc = 0x");
-      //// printDebug(rv32iVm->rv32iCoreRegisters.pc, HEX);
-      //// printDebug("x7 = 0x");
-      //// printDebug(rv32iVm->rv32iCoreRegisters.x[7], HEX);
-      //// printDebug("x15 = 0x");
-      //// printDebug(rv32iVm->rv32iCoreRegisters.x[15], HEX);
-      //// printDebug("BNE\n");
-      printDebug(immediate);
-      printDebug("\n");
       takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] != 
         rv32iVm->rv32iCoreRegisters.x[rs2];
       break;
@@ -771,9 +755,6 @@ static inline int32_t executeJumpAndLinkRegister(
 static int32_t handleSyscall(Rv32iVm *rv32iVm) {
   // Get syscall number from a7 (x17)
   uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters.x[17];
-  //// printDebug("Handling syscall ");
-  //// printDebug(syscallNumber);
-  //// printDebug("\n");
   
   switch (syscallNumber) {
     case RV32I_SYSCALL_WRITE: {
@@ -840,7 +821,6 @@ static inline int32_t executeSystem(
   uint32_t funct3
 ) {
   // Handle ECALL/EBREAK first (funct3 == 0)
-  //// printDebug("executeSystem\n");
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
       return handleSyscall(rv32iVm);
@@ -1134,37 +1114,23 @@ int runRv32iProcess(int argc, char **argv) {
   }
 
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
-  rv32iVm.rv32iCoreRegisters.x[0] = 0;
   rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  //// printDebug("Entering main RV32I instruction loop.\n");
   //// uint32_t startTime = getElapsedMilliseconds(0);
+  printDebug("RV32I process starting.\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
-      //// printDebug("Fetch instruction failed\n");
       returnValue = -1;
       break;
     }
-    //// printDebug("Got instruction 0x");
-    //// printDebug(instruction, HEX);
-    //// printDebug("\n");
 
+    rv32iVm.rv32iCoreRegisters.x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
-    /*if (returnValue != 0) {
-      //// printDebug("Exec instruction 0x");
-      //// printDebug(instruction, HEX);
-      //// printDebug(" returned status ");
-      //// printDebug(returnValue);
-      //// printDebug("\n");
-    } else if (rv32iVm.rv32iCoreRegisters.pc < 0x1000) {
-      //// printDebug("PC set before program\n");
-      returnValue = -1;
-    }*/
   }
   //// uint32_t runTime = getElapsedMilliseconds(startTime);
-  //// printDebug("RV32I process exited.\n");
+  printDebug("RV32I process exited.\n");
   //// printDebug("Runtime: ");
   //// printDebug(runTime);
   //// printDebug(" milliseconds\n");
