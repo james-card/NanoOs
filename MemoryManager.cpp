@@ -613,18 +613,18 @@ void* runMemoryManager(void *args) {
   MemoryManagerState memoryManagerState;
   ProcessMessage *schedulerMessage = NULL;
   jmp_buf returnBuffer;
-  uintptr_t dynamicMemorySize = 0;
+  //// uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
     allocateMemoryManagerStack(&memoryManagerState, returnBuffer,
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
   
   //// printMemoryManagerState(&memoryManagerState);
-  dynamicMemorySize
-    = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
-  printConsole("Using ");
-  printConsole(dynamicMemorySize);
-  printConsole(" bytes of dynamic memory.\n");
+  //// dynamicMemorySize
+  ////   = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
+  //// printConsole("Using ");
+  //// printConsole(dynamicMemorySize);
+  //// printConsole(" bytes of dynamic memory.\n");
   releaseConsole();
   
   while (1) {
