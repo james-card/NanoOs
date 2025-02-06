@@ -199,11 +199,11 @@ int processQueuePush(
   if ((processQueue == NULL)
     || (processQueue->numElements >= SCHEDULER_NUM_PROCESSES)
   ) {
-    printString("ERROR!!!  Could not push process ");
-    printInt(processDescriptor->processId);
-    printString(" onto ");
-    printString(processQueue->name);
-    printString(" queue!!!\n");
+    //// printString("ERROR!!!  Could not push process ");
+    //// printInt(processDescriptor->processId);
+    //// printString(" onto ");
+    //// printString(processQueue->name);
+    //// printString(" queue!!!\n");
     return ENOMEM;
   }
 
@@ -452,13 +452,13 @@ int schedulerSendProcessMessageToProcess(
 ) {
   int returnValue = processSuccess;
   if (processHandle == NULL) {
-    printString(
-      "ERROR:  Attempt to send scheduler processMessage to NULL process handle.\n");
+    //// printString(
+    ////   "ERROR:  Attempt to send scheduler processMessage to NULL process handle.\n");
     returnValue = processError;
     return returnValue;
   } else if (processMessage == NULL) {
-    printString(
-      "ERROR:  Attempt to send NULL scheduler processMessage to process handle.\n");
+    //// printString(
+    ////   "ERROR:  Attempt to send NULL scheduler processMessage to process handle.\n");
     returnValue = processError;
     return returnValue;
   }
@@ -470,7 +470,7 @@ int schedulerSendProcessMessageToProcess(
 
   void *processReturnValue = coroutineResume(processHandle, processMessage);
   if (processReturnValue == COROUTINE_CORRUPT) {
-    printString("ERROR:  Called process is corrupted!!!\n");
+    //// printString("ERROR:  Called process is corrupted!!!\n");
     returnValue = processError;
     return returnValue;
   }
@@ -478,7 +478,7 @@ int schedulerSendProcessMessageToProcess(
   if (processMessageDone(processMessage) != true) {
     // This is our only indication from the called process that something went
     // wrong.  Return an error status here.
-    printString("ERROR:  Called process did not mark sent message done.\n");
+    //// printString("ERROR:  Called process did not mark sent message done.\n");
     returnValue = processError;
   }
 
@@ -575,9 +575,9 @@ int schedulerSendNanoOsMessageToPid(
   int returnValue = processError;
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
-    printString("ERROR!!!  ");
-    printInt(pid);
-    printString(" is not a valid PID.\n");
+    //// printString("ERROR!!!  ");
+    //// printInt(pid);
+    //// printString(" is not a valid PID.\n");
     return returnValue; // processError
   }
 
@@ -628,8 +628,8 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
     // out of the structure we already have.
     returnValue = reallocMessage.ptr;
   } else {
-    printString(
-      "Warning!!!  Memory manager did not mark realloc message done.\n");
+    //// printString(
+    ////   "Warning!!!  Memory manager did not mark realloc message done.\n");
   }
   // The handler pushes the message back onto our queue, which is not what we
   // want.  Pop it off again.
@@ -716,8 +716,8 @@ void kfree(void *ptr) {
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
     sent);
   if (processMessageDone(sent) == false) {
-    printString(
-      "Warning!!!  Memory manager did not mark free message done.\n");
+    //// printString(
+    ////   "Warning!!!  Memory manager did not mark free message done.\n");
   }
   processMessageRelease(sent);
 
@@ -799,9 +799,9 @@ int schedulerSetPortShell(
   int returnValue = processError;
 
   if (shell >= NANO_OS_NUM_PROCESSES) {
-    printString("ERROR:  schedulerSetPortShell called with invalid shell PID ");
-    printInt(shell);
-    printString("\n");
+    //// printString("ERROR:  schedulerSetPortShell called with invalid shell PID ");
+    //// printInt(shell);
+    //// printString("\n");
     return returnValue; // processError
   }
 
@@ -872,16 +872,16 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
     (NanoOsMessageData) 0, (NanoOsMessageData) 0, true);
   if (processMessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    //// printf("ERROR!!!  Could not communicate with scheduler.\n");
     goto exit;
   }
 
   waitStatus = processMessageWaitForDone(processMessage, timeout);
   if (waitStatus != processSuccess) {
     if (waitStatus == processTimedout) {
-      printf("Command to get the number of running processes timed out.\n");
+      //// printf("Command to get the number of running processes timed out.\n");
     } else {
-      printf("Command to get the number of running processes failed.\n");
+      //// printf("Command to get the number of running processes failed.\n");
     }
 
     // Without knowing how many processes there are, we can't continue.  Bail.
@@ -890,15 +890,15 @@ ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
 
   numProcessDescriptors = nanoOsMessageDataValue(processMessage, ProcessId);
   if (numProcessDescriptors == 0) {
-    printf("ERROR:  Number of running processes returned from the "
-      "scheduler is 0.\n");
+    //// printf("ERROR:  Number of running processes returned from the "
+    ////  "scheduler is 0.\n");
     goto releaseMessage;
   }
 
 releaseMessage:
   if (processMessageRelease(processMessage) != processSuccess) {
-    printf("ERROR!!!  Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+    //// printf("ERROR!!!  Could not release message sent to scheduler for "
+    ////   "getting the number of running processes.\n");
   }
 
 exit:
@@ -936,8 +936,8 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   ProcessInfo *processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
     + ((numProcessDescriptors - 1) * sizeof(ProcessInfoElement)));
   if (processInfo == NULL) {
-    printf(
-      "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
+    //// printf(
+    ////   "ERROR:  Could not allocate memory for processInfo in getProcessInfo.\n");
     goto exit;
   }
 
@@ -955,16 +955,16 @@ ProcessInfo* schedulerGetProcessInfo(void) {
     SCHEDULER_GET_PROCESS_INFO, /* func= */ 0, (intptr_t) processInfo, true);
 
   if (processMessage == NULL) {
-    printf("ERROR:  Could not send scheduler message to get process info.\n");
+    //// printf("ERROR:  Could not send scheduler message to get process info.\n");
     goto freeMemory;
   }
 
   waitStatus = processMessageWaitForDone(processMessage, &timeout);
   if (waitStatus != processSuccess) {
     if (waitStatus == processTimedout) {
-      printf("Command to get process information timed out.\n");
+      //// printf("Command to get process information timed out.\n");
     } else {
-      printf("Command to get process information failed.\n");
+      //// printf("Command to get process information failed.\n");
     }
 
     // Without knowing the data for the processes, we can't display them.  Bail.
@@ -972,16 +972,16 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   }
 
   if (processMessageRelease(processMessage) != processSuccess) {
-    printf("ERROR!!!  Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+    //// printf("ERROR!!!  Could not release message sent to scheduler for "
+    ////   "getting the number of running processes.\n");
   }
 
   return processInfo;
 
 releaseMessage:
   if (processMessageRelease(processMessage) != processSuccess) {
-    printf("ERROR!!!  Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+    //// printf("ERROR!!!  Could not release message sent to scheduler for "
+    ////   "getting the number of running processes.\n");
   }
 
 freeMemory:
@@ -1004,7 +1004,7 @@ int schedulerKillProcess(ProcessId processId) {
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
     (NanoOsMessageData) 0, (NanoOsMessageData) processId, true);
   if (processMessage == NULL) {
-    printf("ERROR!!!  Could not communicate with scheduler.\n");
+    //// printf("ERROR!!!  Could not communicate with scheduler.\n");
     return 1;
   }
 
@@ -1022,24 +1022,24 @@ int schedulerKillProcess(ProcessId processId) {
       = (NanoOsMessage*) processMessageData(processMessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
-      printf("Process terminated.\n");
+      //// printf("Process terminated.\n");
     } else {
-      printf("Process termination returned status \"%s\".\n",
-        strerror(returnValue));
+      //// printf("Process termination returned status \"%s\".\n",
+      ////   strerror(returnValue));
     }
   } else {
     returnValue = 1;
     if (waitStatus == processTimedout) {
-      printf("Command to kill PID %d timed out.\n", processId);
+      //// printf("Command to kill PID %d timed out.\n", processId);
     } else {
-      printf("Command to kill PID %d failed.\n", processId);
+      //// printf("Command to kill PID %d failed.\n", processId);
     }
   }
 
   if (processMessageRelease(processMessage) != processSuccess) {
     returnValue = 1;
-    printf("ERROR!!!  "
-      "Could not release message sent to scheduler for kill command.\n");
+    //// printf("ERROR!!!  "
+    ////   "Could not release message sent to scheduler for kill command.\n");
   }
 
   return returnValue;
@@ -1066,7 +1066,7 @@ int schedulerRunProcess(const CommandEntry *commandEntry,
   CommandDescriptor *commandDescriptor
     = (CommandDescriptor*) malloc(sizeof(CommandDescriptor));
   if (commandDescriptor == NULL) {
-    printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
+    //// printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
     return returnValue; // 1
   }
   commandDescriptor->consoleInput = consoleInput;
@@ -1078,7 +1078,7 @@ int schedulerRunProcess(const CommandEntry *commandEntry,
     (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
     true);
   if (sent == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
+    //// printString("ERROR!!!  Could not communicate with scheduler.\n");
     return returnValue; // 1
   }
   schedulerWaitForProcessComplete();
@@ -1106,7 +1106,7 @@ UserId schedulerGetProcessUser(void) {
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
     /* func= */ 0, /* data= */ 0, true);
   if (processMessage == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
+    //// printString("ERROR!!!  Could not communicate with scheduler.\n");
     return userId; // -1
   }
 
@@ -1129,7 +1129,7 @@ int schedulerSetProcessUser(UserId userId) {
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_SET_PROCESS_USER,
     /* func= */ 0, /* data= */ userId, true);
   if (processMessage == NULL) {
-    printString("ERROR!!!  Could not communicate with scheduler.\n");
+    //// printString("ERROR!!!  Could not communicate with scheduler.\n");
     return returnValue; // -1
   }
 
@@ -1138,8 +1138,8 @@ int schedulerSetProcessUser(UserId userId) {
   processMessageRelease(processMessage);
 
   if (returnValue != 0) {
-    printf("Scheduler returned \"%s\" for setProcessUser.\n",
-      strerror(returnValue));
+    //// printf("Scheduler returned \"%s\" for setProcessUser.\n",
+    ////   strerror(returnValue));
   }
 
   return returnValue;
@@ -1163,9 +1163,9 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   if (fdIndex <= allProcesses[runningProcessId].numFileDescriptors) {
     returnValue = &allProcesses[runningProcessId].fileDescriptors[fdIndex - 1];
   } else {
-    printString("ERROR:  Received request for unknown stream ");
-    printInt((intptr_t) stream);
-    printString(".\n");
+    //// printString("ERROR:  Received request for unknown stream ");
+    //// printInt((intptr_t) stream);
+    //// printString(".\n");
   }
 
   return returnValue;
@@ -1207,15 +1207,15 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
 
   // printf sends synchronous messages to the console, which we can't do.
   // Use the non-blocking printString instead.
-  printString("Out of process slots to launch process.\n");
+  //// printString("Out of process slots to launch process.\n");
   sendNanoOsMessageToPid(commandDescriptor->callingProcess,
     SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
   commandLine = stringDestroy(commandLine);
   free(commandDescriptor); commandDescriptor = NULL;
   if (processMessageRelease(processMessage) != processSuccess) {
-    printString("ERROR!!!  "
-      "Could not release message from handleSchedulerMessage "
-      "for invalid message type.\n");
+    //// printString("ERROR!!!  "
+    ////   "Could not release message from handleSchedulerMessage "
+    ////   "for invalid message type.\n");
   }
 
   return;
@@ -1259,20 +1259,20 @@ static ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
     ) {
-      printString(
-        "ERROR!!!  Could not configure process handle for new command.\n");
+      //// printString(
+      ////   "ERROR!!!  Could not configure process handle for new command.\n");
     }
     if (assignMemory(commandDescriptor->consoleInput,
       processDescriptor->processId) != 0
     ) {
-      printString(
-        "WARNING:  Could not assign console input to new process.\n");
-      printString("Memory leak.\n");
+      //// printString(
+      ////   "WARNING:  Could not assign console input to new process.\n");
+      //// printString("Memory leak.\n");
     }
     if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
-      printString(
-        "WARNING:  Could not assign command descriptor to new process.\n");
-      printString("Memory leak.\n");
+      //// printString(
+      ////   "WARNING:  Could not assign command descriptor to new process.\n");
+      //// printString("Memory leak.\n");
     }
 
     processDescriptor->name = commandEntry->name;
@@ -1282,7 +1282,7 @@ static ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
         commandDescriptor->consolePort, processDescriptor->processId)
         != processSuccess
       ) {
-        printString("WARNING:  Could not assign console port to process.\n");
+        //// printString("WARNING:  Could not assign console port to process.\n");
       }
     }
 
@@ -1332,14 +1332,14 @@ static ProcessDescriptor* launchForegroundProcess(
   if (assignMemory(commandDescriptor->consoleInput,
     NANO_OS_SCHEDULER_PROCESS_ID) != 0
   ) {
-    printString(
-      "WARNING:  Could not protect console input from deletion.\n");
-    printString("Undefined behavior.\n");
+    //// printString(
+    ////   "WARNING:  Could not protect console input from deletion.\n");
+    //// printString("Undefined behavior.\n");
   }
   if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-    printString(
-      "WARNING:  Could not protect command descriptor from deletion.\n");
-    printString("Undefined behavior.\n");
+    //// printString(
+    ////   "WARNING:  Could not protect command descriptor from deletion.\n");
+    //// printString("Undefined behavior.\n");
   }
 
   // Kill and clear out the calling process.
@@ -1354,10 +1354,10 @@ static ProcessDescriptor* launchForegroundProcess(
     MEMORY_MANAGER_FREE_PROCESS_MEMORY,
     /* func= */ 0, processDescriptor->processId)
   ) {
-    printString("WARNING:  Could not release memory for process ");
-    printInt(processDescriptor->processId);
-    printString("\n");
-    printString("Memory leak.\n");
+    //// printString("WARNING:  Could not release memory for process ");
+    //// printInt(processDescriptor->processId);
+    //// printString("\n");
+    //// printString("Memory leak.\n");
   }
 
   return launchProcess(schedulerState, processMessage, commandDescriptor,
@@ -1685,8 +1685,8 @@ int schedulerRunProcessCommandHandler(
     = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
   if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-    printString("WARNING:  Could not assign consoleInput to scheduler.\n");
-    printString("Undefined behavior.\n");
+    //// printString("WARNING:  Could not assign consoleInput to scheduler.\n");
+    //// printString("Undefined behavior.\n");
   }
   commandDescriptor->schedulerState = schedulerState;
   bool backgroundProcess = false;
@@ -1794,8 +1794,8 @@ int schedulerRunProcessCommandHandler(
         commandDescriptor->consolePort, curProcessDescriptor->processId)
         != processSuccess
       ) {
-        printString(
-          "WARNING:  Could not assign console port input to process.\n");
+        //// printString(
+        ////   "WARNING:  Could not assign console port input to process.\n");
       }
     }
 
@@ -1917,8 +1917,8 @@ int schedulerKillProcessCommandHandler(
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
         if (processMessageSetDone(processMessage) != processSuccess) {
-          printString("ERROR!!!  Could not mark message done in "
-            "schedulerKillProcessCommandHandler.\n");
+          //// printString("ERROR!!!  Could not mark message done in "
+          ////   "schedulerKillProcessCommandHandler.\n");
         }
 
         // Do *NOT* push the process back onto the free queue in this case.
@@ -1929,28 +1929,28 @@ int schedulerKillProcessCommandHandler(
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
       if (processMessageSetDone(processMessage) != processSuccess) {
-        printString("ERROR!!!  Could not mark message done in "
-          "schedulerKillProcessCommandHandler.\n");
+        //// printString("ERROR!!!  Could not mark message done in "
+        ////   "schedulerKillProcessCommandHandler.\n");
       }
       if (processMessageRelease(schedulerProcessCompleteMessage)
         != processSuccess
       ) {
-        printString("ERROR!!!  "
-          "Could not release schedulerProcessCompleteMessage.\n");
+        //// printString("ERROR!!!  "
+        ////   "Could not release schedulerProcessCompleteMessage.\n");
       }
     }
   } else {
     // Tell the caller that we've failed.
     nanoOsMessage->data = EINVAL; // Invalid argument
     if (processMessageSetDone(processMessage) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not mark message done in schedulerKillProcessCommandHandler.\n");
+      //// printString("ERROR!!!  "
+      ////   "Could not mark message done in schedulerKillProcessCommandHandler.\n");
     }
     if (processMessageRelease(schedulerProcessCompleteMessage)
       != processSuccess
     ) {
-      printString("ERROR!!!  "
-        "Could not release schedulerProcessCompleteMessage.\n");
+      //// printString("ERROR!!!  "
+      ////   "Could not release schedulerProcessCompleteMessage.\n");
     }
   }
 
@@ -2169,9 +2169,9 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
       if (processMessageRelease(message) != processSuccess) {
-        printString("ERROR!!!  "
-          "Could not release message from handleSchedulerMessage "
-          "for invalid message type.\n");
+        //// printString("ERROR!!!  "
+        ////   "Could not release message from handleSchedulerMessage "
+        ////   "for invalid message type.\n");
       }
       return;
     }
@@ -2183,8 +2183,8 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
       // back of our own queue again and try again later.
       if (lastReturnValue == 0) {
         // Only print out a message if this is the first time we've failed.
-        printString("Scheduler command handler failed.\n");
-        printString("Pushing message back onto our own queue.\n");
+        //// printString("Scheduler command handler failed.\n");
+        //// printString("Pushing message back onto our own queue.\n");
       }
       processMessageQueuePush(getRunningProcess(), message);
     }
@@ -2245,10 +2245,10 @@ void runScheduler(SchedulerState *schedulerState) {
     = coroutineResume(processDescriptor->processHandle, NULL);
 
   if (processReturnValue == COROUTINE_CORRUPT) {
-    printString("ERROR!!!  Process corruption detected!!!\n");
-    printString("          Removing process ");
-    printInt(processDescriptor->processId);
-    printString(" from process queues.\n");
+    //// printString("ERROR!!!  Process corruption detected!!!\n");
+    //// printString("          Removing process ");
+    //// printInt(processDescriptor->processId);
+    //// printString(" from process queues.\n");
 
     processDescriptor->name = NULL;
     processDescriptor->userId = NO_USER_ID;
@@ -2263,8 +2263,8 @@ void runScheduler(SchedulerState *schedulerState) {
         (intptr_t) schedulerProcessCompleteMessage,
         processDescriptor->processId);
     } else {
-      printString("WARNING:  Could not allocate "
-        "schedulerProcessCompleteMessage.  Memory leak.\n");
+      //// printString("WARNING:  Could not allocate "
+      ////   "schedulerProcessCompleteMessage.  Memory leak.\n");
       // If we can't allocate the first message, we can't allocate the second
       // one either, so bail.
       return;
@@ -2283,8 +2283,8 @@ void runScheduler(SchedulerState *schedulerState) {
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         freeProcessMemoryMessage);
     } else {
-      printString("WARNING:  Could not allocate "
-        "freeProcessMemoryMessage.  Memory leak.\n");
+      //// printString("WARNING:  Could not allocate "
+      ////   "freeProcessMemoryMessage.  Memory leak.\n");
     }
 
     return;
@@ -2386,7 +2386,7 @@ int schedulerRunSchedulerProcess(
 
   char *consoleInput = (char*) kmalloc(strlen(commandString) + 1);
   if (consoleInput == NULL) {
-    printString("ERROR!  Could not allocate consoleInput.\n");
+    //// printString("ERROR!  Could not allocate consoleInput.\n");
     return returnValue; // 1
   }
   strcpy(consoleInput, commandString);
@@ -2394,7 +2394,7 @@ int schedulerRunSchedulerProcess(
   CommandDescriptor *commandDescriptor
     = (CommandDescriptor*) kmalloc(sizeof(CommandDescriptor));
   if (commandDescriptor == NULL) {
-    printString("ERROR!  Could not allocate CommandDescriptor.\n");
+    //// printString("ERROR!  Could not allocate CommandDescriptor.\n");
     return returnValue; // 1
   }
   commandDescriptor->consoleInput = consoleInput;
