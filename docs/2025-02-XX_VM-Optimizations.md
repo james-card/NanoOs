@@ -20,7 +20,13 @@ I thought perhaps there might be another optimization I could make to fseek.  It
 
 OK, what else?  Well, I knew from my previous debugging work that the program was jumping backward 28 bytes in the loop it was in.  That's beyond the 16 bytes that are available in the virtual memory state cache.  So I got curious what would happen if I doubled the size of the cache.  Result:  Immediately and consistently knocked another second off the runtime.  Cool!
 
-Now, I had a problem, though.  Initially, I was talking about two virtual memory states with 16-byte caches.  That made the total size of the RV32I VM 257 bytes, which was acceptable in my 340-byte process stacks.  Now, I was talking about three virtual memory states with 32-byte caches.  The total size of the new VM state object was 348 bytes.  So, I was beyond the allowable size of a single process stack just with that one object.  Any function calls at all were just flat out of the question.
+Now, I had a problem, though.  Initially, I was talking about two virtual memory states with 16-byte caches.  That made the total size of the RV32I VM 257 bytes, which was acceptable in my 340-byte process stacks.  Now, I was talking about three virtual memory states with 32-byte caches.  The total size of the new VM state object was 348 bytes.  So, I was beyond the allowable size of a single process stack just with that one object.  Any function calls at all were just flat out of the question.  So, I needed to reduce the total size of the VM's state object.
+
+The first idea that came to mind was that I could just allocate all of the virtual memory states in dynamic memory.  That would work, but it would be suboptimal for two reasons:  (1) We would now be talking about allocating 96 bytes plus the size of of the rest of three state objects in dynamic memory for a single process, which is quite a lot; and (2) I don't really need 32 bytes of cache for each memory segment.  32 bytes of cache for the physical memory segment definitely seemed to help, but it wouldn't be as useful for the stack or mapped memory segments.
+
+So, I changed the internal buffer of the VirtualMemoryState object to be dynamically allocated and allocated 32 bytes for the physical memory, 16 bytes for the stack, and 4 bytes for the mapped memory.  With the buffer allocated as a pointer (and its size allocated as a `uint16_t`), this brought the total size of the VM's state object down to 264 bytes.  Still a little more than I would like, but acceptable.  If I run into more problems down the line, I can convert the entire virtual memory array into dynamic memory too.  Hopefully, that won't be necessary.
+
+At this point, my execution time is down to about 3.75 seconds, or a little better than a 3.5X improvement in speed over the original baseline.  Much better, but still a long way to go.
 
 To be continued...
 
