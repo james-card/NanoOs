@@ -1,0 +1,19 @@
+# XX-Feb-2025 - VM Optimizations
+
+When last we left, "Hello, world!" was taking 12 seconds to run.  I suspected that one of the issues was fseek.  As much as I had improved it, I was still seeking forward and backward 16 MB at a time to do stack operations and program reads.  So, I was completely ignoring the principle of locality of reference.  Absolutely nothing was making use of the cache in the virtual memory system.
+
+I figured that I could gain pretty substantial performance improvements if I could avoid fseek as much as possible.  That obviously wasn't going to be possible as long as I had the program and the stack in the same virtual memory segment.  So, my first course of action was to decouple the two.
+
+Unfortunately, there were a few problems with this.  Also when we left off, I was completely out of flash storage for more program logic.  Adding support for a third memory segment was obviously going to take more program space.  So, the first thing I had to do was free up some space.  There were a few different routes I had to do this, but the easiest way was just to remove print statements.  So, the first thing I did was go through the scheduler (which was the library with the most prints) and comment out all the print statements.  That reclaimed about 1.5 KB, which was enough to work with.
+
+I added a third memory segment between physical memory and mapped memory and I made the new stack segment begin at the same address as the mapped memory.  Why?  Because the RV32I architecture uses a "subtract-then-reference" stack push mechanism.  That means that that the last address used by the stack segment would never be more than four bytes less than the starting address of the mapped memory address (since the size of a stack push is four bytes).
+
+Mapped meory begins at offset 0x02000000 in my VM, which means that the first value on the stack would reside at offset 0x01FFFFFC.  I had previously defined the end of physical memory for the process to be 0x00FFFFFF.  Anyone see the pattern here?  The segment of memory used can be determined by doing a right-shift of 24 bits of the memory address.  i.e. Physical memory addresses use segment 0x00, stack addresses use segment 0x01, and mapped memory addresses use segment 0x02.
+
+Unfortunately - and this is where the extra program logic comes in - I had to have a new function that could determine the memory segment and actual address offset to use given a memory address.  For physical memory addresses, there's literally no change, all you have to do is grab the first eight bits of the address for the memory segment and you're done.  For mapped memory, you have to grab the first eight bits for the segment and then take the lower 24 bits for the offset into the segment.  For stack, it's a little more complicated.  You have to take the first 8 bits for the segment index and then take 0x02000000 minus the provided address to get the offset into the segment.  This allows for linear increase into the segment instead of working backward from the end of it.
+
+New calculations added with new memory segments and it was time to give it a whirl.  First run:  4 seconds to run "Hello, world!".  That's a 3X improvement just based on that one change!  Still a long way to go to get to something useful, but not bad for a first pass and such a simple change!
+
+To be continued...
+
+[Table of Contents](.)
