@@ -20,7 +20,7 @@ I thought perhaps there might be another optimization I could make to fseek.  It
 
 OK, what else?  Well, I knew from my previous debugging work that the program was jumping backward 28 bytes in the loop it was in.  That's beyond the 16 bytes that are available in the virtual memory state cache.  So I got curious what would happen if I doubled the size of the cache.  Result:  Immediately and consistently knocked another second off the runtime.  Cool!
 
-Now, I had a problem, though.  Initially, I was talking about two virtual memory states with 16-byte caches.  Now, I was talking about three virtual memory states with 32-byte caches.  The total size of the new VM state object was now 348 bytes.  The stack size of a process in NanoOs is only 340 bytes.  So, I was beyond the allowable size of a single process stack just with that one object.  Any function calls at all were just flat out of the question.
+Now, I had a problem, though.  Initially, I was talking about two virtual memory states with 16-byte caches.  That made the total size of the RV32I VM 257 bytes, which was acceptable in my 340-byte process stacks.  Now, I was talking about three virtual memory states with 32-byte caches.  The total size of the new VM state object was 348 bytes.  So, I was beyond the allowable size of a single process stack just with that one object.  Any function calls at all were just flat out of the question.
 
 To be continued...
 
