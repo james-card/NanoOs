@@ -16,6 +16,12 @@ Unfortunately - and this is where the extra program logic comes in - I had to ha
 
 New calculations added with new memory segments and it was time to give it a whirl.  First run:  4.798 seconds to run "Hello, world!".  That's almost a 3X improvement just based on that one change!  Still a long way to go to get to something useful, but not bad for a first pass and such a simple change!
 
+I thought perhaps there might be another optimization I could make to fseek.  It occurred to me that the implementation always traversed the FAT chain when the new location was less than the current location.  This isn't necessary if the new location is still within the current cluster.  So I put in code to skip the traversal if the FAT traversal if the old cluster and new cluster were the same.  End result:  Zero impact.  The problem is that all the work I'm doing right now is still within the first cluster of each file.  That would be a valuable optimization if the virtual memory area I was working with was beyond the first cluster.  For now, though, it serves no purpose, so I removed it.
+
+OK, what else?  Well, I knew from my previous debugging work that the program was jumping backward 28 bytes in the loop it was in.  That's beyond the 16 bytes that are available in the virtual memory state cache.  So I got curious what would happen if I doubled the size of the cache.  Result:  Immediately and consistently knocked another second off the runtime.  Cool!
+
+Now, I had a problem, though.  Initially, I was talking about two virtual memory states with 16-byte caches.  Now, I was talking about three virtual memory states with 32-byte caches.  The total size of the new VM state object was now 348 bytes.  The stack size of a process in NanoOs is only 340 bytes.  So, I was beyond the allowable size of a single process stack just with that one object.  Any function calls at all were just flat out of the question.
+
 To be continued...
 
 [Table of Contents](.)
