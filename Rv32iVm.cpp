@@ -41,17 +41,17 @@
 /// @return Returns 0 on success, -1 on failure.
 int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
-  VirtualMemoryState programBinary = {};
-  if (virtualMemoryInit(&programBinary, programPath) != 0) {
-    return -1;
-  }
 
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    virtualMemoryFilename) != 0
+    virtualMemoryFilename, 32) != 0
   ) {
-    virtualMemoryCleanup(&programBinary, false);
+    return -1;
+  }
+
+  VirtualMemoryState programBinary = {};
+  if (virtualMemoryInit(&programBinary, programPath, 16) != 0) {
     return -1;
   }
 
@@ -66,14 +66,14 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    virtualMemoryFilename) != 0
+    virtualMemoryFilename, 16) != 0
   ) {
     return -1;
   }
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
-    virtualMemoryFilename) != 0
+    virtualMemoryFilename, 4) != 0
   ) {
     return -1;
   }
@@ -1087,6 +1087,9 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
+  printDebug("sizeof(Rv32iVm) = ");
+  printDebug(sizeof(Rv32iVm));
+  printDebug("\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
   }

@@ -45,7 +45,6 @@ extern "C"
 {
 #endif
 
-#define VIRTUAL_MEMORY_BUFFER_SIZE 16
 #define VIRTUAL_MEMORY_PAGE_SIZE 512
 
 /// @struct VirtualMemoryState
@@ -55,13 +54,15 @@ extern "C"
 /// @param filename The FAT16 name of the backing file.
 /// @param fileHandle Handle to the memory file.
 /// @param buffer Buffer for cached data.
+/// @param bufferSize The number of bytes of storage at the buffer pointer.
 /// @param bufferBaseOffset File offset where buffer starts.
 /// @param bufferValidBytes Number of valid bytes in buffer.
 typedef struct VirtualMemoryState {
   char      filename[13];
   FILE     *fileHandle;
   uint32_t  fileSize;
-  uint8_t   buffer[VIRTUAL_MEMORY_BUFFER_SIZE];
+  uint8_t  *buffer;
+  uint16_t  bufferSize;
   uint32_t  bufferBaseOffset;
   uint32_t  bufferValidBytes;
 } VirtualMemoryState;
@@ -76,7 +77,7 @@ typedef struct VirtualMemoryState {
   (virtualMemory)->fileSize
 
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename);
+  VirtualMemoryState *state, const char *filename, uint16_t cacheSize);
 void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile);
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value);

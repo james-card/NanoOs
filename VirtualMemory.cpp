@@ -32,16 +32,18 @@
 #include "VirtualMemory.h"
 
 /// @fn int32_t virtualMemoryInit(
-///   VirtualMemoryState *state, const char *filename)
+///   VirtualMemoryState *state, const char *filename, uint16_t cacheSize)
 ///
 /// @brief Initialize the virtual memory system.
 ///
 /// @param state Pointer to state structure to initialize.
 /// @param filename Name of file to use as backing store.
+/// @param cacheSize The number of bytes to allocate for the virtual memory
+///   buffer.
 ///
-/// @return Returns 0 on success, -1 on error.
+/// @return Returns 0 on success, -1 on file error, -2 on memory error.
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename
+  VirtualMemoryState *state, const char *filename, uint16_t cacheSize
 ) {
   // Validate parameters
   if ((state == NULL) || (filename == NULL)) {
@@ -60,7 +62,13 @@ int32_t virtualMemoryInit(
   // Initialize buffer state
   state->bufferBaseOffset = 0;
   state->bufferValidBytes = 0;
-  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+  state->buffer = (uint8_t*) malloc(cacheSize);
+  if (state->buffer == NULL) {
+    fclose(state->fileHandle); state->fileHandle = NULL;
+    return -2;
+  }
+  state->bufferSize = cacheSize;
+  memset(state->buffer, 0, state->bufferSize);
   strcpy(state->filename, filename);
 
   // Set the initial size of the memory block.
@@ -81,6 +89,7 @@ int32_t virtualMemoryInit(
 ///
 /// @return This function returns no value.
 void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
+  free(state->buffer); state->buffer = NULL;
   fclose(state->fileHandle); state->fileHandle = NULL;
   if (removeFile) {
     remove(state->filename);
@@ -107,7 +116,7 @@ void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
   }
 
   // Clear out anything that was in the buffer.
-  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+  memset(state->buffer, 0, state->bufferSize);
 
   // Make sure the data exists
   if (state->fileSize < endOffset) {
@@ -146,14 +155,13 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
   }
 
   // Need to load new data into the buffer.
-  virtualMemoryPrepare(state, offset + VIRTUAL_MEMORY_BUFFER_SIZE);
+  virtualMemoryPrepare(state, offset + state->bufferSize);
 
   // Read new buffer from the requested location.
-  state->bufferBaseOffset
-    = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
+  state->bufferBaseOffset = (offset / state->bufferSize) * state->bufferSize;
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
-    = fread(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+    = fread(state->buffer, 1, state->bufferSize, state->fileHandle);
 
   if (state->bufferValidBytes == 0) {
     return NULL;
