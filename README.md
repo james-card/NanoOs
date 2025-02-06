@@ -33,19 +33,32 @@ Currently, the following processes are always present and running:
 1. The Scheduler - A multi-queue, round-robin scheduler
 2. The Console - Polls for user input and displays process output
 3. The Memory Manager - Responsible for dynamic memory allocation and deallocation
-4. The Filesystem - Responsible for providing access to files on a MicroSD card
+4. The SD Card - Provides access to raw block-level read and write operations on the MicroSD card
+5. The Filesystem - Responsible for providing access to files on a MicroSD card
 
 These processes work together to provide the basic kernel-level functionality.  These processes cannot be killed, even by the root user.
 
-### The Shell and Foreground Processes
-
-NanoOs has a very simple command-line shell.  The shells are not considered special kernel processes.
-
-One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  To address this, NanoOs borrows a concept from early versions of UNIX.  Commands that are run in the foreground (i.e. are not run with an ampersand at the end of their command lines) will *REPLACE* the shell process when they execute.  Processes that do not own a console will run in a different process slot.  This allows all foreground processes to be guaranteed a slot to run in.  The shell is automatically restarted by the scheduler when a shell process or a process that replaces one exits.
-
 ### User Processes
 
-Currently, all available user processes, including the shell, are implemented in the [Commands.cpp](Commands.cpp) library.  See the output of the `help` command for details of the available commands.
+User processes are RV32I-compiled programs that are stored on the SD card.  They are run through an RV32I VM embedded into the OS.  In order to compile a program, you'll need to download and install an RV32I compiler.  This can be done as follows:
+
+```
+sudo mkdir /opt/riscv32i
+sudo chown $USER /opt/riscv32i
+
+git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i
+cd riscv-gnu-toolchain-rv32i
+
+mkdir build; cd build
+../configure --with-arch=rv32i --prefix=/opt/riscv32i
+make -j$(nproc)
+```
+
+Right now, only the RV32I\_SYSCALL\_WRITE and RV32I\_SYSCALL\_EXIT system calls are implemented.  The LIBC needed for more complete program development is in development.
+
+### Foreground Processes
+
+One of the challenges of having a shell in an embedded OS is consuming a process slot that could be used for other user processes.  To address this, NanoOs borrows a concept from early versions of UNIX.  Commands that are run in the foreground (i.e. are not run with an ampersand at the end of their command lines) will *REPLACE* the shell process when they execute.  Processes that do not own a console will run in a different process slot.  This allows all foreground processes to be guaranteed a slot to run in.  The shell is automatically restarted by the scheduler when a shell process or a process that replaces one exits.
 
 ### Background Processes
 
