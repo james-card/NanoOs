@@ -1096,7 +1096,7 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  //// uint32_t startTime = getElapsedMilliseconds(0);
+  uint32_t startTime = getElapsedMilliseconds(0);
   printDebug("RV32I process starting.\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
@@ -1107,11 +1107,11 @@ int runRv32iProcess(int argc, char **argv) {
     rv32iVm.rv32iCoreRegisters.x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  //// uint32_t runTime = getElapsedMilliseconds(startTime);
+  uint32_t runTime = getElapsedMilliseconds(startTime);
   printDebug("RV32I process exited.\n");
-  //// printDebug("Runtime: ");
-  //// printDebug(runTime);
-  //// printDebug(" milliseconds\n");
+  printDebug("Runtime: ");
+  printDebug(runTime);
+  printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
