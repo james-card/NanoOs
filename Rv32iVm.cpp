@@ -64,18 +64,17 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   }
   virtualMemoryCleanup(&programBinary, false);
 
-  uint32_t instruction = 0;
-  virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    RV32I_PROGRAM_START, &instruction);
-  // Initialize the rest of the program's memory space up to where the stack
-  // will start.
-  virtualMemoryWrite32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    RV32I_STACK_START - RV32I_INSTRUCTION_SIZE, 0);
-  virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    RV32I_PROGRAM_START, &instruction);
+  sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
+  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
+    virtualMemoryFilename) != 0
+  ) {
+    return -1;
+  }
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
-  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], virtualMemoryFilename) != 0) {
+  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
+    virtualMemoryFilename) != 0
+  ) {
     return -1;
   }
 
@@ -93,7 +92,37 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 /// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY], false);
+}
+
+/// @fn void getMemorySegmentAndAddress(int *segmentIndex, uint32_t *address)
+///
+/// @brief Get the segment index and true address offset given a raw address
+/// value.
+///
+/// @param segmentIndex Pointer to an integer that will hold the index of the
+///   memory segment that is to be used for the memory access.
+/// @param address Pointer to the raw address that was specified.  May be
+///   updated by this function with the real offset to use within the
+///   determined memory segment.
+///
+/// @return This function returns no value.
+void getMemorySegmentAndAddress(int *segmentIndex, uint32_t *address) {
+  *segmentIndex = *address >> RV32I_MEMORY_SEGMENT_SHIFT;
+  switch (*segmentIndex) {
+    case RV32I_STACK_MEMORY:
+      {
+        *address = RV32I_STACK_START - *address;
+        break;
+      }
+    case RV32I_MAPPED_MEMORY:
+      {
+        *address &= RV32I_CLINT_ADDR_MASK;
+        break;
+      }
+    // default:  No need to do anything to the address.
+  }
 }
 
 /// @fn int32_t rv32iMemoryRead32(
@@ -109,11 +138,10 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
 ///
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
   return virtualMemoryRead32(
-    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-    address & RV32I_CLINT_ADDR_MASK,
-    value
-  );
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t rv32iMemoryRead16(
@@ -129,11 +157,10 @@ int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
 ///
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
   return virtualMemoryRead16(
-    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-    address & RV32I_CLINT_ADDR_MASK,
-    value
-  );
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t rv32iMemoryRead8(
@@ -149,11 +176,10 @@ int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
 ///
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
   return virtualMemoryRead8(
-    &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-    address & RV32I_CLINT_ADDR_MASK,
-    value
-  );
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t rv32iMemoryWrite32(
@@ -168,27 +194,11 @@ int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
 /// @param value Value to write.
 ///
 /// @return 0 on success, negative on error.
-__attribute__((noinline)) int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
-  //// return virtualMemoryWrite32(
-  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-  ////   address & RV32I_CLINT_ADDR_MASK,
-  ////   value
-  //// );
-  if (address & RV32I_CLINT_BASE_ADDR) {
-    // Mapped memory access - mask off the high bits
-    return virtualMemoryWrite32(
-      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
-      address & RV32I_CLINT_ADDR_MASK,
-      value
-    );
-  } else {
-    // Physical memory access
-    return virtualMemoryWrite32(
-      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-      address,
-      value
-    );
-  }
+int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
+  return virtualMemoryWrite32(
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t rv32iMemoryWrite16(
@@ -203,27 +213,11 @@ __attribute__((noinline)) int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t 
 /// @param value Value to write.
 ///
 /// @return 0 on success, negative on error.
-__attribute__((noinline)) int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
-  //// return virtualMemoryWrite16(
-  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-  ////   address & RV32I_CLINT_ADDR_MASK,
-  ////   value
-  //// );
-  if (address & RV32I_CLINT_BASE_ADDR) {
-    // Mapped memory access - mask off the high bits
-    return virtualMemoryWrite16(
-      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
-      address & RV32I_CLINT_ADDR_MASK,
-      value
-    );
-  } else {
-    // Physical memory access
-    return virtualMemoryWrite16(
-      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-      address,
-      value
-    );
-  }
+int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
+  return virtualMemoryWrite16(
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t rv32iMemoryWrite8(
@@ -238,27 +232,11 @@ __attribute__((noinline)) int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t 
 /// @param value Value to write.
 ///
 /// @return 0 on success, negative on error.
-__attribute__((noinline)) int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
-  //// return virtualMemoryWrite8(
-  ////   &rv32iVm->memorySegments[(address & RV32I_CLINT_BASE_ADDR) != 0],
-  ////   address & RV32I_CLINT_ADDR_MASK,
-  ////   value
-  //// );
-  if (address & RV32I_CLINT_BASE_ADDR) {
-    // Mapped memory access - mask off the high bits
-    return virtualMemoryWrite8(
-      &rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
-      address & RV32I_CLINT_ADDR_MASK,
-      value
-    );
-  } else {
-    // Physical memory access
-    return virtualMemoryWrite8(
-      &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-      address,
-      value
-    );
-  }
+int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
+  int segmentIndex = 0;
+  getMemorySegmentAndAddress(&segmentIndex, &address);
+  return virtualMemoryWrite8(
+    &rv32iVm->memorySegments[segmentIndex], address, value);
 }
 
 /// @fn int32_t fetchInstruction(Rv32iVm *rv32iVm, uint32_t *instruction)

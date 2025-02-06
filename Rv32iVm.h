@@ -46,12 +46,13 @@ extern "C"
 {
 #endif
 
-#define RV32I_INSTRUCTION_SIZE                          4
-#define RV32I_PROGRAM_START                        0x1000
-#define RV32I_MEMORY_SIZE                       0x1000000
-#define RV32I_STACK_START               RV32I_MEMORY_SIZE
-#define RV32I_CLINT_BASE_ADDR                  0x02000000
-#define RV32I_CLINT_ADDR_MASK (RV32I_CLINT_BASE_ADDR - 1)
+#define RV32I_INSTRUCTION_SIZE                                            4
+#define RV32I_PROGRAM_START                                      0x00001000
+#define RV32I_PHYSICAL_MEMORY_SIZE                               0x01000000
+#define RV32I_STACK_START                                        0x02000000
+#define RV32I_CLINT_BASE_ADDR                                    0x02000000
+#define RV32I_CLINT_ADDR_MASK                   (RV32I_CLINT_BASE_ADDR - 1)
+#define RV32I_MEMORY_SEGMENT_SHIFT                                       24
 
 // ECALL support
 #define RV32I_SYSCALL_WRITE 64
@@ -65,6 +66,7 @@ extern "C"
 /// @brief Memory segments that are managed by the Rv32iVm state.
 typedef enum Rv32iMemorySegment {
   RV32I_PHYSICAL_MEMORY,
+  RV32I_STACK_MEMORY,
   RV32I_MAPPED_MEMORY,
   RV32I_NUM_MEMORY_SEGMENTS
 } Rv32iMemorySegment;
