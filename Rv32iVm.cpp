@@ -45,7 +45,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    virtualMemoryFilename, 32) != 0
+    virtualMemoryFilename, 256) != 0
   ) {
     return -1;
   }
@@ -66,7 +66,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    virtualMemoryFilename, 16) != 0
+    virtualMemoryFilename, 64) != 0
   ) {
     return -1;
   }
@@ -250,10 +250,8 @@ int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 static inline int32_t fetchInstruction(
   Rv32iVm *rv32iVm, uint32_t *instruction
 ) {
-  uint32_t readStatus
-    = rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
-
-  return readStatus;
+  return
+    rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
 }
 
 /// @fn static inline int32_t executeRegisterOperation(
@@ -1087,11 +1085,10 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
-  printDebug("sizeof(Rv32iVm) = ");
-  printDebug(sizeof(Rv32iVm));
-  printDebug("\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
+    printString("rv32iVmInit failed\n");
+    return -1;
   }
 
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
@@ -1099,8 +1096,6 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  uint32_t startTime = getElapsedMilliseconds(0);
-  printDebug("RV32I process starting.\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1110,11 +1105,6 @@ int runRv32iProcess(int argc, char **argv) {
     rv32iVm.rv32iCoreRegisters.x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  uint32_t runTime = getElapsedMilliseconds(startTime);
-  printDebug("RV32I process exited.\n");
-  printDebug("Runtime: ");
-  printDebug(runTime);
-  printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
