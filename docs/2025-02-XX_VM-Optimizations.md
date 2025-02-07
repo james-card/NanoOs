@@ -32,7 +32,7 @@ Then...  I don't know what happened.  The program stopped running.  It wasn't ev
 
 Strangely, when the system came back up, the program ran in less time.  With a 32-byte buffer, it was running in about 2.125 seconds.  With a 16-byte buffer, it ran in about 2.625 seconds.  Weird.  Well, at the 32-byte buffer rate, I was now at almost 6.5 times faster than baseline.  I'm not complaining, I'd just like to understand why the sudden improvement.  Meh.  Moving on.
 
-I then realized that the best case scenario was that the entire program was stored in the virtual memory cache.  Since the whole thing was only 143 bytes, this was actually possible.  I made the buffer 144 bytes in size to see what would happen.  Result:  1.343 second runtime.  About 10.25 times better than baseline and an effective clock speed of about 101 Hz, but still a long, long way from useful.  I then made one more change and bumped the size of the stack segment's cache to 64 bytes.  Result:  1.306 second runtime.
+I then realized that the best case scenario was that the entire program was stored in the virtual memory cache.  Since the whole thing was only 143 bytes, this was actually possible.  I made the buffer 144 bytes in size to see what would happen.  Result:  1.343 second runtime.  About 10.25 times better than baseline and an effective clock speed of about 101 Hz, but still a long, long way from useful.  I then made one more change and bumped the size of the stack segment's cache to 64 bytes.  Result:  1.306 second runtime.  So, it seems that the best-case clock speed of the VM with this infrastructure is a little over 100 Hz (104.135 Hz if my math is right).
 
 To be continued...
 
