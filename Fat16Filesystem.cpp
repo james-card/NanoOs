@@ -556,13 +556,14 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   uint32_t targetClusterIndex = newPosition / file->bytesPerCluster;
   uint32_t clustersToTraverse;
   
-  // Reset to start if seeking backwards
-  if (newPosition < file->currentPosition) {
+  if (targetClusterIndex >= currentClusterIndex) {
+    // Seeking forward or to the same cluster
+    clustersToTraverse = targetClusterIndex - currentClusterIndex;
+  } else {
+    // Reset to start if seeking backwards
     file->currentPosition = 0;
     file->currentCluster = file->firstCluster;
     clustersToTraverse = targetClusterIndex;
-  } else {
-    clustersToTraverse = targetClusterIndex - currentClusterIndex;
   }
   
   // Fast path: no cluster traversal needed
