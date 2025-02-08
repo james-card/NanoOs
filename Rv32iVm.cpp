@@ -46,13 +46,13 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
-    virtualMemoryFilename, 144) != 0
+    virtualMemoryFilename, 128) != 0
   ) {
     return -1;
   }
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_DATA_MEMORY],
-    virtualMemoryFilename, 144) != 0
+    virtualMemoryFilename, 16) != 0
   ) {
     return -1;
   }
@@ -74,6 +74,8 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   // FIXME
   rv32iVm->dataStart = 0x1080;
+  virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
+    RV32I_PROGRAM_START, virtualMemoryFilename);
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
     rv32iVm->dataStart, virtualMemoryFilename);
 
@@ -83,6 +85,8 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   ) {
     return -1;
   }
+  virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
+    0x0, virtualMemoryFilename);
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
