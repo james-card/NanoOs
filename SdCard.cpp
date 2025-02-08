@@ -228,6 +228,11 @@ int sdSpiCardInit(uint8_t chipSelect) {
   }
   
   sdSpiEnd(chipSelect);
+
+  // Now that card is initialized, increase SPI speed
+  // The Nano Every can handle up to 8MHz reliably with most SD cards
+  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+
   return isSDv2 ? 2 : 1;
 }
 
