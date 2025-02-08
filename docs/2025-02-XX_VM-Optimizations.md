@@ -44,6 +44,13 @@ Then, I realized the mistake I made.  144 is not an even power of two.  The size
 
 So, I changed the buffer size to 256 bytes and tried again.  Result:  65 millisecond runtime.  **HOORAY!!!**  That's an effective clock speed of over 2 kHz!!!  I can live with that!
 
-To be continued...
+Now, unfortunately, this is the absolute best case since the entire program was in memory, and it's unsustainable.  However, there are a few key take-aways from this so far:
+
+1. File reads must be kept to an absolute minimum.
+2. I need to see if I can increase the speed of SD card reads in general.
+3. Data and code need to be in independently-addressable virtual memory segments.
+4. Anything I can do to further optimize fseek is desirable.
+
+So, more optimizations to do to get this system to acceptable speeds in the general case, but I do have confidence that that's possible now.  We're getting there!  To be continued...
 
 [Table of Contents](.)
