@@ -67,8 +67,8 @@ int32_t virtualMemoryInit(
     fclose(state->fileHandle); state->fileHandle = NULL;
     return -2;
   }
-  state->bufferSize = cacheSize;
-  memset(state->buffer, 0, state->bufferSize);
+  state->bufferSize = cacheSize - 1;
+  memset(state->buffer, 0, state->bufferSize + 1);
   strcpy(state->filename, filename);
 
   // Set the initial size of the memory block.
@@ -109,14 +109,20 @@ void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
 ///
 /// @return This function returns no value.
 void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
-  if (state->bufferValidBytes > 0) {
+  // state->dirty is only set to true when there is a to the buffer.  The
+  // buffer is only written to when virtualMemoryGet returns non-NULL.
+  // virtualMemoryGet only returns non-NULL if bufferValidBytes is greater than
+  // zero.  So, if state->dirty is true, then state->bufferValidBytes is
+  // greater than 0.
+  if (state->dirty == true) {
     // Write current buffer if it contains data
     fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
     fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
   }
 
   // Clear out anything that was in the buffer.
-  memset(state->buffer, 0, state->bufferSize);
+  memset(state->buffer, 0, state->bufferSize + 1);
+  state->dirty = false;
 
   // Make sure the data exists
   if (state->fileSize < endOffset) {
@@ -154,14 +160,21 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
     return &state->buffer[offset - state->bufferBaseOffset];
   }
 
+  //// printDebug("0x");
+  //// printDebug((intptr_t) state, HEX);
+  //// printDebug(": 0x");
+  //// printDebug(offset, HEX);
+  //// printDebug("\n");
+
   // Need to load new data into the buffer.
-  virtualMemoryPrepare(state, offset + state->bufferSize);
+  virtualMemoryPrepare(state, offset + state->bufferSize + 1);
 
   // Read new buffer from the requested location.
-  state->bufferBaseOffset = (offset / state->bufferSize) * state->bufferSize;
+  state->bufferBaseOffset
+    = (offset / (state->bufferSize + 1)) * (state->bufferSize + 1);
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
-    = fread(state->buffer, 1, state->bufferSize, state->fileHandle);
+    = fread(state->buffer, 1, state->bufferSize + 1, state->fileHandle);
 
   if (state->bufferValidBytes == 0) {
     return NULL;
@@ -307,6 +320,7 @@ int32_t virtualMemoryWrite8(
   uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -331,6 +345,7 @@ int32_t virtualMemoryWrite16(
   uint16_t *memoryAddr = (uint16_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -355,6 +370,7 @@ int32_t virtualMemoryWrite32(
   uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -379,6 +395,7 @@ int32_t virtualMemoryWrite64(
   uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
