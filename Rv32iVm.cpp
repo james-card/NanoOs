@@ -42,10 +42,17 @@
 int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
 
+  // We're going to use the same file for both program and data memory.
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
-    &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
-    virtualMemoryFilename, 256) != 0
+    &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
+    virtualMemoryFilename, 144) != 0
+  ) {
+    return -1;
+  }
+  if (virtualMemoryInit(
+    &rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    virtualMemoryFilename, 144) != 0
   ) {
     return -1;
   }
@@ -55,14 +62,20 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     return -1;
   }
 
+  // We only need to do one copy to physical memory.
   if (virtualMemoryCopy(&programBinary, 0,
-    &rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY], RV32I_PROGRAM_START,
+    &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], RV32I_PROGRAM_START,
     virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
   virtualMemoryCleanup(&programBinary, false);
+
+  // FIXME
+  rv32iVm->dataStart = 0x1080;
+  virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    rv32iVm->dataStart, virtualMemoryFilename);
 
   sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
@@ -93,14 +106,18 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], false);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], false);
 }
 
-/// @fn void getMemorySegmentAndAddress(int *segmentIndex, uint32_t *address)
+/// @fn void getMemorySegmentAndAddress(
+///   Rv32iVm *rv32iVm, int *segmentIndex, uint32_t *address)
 ///
 /// @brief Get the segment index and true address offset given a raw address
 /// value.
 ///
+/// @param rv32iVm A pointer to the Rv32iVm that contains the virtual memory
+///   states.
 /// @param segmentIndex Pointer to an integer that will hold the index of the
 ///   memory segment that is to be used for the memory access.
 /// @param address Pointer to the raw address that was specified.  May be
@@ -108,9 +125,18 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
 ///   determined memory segment.
 ///
 /// @return This function returns no value.
-void getMemorySegmentAndAddress(int *segmentIndex, uint32_t *address) {
+void getMemorySegmentAndAddress(Rv32iVm *rv32iVm,
+  int *segmentIndex, uint32_t *address
+) {
   *segmentIndex = *address >> RV32I_MEMORY_SEGMENT_SHIFT;
   switch (*segmentIndex) {
+    case RV32I_PROGRAM_MEMORY:
+      {
+        if (*address >= rv32iVm->dataStart) {
+          *segmentIndex = RV32I_DATA_MEMORY;
+        }
+        break;
+      }
     case RV32I_STACK_MEMORY:
       {
         *address = RV32I_STACK_START - *address;
@@ -139,7 +165,7 @@ void getMemorySegmentAndAddress(int *segmentIndex, uint32_t *address) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead32(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -158,7 +184,7 @@ int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead16(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -177,7 +203,7 @@ int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -196,7 +222,7 @@ int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite32(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -215,7 +241,7 @@ int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite16(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -234,7 +260,7 @@ int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(&segmentIndex, &address);
+  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -752,7 +778,7 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       // Read string from VM memory
       char *buffer = (char*) malloc(length);
       uint32_t bytesRead
-        = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_PHYSICAL_MEMORY],
+        = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
         bufferAddress, length, buffer);
       
       // Write to Serial
