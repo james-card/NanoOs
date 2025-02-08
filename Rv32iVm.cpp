@@ -58,7 +58,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   }
 
   VirtualMemoryState programBinary = {};
-  if (virtualMemoryInit(&programBinary, programPath, 16) != 0) {
+  if (virtualMemoryInit(&programBinary, programPath, 0) != 0) {
     return -1;
   }
 
@@ -67,17 +67,17 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], RV32I_PROGRAM_START,
     virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
-    virtualMemoryCleanup(&programBinary, false);
+    virtualMemoryCleanup(&programBinary);
     return -1;
   }
-  virtualMemoryCleanup(&programBinary, false);
+  virtualMemoryCleanup(&programBinary);
 
   // FIXME
   rv32iVm->dataStart = 0x1080;
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
-    RV32I_PROGRAM_START, virtualMemoryFilename);
+    RV32I_PROGRAM_START, (uint8_t*) virtualMemoryFilename);
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
-    rv32iVm->dataStart, virtualMemoryFilename);
+    rv32iVm->dataStart, (uint8_t*) virtualMemoryFilename);
 
   sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
@@ -86,7 +86,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     return -1;
   }
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    0x0, virtualMemoryFilename);
+    0x0, (uint8_t*) virtualMemoryFilename);
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
@@ -108,10 +108,10 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 ///
 /// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], false);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], false);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY]);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY]);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY]);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY]);
 }
 
 /// @fn void getMemorySegmentAndAddress(
@@ -1120,6 +1120,9 @@ int runRv32iProcess(int argc, char **argv) {
     printString("rv32iVmInit failed\n");
     return -1;
   }
+  printDebug("sizeof(Rv32iVm) = ");
+  printDebug(sizeof(Rv32iVm));
+  printDebug(" bytes\n");
 
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
   rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
