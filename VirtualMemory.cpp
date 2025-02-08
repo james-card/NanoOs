@@ -62,14 +62,18 @@ int32_t virtualMemoryInit(
   // Initialize buffer state
   state->bufferBaseOffset = 0;
   state->bufferValidBytes = 0;
-  state->buffer = (uint8_t*) malloc(cacheSize);
-  if (state->buffer == NULL) {
-    fclose(state->fileHandle); state->fileHandle = NULL;
-    return -2;
+  state->buffer = NULL;
+  // A cacheSize of 0 is valid if the user only uses virtualMemoryRead(),
+  // virtualMemoryWrite(), and virtualMemoryCopy().
+  if (cacheSize > 0) {
+    state->buffer = (uint8_t*) malloc(cacheSize);
+    if (state->buffer == NULL) {
+      fclose(state->fileHandle); state->fileHandle = NULL;
+      return -2;
+    }
+    state->bufferSize = cacheSize - 1;
+    memset(state->buffer, 0, state->bufferSize + 1);
   }
-  state->bufferSize = cacheSize - 1;
-  memset(state->buffer, 0, state->bufferSize + 1);
-  strcpy(state->filename, filename);
 
   // Set the initial size of the memory block.
   fseek(state->fileHandle, 0, SEEK_END);
@@ -79,22 +83,16 @@ int32_t virtualMemoryInit(
   return 0;
 }
 
-/// @fn void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile)
+/// @fn void virtualMemoryCleanup(VirtualMemoryState *state)
 ///
 /// @brief Clean up virtual memory system resources.
 ///
 /// @param state Pointer to state structure to clean up.
-/// @param removeFile Whether or not the backing file should be removed from
-///   the filesystem.
 ///
 /// @return This function returns no value.
-void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
+void virtualMemoryCleanup(VirtualMemoryState *state) {
   free(state->buffer); state->buffer = NULL;
   fclose(state->fileHandle); state->fileHandle = NULL;
-  if (removeFile) {
-    remove(state->filename);
-  }
-  *state->filename = '\0';
 }
 
 /// @fn void virtualMemoryPrepare(
@@ -120,8 +118,10 @@ void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
     fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
   }
 
-  // Clear out anything that was in the buffer.
-  memset(state->buffer, 0, state->bufferSize + 1);
+  if (state->buffer != NULL) {
+    // Clear out anything that was in the buffer.
+    memset(state->buffer, 0, state->bufferSize + 1);
+  }
   state->dirty = false;
 
   // Make sure the data exists

@@ -51,7 +51,6 @@ extern "C"
 ///
 /// @brief Structure to maintain virtual memory state
 ///
-/// @param filename The FAT16 name of the backing file.
 /// @param fileHandle Handle to the memory file.
 /// @param buffer Buffer for cached data.
 /// @param bufferBaseOffset File offset where buffer starts.
@@ -60,12 +59,11 @@ extern "C"
 /// @param dirty Whether or not the contents of the buffer have been modified
 ///   since being read.
 typedef struct VirtualMemoryState {
-  char      filename[13];
   FILE     *fileHandle;
   uint32_t  fileSize;
   uint8_t  *buffer;
   uint32_t  bufferBaseOffset;
-  uint32_t  bufferValidBytes;
+  uint8_t   bufferValidBytes;
   uint8_t   bufferSize:7;
   bool      dirty:1;
 } VirtualMemoryState;
@@ -81,7 +79,7 @@ typedef struct VirtualMemoryState {
 
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename, uint16_t cacheSize);
-void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile);
+void virtualMemoryCleanup(VirtualMemoryState *state);
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value);
 int32_t virtualMemoryRead16(
