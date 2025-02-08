@@ -41,3 +41,5 @@ This work started out as an experiment to see if I could implement an operating 
 [2025-01-31: WASM VM](2025-01-31_WASM-VM.md)
 
 [2025-02-06: RV32I VM](2025-02-06_RV32I-VM.md)
+
+[2025-02-08: VM Optimizations Part I](2025-02-08_VM-Optimizations-Part-I.md)
