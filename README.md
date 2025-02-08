@@ -54,11 +54,11 @@ mkdir build; cd build
 make -j$(nproc)
 ```
 
-A program named "Hello.c" could then be built as follows:
+Once `/opt/riscv32i/bin` is in your path, a program named "Hello.c" could then be built as follows:
 
 ```
-/opt/riscv32i/bin/riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -o Hello.elf Hello.c
-/opt/riscv32i/bin/riscv32-unknown-elf-objcopy -O binary Hello.elf Hello.bin
+riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -o Hello.elf Hello.c
+riscv32-unknown-elf-objcopy -O binary Hello.elf Hello.bin
 ```
 
 Right now, only the RV32I\_SYSCALL\_WRITE and RV32I\_SYSCALL\_EXIT system calls are implemented.  The LIBC needed for more complete program development is in development.
