@@ -65,9 +65,10 @@ extern "C"
 ///
 /// @brief Memory segments that are managed by the Rv32iVm state.
 typedef enum Rv32iMemorySegment {
-  RV32I_PHYSICAL_MEMORY,
+  RV32I_PROGRAM_MEMORY,
   RV32I_STACK_MEMORY,
   RV32I_MAPPED_MEMORY,
+  RV32I_DATA_MEMORY,
   RV32I_NUM_MEMORY_SEGMENTS
 } Rv32iMemorySegment;
 
@@ -264,11 +265,14 @@ typedef struct Rv32iCoreRegisters {
 /// @param running Whether or not the VM is currently in a running state.
 /// @param exitCode The exit code to return to the caller when the process
 ///   exits.
+/// @param dataStart The address of the first byte of the data segment within
+///   the "physical memory" virtual memory.
 typedef struct Rv32iVm {
   Rv32iCoreRegisters rv32iCoreRegisters;
   VirtualMemoryState memorySegments[RV32I_NUM_MEMORY_SEGMENTS];
   bool running;
   int exitCode;
+  uint32_t dataStart;
 } Rv32iVm;
 
 int runRv32iProcess(int argc, char **argv);
