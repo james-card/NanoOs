@@ -1,4 +1,4 @@
-# XX-Feb-2025 - VM Optimizations Part II
+# 8-Feb-2025 - VM Optimizations Part II
 
 To recap, there were four things I was thinking about to improve the performance of the VM in the general case:
 
