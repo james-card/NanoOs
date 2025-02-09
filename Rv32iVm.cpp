@@ -1119,11 +1119,15 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
+  printDebug(getFreeMemory());
+  printDebug(" bytes free\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
     printString("rv32iVmInit failed\n");
     return -1;
   }
+  printDebug(getFreeMemory());
+  printDebug(" bytes free\n");
   printDebug("sizeof(Rv32iVm) = ");
   printDebug(sizeof(Rv32iVm));
   printDebug(" bytes\n");
