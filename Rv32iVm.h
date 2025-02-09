@@ -46,6 +46,8 @@ extern "C"
 {
 #endif
 
+#define CACHE_BUFFER_SIZE 36
+
 #define RV32I_INSTRUCTION_SIZE                                            4
 #define RV32I_PROGRAM_START                                      0x00001000
 #define RV32I_PHYSICAL_MEMORY_SIZE                               0x01000000
@@ -267,12 +269,21 @@ typedef struct Rv32iCoreRegisters {
 ///   exits.
 /// @param dataStart The address of the first byte of the data segment within
 ///   the "physical memory" virtual memory.
+/// @param dataCacheBuffer The byte array to use for the data virtual memory
+///   segment's bufer.
+/// @param stackCacheBuffer The byte array to use for the stack virtual memory
+///   segment's buffer.
+/// @param mapCacheBuffer The byte array to use for the stack virtual memory
+///   segment's buffer.
 typedef struct Rv32iVm {
   Rv32iCoreRegisters rv32iCoreRegisters;
   VirtualMemoryState memorySegments[RV32I_NUM_MEMORY_SEGMENTS];
   bool running;
   int exitCode;
   uint32_t dataStart;
+  uint8_t dataCacheBuffer[16];
+  uint8_t stackCacheBuffer[32];
+  uint8_t mapCacheBuffer[4];
 } Rv32iVm;
 
 int runRv32iProcess(int argc, char **argv);

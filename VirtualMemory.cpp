@@ -31,8 +31,8 @@
 // Custom includes
 #include "VirtualMemory.h"
 
-/// @fn int32_t virtualMemoryInit(
-///   VirtualMemoryState *state, const char *filename, uint16_t cacheSize)
+/// @fn int32_t virtualMemoryInit(VirtualMemoryState *state,
+///   const char *filename, uint8_t cacheSize, uint8_t *staticCache)
 ///
 /// @brief Initialize the virtual memory system.
 ///
@@ -40,10 +40,14 @@
 /// @param filename Name of file to use as backing store.
 /// @param cacheSize The number of bytes to allocate for the virtual memory
 ///   buffer.
+/// @param staticCache A pointer to the uint8_t array to use in place of a
+///   dynamically-allocated cache buffer.  A dynamically-allocated buffer of
+///   cacheSize bytes will be allocated if this parameter is NULL.
 ///
 /// @return Returns 0 on success, -1 on file error, -2 on memory error.
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename, uint16_t cacheSize
+  VirtualMemoryState *state, const char *filename,
+  uint8_t cacheSize, uint8_t *staticCache
 ) {
   // Validate parameters
   if ((state == NULL) || (filename == NULL)) {
@@ -66,7 +70,11 @@ int32_t virtualMemoryInit(
   // A cacheSize of 0 is valid if the user only uses virtualMemoryRead(),
   // virtualMemoryWrite(), and virtualMemoryCopy().
   if (cacheSize > 0) {
-    state->buffer = (uint8_t*) malloc(cacheSize);
+    if (staticCache == NULL) {
+      state->buffer = (uint8_t*) malloc(cacheSize);
+    } else {
+      state->buffer = staticCache;
+    }
     if (state->buffer == NULL) {
       fclose(state->fileHandle); state->fileHandle = NULL;
       return -2;
@@ -83,15 +91,20 @@ int32_t virtualMemoryInit(
   return 0;
 }
 
-/// @fn void virtualMemoryCleanup(VirtualMemoryState *state)
+/// @fn void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer)
 ///
 /// @brief Clean up virtual memory system resources.
 ///
 /// @param state Pointer to state structure to clean up.
+/// @param freeBuffer Whether or not the buffer in the state should be freed
+///   via dynamic memory management.
 ///
 /// @return This function returns no value.
-void virtualMemoryCleanup(VirtualMemoryState *state) {
-  free(state->buffer); state->buffer = NULL;
+void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer) {
+  if (freeBuffer == true) {
+    free(state->buffer);
+  }
+  state->buffer = NULL;
   fclose(state->fileHandle); state->fileHandle = NULL;
 }
 

@@ -78,8 +78,9 @@ typedef struct VirtualMemoryState {
   (virtualMemory)->fileSize
 
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename, uint16_t cacheSize);
-void virtualMemoryCleanup(VirtualMemoryState *state);
+  VirtualMemoryState *state, const char *filename,
+  uint8_t cacheSize, uint8_t *staticCache);
+void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer);
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value);
 int32_t virtualMemoryRead16(
