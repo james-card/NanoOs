@@ -271,8 +271,6 @@ typedef struct Rv32iCoreRegisters {
 ///   the "physical memory" virtual memory.
 /// @param dataCacheBuffer The byte array to use for the data virtual memory
 ///   segment's bufer.
-/// @param stackCacheBuffer The byte array to use for the stack virtual memory
-///   segment's buffer.
 /// @param mapCacheBuffer The byte array to use for the stack virtual memory
 ///   segment's buffer.
 typedef struct Rv32iVm {
@@ -282,7 +280,6 @@ typedef struct Rv32iVm {
   int exitCode;
   uint32_t dataStart;
   uint8_t dataCacheBuffer[16];
-  uint8_t stackCacheBuffer[32];
   uint8_t mapCacheBuffer[4];
 } Rv32iVm;
 

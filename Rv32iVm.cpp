@@ -83,9 +83,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    virtualMemoryFilename,
-    sizeof(rv32iVm->stackCacheBuffer),
-    rv32iVm->stackCacheBuffer) != 0
+    virtualMemoryFilename, 32, NULL) != 0
   ) {
     return -1;
   }
@@ -115,7 +113,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 /// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], false);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], true);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], true);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], true);
 }
