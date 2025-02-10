@@ -1160,6 +1160,8 @@ int runRv32iProcess(int argc, char **argv) {
   }
 
   rv32iVmCleanup(&rv32iVm);
+  printDebug(getFreeMemory());
+  printDebug(" bytes free\n");
   return returnValue;
 }
 
