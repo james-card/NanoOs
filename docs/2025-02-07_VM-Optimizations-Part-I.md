@@ -1,4 +1,4 @@
-# 8-Feb-2025 - VM Optimizations Part I
+# 7-Feb-2025 - VM Optimizations Part I
 
 When last we left, "Hello, world!" was taking 12 seconds to run... or so I thought.  I did some profiling and discovered that the real time was actually 13.802 seconds.  That brought the effective clock speed of the VM down to 9.85 Hz, so we really were talking single digits here.
 
