@@ -8,7 +8,7 @@ There were three goals here:
 2. Reclaim as much RAM as possible any way I can
 3. Keep the "Hello, world!" program running at 7 kHz
 
-When I started this effort, I was consuming 48,843 of the available 49,152 bytes of flash, so I had only 309 bytes of program storage left.  One of the things I absolutely had to do was create a parser for whatever file format I came up with for my executables.  I wasn't sure if 309 bytes was enough, but I didn't want that to be all I had to work with because there were other things I needed to be able to do beyond that.
+When I started this effort, I was consuming 48,350 of the available 49,152 bytes of flash without debug prints, so I had only 802 bytes of program storage left.  One of the things I absolutely had to do was create a parser for whatever file format I came up with for my executables.  I wasn't sure if 802 bytes was enough, but I didn't want that to be all I had to work with because there were other things I needed to be able to do beyond that.
 
 First thing's first:  Make a branch.  I did **NOT** want to mess up the VM branch.  So, I made a cleanup branch with the contents the rv32i-vm branch in it.  I should note that this committed me using the VM infrastructure going forward.
 
