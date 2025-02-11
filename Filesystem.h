@@ -54,8 +54,8 @@ extern "C"
 /// @brief State metadata the filesystem process uses to provide access to
 /// files.
 ///
-/// @param blockDevice A pointer to an allocated and initialized
-///   BlockStorageDevice to use for reading and writing blocks.
+/// @param partitionNumber The one-based partition index to use for filesystem
+///   access.
 /// @param blockSize The size of a block as it is known to the filesystem.
 /// @param blockBuffer A pointer to the read/write buffer that is blockSize
 ///   bytes in length.
@@ -64,7 +64,7 @@ extern "C"
 /// @param numOpenFiles The number of files currently open by the filesystem.
 ///   If this number is zero then the blockBuffer pointer may be NULL.
 typedef struct FilesystemState {
-  BlockStorageDevice *blockDevice;
+  uint8_t partitionNumber;
   uint16_t blockSize;
   uint8_t *blockBuffer;
   uint32_t startLba;
