@@ -435,27 +435,6 @@ typedef struct NanoOsMessage {
   NanoOsMessageData  data;
 } NanoOsMessage;
 
-/// @struct BlockStorageDevice
-///
-/// @brief The collection of data and functions needed to interact with a block
-/// storage device.
-///
-/// @param context The device-specific context to pass to the functions.
-/// @param readBlocks Function pointer for the function to read a given number
-///   of blocks from the storage device.
-/// @param writeBlocks Function pointer for the function to write a given number
-///   of blocks to the storage device.
-/// @param partitionNumber The one-based partition index that is to be used by
-///   a filesystem.
-typedef struct BlockStorageDevice {
-  void *context;
-  int (*readBlocks)(void *context, uint32_t startBlock,
-    uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
-  int (*writeBlocks)(void *context, uint32_t startBlock,
-    uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
-  uint8_t partitionNumber;
-} BlockStorageDevice;
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
