@@ -8,6 +8,8 @@ There were three goals here:
 2. Reclaim as much RAM as possible any way I can
 3. Keep the "Hello, world!" program running at 7 kHz
 
+First thing's first:  Make a branch.  I did **NOT** want to mess up the VM branch.  So, I made a cleanup branch with the contents the rv32i-vm branch in it.  I should note that this committed me using the VM infrastructure going forward.
+
 To be continued...
 
 [Table of Contents](.)
