@@ -1119,27 +1119,27 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
-  printDebug(getFreeMemory());
-  printDebug(" bytes free\n");
+  //// printDebug(getFreeMemory());
+  //// printDebug(" bytes free\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
     printString("rv32iVmInit failed\n");
     return -1;
   }
-  printDebug(getFreeMemory());
-  printDebug(" bytes free\n");
-  printDebug("sizeof(Rv32iVm) = ");
-  printDebug(sizeof(Rv32iVm));
-  printDebug(" bytes\n");
+  //// printDebug(getFreeMemory());
+  //// printDebug(" bytes free\n");
+  //// printDebug("sizeof(Rv32iVm) = ");
+  //// printDebug(sizeof(Rv32iVm));
+  //// printDebug(" bytes\n");
 
   rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
   rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  uint32_t startTime = 0;
-  uint32_t runTime = 0;
-  startTime = getElapsedMilliseconds(0);
+  //// uint32_t startTime = 0;
+  //// uint32_t runTime = 0;
+  //// startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1149,10 +1149,10 @@ int runRv32iProcess(int argc, char **argv) {
     rv32iVm.rv32iCoreRegisters.x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  runTime = getElapsedMilliseconds(startTime);
-  printDebug("Runtime: ");
-  printDebug(runTime);
-  printDebug(" milliseconds\n");
+  //// runTime = getElapsedMilliseconds(startTime);
+  //// printDebug("Runtime: ");
+  //// printDebug(runTime);
+  //// printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
@@ -1160,8 +1160,8 @@ int runRv32iProcess(int argc, char **argv) {
   }
 
   rv32iVmCleanup(&rv32iVm);
-  printDebug(getFreeMemory());
-  printDebug(" bytes free\n");
+  //// printDebug(getFreeMemory());
+  //// printDebug(" bytes free\n");
   return returnValue;
 }
 
