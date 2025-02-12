@@ -93,12 +93,6 @@ typedef struct FcopyArgs {
   size_t length;
 } FcopyArgs;
 
-/// @typedf NanoOsIoCommandHandler
-///
-/// @brief Definition for the format of a command handler for NanoOs I/O inter-
-/// process communication.
-typedef int (*NanoOsIoCommandHandler)(NanoOsIoState*, ProcessMessage*);
-
 /// @enum NanoOsIoCommandResponse
 ///
 /// @brief Commands and responses understood by the NanoOs I/O inter-process

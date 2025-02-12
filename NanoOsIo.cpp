@@ -92,6 +92,12 @@ typedef struct NanoOsIoState {
   FilesystemState filesystemState;
 } NanoOsIoState;
 
+/// @typedf NanoOsIoCommandHandler
+///
+/// @brief Definition for the format of a command handler for NanoOs I/O inter-
+/// process communication.
+typedef int (*NanoOsIoCommandHandler)(NanoOsIoState*, ProcessMessage*);
+
 /// @fn void sdSpiEnd(int chipSelect)
 ///
 /// @brief End communication with the SD card.
@@ -1323,22 +1329,22 @@ int fat16FilesystemCloseFileCommandHandler(
 int fat16FilesystemReadFileCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage
 ) {
-  FilesystemIoCommandParameters *filesystemIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  NanoOsIoIoCommandParameters *nanoOsIoIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, NanoOsIoIoCommandParameters*);
   int returnValue = fat16Read(nanoOsIoState,
-    (Fat16File*) filesystemIoCommandParameters->file->file,
-    filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length);
+    (Fat16File*) nanoOsIoIoCommandParameters->file->file,
+    nanoOsIoIoCommandParameters->buffer,
+    nanoOsIoIoCommandParameters->length);
   if (returnValue >= 0) {
     // Return value is the number of bytes read.  Set the length variable to it
     // and set it to 0 to indicate good status.
-    filesystemIoCommandParameters->length = returnValue;
+    nanoOsIoIoCommandParameters->length = returnValue;
     returnValue = 0;
   } else {
     // Return value is a negative error code.  Negate it.
     returnValue = -returnValue;
     // Tell the caller that we read nothing.
-    filesystemIoCommandParameters->length = 0;
+    nanoOsIoIoCommandParameters->length = 0;
   }
 
   processMessageSetDone(processMessage);
@@ -1358,22 +1364,22 @@ int fat16FilesystemReadFileCommandHandler(
 int fat16FilesystemWriteFileCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage
 ) {
-  FilesystemIoCommandParameters *filesystemIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  NanoOsIoIoCommandParameters *nanoOsIoIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, NanoOsIoIoCommandParameters*);
   int returnValue = fat16Write(nanoOsIoState,
-    (Fat16File*) filesystemIoCommandParameters->file->file,
-    (uint8_t*) filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length);
+    (Fat16File*) nanoOsIoIoCommandParameters->file->file,
+    (uint8_t*) nanoOsIoIoCommandParameters->buffer,
+    nanoOsIoIoCommandParameters->length);
   if (returnValue >= 0) {
     // Return value is the number of bytes written.  Set the length variable to
     // it and set it to 0 to indicate good status.
-    filesystemIoCommandParameters->length = returnValue;
+    nanoOsIoIoCommandParameters->length = returnValue;
     returnValue = 0;
   } else {
     // Return value is a negative error code.  Negate it.
     returnValue = -returnValue;
     // Tell the caller that we wrote nothing.
-    filesystemIoCommandParameters->length = 0;
+    nanoOsIoIoCommandParameters->length = 0;
   }
 
   processMessageSetDone(processMessage);
@@ -1416,12 +1422,12 @@ int fat16FilesystemRemoveFileCommandHandler(
 int fat16FilesystemSeekFileCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage
 ) {
-  FilesystemSeekParameters *filesystemSeekParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
+  NanoOsIoSeekParameters *nanoOsIoSeekParameters
+    = nanoOsMessageDataPointer(processMessage, NanoOsIoSeekParameters*);
   int returnValue = fat16Seek(nanoOsIoState,
-    (Fat16File*) filesystemSeekParameters->stream->file,
-    filesystemSeekParameters->offset,
-    filesystemSeekParameters->whence);
+    (Fat16File*) nanoOsIoSeekParameters->stream->file,
+    nanoOsIoSeekParameters->offset,
+    nanoOsIoSeekParameters->whence);
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
@@ -1636,7 +1642,7 @@ int nanoOsIoFSeek(FILE *stream, long offset, int whence) {
     return -1;
   }
 
-  FilesystemSeekParameters nanoOsIoSeekParameters = {
+  NanoOsIoSeekParameters nanoOsIoSeekParameters = {
     .stream = stream,
     .offset = offset,
     .whence = whence,
@@ -1670,7 +1676,7 @@ size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return returnValue; // 0
   }
 
-  FilesystemIoCommandParameters nanoOsIoIoCommandParameters = {
+  NanoOsIoIoCommandParameters nanoOsIoIoCommandParameters = {
     .file = stream,
     .buffer = ptr,
     .length = (uint32_t) (size * nmemb)
@@ -1710,7 +1716,7 @@ size_t nanoOsIoFWrite(
     return returnValue; // 0
   }
 
-  FilesystemIoCommandParameters nanoOsIoIoCommandParameters = {
+  NanoOsIoIoCommandParameters nanoOsIoIoCommandParameters = {
     .file = stream,
     .buffer = (void*) ptr,
     .length = (uint32_t) (size * nmemb)
