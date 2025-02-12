@@ -1329,8 +1329,8 @@ int fat16FilesystemCloseFileCommandHandler(
 int fat16FilesystemReadFileCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage
 ) {
-  NanoOsIoIoCommandParameters *nanoOsIoIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, NanoOsIoIoCommandParameters*);
+  NanoOsIoCommandParameters *nanoOsIoIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, NanoOsIoCommandParameters*);
   int returnValue = fat16Read(nanoOsIoState,
     (Fat16File*) nanoOsIoIoCommandParameters->file->file,
     nanoOsIoIoCommandParameters->buffer,
@@ -1364,8 +1364,8 @@ int fat16FilesystemReadFileCommandHandler(
 int fat16FilesystemWriteFileCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage
 ) {
-  NanoOsIoIoCommandParameters *nanoOsIoIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, NanoOsIoIoCommandParameters*);
+  NanoOsIoCommandParameters *nanoOsIoIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, NanoOsIoCommandParameters*);
   int returnValue = fat16Write(nanoOsIoState,
     (Fat16File*) nanoOsIoIoCommandParameters->file->file,
     (uint8_t*) nanoOsIoIoCommandParameters->buffer,
@@ -1676,7 +1676,7 @@ size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return returnValue; // 0
   }
 
-  NanoOsIoIoCommandParameters nanoOsIoIoCommandParameters = {
+  NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
     .file = stream,
     .buffer = ptr,
     .length = (uint32_t) (size * nmemb)
@@ -1716,7 +1716,7 @@ size_t nanoOsIoFWrite(
     return returnValue; // 0
   }
 
-  NanoOsIoIoCommandParameters nanoOsIoIoCommandParameters = {
+  NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
     .file = stream,
     .buffer = (void*) ptr,
     .length = (uint32_t) (size * nmemb)

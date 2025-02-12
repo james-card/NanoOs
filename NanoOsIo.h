@@ -49,7 +49,7 @@ extern "C"
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-/// @struct NanoOsIoIoCommandParameters
+/// @struct NanoOsIoCommandParameters
 ///
 /// @brief Parameters needed for an I/O command in a filesystem.
 ///
@@ -58,11 +58,11 @@ extern "C"
 ///   written to.
 /// @param length The number of bytes to read into the buffer or write from the
 ///   buffer.
-typedef struct NanoOsIoIoCommandParameters {
+typedef struct NanoOsIoCommandParameters {
   FILE *file;
   void *buffer;
   uint32_t length;
-} NanoOsIoIoCommandParameters;
+} NanoOsIoCommandParameters;
 
 /// @struct NanoOsIoSeekParameters
 ///
