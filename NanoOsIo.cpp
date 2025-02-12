@@ -29,6 +29,7 @@
 /// @file
 
 // Custom includes
+#include "NanoOsIo.h"
 #include "SdCard.h"
 #include "Fat16Filesystem.h"
 
@@ -61,7 +62,6 @@
 #define FAT16_DIR_SEARCH_DELETED 1
 #define FAT16_DIR_SEARCH_NOT_FOUND 2
 
-
 /// @struct SdCardState
 ///
 /// @brief State required to interact with the SD card.
@@ -91,29 +91,6 @@ typedef struct NanoOsIoState {
   SdCardState sdCardState;
   FilesystemState filesystemState;
 } NanoOsIoState;
-
-/// @typedf NanoOsIoCommandHandler
-///
-/// @brief Definition for the format of a command handler for NanoOs I/O inter-
-/// process communication.
-typedef int (*NanoOsIoCommandHandler)(NanoOsIoState*, ProcessMessage*);
-
-/// @enum NanoOsIoCommandResponse
-///
-/// @brief Commands and responses understood by the NanoOs I/O inter-process
-/// message handler.
-typedef enum NanoOsIoCommandResponse {
-  // Commands:
-  NANO_OS_IO_OPEN_FILE,
-  NANO_OS_IO_CLOSE_FILE,
-  NANO_OS_IO_READ_FILE,
-  NANO_OS_IO_WRITE_FILE,
-  NANO_OS_IO_REMOVE_FILE,
-  NANO_OS_IO_SEEK_FILE,
-  NANO_OS_IO_COPY_FILE,
-  NUM_NANO_OS_IO_COMMANDS,
-  // Responses:
-} NanoOsIoCommandResponse;
 
 /// @fn void sdSpiEnd(int chipSelect)
 ///
