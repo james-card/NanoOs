@@ -133,62 +133,6 @@ typedef struct FilesystemState {
   uint8_t  numOpenFiles;
 } FilesystemState;
 
-// Exported functionality
-FILE* nanoOsIoFOpen(const char *pathname, const char *mode);
-#ifdef fopen
-#undef fopen
-#endif // fopen
-#define fopen nanoOsIoFOpen
-
-int nanoOsIoFClose(FILE *stream);
-#ifdef fclose
-#undef fclose
-#endif // fclose
-#define fclose nanoOsIoFClose
-
-int nanoOsIoRemove(const char *pathname);
-#ifdef remove
-#undef remove
-#endif // remove
-#define remove nanoOsIoRemove
-
-int nanoOsIoFSeek(FILE *stream, long offset, int whence);
-#ifdef fseek
-#undef feek
-#endif // fseek
-#define fseek nanoOsIoFSeek
-
-size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream);
-#ifdef fread
-#undef fread
-#endif // fread
-#define fread nanoOsIoFRead
-
-size_t nanoOsIoFWrite(
-  const void *ptr, size_t size, size_t nmemb, FILE *stream);
-#ifdef fwrite
-#undef fwrite
-#endif // fwrite
-#define fwrite nanoOsIoFWrite
-
-long nanoOsIoFTell(FILE *stream);
-#ifdef ftell
-#undef ftell
-#endif // ftell
-#define ftell nanoOsIoFTell
-
-size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
-  FILE *dstFile, off_t dstStart, size_t length);
-
-/// @def rewind
-///
-/// @brief Function macro to implement the functionality of the standard C
-/// rewind function.
-///
-/// @param stream A pointer to a previously-opened FILE object.
-#define rewind(stream) \
-  (void) fseek(stream, 0L, SEEK_SET)
-
 // Main entry point for the process
 void* runNanoOsIo(void *args);
 
