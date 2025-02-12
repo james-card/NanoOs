@@ -189,6 +189,9 @@ size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
 #define rewind(stream) \
   (void) fseek(stream, 0L, SEEK_SET)
 
+// Main entry point for the process
+void* runNanoOsIo(void *args);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
