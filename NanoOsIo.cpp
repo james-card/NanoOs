@@ -1501,7 +1501,15 @@ const NanoOsIoCommandHandler nanoOsIoCommandHandlers[] = {
 ///
 /// @brief Command handler for NanoOsIoCommandResponse messages.
 void handleNanoOsIoMessages(NanoOsIoState *nanoOsIoState) {
-  (void) nanoOsIoState;
+  ProcessMessage *message = processMessageQueuePop();
+  while (message != NULL) {
+    NanoOsIoCommandResponse type = 
+      (NanoOsIoCommandResponse) processMessageType(message);
+    if (type < NUM_NANO_OS_IO_COMMANDS) {
+      nanoOsIoCommandHandlers[type](nanoOsIoState, message);
+    }
+    message = processMessageQueuePop();
+  }
 
   return;
 }
@@ -1551,23 +1559,35 @@ void* runNanoOsIo(void *args) {
     // indicate to the caller that we're dead.
     return NULL;
   }
+  //// printDebug("SD card initialized.  Using partition ");
+  //// printDebug(nanoOsIoState.filesystemState.partitionNumber);
+  //// printDebug("\n");
 
+  nanoOsIoState.filesystemState.blockSize
+    = nanoOsIoState.sdCardState.blockSize;
+  
+  nanoOsIoState.filesystemState.blockBuffer
+    = (uint8_t*) malloc(nanoOsIoState.filesystemState.blockSize);
+  getPartitionInfo(&nanoOsIoState);
+  free(nanoOsIoState.filesystemState.blockBuffer);
+  nanoOsIoState.filesystemState.blockBuffer = NULL;
+  
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
     schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
     if (schedulerMessage != NULL) {
-      //// // We have a message from the scheduler that we need to process.  This
-      //// // is not the expected case, but it's the priority case, so we need to
-      //// // list it first.
-      //// SdCardCommandResponse messageType
-      ////   = (SdCardCommandResponse) processMessageType(schedulerMessage);
-      //// if (messageType < NUM_SD_CARD_COMMANDS) {
-      ////   sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
-      //// } else {
-      ////   //// printString("ERROR!!!  Received unknown sdCard command ");
-      ////   //// printInt(messageType);
-      ////   //// printString(" from scheduler.\n");
-      //// }
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      NanoOsIoCommandResponse messageType
+        = (NanoOsIoCommandResponse) processMessageType(schedulerMessage);
+      if (messageType < NUM_NANO_OS_IO_COMMANDS) {
+        nanoOsIoCommandHandlers[messageType](&nanoOsIoState, schedulerMessage);
+      } else {
+        //// printString("ERROR!!!  Received unknown IO command ");
+        //// printInt(messageType);
+        //// printString(" from scheduler.\n");
+      }
     } else {
       handleNanoOsIoMessages(&nanoOsIoState);
     }
