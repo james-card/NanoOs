@@ -92,7 +92,28 @@ typedef struct NanoOsIoState {
   FilesystemState filesystemState;
 } NanoOsIoState;
 
+/// @typedf NanoOsIoCommandHandler
+///
+/// @brief Definition for the format of a command handler for NanoOs I/O inter-
+/// process communication.
 typedef int (*NanoOsIoCommandHandler)(NanoOsIoState*, ProcessMessage*);
+
+/// @enum NanoOsIoCommandResponse
+///
+/// @brief Commands and responses understood by the NanoOs I/O inter-process
+/// message handler.
+typedef enum NanoOsIoCommandResponse {
+  // Commands:
+  NANO_OS_IO_OPEN_FILE,
+  NANO_OS_IO_CLOSE_FILE,
+  NANO_OS_IO_READ_FILE,
+  NANO_OS_IO_WRITE_FILE,
+  NANO_OS_IO_REMOVE_FILE,
+  NANO_OS_IO_SEEK_FILE,
+  NANO_OS_IO_COPY_FILE,
+  NUM_NANO_OS_IO_COMMANDS,
+  // Responses:
+} NanoOsIoCommandResponse;
 
 /// @fn void sdSpiEnd(int chipSelect)
 ///
@@ -1256,7 +1277,7 @@ int getPartitionInfo(NanoOsIoState *nanoOsIoState) {
 /// @fn int fat16FilesystemOpenFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_OPEN_FILE command.
+/// @brief Command handler for NANO_OS_IO_OPEN_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1285,7 +1306,7 @@ int fat16FilesystemOpenFileCommandHandler(
 /// @fn int fat16FilesystemCloseFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
+/// @brief Command handler for NANO_OS_IO_CLOSE_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1315,7 +1336,7 @@ int fat16FilesystemCloseFileCommandHandler(
 /// @fn int fat16FilesystemReadFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_READ_FILE command.
+/// @brief Command handler for NANO_OS_IO_READ_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1350,7 +1371,7 @@ int fat16FilesystemReadFileCommandHandler(
 /// @fn int fat16FilesystemWriteFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_WRITE_FILE command.
+/// @brief Command handler for NANO_OS_IO_WRITE_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1385,7 +1406,7 @@ int fat16FilesystemWriteFileCommandHandler(
 /// @fn int fat16FilesystemRemoveFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
+/// @brief Command handler for NANO_OS_IO_REMOVE_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1408,7 +1429,7 @@ int fat16FilesystemRemoveFileCommandHandler(
 /// @fn int fat16FilesystemSeekFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_SEEK_FILE command.
+/// @brief Command handler for NANO_OS_IO_SEEK_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1435,7 +1456,7 @@ int fat16FilesystemSeekFileCommandHandler(
 /// @fn int fat16FilesystemCopyFileCommandHandler(
 ///   NanoOsIoState *nanoOsIoState, ProcessMessage *processMessage)
 ///
-/// @brief Command handler for FILESYSTEM_COPY_FILE command.
+/// @brief Command handler for NANO_OS_IO_COPY_FILE command.
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param processMessage A pointer to the ProcessMessage that was received by
@@ -1465,13 +1486,13 @@ int fat16FilesystemCopyFileCommandHandler(
 ///
 /// @brief Array of NanoOsIoCommandHandler function pointers.
 const NanoOsIoCommandHandler nanoOsIoCommandHandlers[] = {
-  fat16FilesystemOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
-  fat16FilesystemCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
-  fat16FilesystemReadFileCommandHandler,   // FILESYSTEM_READ_FILE
-  fat16FilesystemWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
-  fat16FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
-  fat16FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
-  fat16FilesystemCopyFileCommandHandler,   // FILESYSTEM_COPY_FILE
+  fat16FilesystemOpenFileCommandHandler,   // NANO_OS_IO_OPEN_FILE
+  fat16FilesystemCloseFileCommandHandler,  // NANO_OS_IO_CLOSE_FILE
+  fat16FilesystemReadFileCommandHandler,   // NANO_OS_IO_READ_FILE
+  fat16FilesystemWriteFileCommandHandler,  // NANO_OS_IO_WRITE_FILE
+  fat16FilesystemRemoveFileCommandHandler, // NANO_OS_IO_REMOVE_FILE
+  fat16FilesystemSeekFileCommandHandler,   // NANO_OS_IO_SEEK_FILE
+  fat16FilesystemCopyFileCommandHandler,   // NANO_OS_IO_COPY_FILE
 };
 
 
@@ -1519,7 +1540,7 @@ void* runNanoOsIo(void *args) {
       * ((int64_t) nanoOsIoState.sdCardState.blockSize));
     //// printString(" total bytes)\n");
 #endif // SD_CARD_DEBUG
-    coroutineYield(&nanoOsIoState);
+    coroutineYield(&nanoOsIoState.filesystemState);
   } else {
     //// printString("ERROR! sdSpiCardInit returned status ");
     //// printInt(nanoOsIoState.sdCardState.sdCardVersion);
