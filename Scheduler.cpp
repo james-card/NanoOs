@@ -1481,7 +1481,7 @@ FILE* kfopen(SchedulerState *schedulerState,
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->func = (intptr_t) mode;
   nanoOsMessage->data = (intptr_t) pathname;
-  processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
+  processMessageInit(processMessage, NANO_OS_IO_OPEN_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   processMessageQueuePush(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
@@ -1517,7 +1517,7 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = (intptr_t) stream;
-  processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
+  processMessageInit(processMessage, NANO_OS_IO_CLOSE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
@@ -1551,7 +1551,7 @@ int kremove(SchedulerState *schedulerState, const char *pathname) {
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->data = (intptr_t) pathname;
-  processMessageInit(processMessage, FILESYSTEM_REMOVE_FILE,
+  processMessageInit(processMessage, NANO_OS_IO_REMOVE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
@@ -1582,7 +1582,7 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
   char *buffer, int size, FILE *stream
 ) {
   char *returnValue = NULL;
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+  NanoOsIoCommandParameters nanoOsIoCommandParameters = {
     .file = stream,
     .buffer = buffer,
     .length = (uint32_t) size - 1
@@ -1595,8 +1595,8 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
   }
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_READ_FILE,
+  nanoOsMessage->data = (intptr_t) &nanoOsIoCommandParameters;
+  processMessageInit(processMessage, NANO_OS_IO_READ_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
@@ -1605,8 +1605,8 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
   }
-  if (filesystemIoCommandParameters.length > 0) {
-    buffer[filesystemIoCommandParameters.length] = '\0';
+  if (nanoOsIoCommandParameters.length > 0) {
+    buffer[nanoOsIoCommandParameters.length] = '\0';
     returnValue = buffer;
   }
 
@@ -1630,7 +1630,7 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
   const char *s, FILE *stream
 ) {
   int returnValue = 0;
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+  NanoOsIoCommandParameters nanoOsIoCommandParameters = {
     .file = stream,
     .buffer = (void*) s,
     .length = (uint32_t) strlen(s)
@@ -1643,8 +1643,8 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
   }
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_WRITE_FILE,
+  nanoOsMessage->data = (intptr_t) &nanoOsIoCommandParameters;
+  processMessageInit(processMessage, NANO_OS_IO_WRITE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
@@ -1653,7 +1653,7 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
   }
-  if (filesystemIoCommandParameters.length == 0) {
+  if (nanoOsIoCommandParameters.length == 0) {
     returnValue = EOF;
   }
 
@@ -2501,27 +2501,28 @@ __attribute__((noinline)) void startScheduler(
   //// printInt(sizeof(ConsoleState));
   //// printString(" bytes\n");
 
-  // Create the SD card process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runSdCard,
-    (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
-    != processSuccess
-  ) {
-    //// printString("Could not start SD card process.\n");
-  }
-  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
-    = NANO_OS_SD_CARD_PROCESS_ID;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
-  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
-  sdDevice->partitionNumber = 1;
+  //// // Create the SD card process.
+  //// processHandle = 0;
+  //// if (processCreate(&processHandle, runSdCard,
+  ////   (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
+  ////   != processSuccess
+  //// ) {
+  ////   //// printString("Could not start SD card process.\n");
+  //// }
+  //// processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  //// allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
+  ////   = NANO_OS_SD_CARD_PROCESS_ID;
+  //// allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
+  //// allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
+  //// allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  //// BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
+  ////   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+  //// sdDevice->partitionNumber = 1;
 
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runFat16Filesystem, sdDevice)
+  if (processCreate(&processHandle, runNanoOsIo,
+    (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
     != processSuccess
   ) {
     //// printString("Could not start filesystem process.\n");
@@ -2532,6 +2533,12 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+
+  // We need to get the FilesystemState out of the filesystem process and set
+  // the partition number to use, so do a coroutineResume to retrieve it.
+  FilesystemState *filesystemState
+    = (FilesystemState*) coroutineResume(processHandle, NULL);
+  filesystemState->partitionNumber = 1;
 
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
