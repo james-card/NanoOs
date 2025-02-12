@@ -2538,7 +2538,10 @@ __attribute__((noinline)) void startScheduler(
   // the partition number to use, so do a coroutineResume to retrieve it.
   FilesystemState *filesystemState
     = (FilesystemState*) coroutineResume(processHandle, NULL);
-  filesystemState->partitionNumber = 1;
+  if (filesystemState != NULL) {
+    filesystemState->partitionNumber = 1;
+  }
+  // FIXME!!!  What should happen if filesystemState == NULL ????
 
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
@@ -2634,8 +2637,8 @@ __attribute__((noinline)) void startScheduler(
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
+  //// processQueuePush(&schedulerState.ready,
+  ////   &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
@@ -2673,15 +2676,19 @@ __attribute__((noinline)) void startScheduler(
       kfclose(&schedulerState, hostnameFile);
     } else {
       //// printString("ERROR! kfopen of hostname returned NULL!\n");
+      strcpy(schedulerState.hostname, "localhost");
     }
   } else {
     //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
   //// printDebug("Using hostname \"");
   //// printDebug(schedulerState.hostname);
-  //// printDebug("\n");
+  //// printDebug("\"\n");
 
   //// do {
+  ////   printDebug("Removing file \"hello\".\n");
+  ////   kremove(&schedulerState, "hello");
+  ////   printDebug("Opening file \"hello\".\n");
   ////   FILE *helloFile = kfopen(&schedulerState, "hello", "w");
   ////   if (helloFile == NULL) {
   ////     printDebug("ERROR: Could not open hello file for writing!\n");
