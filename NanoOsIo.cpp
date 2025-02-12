@@ -99,20 +99,22 @@ typedef struct NanoOsIoState {
 /// process communication.
 typedef int (*NanoOsIoCommandHandler)(NanoOsIoState*, ProcessMessage*);
 
-/// @var nanoOsStdin
+/// @var nanoOsIoStdin
 ///
-/// @brief Implementation of nanoOsStdin which is the define value for stdin.
-FILE *nanoOsStdin  = (FILE*) ((intptr_t) 0x1);
+/// @brief Implementation of nanoOsIoStdin which is the define value for stdin.
+FILE *nanoOsIoStdin  = (FILE*) ((intptr_t) 0x1);
 
-/// @var nanoOsStdout
+/// @var nanoOsIoStdout
 ///
-/// @brief Implementation of nanoOsStdout which is the define value for stdout.
-FILE *nanoOsStdout = (FILE*) ((intptr_t) 0x2);
+/// @brief Implementation of nanoOsIoStdout which is the define value for
+/// stdout.
+FILE *nanoOsIoStdout = (FILE*) ((intptr_t) 0x2);
 
-/// @var nanoOsStderr
+/// @var nanoOsIoStderr
 ///
-/// @brief Implementation of nanoOsStderr which is the define value for stderr.
-FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
+/// @brief Implementation of nanoOsIoStderr which is the define value for
+/// stderr.
+FILE *nanoOsIoStderr = (FILE*) ((intptr_t) 0x3);
 
 /// @fn void sdSpiEnd(int chipSelect)
 ///
