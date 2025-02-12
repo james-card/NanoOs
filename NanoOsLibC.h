@@ -76,17 +76,17 @@ typedef struct NanoOsFile NanoOsFile;
 #ifdef stdin
 #undef stdin
 #endif // stdin
-#define stdin nanoOsStdin
+#define stdin nanoOsIoStdin
 
 #ifdef stdout
 #undef stdout
 #endif // stdout
-#define stdout nanoOsStdout
+#define stdout nanoOsIoStdout
 
 #ifdef stderr
 #undef stderr
 #endif // stderr
-#define stderr nanoOsStderr
+#define stderr nanoOsIoStderr
 
 /// @def SINGLE_CORE_COROUTINES
 ///
@@ -210,9 +210,9 @@ typedef void TypeDescriptor;
 #define STOP       ((void*) ((intptr_t) -1))
 
 extern const char *boolNames[];
-extern FILE *nanoOsStdin;
-extern FILE *nanoOsStdout;
-extern FILE *nanoOsStderr;
+extern FILE *nanoOsIoStdin;
+extern FILE *nanoOsIoStdout;
+extern FILE *nanoOsIoStderr;
 
 // Debug functions
 int printString_(const char *string);
@@ -246,59 +246,59 @@ char* nanoOsStrError(int errnum);
 
 // Exported IO functions
 
-int nanoOsFPuts(const char *s, FILE *stream);
+int nanoOsIoFPuts(const char *s, FILE *stream);
 #ifdef fputs
 #undef fputs
 #endif
-#define fputs nanoOsFPuts
+#define fputs nanoOsIoFPuts
 
-int nanoOsPuts(const char *s);
+int nanoOsIoPuts(const char *s);
 #ifdef puts
 #undef puts
 #endif
-#define puts nanoOsPuts
+#define puts nanoOsIoPuts
 
-int nanoOsVFPrintf(FILE *stream, const char *format, va_list args);
+int nanoOsIoVFPrintf(FILE *stream, const char *format, va_list args);
 #ifdef vfprintf
 #undef vfprintf
 #endif
-#define vfprintf nanoOsVFPrintf
+#define vfprintf nanoOsIoVFPrintf
 
-int nanoOsFPrintf(FILE *stream, const char *format, ...);
+int nanoOsIoFPrintf(FILE *stream, const char *format, ...);
 #ifdef fprintf
 #undef fprintf
 #endif
-#define fprintf nanoOsFPrintf
+#define fprintf nanoOsIoFPrintf
 
-int nanoOsPrintf(const char *format, ...);
+int nanoOsIoPrintf(const char *format, ...);
 #ifdef printf
 #undef printf
 #endif
-#define printf nanoOsPrintf
+#define printf nanoOsIoPrintf
 
-char *nanoOsFGets(char *buffer, int size, FILE *stream);
+char *nanoOsIoFGets(char *buffer, int size, FILE *stream);
 #ifdef fgets
 #undef fgets
 #endif
-#define fgets nanoOsFGets
+#define fgets nanoOsIoFGets
 
-int nanoOsVFScanf(FILE *stream, const char *format, va_list ap);
+int nanoOsIoVFScanf(FILE *stream, const char *format, va_list ap);
 #ifdef vfscanf
 #undef vfscanf
 #endif
-#define vfscanf nanoOsVFScanf
+#define vfscanf nanoOsIoVFScanf
 
-int nanoOsFScanf(FILE *stream, const char *format, ...);
+int nanoOsIoFScanf(FILE *stream, const char *format, ...);
 #ifdef fscanf
 #undef fscanf
 #endif
-#define fscanf nanoOsFScanf
+#define fscanf nanoOsIoFScanf
 
-int nanoOsScanf(const char *format, ...);
+int nanoOsIoScanf(const char *format, ...);
 #ifdef scanf
 #undef scanf
 #endif
-#define scanf nanoOsScanf
+#define scanf nanoOsIoScanf
 
 #ifdef __cplusplus
 } // extern "C"
