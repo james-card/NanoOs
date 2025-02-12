@@ -590,6 +590,9 @@ static int fat16FindDirectoryEntry(NanoOsIoState *nanoOsIoState,
   return FAT16_DIR_SEARCH_NOT_FOUND;
 }
 
+/// @fn Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
+///   const char *mode)
+///
 /// @brief Open a file in the FAT16 filesystem
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
@@ -608,66 +611,74 @@ Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
   uint8_t *buffer = NULL;
   uint8_t *entry = NULL;
   uint32_t block = 0;
+  uint16_t entryIndex = 0;
   Fat16File *file = NULL;
   int result = 0;
   char upperName[FAT16_FULL_NAME_LENGTH + 1];
   
   if (nanoOsIoState->filesystemState.numOpenFiles == 0) {
-    nanoOsIoState->filesystemState.blockBuffer = (uint8_t*) malloc(nanoOsIoState->filesystemState.blockSize);
+    nanoOsIoState->filesystemState.blockBuffer = (uint8_t*) malloc(
+      nanoOsIoState->filesystemState.blockSize);
     if (nanoOsIoState->filesystemState.blockBuffer == NULL) {
-      //// printDebug("ERROR: malloc of nanoOsIoState->filesystemState.blockBuffer returned NULL!\n");
       goto exit;
     }
   }
   buffer = nanoOsIoState->filesystemState.blockBuffer;
 
   // Read boot sector
-  if (sdSpiReadBlock(&nanoOsIoState->sdCardState, nanoOsIoState->filesystemState.startLba, buffer)) {
-    //// printDebug("ERROR: Reading boot sector failed!\n");
+  if (sdSpiReadBlock(&nanoOsIoState->sdCardState,
+      nanoOsIoState->filesystemState.startLba, buffer)) {
     goto exit;
   }
   
   // Create file structure to hold common values
   file = (Fat16File*) malloc(sizeof(Fat16File));
   if (!file) {
-    //// printDebug("ERROR: malloc of Fat16File failed!\n");
     goto exit;
   }
   
   // Store common boot sector values
   file->bytesPerSector = *((uint16_t*) &buffer[FAT16_BOOT_BYTES_PER_SECTOR]);
   file->sectorsPerCluster = buffer[FAT16_BOOT_SECTORS_PER_CLUSTER];
-  file->reservedSectors = *((uint16_t*) &buffer[FAT16_BOOT_RESERVED_SECTORS]);
+  file->reservedSectors =
+    *((uint16_t*) &buffer[FAT16_BOOT_RESERVED_SECTORS]);
   file->numberOfFats = buffer[FAT16_BOOT_NUMBER_OF_FATS];
   file->rootEntries = *((uint16_t*) &buffer[FAT16_BOOT_ROOT_ENTRIES]);
   file->sectorsPerFat = *((uint16_t*) &buffer[FAT16_BOOT_SECTORS_PER_FAT]);
-  file->bytesPerCluster
-    = (uint32_t) file->bytesPerSector * (uint32_t) file->sectorsPerCluster;
-  file->fatStart
-    = ((uint32_t) nanoOsIoState->filesystemState.startLba) + ((uint32_t) file->reservedSectors);
-  file->rootStart = ((uint32_t) file->fatStart)
-    + (((uint32_t) file->numberOfFats) * ((uint32_t) file->sectorsPerFat));
+  file->bytesPerCluster = (uint32_t) file->bytesPerSector *
+    (uint32_t) file->sectorsPerCluster;
+  file->fatStart = ((uint32_t) nanoOsIoState->filesystemState.startLba) +
+    ((uint32_t) file->reservedSectors);
+  file->rootStart = ((uint32_t) file->fatStart) +
+    (((uint32_t) file->numberOfFats) * ((uint32_t) file->sectorsPerFat));
   file->dataStart = ((uint32_t) file->rootStart) +
     (((((uint32_t) file->rootEntries) * FAT16_BYTES_PER_DIRECTORY_ENTRY) +
-    ((uint32_t) file->bytesPerSector) - 1) / ((uint32_t) file->bytesPerSector));
+    ((uint32_t) file->bytesPerSector) - 1) /
+    ((uint32_t) file->bytesPerSector));
   
-  result = fat16FindDirectoryEntry(nanoOsIoState, file, pathname, &entry, &block, NULL);
+  result = fat16FindDirectoryEntry(nanoOsIoState, file, pathname, &entry,
+    &block, &entryIndex);
   
   if (result == FAT16_DIR_SEARCH_FOUND) {
     if (createFile && !append) {
       // File exists but we're in write mode - truncate it
-      file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
+      file->currentCluster =
+        *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
       file->firstCluster = file->currentCluster;
       file->fileSize = 0;
       file->currentPosition = 0;
     } else {
       // Opening existing file for read
-      file->currentCluster = *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
+      file->currentCluster =
+        *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]);
       file->fileSize = *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]);
       file->firstCluster = file->currentCluster;
       file->currentPosition = append ? file->fileSize : 0;
     }
-    file->pathname = strdup(pathname);
+    // Store directory entry location
+    file->directoryBlock = block;
+    file->directoryOffset = (entryIndex % (file->bytesPerSector >>
+      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY;
     nanoOsIoState->filesystemState.numOpenFiles++;
   } else if (createFile && 
       (result == FAT16_DIR_SEARCH_DELETED || 
@@ -680,8 +691,8 @@ Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
       FAT16_BYTES_PER_DIRECTORY_ENTRY - (FAT16_DIR_ATTRIBUTES + 1));
     
     if (sdSpiWriteBlock(&nanoOsIoState->sdCardState, block, buffer)) {
-      free(file); file = NULL;
-      //// printDebug("ERROR: Writing name of new file failed!\n");
+      free(file);
+      file = NULL;
       goto exit;
     }
     
@@ -689,15 +700,20 @@ Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
     file->fileSize = 0;
     file->firstCluster = FAT16_EMPTY_ENTRY;
     file->currentPosition = 0;
-    file->pathname = strdup(pathname);
+    // Store directory entry location
+    file->directoryBlock = block;
+    file->directoryOffset = (entryIndex % (file->bytesPerSector >>
+      FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY;
     nanoOsIoState->filesystemState.numOpenFiles++;
   } else {
-    free(file); file = NULL;
+    free(file);
+    file = NULL;
   }
   
 exit:
   if (nanoOsIoState->filesystemState.numOpenFiles == 0) {
-    free(nanoOsIoState->filesystemState.blockBuffer); nanoOsIoState->filesystemState.blockBuffer = NULL;
+    free(nanoOsIoState->filesystemState.blockBuffer);
+    nanoOsIoState->filesystemState.blockBuffer = NULL;
   }
   return file;
 }
@@ -792,30 +808,33 @@ static int fat16HandleClusterTransition(NanoOsIoState *nanoOsIoState,
   return 0;
 }
 
-/// @fn int fat16UpdateDirectoryEntry(NanoOsIoState *nanoOsIoState, Fat16File *file)
+/// @fn int fat16UpdateDirectoryEntry(NanoOsIoState *nanoOsIoState,
+///   Fat16File *file)
 ///
-/// @brief Update the directory entry for a file
+/// @brief Update the directory entry for a file using stored location
 ///
 /// @param nanoOsIoState A pointer to the NanoOsIoState in the I/O process
 /// @param file A pointer to the FAT16 file structure
 ///
 /// @return Returns 0 on success, -1 on error
-static int fat16UpdateDirectoryEntry(NanoOsIoState *nanoOsIoState, Fat16File *file) {
-  uint8_t *entry;
-  uint32_t block;
-  int result = fat16FindDirectoryEntry(nanoOsIoState, file, file->pathname, &entry,
-    &block, NULL);
-    
-  if (result != FAT16_DIR_SEARCH_FOUND) {
+static int fat16UpdateDirectoryEntry(NanoOsIoState *nanoOsIoState,
+    Fat16File *file
+) {
+  if (sdSpiReadBlock(&nanoOsIoState->sdCardState, file->directoryBlock,
+      nanoOsIoState->filesystemState.blockBuffer)) {
     return -1;
   }
+
+  uint8_t *entry = nanoOsIoState->filesystemState.blockBuffer +
+    file->directoryOffset;
 
   *((uint32_t*) &entry[FAT16_DIR_FILE_SIZE]) = file->fileSize;
   if (!*((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW])) {
     *((uint16_t*) &entry[FAT16_DIR_FIRST_CLUSTER_LOW]) = file->firstCluster;
   }
   
-  return sdSpiWriteBlock(&nanoOsIoState->sdCardState, block, nanoOsIoState->filesystemState.blockBuffer);
+  return sdSpiWriteBlock(&nanoOsIoState->sdCardState, file->directoryBlock,
+    nanoOsIoState->filesystemState.blockBuffer);
 }
 
 /// @fn int fat16Read(NanoOsIoState *nanoOsIoState, Fat16File *file, void *buffer,
@@ -1314,7 +1333,6 @@ int fat16FilesystemCloseFileCommandHandler(
   NanoOsFile *nanoOsFile
     = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
   Fat16File *fat16File = (Fat16File*) nanoOsFile->file;
-  free(fat16File->pathname);
   free(fat16File);
   free(nanoOsFile);
   if (nanoOsIoState->filesystemState.numOpenFiles > 0) {
