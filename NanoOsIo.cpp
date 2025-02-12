@@ -1575,3 +1575,243 @@ void* runNanoOsIo(void *args) {
   return NULL;
 }
 
+/// @fn FILE* nanoOsIoFOpen(const char *pathname, const char *mode)
+///
+/// @brief Implementation of the standard C fopen call.
+///
+/// @param pathname The full pathname to the file.  NOTE:  This implementation
+///   can only open files in the root directory.  Subdirectories are NOT
+///   supported.
+/// @param mode The standard C file mode to open the file as.
+///
+/// @return Returns a pointer to an initialized FILE object on success, NULL on
+/// failure.
+FILE* nanoOsIoFOpen(const char *pathname, const char *mode) {
+  if ((pathname == NULL) || (*pathname == '\0')
+    || (mode == NULL) || (*mode == '\0')
+  ) {
+    return NULL;
+  }
+
+  ProcessMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_OPEN_FILE,
+    (intptr_t) mode, (intptr_t) pathname, true);
+  processMessageWaitForDone(msg, NULL);
+  FILE *file = nanoOsMessageDataPointer(msg, FILE*);
+  processMessageRelease(msg);
+  return file;
+}
+
+/// @fn int nanoOsIoFClose(FILE *stream)
+///
+/// @brief Implementation of the standard C fclose call.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+///
+/// @return This function always succeeds and always returns 0.
+int nanoOsIoFClose(FILE *stream) {
+  if (stream != NULL) {
+    ProcessMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_CLOSE_FILE,
+      0, (intptr_t) stream, true);
+    processMessageWaitForDone(msg, NULL);
+    processMessageRelease(msg);
+  }
+  return 0;
+}
+
+/// @fn int nanoOsIoRemove(const char *pathname)
+///
+/// @brief Implementation of the standard C remove call.
+///
+/// @param pathname The full pathname to the file.  NOTE:  This implementation
+///   can only open files in the root directory.  Subdirectories are NOT
+///   supported.
+///
+/// @return Returns 0 on success, -1 on failure.
+int nanoOsIoRemove(const char *pathname) {
+  int returnValue = 0;
+  if ((pathname != NULL) && (*pathname != '\0')) {
+    ProcessMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_REMOVE_FILE,
+      /* func= */ 0, (intptr_t) pathname, true);
+    processMessageWaitForDone(msg, NULL);
+    returnValue = nanoOsMessageDataValue(msg, int);
+    processMessageRelease(msg);
+  }
+  return returnValue;
+}
+
+/// @fn int nanoOsIoFSeek(FILE *stream, long offset, int whence)
+///
+/// @brief Implementation of the standard C fseek call.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+/// @param offset A signed integer value that will be added to the specified
+///   position.
+/// @param whence The location within the file to apply the offset to.  Valid
+///   values are SEEK_SET (the beginning of the file), SEEK_CUR (the current
+///   file positon), and SEEK_END (the end of the file).
+///
+/// @return Returns 0 on success, -1 on failure.
+int nanoOsIoFSeek(FILE *stream, long offset, int whence) {
+  if (stream == NULL) {
+    return -1;
+  }
+
+  FilesystemSeekParameters nanoOsIoSeekParameters = {
+    .stream = stream,
+    .offset = offset,
+    .whence = whence,
+  };
+  ProcessMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_SEEK_FILE,
+    /* func= */ 0, (intptr_t) &nanoOsIoSeekParameters, true);
+  processMessageWaitForDone(msg, NULL);
+  int returnValue = nanoOsMessageDataValue(msg, int);
+  processMessageRelease(msg);
+  return returnValue;
+}
+
+/// @fn size_t nanoOsIoFRead(
+///   void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Read data from a previously-opened file.
+///
+/// @param ptr A pointer to the memory to read data into.
+/// @param size The size, in bytes, of each element that is to be read from the
+///   file.
+/// @param nmemb The number of elements that are to be read from the file.
+/// @param stream A pointer to the previously-opened file.
+///
+/// @return Returns the total number of objects successfully read from the
+/// file.
+size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  size_t returnValue = 0;
+  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
+    // Nothing to do.
+    return returnValue; // 0
+  }
+
+  FilesystemIoCommandParameters nanoOsIoIoCommandParameters = {
+    .file = stream,
+    .buffer = ptr,
+    .length = (uint32_t) (size * nmemb)
+  };
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_READ_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  returnValue = (nanoOsIoIoCommandParameters.length / size);
+  processMessageRelease(processMessage);
+
+  return returnValue;
+}
+
+/// @fn size_t nanoOsIoFWrite(
+///   const void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Write data to a previously-opened file.
+///
+/// @param ptr A pointer to the memory to write data from.
+/// @param size The size, in bytes, of each element that is to be written to
+///   the file.
+/// @param nmemb The number of elements that are to be written to the file.
+/// @param stream A pointer to the previously-opened file.
+///
+/// @return Returns the total number of objects successfully written to the
+/// file.
+size_t nanoOsIoFWrite(
+  const void *ptr, size_t size, size_t nmemb, FILE *stream
+) {
+  size_t returnValue = 0;
+  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
+    // Nothing to do.
+    return returnValue; // 0
+  }
+
+  FilesystemIoCommandParameters nanoOsIoIoCommandParameters = {
+    .file = stream,
+    .buffer = (void*) ptr,
+    .length = (uint32_t) (size * nmemb)
+  };
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_WRITE_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  returnValue = (nanoOsIoIoCommandParameters.length / size);
+  processMessageRelease(processMessage);
+
+  return returnValue;
+}
+
+/// @fn long nanoOsIoFTell(FILE *stream)
+///
+/// @brief Get the current value of the position indicator of a
+/// previously-opened file.
+///
+/// @param stream A pointer to a previously-opened file.
+///
+/// @return Returns the current position of the file on success, -1 on failure.
+long nanoOsIoFTell(FILE *stream) {
+  if (stream == NULL) {
+    return -1;
+  }
+
+  return (long) ((Fat16File*) stream->file)->currentPosition;
+}
+
+/// @fn size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
+///   FILE *dstFile, off_t dstStart, size_t length)
+///
+/// @brief Copy a specified number of bytes from one position in a source file
+///   to another position in a destination file.
+///
+/// @param srcFile A pointer to the FILE to copy from.  The file must be at
+///   least srcStart + length bytes long.
+/// @param srcStart The starting position, in bytes, to copy data from in the
+///   source file.
+/// @param dstFile A pointer to the FILE to copy to.  If the file is not
+///   already dstStart + length bytes long, it will be padded with 0s until the
+///   dstStart position is reached.
+/// @param dstStart The starting position, in bytes, to copy data to in the
+///   destination file.
+/// @param length The number of bytes to copy from the source file to the
+///   destination file.
+///
+/// @return Returns the number of bytes successfully copied.
+size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
+  FILE *dstFile, off_t dstStart, size_t length
+) {
+  if ((dstFile == NULL) || (length == 0)) {
+    // Can't proceed or nothing to do.
+    return 0;
+  }
+
+  FcopyArgs fcopyArgs = {
+    .srcFile = srcFile,
+    .srcStart = srcStart,
+    .dstFile = dstFile,
+    .dstStart  = dstStart,
+    .length = length,
+  };
+
+  ProcessMessage *processMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_COPY_FILE,
+    /* func= */ 0,
+    /* data= */ (intptr_t) &fcopyArgs,
+    true);
+  processMessageWaitForDone(processMessage, NULL);
+  size_t returnValue = nanoOsMessageDataValue(processMessage, size_t);
+  processMessageRelease(processMessage);
+
+  return returnValue;
+}
+
