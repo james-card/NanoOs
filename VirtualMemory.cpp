@@ -146,7 +146,7 @@ void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
       length += VIRTUAL_MEMORY_PAGE_SIZE;
     }
 
-    filesystemFCopy(NULL, 0, state->fileHandle, state->fileSize, length);
+    nanoOsIoFCopy(NULL, 0, state->fileHandle, state->fileSize, length);
   }
 
   return;
@@ -521,7 +521,7 @@ uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
   }
 
   // Copy the data from the source file to the destination file.
-  return filesystemFCopy(
+  return nanoOsIoFCopy(
     srcVm->fileHandle, srcStart,
     dstVm->fileHandle, dstStart,
     length);
