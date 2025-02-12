@@ -90,6 +90,12 @@ extern "C"
 #define FAT16_DIR_FIRST_CLUSTER_LOW 0x1A
 #define FAT16_DIR_FILE_SIZE 0x1C
 
+// Directory search result codes
+#define FAT16_DIR_SEARCH_ERROR -1
+#define FAT16_DIR_SEARCH_FOUND 0
+#define FAT16_DIR_SEARCH_DELETED 1
+#define FAT16_DIR_SEARCH_NOT_FOUND 2
+
 typedef struct __attribute__((packed)) Fat16File {
   uint16_t  currentCluster;
   uint32_t  currentPosition;

@@ -57,12 +57,6 @@
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
 
-// Directory search result codes
-#define FAT16_DIR_SEARCH_ERROR -1
-#define FAT16_DIR_SEARCH_FOUND 0
-#define FAT16_DIR_SEARCH_DELETED 1
-#define FAT16_DIR_SEARCH_NOT_FOUND 2
-
 /// @struct SdCardState
 ///
 /// @brief State required to interact with the SD card.
@@ -1527,6 +1521,9 @@ void handleNanoOsIoMessages(NanoOsIoState *nanoOsIoState) {
 void* runNanoOsIo(void *args) {
   NanoOsIoState nanoOsIoState = {};
   nanoOsIoState.sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
+  printDebug("sizeof(NanoOsIoState) = ");
+  printDebug(sizeof(NanoOsIoState));
+  printDebug("\n");
 
   nanoOsIoState.sdCardState.sdCardVersion
     = sdSpiCardInit(nanoOsIoState.sdCardState.chipSelect);
