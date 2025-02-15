@@ -608,7 +608,6 @@ void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
 /// it would return NULL if it returned anything.
 void* runMemoryManager(void *args) {
   (void) args;
-  printConsole("\n");
   
   MemoryManagerState memoryManagerState;
   ProcessMessage *schedulerMessage = NULL;
