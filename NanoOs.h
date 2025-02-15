@@ -176,7 +176,6 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 #include "Commands.h"
 #include "MemoryManager.h"
 #include "Processes.h"
-#include "Console.h"
 #include "NanoOsIo.h"
 
 #endif // NANO_OS_H
