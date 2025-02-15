@@ -71,16 +71,16 @@ extern "C"
 /// of bytes that printf calls will have to work with.
 #define CONSOLE_BUFFER_SIZE 96
 
-/// @def CONSOLE_NUM_PORTS
+/// @def NUM_CONSOLE_PORTS
 ///
 /// @brief The number of console supports supported.
-#define CONSOLE_NUM_PORTS 2
+#define NUM_CONSOLE_PORTS 2
 
 /// @def CONSOLE_NUM_BUFFERS
 ///
 /// @brief The number of console buffers that will be allocated within the main
 /// console process's stack.
-#define CONSOLE_NUM_BUFFERS CONSOLE_NUM_PORTS
+#define CONSOLE_NUM_BUFFERS NUM_CONSOLE_PORTS
 
 // Process status values
 #define processSuccess  coroutineSuccess
@@ -346,7 +346,7 @@ typedef struct ConsolePort {
 /// @param consoleBuffers The array of ConsoleBuffers that can be used by
 ///   the console ports for input and by processes for output.
 typedef struct ConsoleState {
-  ConsolePort consolePorts[CONSOLE_NUM_PORTS];
+  ConsolePort consolePorts[NUM_CONSOLE_PORTS];
   // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;

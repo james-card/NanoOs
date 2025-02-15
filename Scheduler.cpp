@@ -40,12 +40,12 @@ void runScheduler(SchedulerState *schedulerState);
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the USB serial port shell.
-#define USB_SERIAL_PORT_SHELL_PID 5
+#define USB_SERIAL_PORT_SHELL_PID NANO_OS_FIRST_USER_PROCESS_ID
 
 /// @def GPIO_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the GPIO serial port shell.
-#define GPIO_SERIAL_PORT_SHELL_PID 6
+#define GPIO_SERIAL_PORT_SHELL_PID (USB_SERIAL_PORT_SHELL_PID + 1)
 
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
@@ -116,7 +116,7 @@ const static FileDescriptor standardKernelFileDescriptors[
     },
     .outputPipe = {
       .processId = NANO_OS_IO_PROCESS_ID,
-      .messageType = CONSOLE_WRITE_BUFFER,
+      .messageType = NANO_OS_IO_WRITE_BUFFER,
     },
   },
   {
@@ -129,7 +129,7 @@ const static FileDescriptor standardKernelFileDescriptors[
     },
     .outputPipe = {
       .processId = NANO_OS_IO_PROCESS_ID,
-      .messageType = CONSOLE_WRITE_BUFFER,
+      .messageType = NANO_OS_IO_WRITE_BUFFER,
     },
   },
 };
@@ -148,7 +148,7 @@ const static FileDescriptor standardUserFileDescriptors[
     // input pipe to the console.
     .inputPipe = {
       .processId = NANO_OS_IO_PROCESS_ID,
-      .messageType = CONSOLE_WAIT_FOR_INPUT,
+      .messageType = NANO_OS_IO_WAIT_FOR_INPUT,
     },
     .outputPipe = {
       .processId = PROCESS_ID_NOT_SET,
@@ -165,7 +165,7 @@ const static FileDescriptor standardUserFileDescriptors[
     },
     .outputPipe = {
       .processId = NANO_OS_IO_PROCESS_ID,
-      .messageType = CONSOLE_WRITE_BUFFER,
+      .messageType = NANO_OS_IO_WRITE_BUFFER,
     },
   },
   {
@@ -178,7 +178,7 @@ const static FileDescriptor standardUserFileDescriptors[
     },
     .outputPipe = {
       .processId = NANO_OS_IO_PROCESS_ID,
-      .messageType = CONSOLE_WRITE_BUFFER,
+      .messageType = NANO_OS_IO_WRITE_BUFFER,
     },
   },
 };
@@ -746,7 +746,7 @@ int schedulerAssignPortToPid(
   consolePortPidUnion.consolePortPidAssociation.processId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_IO_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_ASSIGN_PORT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -774,7 +774,7 @@ int schedulerAssignPortInputToPid(
   consolePortPidUnion.consolePortPidAssociation.processId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_IO_PROCESS_ID, CONSOLE_ASSIGN_PORT_INPUT,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_ASSIGN_PORT_INPUT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -811,7 +811,7 @@ int schedulerSetPortShell(
   consolePortPidUnion.consolePortPidAssociation.processId = shell;
 
   returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_IO_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_SET_PORT_SHELL,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -1789,7 +1789,7 @@ int schedulerRunProcessCommandHandler(
         = prevProcessDescriptor->processId;
       curProcessDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
-        = CONSOLE_RETURNING_INPUT;
+        = NANO_OS_IO_RETURNING_INPUT;
       if (schedulerAssignPortInputToPid(schedulerState,
         commandDescriptor->consolePort, curProcessDescriptor->processId)
         != processSuccess
@@ -1873,7 +1873,7 @@ int schedulerKillProcessCommandHandler(
       schedulerSendNanoOsMessageToPid(
         schedulerState,
         NANO_OS_IO_PROCESS_ID,
-        CONSOLE_RELEASE_PID_PORT,
+        NANO_OS_IO_RELEASE_PID_PORT,
         (intptr_t) schedulerProcessCompleteMessage,
         processId);
 
@@ -2259,7 +2259,7 @@ void runScheduler(SchedulerState *schedulerState) {
       schedulerSendNanoOsMessageToPid(
         schedulerState,
         NANO_OS_IO_PROCESS_ID,
-        CONSOLE_RELEASE_PID_PORT,
+        NANO_OS_IO_RELEASE_PID_PORT,
         (intptr_t) schedulerProcessCompleteMessage,
         processDescriptor->processId);
     } else {
@@ -2610,7 +2610,7 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle, NULL);
 
   // Assign the console ports to it.
-  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (uint8_t ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (schedulerAssignPortToPid(&schedulerState,
       ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != processSuccess
     ) {
@@ -2620,6 +2620,11 @@ __attribute__((noinline)) void startScheduler(
   }
 
   // Set the shells for the ports.
+  printDebug("Assigning USB_SERIAL_PORT ");
+  printDebug(USB_SERIAL_PORT);
+  printDebug(" to USB_SERIAL_PORT_SHELL_PID ");
+  printDebug(USB_SERIAL_PORT_SHELL_PID);
+  printDebug("\n");
   if (schedulerSetPortShell(&schedulerState,
     USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
@@ -2641,13 +2646,16 @@ __attribute__((noinline)) void startScheduler(
     &allProcesses[NANO_OS_IO_PROCESS_ID]);
   //// processQueuePush(&schedulerState.ready,
   ////   &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_IO_PROCESS_ID]);
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    processQueuePush(&schedulerState.ready, &allProcesses[ii]);
+    printDebug("Pushing process ");
+    printDebug(ii);
+    printDebug(" onto ready queue\n");
+    if (processQueuePush(&schedulerState.ready, &allProcesses[ii]) != 0) {
+      printDebug("ERROR:  Could not push process onto ready queue\n");
+    }
   }
 
   // Get the memory manager and I/O processes up and running.
@@ -2683,9 +2691,9 @@ __attribute__((noinline)) void startScheduler(
   } else {
     //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
-  //// printDebug("Using hostname \"");
-  //// printDebug(schedulerState.hostname);
-  //// printDebug("\"\n");
+  printDebug("Using hostname \"");
+  printDebug(schedulerState.hostname);
+  printDebug("\"\n");
 
   //// do {
   ////   printDebug("Removing file \"hello\".\n");
@@ -2786,6 +2794,7 @@ __attribute__((noinline)) void startScheduler(
   schedulerRunSchedulerProcess(&schedulerState, "Hello.bin");
 
   // Run our scheduler.
+  printDebug("Entering main scheduler loop\n");
   while (1) {
     runScheduler(&schedulerState);
   }

@@ -1518,7 +1518,7 @@ int consolePrintMessage(
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].printString(message);
       portFound = true;
@@ -1575,7 +1575,7 @@ ConsoleBuffer* getAvailableConsoleBuffer(
   // Check to see if the requesting process owns one of the ports for output.
   // Use the buffer for that port if so.
   ConsolePort *consolePorts = consoleState->consolePorts;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if ((consolePorts[ii].outputOwner == processId)
       || (consolePorts[ii].inputOwner == processId)
     ) {
@@ -1811,7 +1811,7 @@ int consoleSetPortShellCommandHandler(
   uint8_t consolePort = consolePortPidAssociation->consolePort;
   ProcessId processId = consolePortPidAssociation->processId;
 
-  if (consolePort < CONSOLE_NUM_PORTS) {
+  if (consolePort < NUM_CONSOLE_PORTS) {
     nanoOsIoState->consoleState.consolePorts[consolePort].shell = processId;
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
@@ -1856,7 +1856,7 @@ int consoleAssignPortHelper(
   uint8_t consolePort = consolePortPidAssociation->consolePort;
   ProcessId processId = consolePortPidAssociation->processId;
 
-  if (consolePort < CONSOLE_NUM_PORTS) {
+  if (consolePort < NUM_CONSOLE_PORTS) {
     if (assignOutput == true) {
       consoleState->consolePorts[consolePort].outputOwner
         = processId;
@@ -1939,7 +1939,7 @@ int consoleReleasePortCommandHandler(
   ProcessId owner = processId(processMessageFrom(inputMessage));
   ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
 
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].outputOwner = consolePorts[ii].shell;
     }
@@ -1982,7 +1982,7 @@ int consoleGetOwnedPortCommandHandler(
   ProcessMessage *returnMessage = inputMessage;
 
   int ownedPort = -1;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     // inputOwner is assigned at the same as outputOwner, but inputOwner can be
     // set separately later if the commands are being piped together.
     // Therefore, checking inputOwner checks both of them.
@@ -2031,7 +2031,7 @@ int consoleSetEchoCommandHandler(
   nanoOsMessage->data = 0;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].echo = desiredEchoState;
       portFound = true;
@@ -2073,7 +2073,7 @@ int consoleWaitForInputCommandHandler(
   ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].waitingForInput = true;
       portFound = true;
@@ -2122,7 +2122,7 @@ int consoleReleasePidPortCommandHandler(
   bool releaseMessage = false;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].inputOwner = consolePorts[ii].shell;
       // NOTE:  By calling sendProcessMessageToPid from within the for loop, we
@@ -2185,7 +2185,7 @@ int consoleReleaseBufferCommandHandler(
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
   if (consoleBuffer != NULL) {
-    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
       if (consoleBuffer == &consoleBuffers[ii]) {
         // The buffer being released is one of the buffers dedicated to a port.
         // *DO NOT* mark it as not being in use because it is always in use.
@@ -2383,7 +2383,7 @@ void* runNanoOsIo(void *args) {
   printDebug("\n");
 
   // For each console port, use the console buffer at the corresponding index.
-  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (uint8_t ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     nanoOsIoState.consoleState.consolePorts[ii].consoleBuffer
       = &nanoOsIoState.consoleState.consoleBuffers[ii];
     nanoOsIoState.consoleState.consolePorts[ii].consoleBuffer->inUse = true;
@@ -2486,7 +2486,7 @@ void* runNanoOsIo(void *args) {
     }
 
     // Poll the consoles
-    for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (uint8_t ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
       ConsolePort *consolePort = &nanoOsIoState.consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
