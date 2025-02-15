@@ -1259,20 +1259,20 @@ static ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     if (processCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
     ) {
-      //// printString(
+      //// printDebug(
       ////   "ERROR!!!  Could not configure process handle for new command.\n");
     }
     if (assignMemory(commandDescriptor->consoleInput,
       processDescriptor->processId) != 0
     ) {
-      //// printString(
+      //// printDebug(
       ////   "WARNING:  Could not assign console input to new process.\n");
-      //// printString("Memory leak.\n");
+      //// printDebug("Memory leak.\n");
     }
     if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
-      //// printString(
+      //// printDebug(
       ////   "WARNING:  Could not assign command descriptor to new process.\n");
-      //// printString("Memory leak.\n");
+      //// printDebug("Memory leak.\n");
     }
 
     processDescriptor->name = commandEntry->name;
@@ -1282,7 +1282,7 @@ static ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
         commandDescriptor->consolePort, processDescriptor->processId)
         != processSuccess
       ) {
-        //// printString("WARNING:  Could not assign console port to process.\n");
+        //// printDebug("WARNING:  Could not assign console port to process.\n");
       }
     }
 
@@ -1332,14 +1332,14 @@ static ProcessDescriptor* launchForegroundProcess(
   if (assignMemory(commandDescriptor->consoleInput,
     NANO_OS_SCHEDULER_PROCESS_ID) != 0
   ) {
-    //// printString(
-    ////   "WARNING:  Could not protect console input from deletion.\n");
-    //// printString("Undefined behavior.\n");
+   //// printDebug(
+   ////   "WARNING:  Could not protect console input from deletion.\n");
+   //// printDebug("Undefined behavior.\n");
   }
   if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-    //// printString(
+    //// printDebug(
     ////   "WARNING:  Could not protect command descriptor from deletion.\n");
-    //// printString("Undefined behavior.\n");
+    //// printDebug("Undefined behavior.\n");
   }
 
   // Kill and clear out the calling process.
@@ -1354,10 +1354,10 @@ static ProcessDescriptor* launchForegroundProcess(
     MEMORY_MANAGER_FREE_PROCESS_MEMORY,
     /* func= */ 0, processDescriptor->processId)
   ) {
-    //// printString("WARNING:  Could not release memory for process ");
-    //// printInt(processDescriptor->processId);
-    //// printString("\n");
-    //// printString("Memory leak.\n");
+    //// printDebug("WARNING:  Could not release memory for process ");
+    //// printDebug(processDescriptor->processId);
+    //// printDebug("\n");
+    //// printDebug("Memory leak.\n");
   }
 
   return launchProcess(schedulerState, processMessage, commandDescriptor,
@@ -1740,6 +1740,7 @@ int schedulerRunProcessCommandHandler(
       // Task is a foreground process.  We're going to kill the caller and reuse
       // its process slot.  This is expected to be the usual case, so list it
       // first.
+      //// printDebug("Launching foreground process\n");
       curProcessDescriptor = launchForegroundProcess(
         schedulerState, processMessage, commandDescriptor);
 
@@ -1748,6 +1749,7 @@ int schedulerRunProcessCommandHandler(
       backgroundProcess = true;
     } else {
       // Task is a background process.  Get a process off the free queue.
+      //// printDebug("Launching background process\n");
       curProcessDescriptor = launchBackgroundProcess(
         schedulerState, processMessage, commandDescriptor);
     }
@@ -1794,7 +1796,7 @@ int schedulerRunProcessCommandHandler(
         commandDescriptor->consolePort, curProcessDescriptor->processId)
         != processSuccess
       ) {
-        //// printString(
+        //// printDebug(
         ////   "WARNING:  Could not assign console port input to process.\n");
       }
     }
@@ -2245,10 +2247,10 @@ void runScheduler(SchedulerState *schedulerState) {
     = coroutineResume(processDescriptor->processHandle, NULL);
 
   if (processReturnValue == COROUTINE_CORRUPT) {
-    //// printString("ERROR!!!  Process corruption detected!!!\n");
-    //// printString("          Removing process ");
-    //// printInt(processDescriptor->processId);
-    //// printString(" from process queues.\n");
+    //// printDebug("ERROR!!!  Process corruption detected!!!\n");
+    //// printDebug("          Removing process ");
+    //// printDebug(processDescriptor->processId);
+    //// printDebug(" from process queues.\n");
 
     processDescriptor->name = NULL;
     processDescriptor->userId = NO_USER_ID;
@@ -2263,7 +2265,7 @@ void runScheduler(SchedulerState *schedulerState) {
         (intptr_t) schedulerProcessCompleteMessage,
         processDescriptor->processId);
     } else {
-      //// printString("WARNING:  Could not allocate "
+      //// printDebug("WARNING:  Could not allocate "
       ////   "schedulerProcessCompleteMessage.  Memory leak.\n");
       // If we can't allocate the first message, we can't allocate the second
       // one either, so bail.
@@ -2283,7 +2285,7 @@ void runScheduler(SchedulerState *schedulerState) {
           NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
         freeProcessMemoryMessage);
     } else {
-      //// printString("WARNING:  Could not allocate "
+      //// printDebug("WARNING:  Could not allocate "
       ////   "freeProcessMemoryMessage.  Memory leak.\n");
     }
 
@@ -2300,9 +2302,7 @@ void runScheduler(SchedulerState *schedulerState) {
   //// if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
   ////   && (processRunning(processDescriptor->processHandle) == false)
   //// ) {
-  ////   if ((schedulerState->hostname == NULL)
-  ////     || (*schedulerState->hostname == '\0')
-  ////   ) {
+  ////   if (schedulerState->bootComplete == false) {
   ////     // We're not done initializing yet.  Put the process back on the ready
   ////     // queue and try again later.
   ////     processQueuePush(&schedulerState->ready, processDescriptor);
@@ -2326,9 +2326,7 @@ void runScheduler(SchedulerState *schedulerState) {
   //// } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
   ////   && (processRunning(processDescriptor->processHandle) == false)
   //// ) {
-  ////   if ((schedulerState->hostname == NULL)
-  ////     || (*schedulerState->hostname == '\0')
-  ////   ) {
+  ////   if (schedulerState->bootComplete == false) {
   ////     // We're not done initializing yet.  Put the process back on the ready
   ////     // queue and try again later.
   ////     processQueuePush(&schedulerState->ready, processDescriptor);
@@ -2386,7 +2384,7 @@ int schedulerRunSchedulerProcess(
 
   char *consoleInput = (char*) kmalloc(strlen(commandString) + 1);
   if (consoleInput == NULL) {
-    //// printString("ERROR!  Could not allocate consoleInput.\n");
+    //// printDebug("ERROR!  Could not allocate consoleInput.\n");
     return returnValue; // 1
   }
   strcpy(consoleInput, commandString);
@@ -2394,7 +2392,7 @@ int schedulerRunSchedulerProcess(
   CommandDescriptor *commandDescriptor
     = (CommandDescriptor*) kmalloc(sizeof(CommandDescriptor));
   if (commandDescriptor == NULL) {
-    //// printString("ERROR!  Could not allocate CommandDescriptor.\n");
+    //// printDebug("ERROR!  Could not allocate CommandDescriptor.\n");
     return returnValue; // 1
   }
   commandDescriptor->consoleInput = consoleInput;
@@ -2619,25 +2617,6 @@ __attribute__((noinline)) void startScheduler(
     }
   }
 
-  // Set the shells for the ports.
-  printDebug("Assigning USB_SERIAL_PORT ");
-  printDebug(USB_SERIAL_PORT);
-  printDebug(" to USB_SERIAL_PORT_SHELL_PID ");
-  printDebug(USB_SERIAL_PORT_SHELL_PID);
-  printDebug("\n");
-  if (schedulerSetPortShell(&schedulerState,
-    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
-  ) {
-    //// printString("WARNING:  Could not set shell for USB serial port.\n");
-    //// printString("          Undefined behavior will result.\n");
-  }
-  if (schedulerSetPortShell(&schedulerState,
-    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
-  ) {
-    //// printString("WARNING:  Could not set shell for GPIO serial port.\n");
-    //// printString("          Undefined behavior will result.\n");
-  }
-
   // The scheduler will take care of cleaning up the dummy processes.
 
   processQueuePush(&schedulerState.ready,
@@ -2650,11 +2629,8 @@ __attribute__((noinline)) void startScheduler(
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    printDebug("Pushing process ");
-    printDebug(ii);
-    printDebug(" onto ready queue\n");
     if (processQueuePush(&schedulerState.ready, &allProcesses[ii]) != 0) {
-      printDebug("ERROR:  Could not push process onto ready queue\n");
+      //// printDebug("ERROR:  Could not push process onto ready queue\n");
     }
   }
 
@@ -2691,9 +2667,9 @@ __attribute__((noinline)) void startScheduler(
   } else {
     //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
-  printDebug("Using hostname \"");
-  printDebug(schedulerState.hostname);
-  printDebug("\"\n");
+  //// printDebug("Using hostname \"");
+  //// printDebug(schedulerState.hostname);
+  //// printDebug("\"\n");
 
   //// do {
   ////   printDebug("Removing file \"hello\".\n");
@@ -2791,10 +2767,30 @@ __attribute__((noinline)) void startScheduler(
     runScheduler(&schedulerState);
   }
 
+  // Set the shells for the ports.
+  //// printDebug("Assigning USB_SERIAL_PORT ");
+  //// printDebug(USB_SERIAL_PORT);
+  //// printDebug(" to USB_SERIAL_PORT_SHELL_PID ");
+  //// printDebug(USB_SERIAL_PORT_SHELL_PID);
+  //// printDebug("\n");
+  if (schedulerSetPortShell(&schedulerState,
+    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
+  ) {
+    //// printDebug("WARNING:  Could not set shell for USB serial port.\n");
+    //// printDebug("          Undefined behavior will result.\n");
+  }
+  if (schedulerSetPortShell(&schedulerState,
+    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
+  ) {
+    //// printDebug("WARNING:  Could not set shell for GPIO serial port.\n");
+    //// printDebug("          Undefined behavior will result.\n");
+  }
+
   schedulerRunSchedulerProcess(&schedulerState, "Hello.bin");
 
   // Run our scheduler.
-  printDebug("Entering main scheduler loop\n");
+  //// printDebug("Entering main scheduler loop\n");
+  schedulerState.bootComplete = true;
   while (1) {
     runScheduler(&schedulerState);
   }
