@@ -17,7 +17,15 @@ My primary idea for space reclamation (both RAM and flash) was to consolidate pr
 
 Consolidating processes is a really bad idea from an architectural perspective because it makes the kernel less modular.  If I was working with gigabytes or even megabytes of RAM and storage, I would absolutely **NOT** do this and I will be the first one to recommend against it to anyone else who considers an architecture like this.  But, I have to also be practical here.  Bytes matter in both RAM and program storage and I really don't have the luxury of being a purist here, so I needed to take a more practical approach.
 
-HOWEVER, because this is such a bad idea, I wasn't willing to rewrite either the FAT16 library or the SD card library in the event that I want to come back to that model again in the future.  Instead, I started a new library with the pieces of each that I needed and then commented out the code in the individual libraries.  Starting a new library also provided me with a way to have one, consolidated place for all I/O functions.  This was good because...
+I started a new library with the pieces of the FAT16 and SD card libraries.  This provided me with a way to have one, consolidated place for all disk-based I/O functions.  This was good because I was also able to consolidate the console library into the new library as well.
+
+One of the things I had been unhappy with was the division of I/O functions across three libraries:  The filesystem library, the console library, and the LIBC implementation.  The new structure gave me an opportunity to restructure things and clean up a lot.  I was able to put all the handler logic into the new I/O library and all the calling logic into the LIBC implementation.
+
+After all my consolidation, my total flash usage was at 46,839 bytes.  So, I reclaimed about 1.5 KB.  I wasn't super happy with that, but it's more than I had.  I can still trim out a little more by taking out some more error messages, but I'll avoid doing that unless I absolutely have to.
+
+One of the things that I discovered while doing the cleanup was that the FAT16 implementation that Claude had put together was re-computing the directory offset of the file blocks every time it needed to update a directory entry.  It did this by looking up the filename in the directory every time.  To make matters worse, it had "stored" the filename by using strdup on the name of the file when the file was opened.  I have no idea what strdup does in the Arduino, but it doesn't use dynamic memory.  I changed the code to store the directory offset when the file is opened and just use that instead of looking up the file each time.  This fixed the strdup bug and resulted in about an 11% performance improvement!  Cool!!!
+
+
 
 To be continued...
 
