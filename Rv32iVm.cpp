@@ -839,8 +839,10 @@ static inline int32_t executeSystem(
     if (immediate == RV32I_IMM12_ECALL) {
       return handleSyscall(rv32iVm);
     } else if (immediate == RV32I_IMM12_EBREAK) {
-      // EBREAK - return different positive value for breakpoint
-      return 2;
+      // EBREAK
+      // This is intended to drop into a debugger, which we don't support.
+      // We will just ignore this if we get it, so return 0 and move on.
+      return 0;
     } else {
       return -1; // Invalid immediate for ECALL/EBREAK
     }
