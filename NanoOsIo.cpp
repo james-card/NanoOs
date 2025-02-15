@@ -1608,12 +1608,12 @@ int consoleWriteValueCommandHandler(
   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
 ) {
   char staticBuffer[19]; // max length of a 64-bit value is 18 digits plus NULL.
-  ConsoleValueType valueType
-    = nanoOsMessageFuncValue(inputMessage, ConsoleValueType);
+  NanoOsIoValueType valueType
+    = nanoOsMessageFuncValue(inputMessage, NanoOsIoValueType);
   const char *message = NULL;
 
   switch (valueType) {
-    case CONSOLE_VALUE_CHAR:
+    case NANO_OS_IO_VALUE_CHAR:
       {
         char value = nanoOsMessageDataValue(inputMessage, char);
         sprintf(staticBuffer, "%c", value);
@@ -1621,7 +1621,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_UCHAR:
+    case NANO_OS_IO_VALUE_UCHAR:
       {
         unsigned char value
           = nanoOsMessageDataValue(inputMessage, unsigned char);
@@ -1630,7 +1630,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_INT:
+    case NANO_OS_IO_VALUE_INT:
       {
         int value = nanoOsMessageDataValue(inputMessage, int);
         sprintf(staticBuffer, "%d", value);
@@ -1638,7 +1638,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_UINT:
+    case NANO_OS_IO_VALUE_UINT:
       {
         unsigned int value
           = nanoOsMessageDataValue(inputMessage, unsigned int);
@@ -1647,7 +1647,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_LONG_INT:
+    case NANO_OS_IO_VALUE_LONG_INT:
       {
         long int value = nanoOsMessageDataValue(inputMessage, long int);
         sprintf(staticBuffer, "%ld", value);
@@ -1655,7 +1655,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_LONG_UINT:
+    case NANO_OS_IO_VALUE_LONG_UINT:
       {
         long unsigned int value
           = nanoOsMessageDataValue(inputMessage, long unsigned int);
@@ -1664,7 +1664,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_FLOAT:
+    case NANO_OS_IO_VALUE_FLOAT:
       {
         float value = nanoOsMessageDataValue(inputMessage, float);
         sprintf(staticBuffer, "%f", (double) value);
@@ -1672,7 +1672,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_DOUBLE:
+    case NANO_OS_IO_VALUE_DOUBLE:
       {
         double value = nanoOsMessageDataValue(inputMessage, double);
         sprintf(staticBuffer, "%lf", value);
@@ -1680,7 +1680,7 @@ int consoleWriteValueCommandHandler(
       }
       break;
 
-    case CONSOLE_VALUE_STRING:
+    case NANO_OS_IO_VALUE_STRING:
       {
         message = nanoOsMessageDataPointer(inputMessage, const char*);
       }
@@ -2495,7 +2495,7 @@ void* runNanoOsIo(void *args) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           consolePort->consoleIndex = 0;
           sendNanoOsMessageToPid(
-            consolePort->inputOwner, CONSOLE_RETURNING_INPUT,
+            consolePort->inputOwner, NANO_OS_IO_RETURNING_INPUT,
             /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
           consolePort->waitingForInput = false;
         } else {
