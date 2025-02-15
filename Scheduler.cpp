@@ -2426,6 +2426,8 @@ int schedulerRunSchedulerProcess(
 __attribute__((noinline)) void startScheduler(
   SchedulerState **coroutineStatePointer
 ) {
+  printString("\n\nBooting...\n");
+
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {};
   schedulerState.hostname = NULL;
