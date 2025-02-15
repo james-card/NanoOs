@@ -49,6 +49,16 @@ extern "C"
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+/// @def USB_SERIAL_PORT
+///
+/// Index into ConsoleState.conslePorts for the USB serial port.
+#define USB_SERIAL_PORT 0
+
+/// @def GPIO_SERIAL_PORT
+///
+/// Index into ConsoleState.conslePorts for the GPIO serial port.
+#define GPIO_SERIAL_PORT 1
+
 /// @struct NanoOsIoCommandParameters
 ///
 /// @brief Parameters needed for an I/O command in a filesystem.
@@ -164,11 +174,26 @@ typedef struct FilesystemState {
   uint8_t  numOpenFiles;
 } FilesystemState;
 
+// Support functions
+void releaseConsole(void);
+int getOwnedConsolePort(void);
+int setConsoleEcho(bool desiredEchoState);
+
 // Main entry point for the process
 void* runNanoOsIo(void *args);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+int printConsole(char message);
+int printConsole(unsigned char message);
+int printConsole(int message);
+int printConsole(unsigned int message);
+int printConsole(long int message);
+int printConsole(long unsigned int message);
+int printConsole(float message);
+int printConsole(double message);
+int printConsole(const char *message);
 
 #endif // NANO_OS_IO_H
