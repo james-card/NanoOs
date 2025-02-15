@@ -2376,9 +2376,9 @@ void* runNanoOsIo(void *args) {
   int byteRead = -1;
   NanoOsIoState nanoOsIoState = {};
   nanoOsIoState.sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
-  printDebug("sizeof(NanoOsIoState) = ");
-  printDebug(sizeof(NanoOsIoState));
-  printDebug("\n");
+  //// printDebug("sizeof(NanoOsIoState) = ");
+  //// printDebug(sizeof(NanoOsIoState));
+  //// printDebug("\n");
 
   // For each console port, use the console buffer at the corresponding index.
   for (uint8_t ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
@@ -2446,9 +2446,9 @@ void* runNanoOsIo(void *args) {
 #endif // SD_CARD_DEBUG
     coroutineYield(&nanoOsIoState.filesystemState);
   } else {
-    //// printString("ERROR! sdSpiCardInit returned status ");
-    //// printInt(nanoOsIoState.sdCardState.sdCardVersion);
-    //// printString("\n");
+    printString("ERROR! sdSpiCardInit returned status ");
+    printInt(nanoOsIoState.sdCardState.sdCardVersion);
+    printString("\n");
     // We can't proceed with the rest of this library if the SD card can't be
     // initialized, so return NULL here instead of yielding.  This will
     // indicate to the caller that we're dead.
