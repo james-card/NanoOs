@@ -1095,7 +1095,7 @@ ConsoleBuffer* nanoOsIoWaitForInput(void) {
 
   if (inputPipe->processId != PROCESS_ID_NOT_SET) {
     ProcessMessage *response
-      = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
+      = processMessageQueueWaitForType(NANO_OS_IO_RETURNING_INPUT, NULL);
     nanoOsIoBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
 
     if (processMessageWaiting(response) == false) {
@@ -1185,7 +1185,7 @@ char *nanoOsIoFGets(char *buffer, int size, FILE *stream) {
       buffer[numBytesReceived] = '\0';
       // Release the buffer.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (uintptr_t) nanoOsIoBuffer, false);
 
       if (newlineAt != NULL) {
@@ -1248,7 +1248,7 @@ int nanoOsIoVFScanf(FILE *stream, const char *format, va_list args) {
     returnValue = vsscanf(nanoOsIoBuffer->buffer, format, args);
     // Release the buffer.
     sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
   }
 
@@ -1313,7 +1313,7 @@ ConsoleBuffer* nanoOsIoGetBuffer(void) {
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
+      NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_GET_BUFFER, 0, 0, true);
     if (processMessage == NULL) {
       break; // will return returnValue, which is NULL
     }
@@ -1333,7 +1333,7 @@ ConsoleBuffer* nanoOsIoGetBuffer(void) {
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
     processMessage
-      = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+      = processMessageQueueWaitForType(NANO_OS_IO_RETURNING_BUFFER, &ts);
     if (processMessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
@@ -1354,7 +1354,7 @@ ConsoleBuffer* nanoOsIoGetBuffer(void) {
 
 /// @fn int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer)
 ///
-/// @brief Send a CONSOLE_WRITE_BUFFER command to the nanoOs process.
+/// @brief Send a NANO_OS_IO_WRITE_BUFFER command to the nanoOs process.
 ///
 /// @param stream A pointer to a FILE object designating which file to output
 ///   to (stdout or stderr).
@@ -1376,7 +1376,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
       // We can't proceed, so bail.
@@ -1405,7 +1405,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
         // Release the buffer to avoid creating a leak.
         sendNanoOsMessageToPid(
-          NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+          NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
           /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
         returnValue = EOF;
@@ -1418,7 +1418,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
       returnValue = EOF;
@@ -1448,7 +1448,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
 /// @fn int nanoOsIoFPuts(const char *s, FILE *stream)
 ///
-/// @brief Print a raw string to the nanoOs.  Uses the CONSOLE_WRITE_STRING
+/// @brief Print a raw string to the nanoOs.  Uses the NANO_OS_IO_WRITE_STRING
 /// command to print the literal string passed in.  Since this function has no
 /// way of knowing whether or not the provided string is dynamically allocated,
 /// it always waits for the nanoOs message handler to complete before

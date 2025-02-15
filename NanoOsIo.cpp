@@ -82,9 +82,12 @@ typedef struct SdCardState {
 ///   the SD card.
 /// @param filesystemState The FilesystemState object that tracks the metadata
 ///   required to manage files.
+/// @param consoleState The ConsoleState object that manages I/O on the
+///   consoles (serial ports).
 typedef struct NanoOsIoState {
   SdCardState sdCardState;
   FilesystemState filesystemState;
+  ConsoleState consoleState;
 } NanoOsIoState;
 
 /// @typedf NanoOsIoCommandHandler
@@ -1495,6 +1498,829 @@ int fat16FilesystemCopyFileCommandHandler(
   return 0;
 }
 
+/// @fn int consolePrintMessage(ConsoleState *consoleState,
+///   ProcessMessage *inputMessage, const char *message)
+///
+/// @brief Print a message to all console ports that are owned by a process.
+///
+/// @param consoleState The ConsoleState being maintained by the runConsole
+///   function.
+/// @param inputMessage The message received from the process printing the
+///   message.
+/// @param message The formatted string message to print.
+///
+/// @return Returns processSuccess on success, processError on failure.
+int consolePrintMessage(
+  ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
+) {
+  int returnValue = processSuccess;
+  ProcessId owner = processId(processMessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].printString(message);
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to print message \"");
+    printString(message);
+    printString("\" from non-owning process ");
+    printInt(owner);
+    printString("\n");
+    returnValue = processError;
+  }
+
+  return returnValue;
+}
+
+/// @fn void consoleMessageCleanup(ProcessMessage *inputMessage)
+///
+/// @brief Release an input ProcessMessage if there are no waiters for the message.
+///
+/// @param inputMessage A pointer to the ProcessMessage to cleanup.
+///
+/// @return This function returns no value.
+void consoleMessageCleanup(ProcessMessage *inputMessage) {
+  if (processMessageWaiting(inputMessage) == false) {
+    if (processMessageRelease(inputMessage) != processSuccess) {
+      Serial.print("ERROR!!!  Could not release inputMessage from ");
+      Serial.print(__func__);
+      Serial.print("\n");
+    }
+  }
+}
+
+/// @fn ConsoleBuffer* getAvailableConsoleBuffer(
+///   ConsoleState *consoleState, ProcessId processId)
+///
+/// @brief Get an available console buffer and mark it as being in use.
+///
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.  The buffers in this state will be searched for
+/// @param processId The numerical ID of the process (PID) making the request
+///   for a buffer (if any).
+///
+/// @return Returns a pointer to the available ConsoleBuffer on success, NULL
+/// on failure.
+ConsoleBuffer* getAvailableConsoleBuffer(
+  ConsoleState *consoleState, ProcessId processId
+) {
+  ConsoleBuffer *consoleBuffers = consoleState->consoleBuffers;
+  ConsoleBuffer *returnValue = NULL;
+
+  // Check to see if the requesting process owns one of the ports for output.
+  // Use the buffer for that port if so.
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if ((consolePorts[ii].outputOwner == processId)
+      || (consolePorts[ii].inputOwner == processId)
+    ) {
+      returnValue = &consoleBuffers[ii];
+      // returnValue->inUse is already set to true, so no need to set it.
+      break;
+    }
+  }
+
+  if (returnValue == NULL) {
+    returnValue = (ConsoleBuffer*) malloc(sizeof(ConsoleBuffer));
+  }
+
+  return returnValue;
+}
+
+/// @fn int consoleWriteValueCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Command handler for the NANO_OS_IO_WRITE_VALUE command.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure that manages the consoles.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
+///
+/// @return Always returns 0 and sets the inputMessage to done so that the
+/// calling process knows that we've handled the message.
+int consoleWriteValueCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  char staticBuffer[19]; // max length of a 64-bit value is 18 digits plus NULL.
+  ConsoleValueType valueType
+    = nanoOsMessageFuncValue(inputMessage, ConsoleValueType);
+  const char *message = NULL;
+
+  switch (valueType) {
+    case CONSOLE_VALUE_CHAR:
+      {
+        char value = nanoOsMessageDataValue(inputMessage, char);
+        sprintf(staticBuffer, "%c", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_UCHAR:
+      {
+        unsigned char value
+          = nanoOsMessageDataValue(inputMessage, unsigned char);
+        sprintf(staticBuffer, "%u", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_INT:
+      {
+        int value = nanoOsMessageDataValue(inputMessage, int);
+        sprintf(staticBuffer, "%d", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_UINT:
+      {
+        unsigned int value
+          = nanoOsMessageDataValue(inputMessage, unsigned int);
+        sprintf(staticBuffer, "%u", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_LONG_INT:
+      {
+        long int value = nanoOsMessageDataValue(inputMessage, long int);
+        sprintf(staticBuffer, "%ld", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_LONG_UINT:
+      {
+        long unsigned int value
+          = nanoOsMessageDataValue(inputMessage, long unsigned int);
+        sprintf(staticBuffer, "%lu", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_FLOAT:
+      {
+        float value = nanoOsMessageDataValue(inputMessage, float);
+        sprintf(staticBuffer, "%f", (double) value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_DOUBLE:
+      {
+        double value = nanoOsMessageDataValue(inputMessage, double);
+        sprintf(staticBuffer, "%lf", value);
+        message = staticBuffer;
+      }
+      break;
+
+    case CONSOLE_VALUE_STRING:
+      {
+        message = nanoOsMessageDataPointer(inputMessage, const char*);
+      }
+      break;
+
+    default:
+      // Do nothing.
+      break;
+
+  }
+
+  // It's possible we were passed a bad type that didn't result in the value of
+  // message being set, so only attempt to print it if it was set.
+  if (message != NULL) {
+    consolePrintMessage(&nanoOsIoState->consoleState, inputMessage, message);
+  }
+
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleGetBufferCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Command handler for the NANO_OS_IO_GET_BUFFER command.  Gets a free
+/// buffer from the provided ConsoleState and replies to the message sender with
+/// a pointer to the buffer structure.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.  The buffers in this state will
+///   be searched for something available to return to the message sender.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
+///
+/// @return This function always returns zero and sets the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+/// Since this is a synchronous call, it also pushes a message onto the message
+/// sender's queue with the free buffer on success.  On failure, the
+/// inputMessage is marked as done but no response is sent.
+int consoleGetBufferCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  // We're going to reuse the input message as the return message.
+  ProcessMessage *returnMessage = inputMessage;
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = (intptr_t) NULL;
+  ProcessId callingPid = processId(processMessageFrom(inputMessage));
+
+  ConsoleBuffer *returnValue
+    = getAvailableConsoleBuffer(&nanoOsIoState->consoleState, callingPid);
+  if (returnValue != NULL) {
+    // Send the buffer back to the caller via the message we allocated earlier.
+    nanoOsMessage->data = (intptr_t) returnValue;
+    processMessageInit(returnMessage, NANO_OS_IO_RETURNING_BUFFER,
+      nanoOsMessage, sizeof(*nanoOsMessage), true);
+    if (processMessageQueuePush(processMessageFrom(inputMessage), returnMessage)
+      != processSuccess
+    ) {
+      returnValue->inUse = false;
+    }
+  }
+
+  // Whether we were able to grab a buffer or not, we're now done with this
+  // call, so mark the input message handled.  This is a synchronous call and
+  // the caller is waiting on our response, so *DO NOT* release it.  The caller
+  // is responsible for releasing it when they've received the response.
+  processMessageSetDone(inputMessage);
+  return 0;
+}
+
+/// @fn int consoleWriteBufferCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Command handler for the NANO_OS_IO_WRITE_BUFFER command.  Writes the
+/// contents of the sent buffer to the console and then clears its inUse flag.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
+///
+/// @return This function always returns zero and sets the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+int consoleWriteBufferCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ConsoleBuffer *consoleBuffer
+    = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
+  if (consoleBuffer != NULL) {
+    const char *message = consoleBuffer->buffer;
+    if (message != NULL) {
+      consolePrintMessage(&nanoOsIoState->consoleState, inputMessage, message);
+    }
+  }
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleSetPortShellCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Set the designated shell process ID for a port.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port with the process
+///   if this function succeeds.
+///
+/// @return This function always returns zero and it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+int consoleSetPortShellCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.nanoOsMessageData
+    = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
+  ConsolePortPidAssociation *consolePortPidAssociation
+    = &consolePortPidUnion.consolePortPidAssociation;
+
+  uint8_t consolePort = consolePortPidAssociation->consolePort;
+  ProcessId processId = consolePortPidAssociation->processId;
+
+  if (consolePort < CONSOLE_NUM_PORTS) {
+    nanoOsIoState->consoleState.consolePorts[consolePort].shell = processId;
+    processMessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
+  } else {
+    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printInt(consolePort);
+    printString("\n");
+    // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
+    // message being done will indicate to the caller that there was a problem
+    // servicing the command.
+  }
+
+  return 0;
+}
+
+/// @fn int consoleAssignPortHelper(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Assign a console port's input and possibly output to a running
+/// process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port's input with the
+///   process if this function succeeds.
+/// @param assignOutput Whether or not to assign the output as well as the
+///   input.
+///
+/// @return This function always returns zero and it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+int consoleAssignPortHelper(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage, bool assignOutput
+) {
+  ConsolePortPidUnion consolePortPidUnion;
+  consolePortPidUnion.nanoOsMessageData
+    = nanoOsMessageDataValue(inputMessage, NanoOsMessageData);
+  ConsolePortPidAssociation *consolePortPidAssociation
+    = &consolePortPidUnion.consolePortPidAssociation;
+
+  uint8_t consolePort = consolePortPidAssociation->consolePort;
+  ProcessId processId = consolePortPidAssociation->processId;
+
+  if (consolePort < CONSOLE_NUM_PORTS) {
+    if (assignOutput == true) {
+      nanoOsIoState->consoleState.consolePorts[consolePort].outputOwner
+        = processId;
+    }
+    nanoOsIoState->consoleState.consolePorts[consolePort].inputOwner
+      = processId;
+    processMessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
+  } else {
+    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printInt(consolePort);
+    printString("\n");
+    // *DON'T* call processMessageRelease or processMessageSetDone here.  The
+    // lack of the message being done will indicate to the caller that there
+    // was a problem servicing the command.
+  }
+
+  return 0;
+}
+
+/// @fn int consoleAssignPortCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Assign a console port's input and output to a running process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port's input and output
+///   with the process if this function succeeds.
+///
+/// @return This function always returns zero and it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+int consoleAssignPortCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  consoleAssignPortHelper(&nanoOsIoState->consoleState, inputMessage, true);
+
+  return 0;
+}
+
+/// @fn int consoleAssignPortInputCommandHandler(
+///   NanoOsIoState *NanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Assign a console port's input to a running process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.  This contains a NanoOsMessage that contains a
+///   ConsolePortPidAssociation that will associate the port's input with the
+///   process if this function succeeds.
+///
+/// @return This function always returns zero and it marks the inputMessage as
+/// being 'done' on success and does *NOT* mark it on failure.
+int consoleAssignPortInputCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  consoleAssignPortHelper(&nanoOsIoState->consoleState, inputMessage, false);
+
+  return 0;
+}
+
+/// @fn int consoleReleasePortCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Release all the ports currently owned by a process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function always returns zero and it marks the input message as
+/// done.
+int consoleReleasePortCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ProcessId owner = processId(processMessageFrom(inputMessage));
+  ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
+
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].outputOwner = consolePorts[ii].shell;
+    }
+    if (consolePorts[ii].inputOwner == owner) {
+      consolePorts[ii].inputOwner = consolePorts[ii].shell;
+    }
+  }
+
+  // Since piped commands still attempt to release a port on completion, we
+  // will not print a warning if we didn't successfully release anything.
+
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleGetOwnedPortCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Get the first port currently owned by a process.
+///
+/// @note While it is technically possible for a single process to own multiple
+/// ports, the expectation here is that this call is made by a process that is
+/// only expecting to own one.  This is mostly for the purposes of transferring
+/// ownership of the port from one process to another.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function always returns zero and it marks the input message as
+/// done.
+int consoleGetOwnedPortCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ProcessId owner = processId(processMessageFrom(inputMessage));
+  ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
+  ProcessMessage *returnMessage = inputMessage;
+
+  int ownedPort = -1;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    // inputOwner is assigned at the same as outputOwner, but inputOwner can be
+    // set separately later if the commands are being piped together.
+    // Therefore, checking inputOwner checks both of them.
+    if (consolePorts[ii].inputOwner == owner) {
+      ownedPort = ii;
+      break;
+    }
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = (intptr_t) ownedPort;
+  processMessageInit(returnMessage, NANO_OS_IO_RETURNING_PORT,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  sendProcessMessageToPid(owner, inputMessage);
+
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleSetEchoCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Set whether or not input is echoed back to all console ports owned
+/// by a process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function always returns 0 and marks the input message as done.
+int consoleSetEchoCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ProcessId owner = processId(processMessageFrom(inputMessage));
+  ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
+  ProcessMessage *returnMessage = inputMessage;
+  bool desiredEchoState = nanoOsMessageDataValue(inputMessage, bool);
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = 0;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].echo = desiredEchoState;
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to set echo from non-owning process ");
+    printInt(owner);
+    printString("\n");
+    nanoOsMessage->data = (intptr_t) -1;
+  }
+
+  processMessageInit(returnMessage, NANO_OS_IO_RETURNING_PORT,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  sendProcessMessageToPid(owner, inputMessage);
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleWaitForInputCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Wait for input from any of the console ports owned by a process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function always returns zero and marks the input message as
+/// done.
+int consoleWaitForInputCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ProcessId owner = processId(processMessageFrom(inputMessage));
+  ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].inputOwner == owner) {
+      consolePorts[ii].waitingForInput = true;
+      portFound = true;
+    }
+  }
+
+  if (portFound == false) {
+    printString("WARNING:  Request to wait for input from non-owning process ");
+    printInt(owner);
+    printString("\n");
+  }
+
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleReleasePidPortCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Release all the ports currently owned by a process.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function always returns 0 and marks the input message as done.
+int consoleReleasePidPortCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ProcessId sender = processId(processMessageFrom(inputMessage));
+  if (sender != NANO_OS_SCHEDULER_PROCESS_ID) {
+    // Sender is not the scheduler.  We will ignore this.
+    processMessageSetDone(inputMessage);
+    consoleMessageCleanup(inputMessage);
+    return;
+  }
+
+  ProcessId owner
+    = nanoOsMessageDataValue(inputMessage, ProcessId);
+  ConsolePort *consolePorts = nanoOsIoState->consoleState.consolePorts;
+  ProcessMessage *processMessage
+    = nanoOsMessageFuncPointer(inputMessage, ProcessMessage*);
+  bool releaseMessage = false;
+
+  bool portFound = false;
+  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    if (consolePorts[ii].inputOwner == owner) {
+      consolePorts[ii].inputOwner = consolePorts[ii].shell;
+      // NOTE:  By calling sendProcessMessageToPid from within the for loop, we
+      // run the risk of sending the same message to multiple shells.  That's
+      // irrelevant in this case since nothing is waiting for the message and
+      // all the shells will release the message.  In reality, one process
+      // almost never owns multiple ports.  The only exception is during boot.
+      if (owner != consolePorts[ii].shell) {
+        sendProcessMessageToPid(consolePorts[ii].shell, processMessage);
+      } else {
+        // The shell is being restarted.  It won't be able to receive the
+        // message if we send it, so we need to go ahead and release it.
+        releaseMessage = true;
+      }
+      portFound = true;
+    }
+    if (consolePorts[ii].outputOwner == owner) {
+      consolePorts[ii].outputOwner = consolePorts[ii].shell;
+      if (owner == consolePorts[ii].shell) {
+        // The shell is being restarted.  It won't be able to receive the
+        // message if we send it, so we need to go ahead and release it.
+        releaseMessage = true;
+      }
+      portFound = true;
+    }
+  }
+
+  if ((releaseMessage == true) || (portFound == false)) {
+    processMessageRelease(processMessage);
+  }
+
+  processMessageSetDone(inputMessage);
+  consoleMessageCleanup(inputMessage);
+
+  return 0;
+}
+
+/// @fn int consoleReleaseBufferCommandHandler(
+///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///
+/// @brief Command handler for the NANO_OS_IO_RELEASE_BUFFER command.  Releases
+/// a buffer that was previously returned by the NANO_OS_IO_GET_BUFFER command.
+/// a pointer to the buffer structure.
+///
+/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
+///   structure held by the runConsole process.
+///   member set to false.
+/// @param inputMessage A pointer to the ProcessMessage that was received from
+///   the process that sent the command.
+///
+/// @return This function always returns zero and sets the inputMessage to
+/// done so that the calling process knows that we've handled the message.
+/// Since this is a synchronous call, it also pushes a message onto the message
+/// sender's queue with the free buffer on success.  On failure, the
+/// inputMessage is marked as done but no response is sent.
+int consoleReleaseBufferCommandHandler(
+  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage
+) {
+  ConsoleBuffer *consoleBuffers = nanoOsIoState->consoleState.consoleBuffers;
+  ConsoleBuffer *consoleBuffer
+    = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
+  if (consoleBuffer != NULL) {
+    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+      if (consoleBuffer == &consoleBuffers[ii]) {
+        // The buffer being released is one of the buffers dedicated to a port.
+        // *DO NOT* mark it as not being in use because it is always in use.
+        // Just release the message and return.
+        processMessageRelease(inputMessage);
+        return;
+      }
+    }
+
+    free(consoleBuffer); consoleBuffer = NULL;
+  }
+
+  // Whether we were able to grab a buffer or not, we're now done with this
+  // call, so mark the input message handled.  This is a synchronous call and
+  // the caller is waiting on our response, so *DO NOT* release it.  The caller
+  // is responsible for releasing it when they've received the response.
+  processMessageRelease(inputMessage);
+  return 0;
+}
+
+/// @fn int readSerialByte(ConsolePort *consolePort, UartClass &serialPort)
+///
+/// @brief Do a non-blocking read of a serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+/// @param serialPort A reference to the UartClass object (Serial or Serial1)
+///   to read a byte from.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
+int readSerialByte(ConsolePort *consolePort, UartClass &serialPort) {
+  int serialData = -1;
+  serialData = serialPort.read();
+  if (serialData > -1) {
+    ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
+    char *buffer = consoleBuffer->buffer;
+    buffer[consolePort->consoleIndex] = (char) serialData;
+    if (consolePort->echo == true) {
+      if (((char) serialData != '\r')
+        && ((char) serialData != '\n')
+      ) {
+        serialPort.print((char) serialData);
+      } else {
+        serialPort.print("\r\n");
+      }
+    }
+    consolePort->consoleIndex++;
+    consolePort->consoleIndex %= CONSOLE_BUFFER_SIZE;
+  }
+
+  return serialData;
+}
+
+/// @fn int readUsbSerialByte(ConsolePort *consolePort)
+///
+/// @brief Do a non-blocking read of the USB serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
+int readUsbSerialByte(ConsolePort *consolePort) {
+  return readSerialByte(consolePort, Serial);
+}
+
+/// @fn int readGpioSerialByte(ConsolePort *consolePort)
+///
+/// @brief Do a non-blocking read of the GPIO serial port.
+///
+/// @param ConsolePort A pointer to the ConsolePort data structure that contains
+///   the buffer information to use.
+///
+/// @return Returns the byte read, cast to an int, on success, -1 on failure.
+int readGpioSerialByte(ConsolePort *consolePort) {
+  return readSerialByte(consolePort, Serial1);
+}
+
+/// @fn int printSerialString(UartClass &serialPort, const char *string)
+///
+/// @brief Print a string to the default serial port.
+///
+/// @param serialPort A reference to the UartClass object (Serial or Serial1)
+///   to read a byte from.
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
+int printSerialString(UartClass &serialPort, const char *string) {
+  int returnValue = 0;
+  size_t numBytes = 0;
+
+  char *newlineAt = strchr(string, '\n');
+  newlineAt = strchr(string, '\n');
+  if (newlineAt == NULL) {
+    numBytes = strlen(string);
+  } else {
+    numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+  }
+  while (newlineAt != NULL) {
+    returnValue += (int) serialPort.write(string, numBytes);
+    returnValue += (int) serialPort.write("\r\n");
+    string = newlineAt + 1;
+    newlineAt = strchr(string, '\n');
+    if (newlineAt == NULL) {
+      numBytes = strlen(string);
+    } else {
+      numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+    }
+  }
+  returnValue += (int) serialPort.write(string, numBytes);
+
+  return returnValue;
+}
+
+/// @fn int printUsbSerialString(const char *string)
+///
+/// @brief Print a string to the USB serial port.
+///
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
+int printUsbSerialString(const char *string) {
+  return printSerialString(Serial, string);
+}
+
+/// @fn int printGpioSerialString(const char *string)
+///
+/// @brief Print a string to the GPIO serial port.
+///
+/// @param string A pointer to the string to print.
+///
+/// @return Returns the number of bytes written to the serial port.
+int printGpioSerialString(const char *string) {
+  return printSerialString(Serial1, string);
+}
+
 /// @var nanoOsIoCommandHandlers
 ///
 /// @brief Array of NanoOsIoCommandHandler function pointers.
@@ -1506,6 +2332,18 @@ const NanoOsIoCommandHandler nanoOsIoCommandHandlers[] = {
   fat16FilesystemRemoveFileCommandHandler, // NANO_OS_IO_REMOVE_FILE
   fat16FilesystemSeekFileCommandHandler,   // NANO_OS_IO_SEEK_FILE
   fat16FilesystemCopyFileCommandHandler,   // NANO_OS_IO_COPY_FILE
+  consoleWriteValueCommandHandler,         // NANO_OS_IO_WRITE_VALUE
+  consoleGetBufferCommandHandler,          // NANO_OS_IO_GET_BUFFER
+  consoleWriteBufferCommandHandler,        // NANO_OS_IO_WRITE_BUFFER
+  consoleSetPortShellCommandHandler,       // NANO_OS_IO_SET_PORT_SHELL
+  consoleAssignPortCommandHandler,         // NANO_OS_IO_ASSIGN_PORT
+  consoleAssignPortInputCommandHandler,    // NANO_OS_IO_ASSIGN_PORT_INPUT
+  consoleReleasePortCommandHandler,        // NANO_OS_IO_RELEASE_PORT
+  consoleGetOwnedPortCommandHandler,       // NANO_OS_IO_GET_OWNED_PORT
+  consoleSetEchoCommandHandler,            // NANO_OS_IO_SET_ECHO_PORT
+  consoleWaitForInputCommandHandler,       // NANO_OS_IO_WAIT_FOR_INPUT
+  consoleReleasePidPortCommandHandler,     // NANO_OS_IO_RELEASE_PID_PORT
+  consoleReleaseBufferCommandHandler,      // NANO_OS_IO_RELEASE_BUFFER
 };
 
 
@@ -1537,12 +2375,56 @@ void handleNanoOsIoMessages(NanoOsIoState *nanoOsIoState) {
 ///
 /// @return Never returns on success, returns NULL on failure.
 void* runNanoOsIo(void *args) {
+  int byteRead = -1;
   NanoOsIoState nanoOsIoState = {};
   nanoOsIoState.sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
   printDebug("sizeof(NanoOsIoState) = ");
   printDebug(sizeof(NanoOsIoState));
   printDebug("\n");
 
+  // For each console port, use the console buffer at the corresponding index.
+  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    nanoOsIoState.consoleState.consolePorts[ii].consoleBuffer
+      = &nanoOsIoState.consoleState.consoleBuffers[ii];
+    nanoOsIoState.consoleState.consolePorts[ii].consoleBuffer->inUse = true;
+  }
+
+  // Set the port-specific data.
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].consoleIndex
+    = 0;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].inputOwner
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].outputOwner
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].shell
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput
+    = false;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].readByte
+    = readUsbSerialByte;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].echo
+    = true;
+  nanoOsIoState.consoleState.consolePorts[USB_SERIAL_PORT].printString
+    = printUsbSerialString;
+
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex
+    = 0;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].inputOwner
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].outputOwner
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].shell
+    = PROCESS_ID_NOT_SET;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput
+    = false;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].readByte
+    = readGpioSerialByte;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].echo
+    = true;
+  nanoOsIoState.consoleState.consolePorts[GPIO_SERIAL_PORT].printString
+    = printGpioSerialString;
+
+  // Initialize the SD card
   nanoOsIoState.sdCardState.sdCardVersion
     = sdSpiCardInit(nanoOsIoState.sdCardState.chipSelect);
   if (nanoOsIoState.sdCardState.sdCardVersion > 0) {
@@ -1598,16 +2480,161 @@ void* runNanoOsIo(void *args) {
         = (NanoOsIoCommandResponse) processMessageType(schedulerMessage);
       if (messageType < NUM_NANO_OS_IO_COMMANDS) {
         nanoOsIoCommandHandlers[messageType](&nanoOsIoState, schedulerMessage);
-      } else {
-        //// printString("ERROR!!!  Received unknown IO command ");
-        //// printInt(messageType);
-        //// printString(" from scheduler.\n");
       }
     } else {
       handleNanoOsIoMessages(&nanoOsIoState);
     }
+
+    // Poll the consoles
+    for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+      ConsolePort *consolePort = &nanoOsIoState.consoleState.consolePorts[ii];
+      byteRead = consolePort->readByte(consolePort);
+      if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
+        if (consolePort->waitingForInput == true) {
+          // NULL-terminate the buffer.
+          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+          consolePort->consoleIndex = 0;
+          sendNanoOsMessageToPid(
+            consolePort->inputOwner, CONSOLE_RETURNING_INPUT,
+            /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
+          consolePort->waitingForInput = false;
+        } else {
+          // Console port is owned but owning process is not waiting for input.
+          // Reset our buffer and do nothing.
+          consolePort->consoleIndex = 0;
+        }
+      }
+    }
   }
 
   return NULL;
+}
+
+/// @fn int printConsoleValue(
+///   ConsoleValueType valueType, void *value, size_t length)
+///
+/// @brief Send a command to print a value to the console.
+///
+/// @param command The ConsoleCommand of the message to send, which will
+///   determine the handler to use and therefore the type of the value that is
+///   displayed.
+/// @param value A pointer to the value to send as data.
+/// @param length The length of the data at the address provided by the value
+///   pointer.  Will be truncated to the size of NanoOsMessageData if needed.
+///
+/// @return This function is non-blocking, always succeeds, and always returns
+/// 0.
+int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
+  NanoOsMessageData message = 0;
+  length = (length <= sizeof(message)) ? length : sizeof(message);
+  memcpy(&message, value, length);
+
+  sendNanoOsMessageToPid(NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_WRITE_VALUE,
+    valueType, message, false);
+
+  return 0;
+}
+
+/// @fn printConsole(<type> message)
+///
+/// @brief Print a message of an arbitrary type to the console.
+///
+/// @details
+/// This is basically just a switch statement where the type is the switch
+/// value.  They all call printConsole with the appropriate console command, a
+/// pointer to the provided message, and the size of the message.
+///
+/// @param message The message to send to the console.
+///
+/// @return Returns the value returned by printConsoleValue.
+int printConsole(char message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_CHAR, &message, sizeof(message));
+}
+int printConsole(unsigned char message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_UCHAR, &message, sizeof(message));
+}
+int printConsole(int message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_INT, &message, sizeof(message));
+}
+int printConsole(unsigned int message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_UINT, &message, sizeof(message));
+}
+int printConsole(long int message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_LONG_INT, &message, sizeof(message));
+}
+int printConsole(long unsigned int message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_LONG_UINT, &message, sizeof(message));
+}
+int printConsole(float message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_FLOAT, &message, sizeof(message));
+}
+int printConsole(double message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_DOUBLE, &message, sizeof(message));
+}
+int printConsole(const char *message) {
+  return printConsoleValue(NANO_OS_IO_VALUE_STRING, &message, sizeof(message));
+}
+
+// Console port support functions.
+
+/// @fn void releaseConsole(void)
+///
+/// @brief Release the console and display the command prompt to the user again.
+///
+/// @return This function returns no value.
+void releaseConsole(void) {
+  // releaseConsole is sometimes called from within handleCommand, which runs
+  // from within the console process.  That means we can't do blocking prints
+  // from this function.  i.e. We can't use printf here.  Use printConsole
+  // instead.
+  sendNanoOsMessageToPid(NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_PORT,
+    /* func= */ 0, /* data= */ 0, false);
+  processYield();
+}
+
+/// @fn int getOwnedConsolePort(void)
+///
+/// @brief Get the first port owned by the running process.
+///
+/// @return Returns the numerical index of the console port the process owns on
+/// success, -1 on failure.
+int getOwnedConsolePort(void) {
+  ProcessMessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_GET_OWNED_PORT,
+    /* func= */ 0, /* data= */ 0, /* waiting= */ true);
+
+  // The console will reuse the message we sent, so don't release the message
+  // in processMessageWaitForReplyWithType.
+  ProcessMessage *reply = processMessageWaitForReplyWithType(
+    sent, /* releaseAfterDone= */ false,
+    NANO_OS_IO_RETURNING_PORT, NULL);
+
+  int returnValue = nanoOsMessageDataValue(reply, int);
+  processMessageRelease(reply);
+
+  return returnValue;
+}
+
+/// @fn int setConsoleEcho(bool desiredEchoState)
+///
+/// @brief Get the echo state for all ports owned by the current process.
+///
+/// @return Returns 0 if the echo state was set for the current process's
+/// ports, -1 on failure.
+int setConsoleEcho(bool desiredEchoState) {
+  ProcessMessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_SET_ECHO_PORT,
+    /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
+
+  // The console will reuse the message we sent, so don't release the message
+  // in processMessageWaitForReplyWithType.
+  ProcessMessage *reply = processMessageWaitForReplyWithType(
+    sent, /* releaseAfterDone= */ false,
+    NANO_OS_IO_RETURNING_PORT, NULL);
+
+  int returnValue = nanoOsMessageDataValue(reply, int);
+  processMessageRelease(reply);
+
+  return returnValue;
 }
 

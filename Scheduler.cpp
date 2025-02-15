@@ -2465,21 +2465,21 @@ __attribute__((noinline)) void startScheduler(
       = (FileDescriptor*) standardKernelFileDescriptors;
   }
 
-  // Create the console process.
-  ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
-    //// printString("Could not create console process.\n");
-  }
-  processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
-    = NANO_OS_CONSOLE_PROCESS_ID;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
+  //// // Create the console process.
+  //// ProcessHandle processHandle = 0;
+  //// if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
+  ////   //// printString("Could not create console process.\n");
+  //// }
+  //// processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
+  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
+  ////   = NANO_OS_CONSOLE_PROCESS_ID;
+  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
+  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
+  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
 
-  // Start the console by calling coroutineResume.
-  coroutineResume(
-    allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
+  //// // Start the console by calling coroutineResume.
+  //// coroutineResume(
+  ////   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
 
   //// printString("\n");
   //// printString("Main stack size = ");
@@ -2520,19 +2520,19 @@ __attribute__((noinline)) void startScheduler(
   //// sdDevice->partitionNumber = 1;
 
   // Create the filesystem process.
-  processHandle = 0;
+  ProcessHandle processHandle = 0;
   if (processCreate(&processHandle, runNanoOsIo,
     (void*) ((intptr_t) SD_CARD_PIN_CHIP_SELECT))
     != processSuccess
   ) {
     //// printString("Could not start filesystem process.\n");
   }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
-    = NANO_OS_FILESYSTEM_PROCESS_ID;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  processSetId(processHandle, NANO_OS_IO_PROCESS_ID);
+  allProcesses[NANO_OS_IO_PROCESS_ID].processId
+    = NANO_OS_IO_PROCESS_ID;
+  allProcesses[NANO_OS_IO_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_IO_PROCESS_ID].name = "I/O";
+  allProcesses[NANO_OS_IO_PROCESS_ID].userId = ROOT_USER_ID;
 
   // We need to get the FilesystemState out of the filesystem process and set
   // the partition number to use, so do a coroutineResume to retrieve it.

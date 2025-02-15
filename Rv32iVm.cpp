@@ -50,6 +50,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   ) {
     return -1;
   }
+  size_t freeMemory = getFreeMemory();
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_DATA_MEMORY],
     virtualMemoryFilename,
@@ -58,6 +59,9 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   ) {
     return -1;
   }
+  printDebug("virtualMemoryInit consumed ");
+  printDebug(freeMemory - getFreeMemory());
+  printDebug(" bytes\n");
 
   VirtualMemoryState programBinary = {};
   if (virtualMemoryInit(&programBinary, programPath, 0, NULL) != 0) {
@@ -1119,13 +1123,19 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
-  //// printDebug(getFreeMemory());
-  //// printDebug(" bytes free\n");
+  printDebug(getFreeMemory());
+  printDebug(" bytes free before rv32iVmInit\n");
+  size_t freeMemory = getFreeMemory();
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
     printString("rv32iVmInit failed\n");
     return -1;
   }
+  printDebug(getFreeMemory());
+  printDebug(" bytes free after rv32iVmInit\n");
+  printDebug("rv32iVmInit consumed ");
+  printDebug(freeMemory - getFreeMemory() - 512);
+  printDebug(" bytes\n");
   //// printDebug(getFreeMemory());
   //// printDebug(" bytes free\n");
   //// printDebug("sizeof(Rv32iVm) = ");
@@ -1137,9 +1147,9 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  //// uint32_t startTime = 0;
-  //// uint32_t runTime = 0;
-  //// startTime = getElapsedMilliseconds(0);
+  uint32_t startTime = 0;
+  uint32_t runTime = 0;
+  startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1149,10 +1159,10 @@ int runRv32iProcess(int argc, char **argv) {
     rv32iVm.rv32iCoreRegisters.x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  //// runTime = getElapsedMilliseconds(startTime);
-  //// printDebug("Runtime: ");
-  //// printDebug(runTime);
-  //// printDebug(" milliseconds\n");
+  runTime = getElapsedMilliseconds(startTime);
+  printDebug("Runtime: ");
+  printDebug(runTime);
+  printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
