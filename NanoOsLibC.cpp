@@ -844,7 +844,7 @@ FILE* nanoOsIoFOpen(const char *pathname, const char *mode) {
   }
 
   ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_OPEN_FILE,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_OPEN_FILE,
     (intptr_t) mode, (intptr_t) pathname, true);
   processMessageWaitForDone(msg, NULL);
   FILE *file = nanoOsMessageDataPointer(msg, FILE*);
@@ -862,7 +862,7 @@ FILE* nanoOsIoFOpen(const char *pathname, const char *mode) {
 int nanoOsIoFClose(FILE *stream) {
   if (stream != NULL) {
     ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_CLOSE_FILE,
+      NANO_OS_IO_PROCESS_ID, NANO_OS_IO_CLOSE_FILE,
       0, (intptr_t) stream, true);
     processMessageWaitForDone(msg, NULL);
     processMessageRelease(msg);
@@ -883,7 +883,7 @@ int nanoOsIoRemove(const char *pathname) {
   int returnValue = 0;
   if ((pathname != NULL) && (*pathname != '\0')) {
     ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_REMOVE_FILE,
+      NANO_OS_IO_PROCESS_ID, NANO_OS_IO_REMOVE_FILE,
       /* func= */ 0, (intptr_t) pathname, true);
     processMessageWaitForDone(msg, NULL);
     returnValue = nanoOsMessageDataValue(msg, int);
@@ -915,7 +915,7 @@ int nanoOsIoFSeek(FILE *stream, long offset, int whence) {
     .whence = whence,
   };
   ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, NANO_OS_IO_SEEK_FILE,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_SEEK_FILE,
     /* func= */ 0, (intptr_t) &nanoOsIoSeekParameters, true);
   processMessageWaitForDone(msg, NULL);
   int returnValue = nanoOsMessageDataValue(msg, int);
@@ -949,7 +949,7 @@ size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     .length = (uint32_t) (size * nmemb)
   };
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_PROCESS_ID,
     NANO_OS_IO_READ_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
@@ -989,7 +989,7 @@ size_t nanoOsIoFWrite(
     .length = (uint32_t) (size * nmemb)
   };
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_PROCESS_ID,
     NANO_OS_IO_WRITE_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
@@ -1053,7 +1053,7 @@ size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
   };
 
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
+    NANO_OS_IO_PROCESS_ID,
     NANO_OS_IO_COPY_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &fcopyArgs,
@@ -1088,7 +1088,7 @@ ConsoleBuffer* nanoOsIoWaitForInput(void) {
   }
   IoPipe *inputPipe = &inputFd->inputPipe;
 
-  if (inputPipe->processId == NANO_OS_CONSOLE_PROCESS_ID) {
+  if (inputPipe->processId == NANO_OS_IO_PROCESS_ID) {
     sendNanoOsMessageToPid(inputPipe->processId, inputPipe->messageType,
       /* func= */ 0, /* data= */ 0, false);
   }
@@ -1185,7 +1185,7 @@ char *nanoOsIoFGets(char *buffer, int size, FILE *stream) {
       buffer[numBytesReceived] = '\0';
       // Release the buffer.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+        NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (uintptr_t) nanoOsIoBuffer, false);
 
       if (newlineAt != NULL) {
@@ -1208,7 +1208,7 @@ char *nanoOsIoFGets(char *buffer, int size, FILE *stream) {
       .length = (uint32_t) size - 1
     };
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
+      NANO_OS_IO_PROCESS_ID,
       NANO_OS_IO_READ_FILE,
       /* func= */ 0,
       /* data= */ (intptr_t) &nanoOsIoCommandParameters,
@@ -1248,7 +1248,7 @@ int nanoOsIoVFScanf(FILE *stream, const char *format, va_list args) {
     returnValue = vsscanf(nanoOsIoBuffer->buffer, format, args);
     // Release the buffer.
     sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+      NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
   }
 
@@ -1313,7 +1313,7 @@ ConsoleBuffer* nanoOsIoGetBuffer(void) {
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_GET_BUFFER, 0, 0, true);
+      NANO_OS_IO_PROCESS_ID, NANO_OS_IO_GET_BUFFER, 0, 0, true);
     if (processMessage == NULL) {
       break; // will return returnValue, which is NULL
     }
@@ -1376,7 +1376,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+        NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
       // We can't proceed, so bail.
@@ -1405,7 +1405,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
         // Release the buffer to avoid creating a leak.
         sendNanoOsMessageToPid(
-          NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+          NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
           /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
         returnValue = EOF;
@@ -1418,7 +1418,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+        NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
       returnValue = EOF;
@@ -1431,7 +1431,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
       .length = (uint32_t) strlen(nanoOsIoBuffer->buffer)
     };
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
+      NANO_OS_IO_PROCESS_ID,
       NANO_OS_IO_WRITE_FILE,
       /* func= */ 0,
       /* data= */ (intptr_t) &nanoOsIoCommandParameters,

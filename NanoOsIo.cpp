@@ -1828,13 +1828,13 @@ int consoleSetPortShellCommandHandler(
 }
 
 /// @fn int consoleAssignPortHelper(
-///   NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage)
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Assign a console port's input and possibly output to a running
 /// process.
 ///
-/// @param nanoOsIoState A pointer to the state that contains the ConsoleState
-///   structure held by the runConsole process.
+/// @param consoleState A pointer to the ConsoleState structure held by the
+///   runConsole process.
 /// @param inputMessage A pointer to the ProcessMessage with the received
 ///   command.  This contains a NanoOsMessage that contains a
 ///   ConsolePortPidAssociation that will associate the port's input with the
@@ -1845,7 +1845,7 @@ int consoleSetPortShellCommandHandler(
 /// @return This function always returns zero and it marks the inputMessage as
 /// being 'done' on success and does *NOT* mark it on failure.
 int consoleAssignPortHelper(
-  NanoOsIoState *nanoOsIoState, ProcessMessage *inputMessage, bool assignOutput
+  ConsoleState *consoleState, ProcessMessage *inputMessage, bool assignOutput
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.nanoOsMessageData
@@ -1858,10 +1858,10 @@ int consoleAssignPortHelper(
 
   if (consolePort < CONSOLE_NUM_PORTS) {
     if (assignOutput == true) {
-      nanoOsIoState->consoleState.consolePorts[consolePort].outputOwner
+      consoleState->consolePorts[consolePort].outputOwner
         = processId;
     }
-    nanoOsIoState->consoleState.consolePorts[consolePort].inputOwner
+    consoleState->consolePorts[consolePort].inputOwner
       = processId;
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
@@ -2111,7 +2111,7 @@ int consoleReleasePidPortCommandHandler(
     // Sender is not the scheduler.  We will ignore this.
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
-    return;
+    return 0;
   }
 
   ProcessId owner
@@ -2191,7 +2191,7 @@ int consoleReleaseBufferCommandHandler(
         // *DO NOT* mark it as not being in use because it is always in use.
         // Just release the message and return.
         processMessageRelease(inputMessage);
-        return;
+        return 0;
       }
     }
 
@@ -2511,7 +2511,7 @@ void* runNanoOsIo(void *args) {
 }
 
 /// @fn int printConsoleValue(
-///   ConsoleValueType valueType, void *value, size_t length)
+///   NanoOsIoValueType valueType, void *value, size_t length)
 ///
 /// @brief Send a command to print a value to the console.
 ///
@@ -2524,12 +2524,14 @@ void* runNanoOsIo(void *args) {
 ///
 /// @return This function is non-blocking, always succeeds, and always returns
 /// 0.
-int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
+int printConsoleValue(
+  NanoOsIoValueType valueType, void *value, size_t length
+) {
   NanoOsMessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
   memcpy(&message, value, length);
 
-  sendNanoOsMessageToPid(NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_WRITE_VALUE,
+  sendNanoOsMessageToPid(NANO_OS_IO_PROCESS_ID, NANO_OS_IO_WRITE_VALUE,
     valueType, message, false);
 
   return 0;
@@ -2587,7 +2589,7 @@ void releaseConsole(void) {
   // from within the console process.  That means we can't do blocking prints
   // from this function.  i.e. We can't use printf here.  Use printConsole
   // instead.
-  sendNanoOsMessageToPid(NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_PORT,
+  sendNanoOsMessageToPid(NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_PORT,
     /* func= */ 0, /* data= */ 0, false);
   processYield();
 }
@@ -2600,7 +2602,7 @@ void releaseConsole(void) {
 /// success, -1 on failure.
 int getOwnedConsolePort(void) {
   ProcessMessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_GET_OWNED_PORT,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message
@@ -2623,7 +2625,7 @@ int getOwnedConsolePort(void) {
 /// ports, -1 on failure.
 int setConsoleEcho(bool desiredEchoState) {
   ProcessMessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_NANO_OS_IO_PROCESS_ID, NANO_OS_IO_SET_ECHO_PORT,
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_SET_ECHO_PORT,
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
   // The console will reuse the message we sent, so don't release the message

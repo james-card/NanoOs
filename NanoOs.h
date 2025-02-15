@@ -68,11 +68,11 @@ extern "C"
 /// scheduler.
 #define NANO_OS_SCHEDULER_PROCESS_ID                      0
 
-/// @def NANO_OS_NANO_OS_IO_PROCESS_ID
+/// @def NANO_OS_IO_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the process that will run the console.  This
+/// @brief The process ID (PID) of the process that will run the I/O.  This
 /// must be the lowest value after the scheduler process (i.e. 1).
-#define NANO_OS_NANO_OS_IO_PROCESS_ID                     1
+#define NANO_OS_IO_PROCESS_ID                             1
 
 /// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
 ///

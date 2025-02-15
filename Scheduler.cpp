@@ -115,7 +115,7 @@ const static FileDescriptor standardKernelFileDescriptors[
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .processId = NANO_OS_IO_PROCESS_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -128,7 +128,7 @@ const static FileDescriptor standardKernelFileDescriptors[
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .processId = NANO_OS_IO_PROCESS_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -147,7 +147,7 @@ const static FileDescriptor standardUserFileDescriptors[
     // Uni-directional FileDescriptor, so clear the output pipe and direct the
     // input pipe to the console.
     .inputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .processId = NANO_OS_IO_PROCESS_ID,
       .messageType = CONSOLE_WAIT_FOR_INPUT,
     },
     .outputPipe = {
@@ -164,7 +164,7 @@ const static FileDescriptor standardUserFileDescriptors[
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .processId = NANO_OS_IO_PROCESS_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -177,7 +177,7 @@ const static FileDescriptor standardUserFileDescriptors[
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .processId = NANO_OS_IO_PROCESS_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -746,7 +746,7 @@ int schedulerAssignPortToPid(
   consolePortPidUnion.consolePortPidAssociation.processId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+    NANO_OS_IO_PROCESS_ID, CONSOLE_ASSIGN_PORT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -774,7 +774,7 @@ int schedulerAssignPortInputToPid(
   consolePortPidUnion.consolePortPidAssociation.processId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT_INPUT,
+    NANO_OS_IO_PROCESS_ID, CONSOLE_ASSIGN_PORT_INPUT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -811,7 +811,7 @@ int schedulerSetPortShell(
   consolePortPidUnion.consolePortPidAssociation.processId = shell;
 
   returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
+    NANO_OS_IO_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -1415,7 +1415,7 @@ int closeProcessFileDescriptors(
     for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
       ProcessId waitingProcessId = fileDescriptors[ii].outputPipe.processId;
       if ((waitingProcessId == PROCESS_ID_NOT_SET)
-        || (waitingProcessId == NANO_OS_CONSOLE_PROCESS_ID)
+        || (waitingProcessId == NANO_OS_IO_PROCESS_ID)
       ) {
         // Nothing waiting on output from this file descriptor.  Move on.
         continue;
@@ -1484,7 +1484,7 @@ FILE* kfopen(SchedulerState *schedulerState,
   processMessageInit(processMessage, NANO_OS_IO_OPEN_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   processMessageQueuePush(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    schedulerState->allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1520,7 +1520,7 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
   processMessageInit(processMessage, NANO_OS_IO_CLOSE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    schedulerState->allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1554,7 +1554,7 @@ int kremove(SchedulerState *schedulerState, const char *pathname) {
   processMessageInit(processMessage, NANO_OS_IO_REMOVE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    schedulerState->allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1599,7 +1599,7 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
   processMessageInit(processMessage, NANO_OS_IO_READ_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    schedulerState->allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1647,7 +1647,7 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
   processMessageInit(processMessage, NANO_OS_IO_WRITE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    schedulerState->allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1872,7 +1872,7 @@ int schedulerKillProcessCommandHandler(
       // there's no shell blocking waiting for the message.
       schedulerSendNanoOsMessageToPid(
         schedulerState,
-        NANO_OS_CONSOLE_PROCESS_ID,
+        NANO_OS_IO_PROCESS_ID,
         CONSOLE_RELEASE_PID_PORT,
         (intptr_t) schedulerProcessCompleteMessage,
         processId);
@@ -2258,7 +2258,7 @@ void runScheduler(SchedulerState *schedulerState) {
     if (schedulerProcessCompleteMessage != NULL) {
       schedulerSendNanoOsMessageToPid(
         schedulerState,
-        NANO_OS_CONSOLE_PROCESS_ID,
+        NANO_OS_IO_PROCESS_ID,
         CONSOLE_RELEASE_PID_PORT,
         (intptr_t) schedulerProcessCompleteMessage,
         processDescriptor->processId);
@@ -2470,22 +2470,22 @@ __attribute__((noinline)) void startScheduler(
   //// if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
   ////   //// printString("Could not create console process.\n");
   //// }
-  //// processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
-  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
-  ////   = NANO_OS_CONSOLE_PROCESS_ID;
-  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
-  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
-  //// allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
+  //// processSetId(processHandle, NANO_OS_IO_PROCESS_ID);
+  //// allProcesses[NANO_OS_IO_PROCESS_ID].processId
+  ////   = NANO_OS_IO_PROCESS_ID;
+  //// allProcesses[NANO_OS_IO_PROCESS_ID].processHandle = processHandle;
+  //// allProcesses[NANO_OS_IO_PROCESS_ID].name = "console";
+  //// allProcesses[NANO_OS_IO_PROCESS_ID].userId = ROOT_USER_ID;
 
   //// // Start the console by calling coroutineResume.
   //// coroutineResume(
-  ////   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
+  ////   allProcesses[NANO_OS_IO_PROCESS_ID].processHandle, NULL);
 
   //// printString("\n");
   //// printString("Main stack size = ");
   //// printInt(ABS_DIFF(
   ////   ((intptr_t) schedulerProcess),
-  ////   ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
+  ////   ((intptr_t) allProcesses[NANO_OS_IO_PROCESS_ID].processHandle)
   //// ));
   //// printString(" bytes\n");
   //// printString("schedulerState size = ");
@@ -2566,8 +2566,8 @@ __attribute__((noinline)) void startScheduler(
 
   //// printString("Console stack size = ");
   //// printInt(ABS_DIFF(
-  ////   ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
-  ////   ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
+  ////   ((uintptr_t) allProcesses[NANO_OS_IO_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_IO_PROCESS_ID].processHandle))
   ////   - sizeof(Coroutine)
   //// );
   //// printString(" bytes\n");
@@ -2636,11 +2636,11 @@ __attribute__((noinline)) void startScheduler(
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
+    &allProcesses[NANO_OS_IO_PROCESS_ID]);
   //// processQueuePush(&schedulerState.ready,
   ////   &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
+    &allProcesses[NANO_OS_IO_PROCESS_ID]);
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
@@ -2648,12 +2648,12 @@ __attribute__((noinline)) void startScheduler(
     processQueuePush(&schedulerState.ready, &allProcesses[ii]);
   }
 
-  // Get the memory manager and filesystem up and running.
+  // Get the memory manager and I/O processes up and running.
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
     NULL);
   coroutineResume(
-    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    allProcesses[NANO_OS_IO_PROCESS_ID].processHandle,
     NULL);
 
   // Allocate memory for the hostname.
