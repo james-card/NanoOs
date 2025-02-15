@@ -49,6 +49,79 @@ extern "C"
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+// General FAT16 specification values
+#define FAT16_BYTES_PER_DIRECTORY_ENTRY 32
+#define FAT16_ENTRIES_PER_CLUSTER 16
+#define FAT16_CLUSTER_CHAIN_END 0xFFF8
+#define FAT16_FILENAME_LENGTH 8
+#define FAT16_EXTENSION_LENGTH 3
+#define FAT16_FULL_NAME_LENGTH (FAT16_FILENAME_LENGTH + FAT16_EXTENSION_LENGTH)
+#define FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT 5
+
+// File system limits and special values
+#define FAT16_MAX_CLUSTER_NUMBER 0xFF0
+#define FAT16_DELETED_MARKER 0xE5
+#define FAT16_EMPTY_ENTRY 0x00
+#define FAT16_MIN_DATA_CLUSTER 2
+
+// File attributes
+#define FAT16_ATTR_READ_ONLY 0x01
+#define FAT16_ATTR_HIDDEN 0x02
+#define FAT16_ATTR_SYSTEM 0x04
+#define FAT16_ATTR_VOLUME_ID 0x08
+#define FAT16_ATTR_DIRECTORY 0x10
+#define FAT16_ATTR_ARCHIVE 0x20
+#define FAT16_ATTR_NORMAL_FILE FAT16_ATTR_ARCHIVE
+
+// Partition table constants
+#define FAT16_PARTITION_TABLE_OFFSET 0x1BE
+#define FAT16_PARTITION_ENTRY_SIZE 16
+#define FAT16_PARTITION_TYPE_FAT16_LBA 0x0E
+#define FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED 0x1E
+#define FAT16_PARTITION_LBA_OFFSET 8
+#define FAT16_PARTITION_SECTORS_OFFSET 12
+
+// Boot sector offsets
+#define FAT16_BOOT_BYTES_PER_SECTOR 0x0B
+#define FAT16_BOOT_SECTORS_PER_CLUSTER 0x0D
+#define FAT16_BOOT_RESERVED_SECTORS 0x0E
+#define FAT16_BOOT_NUMBER_OF_FATS 0x10
+#define FAT16_BOOT_ROOT_ENTRIES 0x11
+#define FAT16_BOOT_SECTORS_PER_FAT 0x16
+
+// Directory entry offsets
+#define FAT16_DIR_FILENAME 0x00
+#define FAT16_DIR_ATTRIBUTES 0x0B
+#define FAT16_DIR_FIRST_CLUSTER_LOW 0x1A
+#define FAT16_DIR_FILE_SIZE 0x1C
+
+// Directory search result codes
+#define FAT16_DIR_SEARCH_ERROR -1
+#define FAT16_DIR_SEARCH_FOUND 0
+#define FAT16_DIR_SEARCH_DELETED 1
+#define FAT16_DIR_SEARCH_NOT_FOUND 2
+
+typedef struct __attribute__((packed)) Fat16File {
+  uint16_t  currentCluster;
+  uint32_t  currentPosition;
+  uint32_t  fileSize;
+  uint16_t  firstCluster;
+  // Directory entry location info:
+  uint32_t  directoryBlock;     // Block containing the directory entry
+  uint16_t  directoryOffset;    // Offset within block to directory entry
+  // Common values:
+  uint16_t  bytesPerSector;
+  uint8_t   sectorsPerCluster;
+  uint16_t  reservedSectors;
+  uint8_t   numberOfFats;
+  uint16_t  rootEntries;
+  uint16_t  sectorsPerFat;
+  uint32_t  bytesPerCluster;
+  uint32_t  fatStart;
+  uint32_t  rootStart;
+  uint32_t  dataStart;
+} Fat16File;
+
 /// @def USB_SERIAL_PORT
 ///
 /// Index into ConsoleState.conslePorts for the USB serial port.
