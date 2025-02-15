@@ -245,6 +245,8 @@ typedef struct ProcessQueue {
 /// @param free Queue of processes that are free within the allProcesses
 ///   array.
 /// @param hostname The contents of the /etc/hostname file read at startup.
+/// @param bootComplete Whether or not all the setup and configuration of the
+///   startScheduler function has completed.
 typedef struct SchedulerState {
   ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
   ProcessQueue ready;
@@ -252,6 +254,7 @@ typedef struct SchedulerState {
   ProcessQueue timedWaiting;
   ProcessQueue free;
   char *hostname;
+  bool bootComplete;
 } SchedulerState;
 
 /// @struct CommandDescriptor
