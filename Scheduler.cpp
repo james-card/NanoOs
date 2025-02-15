@@ -31,7 +31,6 @@
 // Custom includes
 #include "NanoOs.h"
 #include "Scheduler.h"
-#include "SdCard.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
