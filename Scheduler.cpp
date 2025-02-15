@@ -2245,10 +2245,10 @@ void runScheduler(SchedulerState *schedulerState) {
     = coroutineResume(processDescriptor->processHandle, NULL);
 
   if (processReturnValue == COROUTINE_CORRUPT) {
-    //// printDebug("ERROR!!!  Process corruption detected!!!\n");
-    //// printDebug("          Removing process ");
-    //// printDebug(processDescriptor->processId);
-    //// printDebug(" from process queues.\n");
+    printString("ERROR!!!  Process corruption detected!!!\n");
+    printString("          Removing process ");
+    printInt(processDescriptor->processId);
+    printString(" from process queues.\n");
 
     processDescriptor->name = NULL;
     processDescriptor->userId = NO_USER_ID;
