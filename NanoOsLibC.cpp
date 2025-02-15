@@ -32,7 +32,6 @@
 #include "NanoOsLibC.h"
 #include "Scheduler.h"
 #include "NanoOsIo.h"
-#include "Fat16Filesystem.h"
 
 /// @var boolNames
 ///

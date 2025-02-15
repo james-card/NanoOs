@@ -32,7 +32,6 @@
 #include "NanoOs.h"
 #include "Scheduler.h"
 #include "SdCard.h"
-#include "Fat16Filesystem.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);

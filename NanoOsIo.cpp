@@ -31,7 +31,6 @@
 // Custom includes
 #include "NanoOsIo.h"
 #include "SdCard.h"
-#include "Fat16Filesystem.h"
 #include "Scheduler.h"
 
 // Basic SD card communication using SPI
