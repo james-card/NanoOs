@@ -2364,7 +2364,8 @@ void runScheduler(SchedulerState *schedulerState) {
 }
 
 /// @fn int schedulerRunSchedulerProcess(
-///   SchedulerState *schedulerState, const char *commandString)
+///   SchedulerState *schedulerState, const char *commandString,
+///   uint8_t consolePort, ProcessId processId)
 ///
 /// @brief Run a process from the scheduler itself.
 ///
@@ -2373,10 +2374,14 @@ void runScheduler(SchedulerState *schedulerState) {
 /// @param commandString The string that holds the full command to run
 ///   including the path to the command file on the filesystem and all
 ///   arguments.
+/// @param consolePort The numeric ID of the console port to use for the
+///   process's output.
+/// @param processId The process ID to use to launch the process.
 ///
 /// @return Returns 0 on success, 1 on error.
 int schedulerRunSchedulerProcess(
-  SchedulerState *schedulerState, const char *commandString
+  SchedulerState *schedulerState, const char *commandString,
+  uint8_t consolePort, ProcessId processId
 ) {
   int returnValue = 1;
 
@@ -2394,8 +2399,8 @@ int schedulerRunSchedulerProcess(
     return returnValue; // 1
   }
   commandDescriptor->consoleInput = consoleInput;
-  commandDescriptor->consolePort = USB_SERIAL_PORT;
-  commandDescriptor->callingProcess = USB_SERIAL_PORT_SHELL_PID;
+  commandDescriptor->consolePort = consolePort;
+  commandDescriptor->callingProcess = processId;
 
   ProcessMessage *processMessage = getAvailableMessage();
   while (processMessage == NULL) {
@@ -2407,7 +2412,6 @@ int schedulerRunSchedulerProcess(
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->func = 0;
   nanoOsMessage->data = (uintptr_t) commandDescriptor;
-
 
   returnValue
     = schedulerRunProcessCommandHandler(schedulerState, processMessage);
@@ -2784,7 +2788,10 @@ __attribute__((noinline)) void startScheduler(
     //// printDebug("          Undefined behavior will result.\n");
   }
 
-  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin");
+  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin",
+    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID);
+  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin",
+    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID);
 
   // Run our scheduler.
   //// printDebug("Entering main scheduler loop\n");
