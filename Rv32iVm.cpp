@@ -1134,12 +1134,12 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
-  printDebug("sizeof(Rv32iVm) = ");
-  printDebug(sizeof(Rv32iVm));
-  printDebug("\n");
-  //// printDebug(getFreeMemory());
-  //// printDebug(" bytes free before rv32iVmInit\n");
+  //// printDebug("sizeof(Rv32iVm) = ");
+  //// printDebug(sizeof(Rv32iVm));
+  //// printDebug("\n");
   //// size_t freeMemory = getFreeMemory();
+  //// printDebug(freeMemory);
+  //// printDebug(" bytes free before rv32iVmInit\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
     rv32iVmCleanup(&rv32iVm);
     printString("rv32iVmInit failed\n");
@@ -1148,12 +1148,7 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug(getFreeMemory());
   //// printDebug(" bytes free after rv32iVmInit\n");
   //// printDebug("rv32iVmInit consumed ");
-  //// printDebug(freeMemory - getFreeMemory() - 512);
-  //// printDebug(" bytes\n");
-  //// printDebug(getFreeMemory());
-  //// printDebug(" bytes free\n");
-  //// printDebug("sizeof(Rv32iVm) = ");
-  //// printDebug(sizeof(Rv32iVm));
+  //// printDebug(freeMemory - getFreeMemory() - 516);
   //// printDebug(" bytes\n");
 
   rv32iVm.rv32iCoreRegisters->pc = RV32I_PROGRAM_START;
