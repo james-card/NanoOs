@@ -33,6 +33,10 @@
 #include "Scheduler.h"
 #include "NanoOsIo.h"
 
+// Internal function prototypes
+ConsoleBuffer* nanoOsIoGetBuffer(void);
+int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer);
+
 /// @var boolNames
 ///
 /// @brief Mapping of bool values to their string names.
@@ -822,6 +826,34 @@ unsigned long getElapsedMilliseconds(unsigned long startTime) {
   return now - startTime;
 }
 
+/// @fn char* strnchr(char *s, int c, size_t size)
+///
+/// @brief Search a string for a character, up to a specified number of bytes
+/// into the string.
+///
+/// @param s The string to search.
+/// @param c The character to look for.
+/// @param size The maximum number of bytes in s to evaluate before giving up.
+///
+/// @return Returns a pointer to the first instance of c in s if found, NULL
+/// otherwise.
+char* strnchr(char *s, int c, size_t size) {
+  if (s != NULL) {
+    size_t ii = 0;
+    for (; (ii < size) && (*s); ii++, s++) {
+      if (*s == c) {
+        break;
+      }
+    }
+
+    if ((ii == size) || (*s == '\0')) {
+      s = NULL;
+    }
+  }
+
+  return s;
+}
+
 // Standard C I/O funtions
 
 /// @fn FILE* nanoOsIoFOpen(const char *pathname, const char *mode)
@@ -982,20 +1014,41 @@ size_t nanoOsIoFWrite(
     return returnValue; // 0
   }
 
-  NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
-    .file = stream,
-    .buffer = (void*) ptr,
-    .length = (uint32_t) (size * nmemb)
-  };
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_IO_PROCESS_ID,
-    NANO_OS_IO_WRITE_FILE,
-    /* func= */ 0,
-    /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
-    true);
-  processMessageWaitForDone(processMessage, NULL);
-  returnValue = (nanoOsIoIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
+  if ((stream == stdout) || (stream == stderr)) {
+    ConsoleBuffer *nanoOsIoBuffer = nanoOsIoGetBuffer();
+    if (nanoOsIoBuffer == NULL) {
+      // Nothing we can do.
+      return returnValue;
+    }
+
+    uint32_t length = (uint32_t) (size * nmemb);
+    while ((length > 0) && (returnValue == 0)) {
+      nanoOsIoBuffer->numBytes
+        = (length > CONSOLE_BUFFER_SIZE) ? CONSOLE_BUFFER_SIZE : length;
+      length -= nanoOsIoBuffer->numBytes;
+      memcpy(nanoOsIoBuffer->buffer, ptr, nanoOsIoBuffer->numBytes);
+      returnValue = nanoOsIoWriteBuffer(stream, nanoOsIoBuffer);
+    }
+
+    sendNanoOsMessageToPid(
+      NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+      /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
+  } else {
+    NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
+      .file = stream,
+      .buffer = (void*) ptr,
+      .length = (uint32_t) (size * nmemb)
+    };
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
+      NANO_OS_IO_PROCESS_ID,
+      NANO_OS_IO_WRITE_FILE,
+      /* func= */ 0,
+      /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
+      true);
+    processMessageWaitForDone(processMessage, NULL);
+    returnValue = (nanoOsIoIoCommandParameters.length / size);
+    processMessageRelease(processMessage);
+  }
 
   return returnValue;
 }
@@ -1427,7 +1480,7 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
     NanoOsIoCommandParameters nanoOsIoCommandParameters = {
       .file = stream,
       .buffer = nanoOsIoBuffer->buffer,
-      .length = (uint32_t) strlen(nanoOsIoBuffer->buffer)
+      .length = (uint32_t) nanoOsIoBuffer->numBytes
     };
     ProcessMessage *processMessage = sendNanoOsMessageToPid(
       NANO_OS_IO_PROCESS_ID,
@@ -1466,7 +1519,12 @@ int nanoOsIoFPuts(const char *s, FILE *stream) {
   }
 
   strncpy(nanoOsIoBuffer->buffer, s, CONSOLE_BUFFER_SIZE);
+  nanoOsIoBuffer->numBytes = strlen(s);
   returnValue = nanoOsIoWriteBuffer(stream, nanoOsIoBuffer);
+
+  sendNanoOsMessageToPid(
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+    /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
   return returnValue;
 }
@@ -1509,9 +1567,14 @@ int nanoOsIoVFPrintf(FILE *stream, const char *format, va_list args) {
 
   returnValue
     = vsnprintf(nanoOsIoBuffer->buffer, CONSOLE_BUFFER_SIZE, format, args);
+  nanoOsIoBuffer->numBytes = returnValue;
   if (nanoOsIoWriteBuffer(stream, nanoOsIoBuffer) == EOF) {
     returnValue = -1;
   }
+
+  sendNanoOsMessageToPid(
+    NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+    /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
 
   return returnValue;
 }

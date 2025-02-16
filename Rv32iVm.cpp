@@ -778,8 +778,9 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       uint32_t length = rv32iVm->rv32iCoreRegisters.x[12];
       
       // Only handle stdout for now
-      if (fileDescriptor != RV32I_STDOUT_FILENO) {
-        return -1;
+      FILE *stream = stdout;
+      if (fileDescriptor == 2) {
+        stream = stderr;
       }
       
       // Limit maximum write length
@@ -793,8 +794,8 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
         = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
         bufferAddress, length, buffer);
       
-      // Write to Serial
-      Serial.write(buffer, bytesRead);
+      // Write to the stream
+      fwrite(buffer, 1, bytesRead, stream);
 
       // Free the host-side memory
       free(buffer); buffer = NULL;

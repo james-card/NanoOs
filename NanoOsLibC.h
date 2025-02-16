@@ -237,6 +237,7 @@ unsigned long getElapsedMilliseconds(unsigned long startTime);
 // C-like functions
 int vsscanf(const char *buffer, const char *format, va_list args);
 int sscanf(const char *buffer, const char *format, ...);
+char* strnchr(char *s, int c, size_t size);
 
 char* nanoOsStrError(int errnum);
 #ifdef strerror

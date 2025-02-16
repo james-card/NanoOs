@@ -1497,7 +1497,7 @@ int fat16FilesystemCopyFileCommandHandler(
 }
 
 /// @fn int consolePrintMessage(ConsoleState *consoleState,
-///   ProcessMessage *inputMessage, const char *message)
+///   ProcessMessage *inputMessage, const char *message, size_t numBytes)
 ///
 /// @brief Print a message to all console ports that are owned by a process.
 ///
@@ -1506,10 +1506,12 @@ int fat16FilesystemCopyFileCommandHandler(
 /// @param inputMessage The message received from the process printing the
 ///   message.
 /// @param message The formatted string message to print.
+/// @param numBytes The number of valid bytes in the message.
 ///
 /// @return Returns processSuccess on success, processError on failure.
 int consolePrintMessage(
-  ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message
+  ConsoleState *consoleState, ProcessMessage *inputMessage,
+  const char *message, size_t numBytes
 ) {
   int returnValue = processSuccess;
   ProcessId owner = processId(processMessageFrom(inputMessage));
@@ -1518,7 +1520,7 @@ int consolePrintMessage(
   bool portFound = false;
   for (int ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
-      consolePorts[ii].printString(message);
+      consolePorts[ii].printString(message, numBytes);
       portFound = true;
     }
   }
@@ -1693,7 +1695,8 @@ int consoleWriteValueCommandHandler(
   // It's possible we were passed a bad type that didn't result in the value of
   // message being set, so only attempt to print it if it was set.
   if (message != NULL) {
-    consolePrintMessage(&nanoOsIoState->consoleState, inputMessage, message);
+    consolePrintMessage(&nanoOsIoState->consoleState, inputMessage,
+      message, strlen(message));
   }
 
   processMessageSetDone(inputMessage);
@@ -1774,7 +1777,8 @@ int consoleWriteBufferCommandHandler(
   if (consoleBuffer != NULL) {
     const char *message = consoleBuffer->buffer;
     if (message != NULL) {
-      consolePrintMessage(&nanoOsIoState->consoleState, inputMessage, message);
+      consolePrintMessage(&nanoOsIoState->consoleState, inputMessage,
+        message, consoleBuffer->numBytes);
     }
   }
   processMessageSetDone(inputMessage);
@@ -2261,24 +2265,27 @@ int readGpioSerialByte(ConsolePort *consolePort) {
   return readSerialByte(consolePort, Serial1);
 }
 
-/// @fn int printSerialString(UartClass &serialPort, const char *string)
+/// @fn int printSerialString(
+///   UartClass &serialPort, const char *string, size_t numBytes)
 ///
 /// @brief Print a string to the default serial port.
 ///
 /// @param serialPort A reference to the UartClass object (Serial or Serial1)
 ///   to read a byte from.
 /// @param string A pointer to the string to print.
+/// @param numBytes The number of valid bytes in the string.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printSerialString(UartClass &serialPort, const char *string) {
+int printSerialString(
+  UartClass &serialPort, const char *string, size_t numBytes
+) {
   int returnValue = 0;
-  size_t numBytes = 0;
 
-  char *newlineAt = strchr(string, '\n');
-  newlineAt = strchr(string, '\n');
+  char *newlineAt = strnchr((char*) string, '\n', numBytes);
   if (newlineAt == NULL) {
-    numBytes = strlen(string);
-  } else {
+    newlineAt = strnchr((char*) string, '\r', numBytes);
+  }
+  if (newlineAt != NULL) {
     numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
   }
   while (newlineAt != NULL) {
@@ -2297,26 +2304,28 @@ int printSerialString(UartClass &serialPort, const char *string) {
   return returnValue;
 }
 
-/// @fn int printUsbSerialString(const char *string)
+/// @fn int printUsbSerialString(const char *string, size_t numBytes)
 ///
 /// @brief Print a string to the USB serial port.
 ///
 /// @param string A pointer to the string to print.
+/// @param numBytes The number of valid bytes in the string.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printUsbSerialString(const char *string) {
-  return printSerialString(Serial, string);
+int printUsbSerialString(const char *string, size_t numBytes) {
+  return printSerialString(Serial, string, numBytes);
 }
 
-/// @fn int printGpioSerialString(const char *string)
+/// @fn int printGpioSerialString(const char *string, size_t numBytes)
 ///
 /// @brief Print a string to the GPIO serial port.
 ///
 /// @param string A pointer to the string to print.
+/// @param numBytes The number of valid bytes in the string.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printGpioSerialString(const char *string) {
-  return printSerialString(Serial1, string);
+int printGpioSerialString(const char *string, size_t numBytes) {
+  return printSerialString(Serial1, string, numBytes);
 }
 
 /// @var nanoOsIoCommandHandlers
