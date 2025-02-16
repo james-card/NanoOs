@@ -268,9 +268,9 @@ typedef struct SchedulerState {
 /// @param schedulerState A pointer to the SchedulerState structure maintained
 ///   by the scheduler.
 typedef struct CommandDescriptor {
-  int                consolePort;
+  uint8_t            consolePort;
   char              *consoleInput;
-  ProcessId         callingProcess;
+  ProcessId          callingProcess;
   SchedulerState    *schedulerState;
 } CommandDescriptor;
 
