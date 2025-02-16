@@ -298,10 +298,12 @@ typedef struct CommandEntry {
 /// @param inUse Whether or not this buffer is in use by a process.  Set by the
 ///   consoleGetBuffer function when getting a buffer for a caller and cleared
 ///   by the caller when no longer being used.
+/// @param numBytes The number of valid bytes that are in the buffer.
 /// @param buffer The array of CONSOLE_BUFFER_SIZE characters that the calling
 ///   process can use.
 typedef struct ConsoleBuffer {
   bool inUse;
+  uint8_t numBytes;
   char buffer[CONSOLE_BUFFER_SIZE];
 } ConsoleBuffer;
 
@@ -329,7 +331,7 @@ typedef struct ConsoleBuffer {
 ///   output to the console port.
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
-  unsigned char       consoleIndex;
+  uint8_t             consoleIndex;
   ProcessId           outputOwner;
   ProcessId           inputOwner;
   ProcessId           shell;
