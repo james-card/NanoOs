@@ -274,7 +274,7 @@ typedef struct Rv32iCoreRegisters {
 /// @param mapCacheBuffer The byte array to use for the stack virtual memory
 ///   segment's buffer.
 typedef struct Rv32iVm {
-  Rv32iCoreRegisters rv32iCoreRegisters;
+  Rv32iCoreRegisters *rv32iCoreRegisters;
   VirtualMemoryState memorySegments[RV32I_NUM_MEMORY_SEGMENTS];
   bool running;
   int exitCode;

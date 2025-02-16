@@ -42,6 +42,13 @@
 int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
 
+  rv32iVm->rv32iCoreRegisters
+    = (Rv32iCoreRegisters*) malloc(sizeof(Rv32iCoreRegisters));
+  if (rv32iVm->rv32iCoreRegisters == NULL) {
+    // Nothing we can do.
+    return -1;
+  }
+
   // We're going to use the same file for both program and data memory.
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
@@ -120,6 +127,7 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], true);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], true);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], true);
+  free(rv32iVm->rv32iCoreRegisters); // No need to nullify it
 }
 
 /// @fn void getMemorySegmentAndAddress(
@@ -289,7 +297,7 @@ static inline int32_t fetchInstruction(
   Rv32iVm *rv32iVm, uint32_t *instruction
 ) {
   return
-    rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters.pc, instruction);
+    rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters->pc, instruction);
 }
 
 /// @fn static inline int32_t executeRegisterOperation(
@@ -313,13 +321,13 @@ static inline int32_t executeRegisterOperation(
   switch (funct3) {
     case RV32I_FUNCT3_ADD_SUB: {
       if (funct7 == RV32I_FUNCT7_ADD) { // ADD
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          rv32iVm->rv32iCoreRegisters.x[rs1] + 
-          rv32iVm->rv32iCoreRegisters.x[rs2];
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          rv32iVm->rv32iCoreRegisters->x[rs1] + 
+          rv32iVm->rv32iCoreRegisters->x[rs2];
       } else if (funct7 == RV32I_FUNCT7_SUB) { // SUB
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          rv32iVm->rv32iCoreRegisters.x[rs1] - 
-          rv32iVm->rv32iCoreRegisters.x[rs2];
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          rv32iVm->rv32iCoreRegisters->x[rs1] - 
+          rv32iVm->rv32iCoreRegisters->x[rs2];
       } else {
         return -1; // Invalid funct7
       }
@@ -329,47 +337,47 @@ static inline int32_t executeRegisterOperation(
       if (funct7 != RV32I_FUNCT7_ADD) { // Uses ADD's funct7 encoding
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] << 
-        (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] << 
+        (rv32iVm->rv32iCoreRegisters->x[rs2] & 0x1F);
       break;
     }
     case RV32I_FUNCT3_SLT: { // SLT (Set Less Than)
       if (funct7 != RV32I_FUNCT7_ADD) {
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < 
-        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]) ? 1 : 0;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) < 
+        ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs2]) ? 1 : 0;
       break;
     }
     case RV32I_FUNCT3_SLTU: { // SLTU (Set Less Than Unsigned)
       if (funct7 != RV32I_FUNCT7_ADD) {
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] < 
-        rv32iVm->rv32iCoreRegisters.x[rs2] ? 1 : 0;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] < 
+        rv32iVm->rv32iCoreRegisters->x[rs2] ? 1 : 0;
       break;
     }
     case RV32I_FUNCT3_XOR: { // XOR
       if (funct7 != RV32I_FUNCT7_ADD) {
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] ^ 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] ^ 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     case RV32I_FUNCT3_SRL_SRA: {
       if (funct7 == RV32I_FUNCT7_SRL) { // SRL (Shift Right Logical)
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          rv32iVm->rv32iCoreRegisters.x[rs1] >> 
-          (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          rv32iVm->rv32iCoreRegisters->x[rs1] >> 
+          (rv32iVm->rv32iCoreRegisters->x[rs2] & 0x1F);
       } else if (funct7 == RV32I_FUNCT7_SRA) { // SRA (Shift Right Arithmetic)
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >> 
-          (rv32iVm->rv32iCoreRegisters.x[rs2] & 0x1F);
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) >> 
+          (rv32iVm->rv32iCoreRegisters->x[rs2] & 0x1F);
       } else {
         return -1; // Invalid funct7
       }
@@ -379,18 +387,18 @@ static inline int32_t executeRegisterOperation(
       if (funct7 != RV32I_FUNCT7_ADD) {
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] | 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] | 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     case RV32I_FUNCT3_AND: { // AND
       if (funct7 != RV32I_FUNCT7_ADD) {
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] & 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] & 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     default: {
@@ -419,8 +427,8 @@ static inline int32_t executeImmediateOperation(
 ) {
   switch (funct3) {
     case RV32I_FUNCT3_ADDI: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] + immediate;
       break;
     }
     case RV32I_FUNCT3_SLLI: {
@@ -428,24 +436,24 @@ static inline int32_t executeImmediateOperation(
       if ((immediate & 0xFE0) != 0) { // Top bits must be zero
         return -1;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] << shamt;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] << shamt;
       break;
     }
     case RV32I_FUNCT3_SLTI: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < immediate ? 1 : 0;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) < immediate ? 1 : 0;
       break;
     }
     case RV32I_FUNCT3_SLTIU: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] < 
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] < 
         (uint32_t) immediate ? 1 : 0;
       break;
     }
     case RV32I_FUNCT3_XORI: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] ^ immediate;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] ^ immediate;
       break;
     }
     case RV32I_FUNCT3_SRLI_SRAI: {
@@ -453,24 +461,24 @@ static inline int32_t executeImmediateOperation(
       uint32_t funct7 = (immediate >> 5) & 0x7F;
       
       if (funct7 == RV32I_FUNCT7_SRLI) {
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          rv32iVm->rv32iCoreRegisters.x[rs1] >> shamt;
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          rv32iVm->rv32iCoreRegisters->x[rs1] >> shamt;
       } else if (funct7 == RV32I_FUNCT7_SRAI) {
-        rv32iVm->rv32iCoreRegisters.x[rd] = 
-          ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >> shamt;
+        rv32iVm->rv32iCoreRegisters->x[rd] = 
+          ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) >> shamt;
       } else {
         return -1; // Invalid funct7
       }
       break;
     }
     case RV32I_FUNCT3_ORI: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] | immediate;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] | immediate;
       break;
     }
     case RV32I_FUNCT3_ANDI: {
-      rv32iVm->rv32iCoreRegisters.x[rd] = 
-        rv32iVm->rv32iCoreRegisters.x[rs1] & immediate;
+      rv32iVm->rv32iCoreRegisters->x[rd] = 
+        rv32iVm->rv32iCoreRegisters->x[rs1] & immediate;
       break;
     }
     default: {
@@ -498,7 +506,7 @@ static inline int32_t executeLoad(
   uint32_t funct3
 ) {
   // Calculate effective address
-  uint32_t address = rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+  uint32_t address = rv32iVm->rv32iCoreRegisters->x[rs1] + immediate;
   
   // Read based on the load type
   switch (funct3) {
@@ -510,7 +518,7 @@ static inline int32_t executeLoad(
         return result;
       }
       // Sign extend the byte
-      rv32iVm->rv32iCoreRegisters.x[rd] = ((int8_t) byteValue);
+      rv32iVm->rv32iCoreRegisters->x[rd] = ((int8_t) byteValue);
       break;
     }
     case RV32I_FUNCT3_LH: {
@@ -521,7 +529,7 @@ static inline int32_t executeLoad(
         return result;
       }
       // Sign extend the halfword
-      rv32iVm->rv32iCoreRegisters.x[rd] = ((int16_t) halfwordValue);
+      rv32iVm->rv32iCoreRegisters->x[rd] = ((int16_t) halfwordValue);
       break;
     }
     case RV32I_FUNCT3_LW: {
@@ -531,7 +539,7 @@ static inline int32_t executeLoad(
       if (result != 0) {
         return result;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = wordValue;
+      rv32iVm->rv32iCoreRegisters->x[rd] = wordValue;
       break;
     }
     case RV32I_FUNCT3_LBU: {
@@ -541,7 +549,7 @@ static inline int32_t executeLoad(
       if (result != 0) {
         return result;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = byteValue;
+      rv32iVm->rv32iCoreRegisters->x[rd] = byteValue;
       break;
     }
     case RV32I_FUNCT3_LHU: {
@@ -551,7 +559,7 @@ static inline int32_t executeLoad(
       if (result != 0) {
         return result;
       }
-      rv32iVm->rv32iCoreRegisters.x[rd] = halfwordValue;
+      rv32iVm->rv32iCoreRegisters->x[rd] = halfwordValue;
       break;
     }
     default: {
@@ -580,10 +588,10 @@ static inline int32_t executeStore(
   uint32_t funct3
 ) {
   // Calculate effective address
-  uint32_t address = rv32iVm->rv32iCoreRegisters.x[rs1] + immediate;
+  uint32_t address = rv32iVm->rv32iCoreRegisters->x[rs1] + immediate;
   
   // Get value to store from rs2
-  uint32_t value = rv32iVm->rv32iCoreRegisters.x[rs2];
+  uint32_t value = rv32iVm->rv32iCoreRegisters->x[rs2];
   
   // Perform store based on width
   switch (funct3) {
@@ -628,38 +636,38 @@ static inline int32_t executeBranch(
   switch (funct3) {
     case RV32I_FUNCT3_BEQ: {
       // Branch if equal
-      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] == 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      takeBranch = rv32iVm->rv32iCoreRegisters->x[rs1] == 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     case RV32I_FUNCT3_BNE: {
       // Branch if not equal
-      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] != 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      takeBranch = rv32iVm->rv32iCoreRegisters->x[rs1] != 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     case RV32I_FUNCT3_BLT: {
       // Branch if less than (signed)
-      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) < 
-        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]);
+      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) < 
+        ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs2]);
       break;
     }
     case RV32I_FUNCT3_BGE: {
       // Branch if greater than or equal (signed)
-      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs1]) >= 
-        ((int32_t) rv32iVm->rv32iCoreRegisters.x[rs2]);
+      takeBranch = ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs1]) >= 
+        ((int32_t) rv32iVm->rv32iCoreRegisters->x[rs2]);
       break;
     }
     case RV32I_FUNCT3_BLTU: {
       // Branch if less than (unsigned)
-      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] < 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      takeBranch = rv32iVm->rv32iCoreRegisters->x[rs1] < 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     case RV32I_FUNCT3_BGEU: {
       // Branch if greater than or equal (unsigned)
-      takeBranch = rv32iVm->rv32iCoreRegisters.x[rs1] >= 
-        rv32iVm->rv32iCoreRegisters.x[rs2];
+      takeBranch = rv32iVm->rv32iCoreRegisters->x[rs1] >= 
+        rv32iVm->rv32iCoreRegisters->x[rs2];
       break;
     }
     default: {
@@ -668,7 +676,7 @@ static inline int32_t executeBranch(
   }
   
   if (takeBranch) {
-    *nextPc = rv32iVm->rv32iCoreRegisters.pc + immediate;
+    *nextPc = rv32iVm->rv32iCoreRegisters->pc + immediate;
   }
   
   return 0;
@@ -687,7 +695,7 @@ static inline int32_t executeBranch(
 static inline int32_t executeLoadUpperImmediate(
   Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate
 ) {
-  rv32iVm->rv32iCoreRegisters.x[rd] = immediate;
+  rv32iVm->rv32iCoreRegisters->x[rd] = immediate;
   return 0;
 }
 
@@ -704,8 +712,8 @@ static inline int32_t executeLoadUpperImmediate(
 static inline int32_t executeAddUpperImmediatePc(
   Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate
 ) {
-  rv32iVm->rv32iCoreRegisters.x[rd] = 
-    rv32iVm->rv32iCoreRegisters.pc + immediate;
+  rv32iVm->rv32iCoreRegisters->x[rd] = 
+    rv32iVm->rv32iCoreRegisters->pc + immediate;
   return 0;
 }
 
@@ -724,10 +732,10 @@ static inline int32_t executeJumpAndLink(
   Rv32iVm *rv32iVm, uint32_t rd, int32_t immediate, uint32_t *nextPc
 ) {
   // Store return address (pc + 4) in rd
-  rv32iVm->rv32iCoreRegisters.x[rd] = rv32iVm->rv32iCoreRegisters.pc + 4;
+  rv32iVm->rv32iCoreRegisters->x[rd] = rv32iVm->rv32iCoreRegisters->pc + 4;
   
   // Calculate target address
-  *nextPc = rv32iVm->rv32iCoreRegisters.pc + immediate;
+  *nextPc = rv32iVm->rv32iCoreRegisters->pc + immediate;
   
   return 0;
 }
@@ -750,11 +758,11 @@ static inline int32_t executeJumpAndLinkRegister(
   uint32_t *nextPc
 ) {
   // Save the return address before calculating target
-  rv32iVm->rv32iCoreRegisters.x[rd] = rv32iVm->rv32iCoreRegisters.pc + 4;
+  rv32iVm->rv32iCoreRegisters->x[rd] = rv32iVm->rv32iCoreRegisters->pc + 4;
   
   // Calculate target address: (rs1 + immediate) & ~1
   // The & ~1 clears the least significant bit as per RISC-V spec
-  *nextPc = (rv32iVm->rv32iCoreRegisters.x[rs1] + immediate) & ~1;
+  *nextPc = (rv32iVm->rv32iCoreRegisters->x[rs1] + immediate) & ~1;
   
   return 0;
 }
@@ -768,14 +776,14 @@ static inline int32_t executeJumpAndLinkRegister(
 /// @return Returns 0 on success, negative on error, positive for program exit
 static int32_t handleSyscall(Rv32iVm *rv32iVm) {
   // Get syscall number from a7 (x17)
-  uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters.x[17];
+  uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters->x[17];
   
   switch (syscallNumber) {
     case RV32I_SYSCALL_WRITE: {
       // Get parameters from a0-a2 (x10-x12)
-      uint32_t fileDescriptor = rv32iVm->rv32iCoreRegisters.x[10];
-      uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters.x[11];
-      uint32_t length = rv32iVm->rv32iCoreRegisters.x[12];
+      uint32_t fileDescriptor = rv32iVm->rv32iCoreRegisters->x[10];
+      uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
+      uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
       
       // Only handle stdout for now
       FILE *stream = stdout;
@@ -801,14 +809,14 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       free(buffer); buffer = NULL;
       
       // Return number of bytes written
-      rv32iVm->rv32iCoreRegisters.x[10] = bytesRead;
+      rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
       return 0;
     }
     
     case RV32I_SYSCALL_EXIT: {
       // Get exit code from a0 (x10)
       rv32iVm->running = false;
-      rv32iVm->exitCode = rv32iVm->rv32iCoreRegisters.x[10];
+      rv32iVm->exitCode = rv32iVm->rv32iCoreRegisters->x[10];
       return 0;
     }
     
@@ -856,31 +864,31 @@ static inline int32_t executeSystem(
   uint32_t oldCsrValue = 0;
   switch (csrNumber) {
     case RV32I_CSR_MSTATUS:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mstatus;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mstatus;
       break;
     case RV32I_CSR_MISA:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.misa;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->misa;
       break;
     case RV32I_CSR_MIE:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mie;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mie;
       break;
     case RV32I_CSR_MTVEC:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mtvec;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mtvec;
       break;
     case RV32I_CSR_MSCRATCH:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mscratch;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mscratch;
       break;
     case RV32I_CSR_MEPC:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mepc;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mepc;
       break;
     case RV32I_CSR_MCAUSE:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mcause;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mcause;
       break;
     case RV32I_CSR_MTVAL:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mtval;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mtval;
       break;
     case RV32I_CSR_MIP:
-      oldCsrValue = rv32iVm->rv32iCoreRegisters.mip;
+      oldCsrValue = rv32iVm->rv32iCoreRegisters->mip;
       break;
     case RV32I_CSR_MVENDORID:
     case RV32I_CSR_MARCHID:
@@ -894,7 +902,7 @@ static inline int32_t executeSystem(
   }
   
   // Always capture old value in rd (unless rd is x0)
-  rv32iVm->rv32iCoreRegisters.x[rd] = oldCsrValue;
+  rv32iVm->rv32iCoreRegisters->x[rd] = oldCsrValue;
   
   // Calculate new CSR value based on instruction type
   uint32_t newCsrValue = oldCsrValue;
@@ -902,19 +910,19 @@ static inline int32_t executeSystem(
   
   switch (funct3) {
     case RV32I_FUNCT3_CSRRW: // CSR Read/Write
-      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      writeValue = rv32iVm->rv32iCoreRegisters->x[rs1];
       newCsrValue = writeValue;
       break;
       
     case RV32I_FUNCT3_CSRRS: // CSR Read and Set Bits
-      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      writeValue = rv32iVm->rv32iCoreRegisters->x[rs1];
       if (rs1 != 0) {
         newCsrValue = oldCsrValue | writeValue;
       }
       break;
       
     case RV32I_FUNCT3_CSRRC: // CSR Read and Clear Bits
-      writeValue = rv32iVm->rv32iCoreRegisters.x[rs1];
+      writeValue = rv32iVm->rv32iCoreRegisters->x[rs1];
       if (rs1 != 0) {
         newCsrValue = oldCsrValue & ~writeValue;
       }
@@ -947,31 +955,31 @@ static inline int32_t executeSystem(
   if (newCsrValue != oldCsrValue) {
     switch (csrNumber) {
       case RV32I_CSR_MSTATUS:
-        rv32iVm->rv32iCoreRegisters.mstatus = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mstatus = newCsrValue;
         break;
       case RV32I_CSR_MISA:
         // MISA is read-only in our implementation
         break;
       case RV32I_CSR_MIE:
-        rv32iVm->rv32iCoreRegisters.mie = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mie = newCsrValue;
         break;
       case RV32I_CSR_MTVEC:
-        rv32iVm->rv32iCoreRegisters.mtvec = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mtvec = newCsrValue;
         break;
       case RV32I_CSR_MSCRATCH:
-        rv32iVm->rv32iCoreRegisters.mscratch = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mscratch = newCsrValue;
         break;
       case RV32I_CSR_MEPC:
-        rv32iVm->rv32iCoreRegisters.mepc = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mepc = newCsrValue;
         break;
       case RV32I_CSR_MCAUSE:
-        rv32iVm->rv32iCoreRegisters.mcause = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mcause = newCsrValue;
         break;
       case RV32I_CSR_MTVAL:
-        rv32iVm->rv32iCoreRegisters.mtval = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mtval = newCsrValue;
         break;
       case RV32I_CSR_MIP:
-        rv32iVm->rv32iCoreRegisters.mip = newCsrValue;
+        rv32iVm->rv32iCoreRegisters->mip = newCsrValue;
         break;
     }
   }
@@ -1025,7 +1033,7 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
     ((instruction & 0x7FE00000) >> 20); // imm[10:1]
 
   // Always increment PC by default
-  uint32_t nextPc = rv32iVm->rv32iCoreRegisters.pc + RV32I_INSTRUCTION_SIZE;
+  uint32_t nextPc = rv32iVm->rv32iCoreRegisters->pc + RV32I_INSTRUCTION_SIZE;
   
   int32_t result = 0;
 
@@ -1106,7 +1114,7 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   }
 
   // Update PC to next instruction
-  rv32iVm->rv32iCoreRegisters.pc = nextPc;
+  rv32iVm->rv32iCoreRegisters->pc = nextPc;
   return 0;
 }
 
@@ -1126,9 +1134,9 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
 int runRv32iProcess(int argc, char **argv) {
   (void) argc;
   Rv32iVm rv32iVm = {};
-  //// printDebug("sizeof(Rv32iVm) = ");
-  //// printDebug(sizeof(Rv32iVm));
-  //// printDebug("\n");
+  printDebug("sizeof(Rv32iVm) = ");
+  printDebug(sizeof(Rv32iVm));
+  printDebug("\n");
   //// printDebug(getFreeMemory());
   //// printDebug(" bytes free before rv32iVmInit\n");
   //// size_t freeMemory = getFreeMemory();
@@ -1148,27 +1156,27 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug(sizeof(Rv32iVm));
   //// printDebug(" bytes\n");
 
-  rv32iVm.rv32iCoreRegisters.pc = RV32I_PROGRAM_START;
-  rv32iVm.rv32iCoreRegisters.x[2] = RV32I_STACK_START;
+  rv32iVm.rv32iCoreRegisters->pc = RV32I_PROGRAM_START;
+  rv32iVm.rv32iCoreRegisters->x[2] = RV32I_STACK_START;
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  //// uint32_t startTime = 0;
-  //// uint32_t runTime = 0;
-  //// startTime = getElapsedMilliseconds(0);
+  uint32_t startTime = 0;
+  uint32_t runTime = 0;
+  startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
       break;
     }
 
-    rv32iVm.rv32iCoreRegisters.x[0] = 0;
+    rv32iVm.rv32iCoreRegisters->x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  //// runTime = getElapsedMilliseconds(startTime);
-  //// printDebug("Runtime: ");
-  //// printDebug(runTime);
-  //// printDebug(" milliseconds\n");
+  runTime = getElapsedMilliseconds(startTime);
+  printDebug("Runtime: ");
+  printDebug(runTime);
+  printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
