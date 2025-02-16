@@ -974,20 +974,23 @@ size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return returnValue; // 0
   }
 
-  NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
-    .file = stream,
-    .buffer = ptr,
-    .length = (uint32_t) (size * nmemb)
-  };
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_IO_PROCESS_ID,
-    NANO_OS_IO_READ_FILE,
-    /* func= */ 0,
-    /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
-    true);
-  processMessageWaitForDone(processMessage, NULL);
-  returnValue = (nanoOsIoIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
+  if (stream == stdin) {
+  } else {
+    NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
+      .file = stream,
+      .buffer = ptr,
+      .length = (uint32_t) (size * nmemb)
+    };
+    ProcessMessage *processMessage = sendNanoOsMessageToPid(
+      NANO_OS_IO_PROCESS_ID,
+      NANO_OS_IO_READ_FILE,
+      /* func= */ 0,
+      /* data= */ (intptr_t) &nanoOsIoIoCommandParameters,
+      true);
+    processMessageWaitForDone(processMessage, NULL);
+    returnValue = (nanoOsIoIoCommandParameters.length / size);
+    processMessageRelease(processMessage);
+  }
 
   return returnValue;
 }
@@ -1174,13 +1177,6 @@ ConsoleBuffer* nanoOsIoWaitForInput(void) {
 /// @return Returns the buffer pointer provided on success, NULL on failure.
 char *nanoOsIoFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
-  ConsoleBuffer *nanoOsIoBuffer
-    = (ConsoleBuffer*) getProcessStorage(FGETS_CONSOLE_BUFFER_KEY);
-  int numBytesReceived = 0;
-  char *newlineAt = NULL;
-  int numBytesToCopy = 0;
-  int nanoOsIoInputLength = 0;
-  int bufferIndex = 0;
 
   if (stream == stdin) {
     // There are three stop conditions:
@@ -1188,6 +1184,13 @@ char *nanoOsIoFGets(char *buffer, int size, FILE *stream) {
     //    from the stream.
     // 2. We read a newline.
     // 3. We reach size - 1 bytes received from the stream.
+    int numBytesReceived = 0;
+    char *newlineAt = NULL;
+    int numBytesToCopy = 0;
+    int nanoOsIoInputLength = 0;
+    int bufferIndex = 0;
+    ConsoleBuffer *nanoOsIoBuffer
+      = (ConsoleBuffer*) getProcessStorage(FGETS_CONSOLE_BUFFER_KEY);
     if (nanoOsIoBuffer == NULL) {
       nanoOsIoBuffer = nanoOsIoWaitForInput();
       setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsIoBuffer);
