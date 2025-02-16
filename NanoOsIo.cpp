@@ -2487,10 +2487,16 @@ void* runNanoOsIo(void *args) {
     for (uint8_t ii = 0; ii < NUM_CONSOLE_PORTS; ii++) {
       ConsolePort *consolePort = &nanoOsIoState.consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
-      if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
+      if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))
+        || (consolePort->consoleIndex == CONSOLE_BUFFER_SIZE)
+      ) {
         if (consolePort->waitingForInput == true) {
-          // NULL-terminate the buffer.
-          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+          if (consolePort->consoleIndex < CONSOLE_BUFFER_SIZE) {
+            // NULL-terminate the buffer.
+            consolePort->consoleBuffer->buffer[consolePort->consoleIndex]
+              = '\0';
+          }
+          consolePort->consoleBuffer->numBytes = consolePort->consoleIndex;
           consolePort->consoleIndex = 0;
           sendNanoOsMessageToPid(
             consolePort->inputOwner, NANO_OS_IO_RETURNING_INPUT,
