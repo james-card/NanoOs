@@ -77,6 +77,16 @@ typedef struct VirtualMemoryState {
 #define virtualMemorySize(virtualMemory) \
   (virtualMemory)->fileSize
 
+/// @def virtualMemorySetSize
+///
+/// @brief Set the current allocated size of a piece of virtual memory given a
+/// pointer to its VirtualMemoryState structure.
+///
+/// @param virtualMemory The pointer to the VirtualMemoryState structure.
+/// @param size The size to assign to the virtual memory.
+#define virtualMemorySetSize(virtualMemory, size) \
+  (virtualMemory)->fileSize = size
+
 int32_t virtualMemoryInit(
   VirtualMemoryState *state, const char *filename,
   uint8_t cacheSize, uint8_t *staticCache);
