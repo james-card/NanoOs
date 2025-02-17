@@ -183,8 +183,31 @@ NanoOsExeMetadata* nanoOsExeMetadataDestroy(
 int nanoOsExeMetadataV1Write(
   const char *fullFilePath, const char *programPath
 ) {
-  (void) fullFilePath;
-  (void) programPath;
-  return 0;
+  int returnValue = 0;
+  FILE *fullFile = NULL, *programFile = NULL;
+
+  fullFile = fopen(fullFilePath, "w+");
+  if (fullFile == NULL) {
+    returnValue = -1;
+    goto exit;
+  }
+
+  if (isNanoOsExe(fullFile)) {
+    goto closeFullFile;
+  }
+
+  programFile = fopen(programPath, "r");
+  if (programFile == NULL) {
+    goto closeFullFile;
+  }
+
+closeProgramFile:
+  fclose(programFile);
+
+closeFullFile:
+  fclose(fullFile);
+
+exit:
+  return returnValue;
 }
 
