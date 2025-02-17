@@ -83,6 +83,7 @@ bool isNanoOsExe(FILE *exeFile) {
   if (fread(&signature, 1, sizeof(signature), exeFile) != sizeof(signature)) {
     return false;
   }
+  signature = nanoOsExeByteSwapIfNotLittleEndian(signature);
   if (signature != NANO_OS_EXE_SIGNATURE) {
     // Our signature is not at the end of this file.  It is not a NanoOs
     // executable file.  Bail.
@@ -130,6 +131,8 @@ NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath) {
   ) {
     goto freeReturnValue;
   }
+  returnValue->version
+    = nanoOsExeByteSwapIfNotLittleEndian(returnValue->version);
   if (returnValue->version > NANO_OS_EXE_METADATA_CURRENT_VERSION) {
     // We've already validated that this is one of our files by validating the
     // signature.  This is a version beyond what we know about, so just parse
@@ -151,6 +154,8 @@ NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath) {
         ) {
           goto freeReturnValue;
         }
+        returnValue->programLength
+          = nanoOsExeByteSwapIfNotLittleEndian(returnValue->programLength);
 
         if (fseek(exeFile, NANO_OS_EXE_DATA_LENGTH_OFFSET, SEEK_END) != 0) {
           goto freeReturnValue;
@@ -161,6 +166,8 @@ NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath) {
         ) {
           goto freeReturnValue;
         }
+        returnValue->dataLength
+          = nanoOsExeByteSwapIfNotLittleEndian(returnValue->dataLength);
 
         break;
       }
@@ -247,9 +254,12 @@ int nanoOsExeMetadataV1Write(
   // Program Length
   // Version Number (1 for this function)
   // NanoOs Executable Signature
+  //
+  // All values are little endian
 
   // Data Length = (fullFile length) - (programFile length)
   fileVar = ((uint32_t) ftell(fullFile)) - ((uint32_t) ftell(programFile));
+  fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
   if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
     returnValue = -5;
     goto closeProgramFile;
@@ -257,6 +267,7 @@ int nanoOsExeMetadataV1Write(
 
   // Write the program length next
   fileVar = (uint32_t) ftell(programFile);
+  fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
   if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
     returnValue = -6;
     goto closeProgramFile;
@@ -264,6 +275,7 @@ int nanoOsExeMetadataV1Write(
 
   // Version is next
   fileVar = 1;
+  fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
   if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
     returnValue = -7;
     goto closeProgramFile;
@@ -271,6 +283,7 @@ int nanoOsExeMetadataV1Write(
 
   // Signature is last
   fileVar = NANO_OS_EXE_SIGNATURE;
+  fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
   if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
     returnValue = -8;
     goto closeProgramFile;
