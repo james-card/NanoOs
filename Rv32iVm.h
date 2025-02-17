@@ -279,6 +279,7 @@ typedef struct Rv32iVm {
   bool running;
   int exitCode;
   uint32_t dataStart;
+  uint32_t dataEnd;
   uint8_t dataCacheBuffer[16];
   uint8_t mapCacheBuffer[4];
 } Rv32iVm;
