@@ -185,6 +185,7 @@ int nanoOsExeMetadataV1Write(
 ) {
   int returnValue = 0;
   FILE *fullFile = NULL, *programFile = NULL;
+  uint32_t fileVar = 0;
 
   fullFile = fopen(fullFilePath, "w+");
   if (fullFile == NULL) {
@@ -193,12 +194,60 @@ int nanoOsExeMetadataV1Write(
   }
 
   if (isNanoOsExe(fullFile)) {
+    // Metadata is already written.  This is not an error, so, just close the
+    // file and return good status.
+    goto closeFullFile;
+  }
+  // isNanoOsExe will return false in the event of a file error, so don't trust
+  // that the file is in the right state.  Do an fseek to the end ourselves and
+  // verify that we're able to do it successfully.
+  if (fseek(fullFile, 0, SEEK_END) != 0) {
+    returnValue = -2;
     goto closeFullFile;
   }
 
   programFile = fopen(programPath, "r");
   if (programFile == NULL) {
+    returnValue = -3;
     goto closeFullFile;
+  }
+  if (fseek(programFile, 0, SEEK_END) != 0) {
+    returnValue = -4;
+    goto closeProgramFile;
+  }
+
+  // Version 1 metadata format:
+  // Data Length
+  // Program Length
+  // Version Number (1 for this function)
+  // NanoOs Executable Signature
+
+  // Data Length = (fullFile length) - (programFile length)
+  fileVar = ((uint32_t) ftell(fullFile)) - ((uint32_t) ftell(programFile));
+  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+    returnValue = -5;
+    goto closeProgramFile;
+  }
+
+  // Write the program length next
+  fileVar = (uint32_t) ftell(programFile);
+  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+    returnValue = -6;
+    goto closeProgramFile;
+  }
+
+  // Version is next
+  fileVar = 1;
+  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+    returnValue = -7;
+    goto closeProgramFile;
+  }
+
+  // Signature is last
+  fileVar = NANO_OS_EXE_SIGNATURE;
+  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+    returnValue = -8;
+    goto closeProgramFile;
   }
 
 closeProgramFile:
