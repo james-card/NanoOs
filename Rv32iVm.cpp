@@ -31,6 +31,7 @@
 // Custom includes
 #include "Rv32iVm.h"
 #include "NanoOsExe.h"
+#include "NanoOsSystemCalls.h"
 
 /// @fn int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath)
 ///
@@ -803,7 +804,7 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
   uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters->x[17];
   
   switch (syscallNumber) {
-    case RV32I_SYSCALL_WRITE: {
+    case NANO_OS_SYSCALL_WRITE: {
       // Get parameters from a0-a2 (x10-x12)
       uint32_t fileDescriptor = rv32iVm->rv32iCoreRegisters->x[10];
       uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
@@ -811,13 +812,13 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       
       // Only handle stdout for now
       FILE *stream = stdout;
-      if (fileDescriptor == 2) {
+      if (fileDescriptor == NANO_OS_STDERR_FILENO) {
         stream = stderr;
       }
       
       // Limit maximum write length
-      if (length > RV32I_MAX_WRITE_LENGTH) {
-        length = RV32I_MAX_WRITE_LENGTH;
+      if (length > NANO_OS_MAX_WRITE_LENGTH) {
+        length = NANO_OS_MAX_WRITE_LENGTH;
       }
       
       // Read string from VM memory
@@ -837,7 +838,7 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
       return 0;
     }
     
-    case RV32I_SYSCALL_EXIT: {
+    case NANO_OS_SYSCALL_EXIT: {
       // Get exit code from a0 (x10)
       rv32iVm->running = false;
       rv32iVm->exitCode = rv32iVm->rv32iCoreRegisters->x[10];
