@@ -37,6 +37,35 @@
 #include "NanoOsLibC.h"
 #endif // __x86_64__
 
+/// @fn bool isNanoOsExe(FILE *exeFile)
+///
+/// @brief Determine whether or not an opened file is a valid NanoOs executable
+/// file (i.e. has the right signature in the right place).
+///
+/// @param exeFile A pointer to a previously-opened FILE object that is read-
+///   accessible.
+///
+/// @return Returns true if the file is confirmed to be a valid NanoOs
+/// executable, false otherwise.
+bool isNanoOsExe(FILE *exeFile) {
+  uint32_t signature = 0;
+
+  // Get and validate the signature.
+  if (fseek(exeFile, NANO_OS_EXE_SIGNATURE_OFFSET, SEEK_END) != 0) {
+    return false;
+  }
+  if (fread(&signature, 1, sizeof(signature), exeFile) != sizeof(signature)) {
+    return false;
+  }
+  if (signature != NANO_OS_EXE_SIGNATURE) {
+    // Our signature is not at the end of this file.  It is not a NanoOs
+    // executable file.  Bail.
+    return false;
+  }
+
+  return true;
+}
+
 /// @fn NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath)
 ///
 /// @brief Read the metadata out of a NanoOs executable.
@@ -47,7 +76,6 @@
 /// on success, NULL on failure.
 NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath) {
   NanoOsExeMetadata *returnValue = NULL;
-  uint32_t signature = 0;
 
   if (exePath == NULL) {
     goto exit;
@@ -58,16 +86,7 @@ NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath) {
     goto exit;
   }
 
-  // Get and validate the signature.
-  if (fseek(exeFile, NANO_OS_EXE_SIGNATURE_OFFSET, SEEK_END) != 0) {
-    goto closeFile;
-  }
-  if (fread(&signature, 1, sizeof(signature), exeFile) != sizeof(signature)) {
-    goto closeFile;
-  }
-  if (signature != NANO_OS_EXE_SIGNATURE) {
-    // Our signature is not at the end of this file.  It is not a NanoOs
-    // executable file.  Bail.
+  if (!isNanoOsExe(exeFile)) {
     goto closeFile;
   }
 
