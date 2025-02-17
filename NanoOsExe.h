@@ -59,23 +59,37 @@ extern "C"
 ///
 /// @brief The number of bytes from the end of the file where the executable
 /// signature is found.
-#define NANO_OS_EXE_SIGNATURE_OFFSET -4
+#define NANO_OS_EXE_SIGNATURE_OFFSET        -4
 
 /// @def NANO_OS_EXE_VERSION_OFFSET
 ///
 /// @brief The number of bytes from the end of the file where the executable
 /// version is found.
-#define NANO_OS_EXE_VERSION_OFFSET   -8
+#define NANO_OS_EXE_VERSION_OFFSET         -8
+
+/// @def NANO_OS_EXE_PROGRAM_LENGTH_OFFSET
+///
+/// @brief The number of bytes from the end of the file where the program
+/// length is found.
+#define NANO_OS_EXE_PROGRAM_LENGTH_OFFSET -12
+
+/// @def NANO_OS_EXE_DATA_LENGTH_OFFSET
+///
+/// @brief The number of bytes from the end of hte file where the data length
+/// is found.
+#define NANO_OS_EXE_DATA_LENGTH_OFFSET    -16
 
 /// @struct NanoOsExeMetadata
 ///
 /// @brief Metadata elements contained in a NanoOs executable file.
 ///
+/// @param version The version of the metadata that was read.
 /// @param programLength The length, in bytes, of the program segment of the
 ///   executable.
 /// @param dataLength The length, in bytes, of the data segment of the
 ///   executable.
 typedef struct NanoOsExeMetadata {
+  uint32_t version;
   uint32_t programLength;
   uint32_t dataLength;
 } NanoOsExeMetadata;
