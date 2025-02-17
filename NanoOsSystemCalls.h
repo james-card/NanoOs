@@ -51,6 +51,27 @@ typedef enum NanoOsSystemCall {
   NUM_NANO_OS_SYSCALLS
 } NanoOsSystemCall;
 
+/// @def NANO_OS_STDIN_FILENO
+///
+/// @brief Standard numerical number of the stdin file descriptor.
+#define NANO_OS_STDIN_FILENO       0
+
+/// @def NANO_OS_STDOUT_FILENO
+///
+/// @brief Standard numerical number of the stdout file descriptor.
+#define NANO_OS_STDOUT_FILENO      1
+
+/// @def NANO_OS_STDERR_FILENO
+///
+/// @brief Standard numerical number of the stderr file descriptor.
+#define NANO_OS_STDERR_FILENO      2
+
+/// @def NANO_OS_MAX_WRITE_LENGTH
+///
+/// @brief The maximum number of characters that can be written by a user space
+/// program in a single call.
+#define NANO_OS_MAX_WRITE_LENGTH 256
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
