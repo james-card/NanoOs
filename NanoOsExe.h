@@ -117,7 +117,8 @@ typedef struct NanoOsExeMetadata {
 NanoOsExeMetadata* nanoOsExeMetadataRead(const char *exePath);
 NanoOsExeMetadata* nanoOsExeMetadataDestroy(
   NanoOsExeMetadata *nanoOsExeMetadata);
-int nanoOsExeMetadataV1Write(const char *exePath, const char *binPath);
+int nanoOsExeMetadataV1Write(
+  const char *fullFilePath, const char *programPath);
 
 #ifdef __cplusplus
 } // extern "C"
