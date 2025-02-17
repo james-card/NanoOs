@@ -53,13 +53,13 @@ extern "C"
 ///
 /// @brief The number of bytes from the end of the file where the executable
 /// signature is found.
-#define NANO_OS_EXE_SIGNATURE_OFFSET 4
+#define NANO_OS_EXE_SIGNATURE_OFFSET -4
 
 /// @def NANO_OS_EXE_VERSION_OFFSET
 ///
 /// @brief The number of bytes from the end of the file where the executable
 /// version is found.
-#define NANO_OS_EXE_VERSION_OFFSET   8
+#define NANO_OS_EXE_VERSION_OFFSET   -8
 
 /// @struct NanoOsExeMetadata
 ///
