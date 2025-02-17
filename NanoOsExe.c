@@ -152,6 +152,15 @@ NanoOsExeMetadata* nanoOsExeMetadataDestroy(
   return NULL;
 }
 
+/// @fn int nanoOsExeMetadataV1Write(
+///   const char *fullFilePath, const char *programPath)
+///
+/// @brief Write the metadata for a NanoOs executable to the executable.
+///
+/// @param fullFilePath The path to the file with the full executable content.
+/// @param programPath The path to the file with the program segment content.
+///
+/// @return Returns 0 on success, negative value on error.
 int nanoOsExeMetadataV1Write(
   const char *fullFilePath, const char *programPath
 ) {
