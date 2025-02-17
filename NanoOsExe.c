@@ -37,6 +37,32 @@
 #include "NanoOsLibC.h"
 #endif // __x86_64__
 
+/// @fn uint32_t byteSwapIfNotLittleEndian(uint32_t u32Int)
+///
+/// @brief Byte swap a 32-bit integer value if the host is not a little endian
+/// system.
+///
+/// @param u32Int The value to byte swap if the host is not little endian.
+///
+/// @return Returns the exact input value if the host is little endian, the
+/// byte swapped verion of the input value if the host is not little endian.
+uint32_t byteSwapIfNotLittleEndian(uint32_t u32Int) {
+  union {
+    int integer;
+    char character;
+  } littleEndianUnion = { .integer = 1 };
+
+  if (!littleEndianUnion.character) {
+    u32Int
+      = ((u32Int & 0xff000000) >> 24)
+      | ((u32Int & 0x00ff0000) >>  8)
+      | ((u32Int & 0x0000ff00) <<  8)
+      | ((u32Int & 0x000000ff) << 24);
+  }
+
+  return u32Int;
+}
+
 /// @fn bool isNanoOsExe(FILE *exeFile)
 ///
 /// @brief Determine whether or not an opened file is a valid NanoOs executable
