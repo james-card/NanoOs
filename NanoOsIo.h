@@ -44,11 +44,6 @@ extern "C"
 {
 #endif
 
-// Standard seek mode definitions
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
 // General FAT16 specification values
 #define FAT16_BYTES_PER_DIRECTORY_ENTRY 32
 #define FAT16_ENTRIES_PER_CLUSTER 16
