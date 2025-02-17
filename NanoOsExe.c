@@ -136,8 +136,18 @@ exit:
   return returnValue;
 }
 
+/// @fn NanoOsExeMetadata* nanoOsExeMetadataDestroy(
+///   NanoOsExeMetadata *nanoOsExeMetadata)
+///
+/// @brief Destroy a previously-allocated NanoOsExeMetadata object.
+///
+/// @param nanoOsExeMetadata A pointer to the allocated NanoOsExeMetadata to
+///   destroy.
+///
+/// @return This function always succeeds and always returns NULL.
 NanoOsExeMetadata* nanoOsExeMetadataDestroy(
-  NanoOsExeMetadata *nanoOsExeMetadata) {
+  NanoOsExeMetadata *nanoOsExeMetadata
+) {
   free(nanoOsExeMetadata);
   return NULL;
 }
@@ -149,5 +159,4 @@ int nanoOsExeMetadataV1Write(
   (void) programPath;
   return 0;
 }
-
 
