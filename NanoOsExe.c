@@ -37,7 +37,7 @@
 #include "NanoOsLibC.h"
 #endif // __x86_64__
 
-/// @fn uint32_t byteSwapIfNotLittleEndian(uint32_t u32Int)
+/// @fn uint32_t nanoOsExeByteSwapIfNotLittleEndian(uint32_t u32Int)
 ///
 /// @brief Byte swap a 32-bit integer value if the host is not a little endian
 /// system.
@@ -46,7 +46,7 @@
 ///
 /// @return Returns the exact input value if the host is little endian, the
 /// byte swapped verion of the input value if the host is not little endian.
-uint32_t byteSwapIfNotLittleEndian(uint32_t u32Int) {
+uint32_t nanoOsExeByteSwapIfNotLittleEndian(uint32_t u32Int) {
   union {
     int integer;
     char character;
