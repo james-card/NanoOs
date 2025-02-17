@@ -83,10 +83,20 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     virtualMemoryCleanup(&programBinary, false);
     return -1;
   }
+  virtualMemorySetSize(
+    &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
+    virtualMemorySize(&programBinary) + RV32I_PROGRAM_START);
+  virtualMemorySetSize(
+    &rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    virtualMemorySize(&programBinary) + RV32I_PROGRAM_START);
+  rv32iVm->dataEnd
+    = virtualMemorySize(&rv32iVm->memorySegments[RV32I_DATA_MEMORY]);
   virtualMemoryCleanup(&programBinary, false);
 
   // FIXME
   rv32iVm->dataStart = 0x1080;
+
+  // Prime the program and data virtual memory segments.
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
     RV32I_PROGRAM_START, (uint8_t*) virtualMemoryFilename);
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
@@ -1156,9 +1166,9 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  uint32_t startTime = 0;
-  uint32_t runTime = 0;
-  startTime = getElapsedMilliseconds(0);
+  //// uint32_t startTime = 0;
+  //// uint32_t runTime = 0;
+  //// startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1168,10 +1178,10 @@ int runRv32iProcess(int argc, char **argv) {
     rv32iVm.rv32iCoreRegisters->x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
   }
-  runTime = getElapsedMilliseconds(startTime);
-  printDebug("Runtime: ");
-  printDebug(runTime);
-  printDebug(" milliseconds\n");
+  //// runTime = getElapsedMilliseconds(startTime);
+  //// printDebug("Runtime: ");
+  //// printDebug(runTime);
+  //// printDebug(" milliseconds\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
