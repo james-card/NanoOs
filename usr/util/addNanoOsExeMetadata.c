@@ -75,9 +75,12 @@ int main(int argc, char **argv) {
   const char *fullFilePath = argv[1];
   const char *programPath  = argv[2];
 
-  if (nanoOsExeMetadataV1Write(fullFilePath, programPath) != 0) {
+  int returnValue = nanoOsExeMetadataV1Write(fullFilePath, programPath);
+  if (returnValue != 0) {
     fprintf(stderr, "ERROR: Could not write metadata to \"%s\".\n",
       fullFilePath);
+    fprintf(stderr, "nanoOsExeMetadataV1Write returned status %d.\n",
+      returnValue);
     return 1;
   }
 
