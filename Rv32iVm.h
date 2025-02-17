@@ -56,13 +56,6 @@ extern "C"
 #define RV32I_CLINT_ADDR_MASK                   (RV32I_CLINT_BASE_ADDR - 1)
 #define RV32I_MEMORY_SEGMENT_SHIFT                                       24
 
-// ECALL support
-#define RV32I_SYSCALL_WRITE 64
-#define RV32I_SYSCALL_EXIT 93
-#define RV32I_STDOUT_FILENO 1
-#define RV32I_STDERR_FILENO 2
-#define RV32I_MAX_WRITE_LENGTH 256
-
 /// @enum Rv32iMemorySegment
 ///
 /// @brief Memory segments that are managed by the Rv32iVm state.
