@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "Rv32iVm.h"
+#include "NanoOsExe.h"
 
 /// @fn int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath)
 ///
@@ -42,10 +43,18 @@
 int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
 
+  NanoOsExeMetadata *nanoOsExeMetadata = nanoOsExeMetadataRead(programPath);
+  if (nanoOsExeMetadata == NULL) {
+    // This is not one of our executables and there's nothing we can do.  Bail.
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
+    return -1;
+  }
+
   rv32iVm->rv32iCoreRegisters
     = (Rv32iCoreRegisters*) malloc(sizeof(Rv32iCoreRegisters));
   if (rv32iVm->rv32iCoreRegisters == NULL) {
     // Nothing we can do.
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
 
@@ -55,6 +64,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
     virtualMemoryFilename, 128, NULL) != 0
   ) {
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
   //// size_t freeMemory = getFreeMemory();
@@ -64,6 +74,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     sizeof(rv32iVm->dataCacheBuffer),
     rv32iVm->dataCacheBuffer) != 0
   ) {
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
   //// printDebug("virtualMemoryInit consumed ");
@@ -72,6 +83,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   VirtualMemoryState programBinary = {};
   if (virtualMemoryInit(&programBinary, programPath, 0, NULL) != 0) {
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
 
@@ -81,6 +93,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
     virtualMemoryCleanup(&programBinary, false);
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
   virtualMemorySetSize(
@@ -89,12 +102,13 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   virtualMemorySetSize(
     &rv32iVm->memorySegments[RV32I_DATA_MEMORY],
     virtualMemorySize(&programBinary) + RV32I_PROGRAM_START);
-  rv32iVm->dataEnd
-    = virtualMemorySize(&rv32iVm->memorySegments[RV32I_DATA_MEMORY]);
   virtualMemoryCleanup(&programBinary, false);
 
-  // FIXME
-  rv32iVm->dataStart = 0x1080;
+  rv32iVm->dataStart
+    = RV32I_PROGRAM_START + nanoOsExeMetadataProgramLength(nanoOsExeMetadata);
+  rv32iVm->dataEnd
+    = rv32iVm->dataStart + nanoOsExeMetadataDataLength(nanoOsExeMetadata);
+  nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
 
   // Prime the program and data virtual memory segments.
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
