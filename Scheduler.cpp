@@ -2788,9 +2788,9 @@ __attribute__((noinline)) void startScheduler(
     //// printDebug("          Undefined behavior will result.\n");
   }
 
-  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin",
+  schedulerRunSchedulerProcess(&schedulerState, "init",
     USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID);
-  schedulerRunSchedulerProcess(&schedulerState, "Hello.bin",
+  schedulerRunSchedulerProcess(&schedulerState, "init",
     GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID);
 
   // Run our scheduler.
