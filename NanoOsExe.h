@@ -44,6 +44,12 @@ extern "C"
 {
 #endif
 
+/// @def NANO_OS_EXE_METADATA_CURRENT_VERSION
+///
+/// @brief Version of the NanoOsExeMetadata currently known to this version of
+/// the library.
+#define NANO_OS_EXE_METADATA_CURRENT_VERSION 1
+
 /// @def NANO_OS_EXE_SIGNATURE
 ///
 /// @brief Definition of the four-bytes at the end of a NanoOs executable file
