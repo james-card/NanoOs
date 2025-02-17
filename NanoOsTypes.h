@@ -56,7 +56,7 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 255, then the type defined by CoroutineId in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES                             6
+#define NANO_OS_NUM_PROCESSES                             5
 
 /// @def SCHEDULER_NUM_PROCESSES
 ///
