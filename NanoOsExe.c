@@ -220,7 +220,7 @@ int nanoOsExeMetadataV1Write(
   FILE *fullFile = NULL, *programFile = NULL;
   uint32_t fileVar = 0;
 
-  fullFile = fopen(fullFilePath, "w+");
+  fullFile = fopen(fullFilePath, "r+");
   if (fullFile == NULL) {
     returnValue = -1;
     goto exit;
@@ -260,7 +260,7 @@ int nanoOsExeMetadataV1Write(
   // Data Length = (fullFile length) - (programFile length)
   fileVar = ((uint32_t) ftell(fullFile)) - ((uint32_t) ftell(programFile));
   fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
-  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+  if (fwrite(&fileVar, 1, sizeof(fileVar), fullFile) != sizeof(fileVar)) {
     returnValue = -5;
     goto closeProgramFile;
   }
@@ -268,7 +268,7 @@ int nanoOsExeMetadataV1Write(
   // Write the program length next
   fileVar = (uint32_t) ftell(programFile);
   fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
-  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+  if (fwrite(&fileVar, 1, sizeof(fileVar), fullFile) != sizeof(fileVar)) {
     returnValue = -6;
     goto closeProgramFile;
   }
@@ -276,7 +276,7 @@ int nanoOsExeMetadataV1Write(
   // Version is next
   fileVar = 1;
   fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
-  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+  if (fwrite(&fileVar, 1, sizeof(fileVar), fullFile) != sizeof(fileVar)) {
     returnValue = -7;
     goto closeProgramFile;
   }
@@ -284,7 +284,7 @@ int nanoOsExeMetadataV1Write(
   // Signature is last
   fileVar = NANO_OS_EXE_SIGNATURE;
   fileVar = nanoOsExeByteSwapIfNotLittleEndian(fileVar);
-  if (fwrite(&fileVar, 1, sizeof(fileVar), programFile) != sizeof(fileVar)) {
+  if (fwrite(&fileVar, 1, sizeof(fileVar), fullFile) != sizeof(fileVar)) {
     returnValue = -8;
     goto closeProgramFile;
   }
