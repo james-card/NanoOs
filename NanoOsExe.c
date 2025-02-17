@@ -48,8 +48,8 @@
 /// byte swapped verion of the input value if the host is not little endian.
 uint32_t nanoOsExeByteSwapIfNotLittleEndian(uint32_t u32Int) {
   union {
-    int integer;
-    char character;
+    unsigned int integer;
+    unsigned char character;
   } littleEndianUnion = { .integer = 1 };
 
   if (!littleEndianUnion.character) {
