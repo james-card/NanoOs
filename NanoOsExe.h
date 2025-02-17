@@ -44,6 +44,12 @@ extern "C"
 {
 #endif
 
+/// @def NANO_OS_EXE_SIGNATURE
+///
+/// @brief Definition of the four-bytes at the end of a NanoOs executable file
+/// that designate it as such.
+#define NANO_OS_EXE_SIGNATURE *((uint32_t*) "NOSE")
+
 // All offsets are relative to the *END* of the file, i.e. the number of bytes
 // backward from the end.  All values are 32-bit values.  Only the signature
 // offset and version offset are defined.  All other offsets are version-
