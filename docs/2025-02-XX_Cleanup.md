@@ -56,7 +56,7 @@ So, after all this, I wound up using 48,120 bytes on the flash storage, which me
 
 Goals 2, 3, and 4 were accomplished.  Goal 1 turned out to be impossible with the current kernel processes once the issue with the stack overflow was revealed.  My last count was that instantiating a single VM consumed 556 bytes of dynamic memory **AND** I had to increase the size of each process's stack from 340 bytes to 404 bytes.  There simply isn't enough RAM in the NANO to run more than 2 VM processes.  It might be possible if I consolidated all of the kernel processes down to one, but (a) I'm not willing to do that in the context of this round of effort and (b) even if I did do that, it would be extremely tight and I'm not sure it would be worth it.
 
-To be continued...
+The branch is now merged to dev.  **HOORAY!!!**  Note that there is currently no shell in this codebase, so it can't be merged to main, but I can extend from here.  There will be several things I need to do both in user space and in the kernel to get to a working shell and I hope I have enough flash space to do what I need to do in the kernel.  Otherwise, I'm going to be trying to free up more space in order to get the basics of user processes running.  I guess we'll see.  To be continued...
 
 [Table of Contents](.)
 
