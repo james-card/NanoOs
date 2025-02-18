@@ -45,38 +45,64 @@ extern "C"
 {
 #endif
 
-#define VIRTUAL_MEMORY_BUFFER_SIZE 16
+#define VIRTUAL_MEMORY_PAGE_SIZE 512
 
 /// @struct VirtualMemoryState
 ///
 /// @brief Structure to maintain virtual memory state
 ///
-/// @param filename The FAT16 name of the backing file.
 /// @param fileHandle Handle to the memory file.
 /// @param buffer Buffer for cached data.
 /// @param bufferBaseOffset File offset where buffer starts.
 /// @param bufferValidBytes Number of valid bytes in buffer.
+/// @param bufferSize The number of bytes of storage at the buffer pointer.
+/// @param dirty Whether or not the contents of the buffer have been modified
+///   since being read.
 typedef struct VirtualMemoryState {
-  char      filename[13];
   FILE     *fileHandle;
   uint32_t  fileSize;
-  uint8_t   buffer[VIRTUAL_MEMORY_BUFFER_SIZE];
+  uint8_t  *buffer;
   uint32_t  bufferBaseOffset;
-  uint32_t  bufferValidBytes;
+  uint8_t   bufferValidBytes;
+  uint8_t   bufferSize:7;
+  bool      dirty:1;
 } VirtualMemoryState;
 
+/// @def virtualMemorySize
+///
+/// @brief Get the current allocated size of a piece of virtual memory given a
+/// pointer to its VirtualMemoryState structure.
+///
+/// @param virtualMemory The pointer to the VirtualMemoryState structure.
+#define virtualMemorySize(virtualMemory) \
+  (virtualMemory)->fileSize
+
+/// @def virtualMemorySetSize
+///
+/// @brief Set the current allocated size of a piece of virtual memory given a
+/// pointer to its VirtualMemoryState structure.
+///
+/// @param virtualMemory The pointer to the VirtualMemoryState structure.
+/// @param size The size to assign to the virtual memory.
+#define virtualMemorySetSize(virtualMemory, size) \
+  (virtualMemory)->fileSize = size
 
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename);
-void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile);
+  VirtualMemoryState *state, const char *filename,
+  uint8_t cacheSize, uint8_t *staticCache);
+void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer);
 int32_t virtualMemoryRead8(
   VirtualMemoryState *state, uint32_t offset, uint8_t *value);
+int32_t virtualMemoryRead16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t *value);
 int32_t virtualMemoryRead32(
   VirtualMemoryState *state, uint32_t offset, uint32_t *value);
 int32_t virtualMemoryRead64(
   VirtualMemoryState *state, uint32_t offset, uint64_t *value);
 int32_t virtualMemoryWrite8(
   VirtualMemoryState *state, uint32_t offset, uint8_t value);
+int32_t virtualMemoryWrite16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t value);
 int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value);
 int32_t virtualMemoryWrite64(
@@ -85,6 +111,8 @@ uint32_t virtualMemoryRead(VirtualMemoryState *state,
   uint32_t offset, uint32_t length, void *buffer);
 uint32_t virtualMemoryWrite(VirtualMemoryState *state,
   uint32_t offset, uint32_t length, const void *buffer);
+uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
+  VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length);
 
 #ifdef __cplusplus
 } // extern "C"

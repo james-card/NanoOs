@@ -1,11 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
 /// @author            James Card
-/// @date              1.13.2025
+/// @date              02.17.2025
 ///
-/// @file              SdCard.h
+/// @file              NanoOsSystemCalls.h
 ///
-/// @brief             SD card functionality for NanoOs.
+/// @brief             Library for system calls supported by NanoOs for user
+///                    space programs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -33,37 +34,46 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SD_CARD_H
-#define SD_CARD_H
-
-// Custom includes
-#include "NanoOs.h"
+#ifndef NANO_OS_SYSTEM_CALLS_H
+#define NANO_OS_SYSTEM_CALLS_H
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/// @enum SdCardCommandResponse
+/// @enum NanoOsSystemCall
 ///
-/// @brief Commands and responses understood by the SD card inter-process
-/// message handler.
-typedef enum SdCardCommandResponse {
-  // Commands:
-  SD_CARD_READ_BLOCKS,
-  SD_CARD_WRITE_BLOCKS,
-  NUM_SD_CARD_COMMANDS,
-  // Responses:
-} SdCardCommandResponse;
+/// @brief Enumeration of the system calls supported by NanoOs.
+typedef enum NanoOsSystemCall {
+  NANO_OS_SYSCALL_EXIT,
+  NANO_OS_SYSCALL_WRITE,
+  NUM_NANO_OS_SYSCALLS
+} NanoOsSystemCall;
 
-void* runSdCard(void *args);
-int sdReadBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
-int sdWriteBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
+/// @def NANO_OS_STDIN_FILENO
+///
+/// @brief Standard numerical number of the stdin file descriptor.
+#define NANO_OS_STDIN_FILENO       0
+
+/// @def NANO_OS_STDOUT_FILENO
+///
+/// @brief Standard numerical number of the stdout file descriptor.
+#define NANO_OS_STDOUT_FILENO      1
+
+/// @def NANO_OS_STDERR_FILENO
+///
+/// @brief Standard numerical number of the stderr file descriptor.
+#define NANO_OS_STDERR_FILENO      2
+
+/// @def NANO_OS_MAX_WRITE_LENGTH
+///
+/// @brief The maximum number of characters that can be written by a user space
+/// program in a single call.
+#define NANO_OS_MAX_WRITE_LENGTH 128
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // SD_CARD_H
+#endif // NANO_OS_SYSTEM_CALLS_H

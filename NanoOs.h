@@ -54,7 +54,7 @@ extern "C"
 /// @brief The minimum size for an individual process's stack.  Actual size will
 /// be slightly larger than this.  This value needs to be a multiple of 
 /// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
-#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 5)
+#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 6)
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
@@ -68,32 +68,22 @@ extern "C"
 /// scheduler.
 #define NANO_OS_SCHEDULER_PROCESS_ID                      0
 
-/// @def NANO_OS_CONSOLE_PROCESS_ID
+/// @def NANO_OS_IO_PROCESS_ID
 ///
-/// @brief The process ID (PID) of the process that will run the console.  This
+/// @brief The process ID (PID) of the process that will run the I/O.  This
 /// must be the lowest value after the scheduler process (i.e. 1).
-#define NANO_OS_CONSOLE_PROCESS_ID                        1
+#define NANO_OS_IO_PROCESS_ID                             1
 
 /// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the process that will manage memory.
 #define NANO_OS_MEMORY_MANAGER_PROCESS_ID                 2
 
-/// @def NANO_OS_SD_CARD_PROCESS_ID
-///
-/// @brief The process ID (PID) of the process that will manage the SD card.
-#define NANO_OS_SD_CARD_PROCESS_ID                        3
-
-/// @def NANO_OS_FILESYSTEM_PROCESS_ID
-///
-/// @brief The process ID (PID) of the process that will manage the filesystem.
-#define NANO_OS_FILESYSTEM_PROCESS_ID                     4
-
 /// @def NANO_OS_FIRST_USER_PROCESS_ID
 ///
 /// @brief The process ID (PID) of the first user process, i.e. the first ID
 /// after the last system process ID.
-#define NANO_OS_FIRST_USER_PROCESS_ID                     5
+#define NANO_OS_FIRST_USER_PROCESS_ID                     3
 
 /// @def NANO_OS_VERSION
 ///
@@ -143,7 +133,7 @@ extern "C"
 /// @def printDebug
 ///
 /// @brief Macro to identify debugging prints when necessary.
-#define printDebug(message) Serial.print(message)
+#define printDebug Serial.print
 
 #else // NANO_OS_DEBUG
 
@@ -186,7 +176,6 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 #include "Commands.h"
 #include "MemoryManager.h"
 #include "Processes.h"
-#include "Console.h"
-#include "Filesystem.h"
+#include "NanoOsIo.h"
 
 #endif // NANO_OS_H

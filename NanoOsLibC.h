@@ -60,6 +60,13 @@ extern "C"
 {
 #endif
 
+typedef uint32_t off_t;
+
+#ifdef size_t
+#undef size_t
+#endif // size_t
+#define size_t uint32_t
+
 typedef struct NanoOsFile NanoOsFile;
 #ifdef FILE
 #undef FILE
@@ -69,17 +76,17 @@ typedef struct NanoOsFile NanoOsFile;
 #ifdef stdin
 #undef stdin
 #endif // stdin
-#define stdin nanoOsStdin
+#define stdin nanoOsIoStdin
 
 #ifdef stdout
 #undef stdout
 #endif // stdout
-#define stdout nanoOsStdout
+#define stdout nanoOsIoStdout
 
 #ifdef stderr
 #undef stderr
 #endif // stderr
-#define stderr nanoOsStderr
+#define stderr nanoOsIoStderr
 
 /// @def SINGLE_CORE_COROUTINES
 ///
@@ -203,9 +210,9 @@ typedef void TypeDescriptor;
 #define STOP       ((void*) ((intptr_t) -1))
 
 extern const char *boolNames[];
-extern FILE *nanoOsStdin;
-extern FILE *nanoOsStdout;
-extern FILE *nanoOsStderr;
+extern FILE *nanoOsIoStdin;
+extern FILE *nanoOsIoStdout;
+extern FILE *nanoOsIoStderr;
 
 // Debug functions
 int printString_(const char *string);
@@ -230,6 +237,7 @@ unsigned long getElapsedMilliseconds(unsigned long startTime);
 // C-like functions
 int vsscanf(const char *buffer, const char *format, va_list args);
 int sscanf(const char *buffer, const char *format, ...);
+char* strnchr(char *s, int c, size_t size);
 
 char* nanoOsStrError(int errnum);
 #ifdef strerror
@@ -237,61 +245,121 @@ char* nanoOsStrError(int errnum);
 #endif
 #define strerror nanoOsStrError
 
+// Standard seek mode definitions
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 // Exported IO functions
 
-int nanoOsFPuts(const char *s, FILE *stream);
+int nanoOsIoFPuts(const char *s, FILE *stream);
 #ifdef fputs
 #undef fputs
 #endif
-#define fputs nanoOsFPuts
+#define fputs nanoOsIoFPuts
 
-int nanoOsPuts(const char *s);
+int nanoOsIoPuts(const char *s);
 #ifdef puts
 #undef puts
 #endif
-#define puts nanoOsPuts
+#define puts nanoOsIoPuts
 
-int nanoOsVFPrintf(FILE *stream, const char *format, va_list args);
+int nanoOsIoVFPrintf(FILE *stream, const char *format, va_list args);
 #ifdef vfprintf
 #undef vfprintf
 #endif
-#define vfprintf nanoOsVFPrintf
+#define vfprintf nanoOsIoVFPrintf
 
-int nanoOsFPrintf(FILE *stream, const char *format, ...);
+int nanoOsIoFPrintf(FILE *stream, const char *format, ...);
 #ifdef fprintf
 #undef fprintf
 #endif
-#define fprintf nanoOsFPrintf
+#define fprintf nanoOsIoFPrintf
 
-int nanoOsPrintf(const char *format, ...);
+int nanoOsIoPrintf(const char *format, ...);
 #ifdef printf
 #undef printf
 #endif
-#define printf nanoOsPrintf
+#define printf nanoOsIoPrintf
 
-char *nanoOsFGets(char *buffer, int size, FILE *stream);
+char *nanoOsIoFGets(char *buffer, int size, FILE *stream);
 #ifdef fgets
 #undef fgets
 #endif
-#define fgets nanoOsFGets
+#define fgets nanoOsIoFGets
 
-int nanoOsVFScanf(FILE *stream, const char *format, va_list ap);
+int nanoOsIoVFScanf(FILE *stream, const char *format, va_list ap);
 #ifdef vfscanf
 #undef vfscanf
 #endif
-#define vfscanf nanoOsVFScanf
+#define vfscanf nanoOsIoVFScanf
 
-int nanoOsFScanf(FILE *stream, const char *format, ...);
+int nanoOsIoFScanf(FILE *stream, const char *format, ...);
 #ifdef fscanf
 #undef fscanf
 #endif
-#define fscanf nanoOsFScanf
+#define fscanf nanoOsIoFScanf
 
-int nanoOsScanf(const char *format, ...);
+int nanoOsIoScanf(const char *format, ...);
 #ifdef scanf
 #undef scanf
 #endif
-#define scanf nanoOsScanf
+#define scanf nanoOsIoScanf
+
+FILE* nanoOsIoFOpen(const char *pathname, const char *mode);
+#ifdef fopen
+#undef fopen
+#endif // fopen
+#define fopen nanoOsIoFOpen
+
+int nanoOsIoFClose(FILE *stream);
+#ifdef fclose
+#undef fclose
+#endif // fclose
+#define fclose nanoOsIoFClose
+
+int nanoOsIoRemove(const char *pathname);
+#ifdef remove
+#undef remove
+#endif // remove
+#define remove nanoOsIoRemove
+
+int nanoOsIoFSeek(FILE *stream, long offset, int whence);
+#ifdef fseek
+#undef feek
+#endif // fseek
+#define fseek nanoOsIoFSeek
+
+size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream);
+#ifdef fread
+#undef fread
+#endif // fread
+#define fread nanoOsIoFRead
+
+size_t nanoOsIoFWrite(
+  const void *ptr, size_t size, size_t nmemb, FILE *stream);
+#ifdef fwrite
+#undef fwrite
+#endif // fwrite
+#define fwrite nanoOsIoFWrite
+
+long nanoOsIoFTell(FILE *stream);
+#ifdef ftell
+#undef ftell
+#endif // ftell
+#define ftell nanoOsIoFTell
+
+size_t nanoOsIoFCopy(FILE *srcFile, off_t srcStart,
+  FILE *dstFile, off_t dstStart, size_t length);
+
+/// @def rewind
+///
+/// @brief Function macro to implement the functionality of the standard C
+/// rewind function.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+#define rewind(stream) \
+  (void) fseek(stream, 0L, SEEK_SET)
 
 #ifdef __cplusplus
 } // extern "C"

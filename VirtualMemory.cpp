@@ -31,17 +31,23 @@
 // Custom includes
 #include "VirtualMemory.h"
 
-/// @fn int32_t virtualMemoryInit(
-///   VirtualMemoryState *state, const char *filename)
+/// @fn int32_t virtualMemoryInit(VirtualMemoryState *state,
+///   const char *filename, uint8_t cacheSize, uint8_t *staticCache)
 ///
 /// @brief Initialize the virtual memory system.
 ///
 /// @param state Pointer to state structure to initialize.
 /// @param filename Name of file to use as backing store.
+/// @param cacheSize The number of bytes to allocate for the virtual memory
+///   buffer.
+/// @param staticCache A pointer to the uint8_t array to use in place of a
+///   dynamically-allocated cache buffer.  A dynamically-allocated buffer of
+///   cacheSize bytes will be allocated if this parameter is NULL.
 ///
-/// @return Returns 0 on success, -1 on error.
+/// @return Returns 0 on success, -1 on file error, -2 on memory error.
 int32_t virtualMemoryInit(
-  VirtualMemoryState *state, const char *filename
+  VirtualMemoryState *state, const char *filename,
+  uint8_t cacheSize, uint8_t *staticCache
 ) {
   // Validate parameters
   if ((state == NULL) || (filename == NULL)) {
@@ -60,27 +66,46 @@ int32_t virtualMemoryInit(
   // Initialize buffer state
   state->bufferBaseOffset = 0;
   state->bufferValidBytes = 0;
-  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
-  strcpy(state->filename, filename);
+  state->buffer = NULL;
+  // A cacheSize of 0 is valid if the user only uses virtualMemoryRead(),
+  // virtualMemoryWrite(), and virtualMemoryCopy().
+  if (cacheSize > 0) {
+    if (staticCache == NULL) {
+      state->buffer = (uint8_t*) malloc(cacheSize);
+    } else {
+      state->buffer = staticCache;
+    }
+    if (state->buffer == NULL) {
+      fclose(state->fileHandle); state->fileHandle = NULL;
+      return -2;
+    }
+    state->bufferSize = cacheSize - 1;
+    memset(state->buffer, 0, state->bufferSize + 1);
+  }
+
+  // Set the initial size of the memory block.
+  fseek(state->fileHandle, 0, SEEK_END);
+  state->fileSize = ftell(state->fileHandle);
+  fseek(state->fileHandle, 0, SEEK_SET);
 
   return 0;
 }
 
-/// @fn void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile)
+/// @fn void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer)
 ///
 /// @brief Clean up virtual memory system resources.
 ///
 /// @param state Pointer to state structure to clean up.
-/// @param removeFile Whether or not the backing file should be removed from
-///   the filesystem.
+/// @param freeBuffer Whether or not the buffer in the state should be freed
+///   via dynamic memory management.
 ///
 /// @return This function returns no value.
-void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
-  fclose(state->fileHandle); state->fileHandle = NULL;
-  if (removeFile) {
-    remove(state->filename);
+void virtualMemoryCleanup(VirtualMemoryState *state, bool freeBuffer) {
+  if (freeBuffer == true) {
+    free(state->buffer);
   }
-  *state->filename = '\0';
+  state->buffer = NULL;
+  fclose(state->fileHandle); state->fileHandle = NULL;
 }
 
 /// @fn void virtualMemoryPrepare(
@@ -95,26 +120,34 @@ void virtualMemoryCleanup(VirtualMemoryState *state, bool removeFile) {
 ///
 /// @return This function returns no value.
 void virtualMemoryPrepare(VirtualMemoryState *state, uint32_t endOffset) {
-  if (state->bufferValidBytes > 0) {
+  // state->dirty is only set to true when there is a to the buffer.  The
+  // buffer is only written to when virtualMemoryGet returns non-NULL.
+  // virtualMemoryGet only returns non-NULL if bufferValidBytes is greater than
+  // zero.  So, if state->dirty is true, then state->bufferValidBytes is
+  // greater than 0.
+  if (state->dirty == true) {
     // Write current buffer if it contains data
     fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
     fwrite(state->buffer, 1, state->bufferValidBytes, state->fileHandle);
   }
 
-  // Clear out anything that was in the buffer.
-  memset(state->buffer, 0, VIRTUAL_MEMORY_BUFFER_SIZE);
+  if (state->buffer != NULL) {
+    // Clear out anything that was in the buffer.
+    memset(state->buffer, 0, state->bufferSize + 1);
+  }
+  state->dirty = false;
 
   // Make sure the data exists
   if (state->fileSize < endOffset) {
-    fseek(state->fileHandle, state->fileSize, SEEK_SET);
-    for (
-      uint32_t ii = state->fileSize;
-      ii < endOffset;
-      ii += VIRTUAL_MEMORY_BUFFER_SIZE
-    ) {
-      fwrite(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
-      state->fileSize += VIRTUAL_MEMORY_BUFFER_SIZE;
+    // Align the length if we need to.
+    uint32_t length = endOffset - state->fileSize;
+    if (length & (((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1)) {
+      length &= ~(((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1);
+      length += VIRTUAL_MEMORY_PAGE_SIZE;
     }
+
+    nanoOsIoFCopy(NULL, 0, state->fileHandle, state->fileSize, length);
+    state->fileSize = endOffset;
   }
 
   return;
@@ -141,15 +174,21 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
     return &state->buffer[offset - state->bufferBaseOffset];
   }
 
+  //// printDebug("0x");
+  //// printDebug((intptr_t) state, HEX);
+  //// printDebug(": 0x");
+  //// printDebug(offset, HEX);
+  //// printDebug("\n");
+
   // Need to load new data into the buffer.
-  virtualMemoryPrepare(state, offset + VIRTUAL_MEMORY_BUFFER_SIZE);
+  virtualMemoryPrepare(state, offset + state->bufferSize + 1);
 
   // Read new buffer from the requested location.
   state->bufferBaseOffset
-    = (offset / VIRTUAL_MEMORY_BUFFER_SIZE) * VIRTUAL_MEMORY_BUFFER_SIZE;
+    = (offset / (state->bufferSize + 1)) * (state->bufferSize + 1);
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
-    = fread(state->buffer, 1, VIRTUAL_MEMORY_BUFFER_SIZE, state->fileHandle);
+    = fread(state->buffer, 1, state->bufferSize + 1, state->fileHandle);
 
   if (state->bufferValidBytes == 0) {
     return NULL;
@@ -179,6 +218,36 @@ int32_t virtualMemoryRead8(
 
   int returnValue = 0;
   uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *value = *memoryAddr;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
+}
+
+/// @fn int32_t virtualMemoryRead16(
+///   VirtualMemoryState *state, uint32_t offset, uint16_t *value)
+///
+/// @brief Read a 16-bit value from virtual memory.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to read from.
+/// @param value Pointer to store read value.
+///
+/// @return Returns 0 on success, -1 on error.
+int32_t virtualMemoryRead16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t *value
+) {
+  // The state variable and its necessary components will be verified by
+  // virtualMemoryGet, so just check value here.
+  if (value == NULL) {
+    return -1;
+  }
+
+  int returnValue = 0;
+  uint16_t *memoryAddr = (uint16_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *value = *memoryAddr;
   } else {
@@ -265,6 +334,32 @@ int32_t virtualMemoryWrite8(
   uint8_t *memoryAddr = (uint8_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
+  } else {
+    returnValue = -1;
+  }
+
+  return returnValue;
+}
+
+/// @fn int32_t virtualMemoryWrite16(
+///   VirtualMemoryState *state, uint32_t offset, uint16_t *value)
+///
+/// @brief Write a 16-bit value to virtual memory.
+///
+/// @param state Pointer to virtual memory state.
+/// @param offset Offset in file to write to.
+/// @param value Value to write to virtual memory.
+///
+/// @return Returns 0 on success, -1 on error.
+int32_t virtualMemoryWrite16(
+  VirtualMemoryState *state, uint32_t offset, uint16_t value
+) {
+  int returnValue = 0;
+  uint16_t *memoryAddr = (uint16_t*) virtualMemoryGet(state, offset);
+  if (memoryAddr != NULL) {
+    *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -289,6 +384,7 @@ int32_t virtualMemoryWrite32(
   uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -313,6 +409,7 @@ int32_t virtualMemoryWrite64(
   uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
+    state->dirty = true;
   } else {
     returnValue = -1;
   }
@@ -380,5 +477,63 @@ uint32_t virtualMemoryWrite(VirtualMemoryState *state,
   // Write the data from the requested location
   fseek(state->fileHandle, offset, SEEK_SET);
   return fwrite(buffer, 1, length, state->fileHandle);
+}
+
+/// @fn uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
+///   VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length)
+///
+/// @brief Do a direct copy from a source piece of virtual memory to a
+/// destination piece of virtual memory.
+///
+/// @param srcVm A pointer to the source virtual memory state.
+/// @param srcStart The byte offset within the source virtual memory to start
+///   copying from.
+/// @param dstVm A pointer to the destination virtual memory state.
+/// @param dstStart The byte offset within the destination virtual memory to
+///   start copying to.
+/// @param length The number of bytes to copy from the source virtual memory to
+///   the destination virtual memory.
+///
+/// @return Returns the number of bytes successfully copied.
+uint32_t virtualMemoryCopy(VirtualMemoryState *srcVm, uint32_t srcStart,
+  VirtualMemoryState *dstVm, uint32_t dstStart, uint32_t length
+) {
+  // First, flush the buffers if there's anything in them.
+  if (srcVm->bufferValidBytes > 0) {
+    // Write current source buffer if it contains data
+    fseek(srcVm->fileHandle, srcVm->bufferBaseOffset, SEEK_SET);
+    fwrite(srcVm->buffer, 1, srcVm->bufferValidBytes, srcVm->fileHandle);
+  }
+  srcVm->bufferValidBytes = 0;
+  srcVm->bufferBaseOffset = 0;
+
+  if (dstVm->bufferValidBytes > 0) {
+    // Write current destination buffer if it contains data
+    fseek(dstVm->fileHandle, dstVm->bufferBaseOffset, SEEK_SET);
+    fwrite(dstVm->buffer, 1, dstVm->bufferValidBytes, dstVm->fileHandle);
+  }
+  dstVm->bufferValidBytes = 0;
+  dstVm->bufferBaseOffset = 0;
+
+  // Align the length if we need to.
+  if (length & (((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1)) {
+    length &= ~(((uint32_t) VIRTUAL_MEMORY_PAGE_SIZE) - 1);
+    length += VIRTUAL_MEMORY_PAGE_SIZE;
+  }
+
+  // Copy the data from the source file to the destination file.
+  uint32_t returnValue = nanoOsIoFCopy(
+    srcVm->fileHandle, srcStart,
+    dstVm->fileHandle, dstStart,
+    length);
+
+  if (returnValue > 0) {
+    uint32_t endOffset = dstStart + returnValue;
+    if (endOffset > dstVm->fileSize) {
+      dstVm->fileSize = endOffset;
+    }
+  }
+
+  return returnValue;
 }
 

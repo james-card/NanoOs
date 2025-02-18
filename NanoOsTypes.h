@@ -56,7 +56,7 @@ extern "C"
 /// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
 /// increased beyond 255, then the type defined by CoroutineId in
 /// NanoOsLibC.h must also be extended.
-#define NANO_OS_NUM_PROCESSES                             9
+#define NANO_OS_NUM_PROCESSES                             5
 
 /// @def SCHEDULER_NUM_PROCESSES
 ///
@@ -69,18 +69,18 @@ extern "C"
 ///
 /// @brief The size, in bytes, of a single console buffer.  This is the number
 /// of bytes that printf calls will have to work with.
-#define CONSOLE_BUFFER_SIZE 96
+#define CONSOLE_BUFFER_SIZE 48
 
-/// @def CONSOLE_NUM_PORTS
+/// @def NUM_CONSOLE_PORTS
 ///
 /// @brief The number of console supports supported.
-#define CONSOLE_NUM_PORTS 2
+#define NUM_CONSOLE_PORTS 2
 
 /// @def CONSOLE_NUM_BUFFERS
 ///
 /// @brief The number of console buffers that will be allocated within the main
 /// console process's stack.
-#define CONSOLE_NUM_BUFFERS CONSOLE_NUM_PORTS
+#define CONSOLE_NUM_BUFFERS NUM_CONSOLE_PORTS
 
 // Process status values
 #define processSuccess  coroutineSuccess
@@ -245,6 +245,8 @@ typedef struct ProcessQueue {
 /// @param free Queue of processes that are free within the allProcesses
 ///   array.
 /// @param hostname The contents of the /etc/hostname file read at startup.
+/// @param bootComplete Whether or not all the setup and configuration of the
+///   startScheduler function has completed.
 typedef struct SchedulerState {
   ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
   ProcessQueue ready;
@@ -252,6 +254,7 @@ typedef struct SchedulerState {
   ProcessQueue timedWaiting;
   ProcessQueue free;
   char *hostname;
+  bool bootComplete;
 } SchedulerState;
 
 /// @struct CommandDescriptor
@@ -265,9 +268,9 @@ typedef struct SchedulerState {
 /// @param schedulerState A pointer to the SchedulerState structure maintained
 ///   by the scheduler.
 typedef struct CommandDescriptor {
-  int                consolePort;
+  uint8_t            consolePort;
   char              *consoleInput;
-  ProcessId         callingProcess;
+  ProcessId          callingProcess;
   SchedulerState    *schedulerState;
 } CommandDescriptor;
 
@@ -295,10 +298,12 @@ typedef struct CommandEntry {
 /// @param inUse Whether or not this buffer is in use by a process.  Set by the
 ///   consoleGetBuffer function when getting a buffer for a caller and cleared
 ///   by the caller when no longer being used.
+/// @param numBytes The number of valid bytes that are in the buffer.
 /// @param buffer The array of CONSOLE_BUFFER_SIZE characters that the calling
 ///   process can use.
 typedef struct ConsoleBuffer {
   bool inUse;
+  uint8_t numBytes;
   char buffer[CONSOLE_BUFFER_SIZE];
 } ConsoleBuffer;
 
@@ -326,14 +331,14 @@ typedef struct ConsoleBuffer {
 ///   output to the console port.
 typedef struct ConsolePort {
   ConsoleBuffer      *consoleBuffer;
-  unsigned char       consoleIndex;
+  uint8_t             consoleIndex;
   ProcessId           outputOwner;
   ProcessId           inputOwner;
   ProcessId           shell;
   bool                waitingForInput;
   int               (*readByte)(ConsolePort *consolePort);
   bool                echo;
-  int               (*printString)(const char *string);
+  int               (*printString)(const char *string, size_t numBytes);
 } ConsolePort;
 
 /// @struct ConsoleState
@@ -346,7 +351,7 @@ typedef struct ConsolePort {
 /// @param consoleBuffers The array of ConsoleBuffers that can be used by
 ///   the console ports for input and by processes for output.
 typedef struct ConsoleState {
-  ConsolePort consolePorts[CONSOLE_NUM_PORTS];
+  ConsolePort consolePorts[NUM_CONSOLE_PORTS];
   // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
 } ConsoleState;
