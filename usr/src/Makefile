@@ -25,10 +25,26 @@
 ##                                                                            ##
 ################################################################################
 
-all:
-	riscv32-unknown-elf-gcc -I../.. -Wall -Wextra -pedantic -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start -o ../obj/init.elf init.c
-	riscv32-unknown-elf-objcopy -O binary ../obj/init.elf ../obj/init.bin
-	riscv32-unknown-elf-objcopy -O binary --only-section=.text ../obj/init.elf ../obj/init.text
-	cp ../obj/init.bin ../bin/init
-	../bin/addNanoOsExeMetadata ../bin/init ../obj/init.text
+CC := riscv32-unknown-elf-gcc
+OBJCOPY := riscv32-unknown-elf-objcopy
+WARNINGS := -Wall -Wextra -pedantic -Werror
+FLAGS := -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start
+
+INCLUDES := \
+    -I../.. \
+
+all: ../bin/init
+
+../obj/%.elf: %.c
+	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $<
+
+../obj/%.bin: ../obj/%.elf
+	$(OBJCOPY) -O binary $< $@
+
+../obj/%.text: ../obj/%.elf
+	$(OBJCOPY) -O binary --only-section=.text $< $@
+
+../bin/init: ../obj/init.bin ../obj/init.text
+	cp ../obj/init.bin $@
+	../bin/addNanoOsExeMetadata $@ ../obj/init.text
 
