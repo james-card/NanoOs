@@ -25,6 +25,7 @@
 ##                                                                            ##
 ################################################################################
 
-all:
-	gcc -I../.. addNanoOsExeMetadata.c ../../NanoOsExe.c -o ../bin/addNanoOsExeMetadata
+all: ../bin/addNanoOsExeMetadata
 
+../bin/addNanoOsExeMetadata: addNanoOsExeMetadata.c
+	gcc -I../.. addNanoOsExeMetadata.c ../../NanoOsExe.c -o ../bin/addNanoOsExeMetadata
