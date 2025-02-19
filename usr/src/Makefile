@@ -30,21 +30,24 @@ OBJCOPY := riscv32-unknown-elf-objcopy
 WARNINGS := -Wall -Wextra -pedantic -Werror
 FLAGS := -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start
 
+BIN_DIR := ../bin
+OBJ_DIR := ../obj
+
 INCLUDES := \
     -I../.. \
 
-all: ../bin/init
+all: $(BIN_DIR)/init
 
-../obj/%.elf: %.c
+$(OBJ_DIR)/%.elf: %.c
 	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $<
 
-../obj/%.bin: ../obj/%.elf
+$(OBJ_DIR)/%.bin: $(OBJ_DIR)/%.elf
 	$(OBJCOPY) -O binary $< $@
 
-../obj/%.text: ../obj/%.elf
+$(OBJ_DIR)/%.text: $(OBJ_DIR)/%.elf
 	$(OBJCOPY) -O binary --only-section=.text $< $@
 
-../bin/init: ../obj/init.bin ../obj/init.text
-	cp ../obj/init.bin $@
-	../bin/addNanoOsExeMetadata $@ ../obj/init.text
+$(BIN_DIR)/init: $(OBJ_DIR)/init.bin $(OBJ_DIR)/init.text
+	cp $(OBJ_DIR)/init.bin $@
+	$(BIN_DIR)/addNanoOsExeMetadata $@ $(OBJ_DIR)/init.text
 
