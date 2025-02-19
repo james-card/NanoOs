@@ -185,7 +185,8 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
 
   // Read new buffer from the requested location.
   state->bufferBaseOffset
-    = (offset / (state->bufferSize + 1)) * (state->bufferSize + 1);
+    = (offset / ((state->bufferSize + 1) >> 1))
+    * ((state->bufferSize + 1) >> 1);
   fseek(state->fileHandle, state->bufferBaseOffset, SEEK_SET);
   state->bufferValidBytes
     = fread(state->buffer, 1, state->bufferSize + 1, state->fileHandle);
