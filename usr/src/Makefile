@@ -47,7 +47,7 @@ $(OBJ_DIR)/%.bin: $(OBJ_DIR)/%.elf
 $(OBJ_DIR)/%.text: $(OBJ_DIR)/%.elf
 	$(OBJCOPY) -O binary --only-section=.text $< $@
 
-$(BIN_DIR)/init: $(OBJ_DIR)/init.bin $(OBJ_DIR)/init.text
+$(BIN_DIR)/%: $(OBJ_DIR)/%.bin $(OBJ_DIR)/%.text
 	cp $(OBJ_DIR)/init.bin $@
 	$(BIN_DIR)/addNanoOsExeMetadata $@ $(OBJ_DIR)/init.text
 
