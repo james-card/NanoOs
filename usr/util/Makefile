@@ -25,7 +25,15 @@
 ##                                                                            ##
 ################################################################################
 
+CC := gcc
+
+INCLUDES := \
+    -I../.. \
+
+LIBRARIES := \
+    ../../NanoOsExe.c \
+
 all: ../bin/addNanoOsExeMetadata
 
 ../bin/addNanoOsExeMetadata: addNanoOsExeMetadata.c
-	gcc -I../.. addNanoOsExeMetadata.c ../../NanoOsExe.c -o ../bin/addNanoOsExeMetadata
+	$(CC) $(INCLUDES) $< $(LIBRARIES) -o $@
