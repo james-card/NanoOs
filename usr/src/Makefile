@@ -27,3 +27,8 @@
 
 all:
 	riscv32-unknown-elf-gcc -I../.. -Wall -Wextra -pedantic -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start -o ../obj/init.elf init.c
+	riscv32-unknown-elf-objcopy -O binary ../obj/init.elf ../obj/init.bin
+	riscv32-unknown-elf-objcopy -O binary --only-section=.text ../obj/init.elf ../obj/init.text
+	cp ../obj/init.bin ../bin/init
+	../bin/addNanoOsExeMetadata ../bin/init ../obj/init.text
+
