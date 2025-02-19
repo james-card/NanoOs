@@ -27,7 +27,7 @@
 
 CC := gcc
 
-BINDIR := ../bin
+BIN_DIR := ../bin
 
 INCLUDES := \
     -I../.. \
@@ -35,7 +35,7 @@ INCLUDES := \
 LIBRARIES := \
     ../../NanoOsExe.c \
 
-all: $(BINDIR)/addNanoOsExeMetadata
+all: $(BIN_DIR)/addNanoOsExeMetadata
 
-$(BINDIR)/addNanoOsExeMetadata: addNanoOsExeMetadata.c
+$(BIN_DIR)/addNanoOsExeMetadata: addNanoOsExeMetadata.c
 	$(CC) $(INCLUDES) $< $(LIBRARIES) -o $@
