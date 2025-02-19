@@ -10,6 +10,8 @@ The reason for the performance penalty was obvious when I thought about it.  The
 
 Because the performance penalty was so high, the algorithm was flat out unacceptable to use in my LIBC implementation.  Consequently, there was no reason for me to debug why the string wasn't being printed.  So, I abandoned the logic and went back to the simple algorithm.
 
+The next step was to **STOP!**  I needed to create a proper build environment before I went any further with this.  For one thing, I was getting increasingly nervous about the need to keep all the commands straight for building a program.  For another, I was about to enter the realm of building libraries and I definitely did not want to start that work without having an automated way to build.  So, I put makefiles in place for the work I'd done so far and some pre-enablements for the work that was coming.
+
 To be continued...
 
 [Table of Contents](.)
