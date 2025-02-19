@@ -26,6 +26,7 @@
 ################################################################################
 
 CC := gcc
+WARNINGS := -Wall -Wextra -pedantic -Werror
 
 BIN_DIR := ../bin
 
@@ -38,4 +39,4 @@ LIBRARIES := \
 all: $(BIN_DIR)/addNanoOsExeMetadata
 
 $(BIN_DIR)/addNanoOsExeMetadata: addNanoOsExeMetadata.c
-	$(CC) $(INCLUDES) $< $(LIBRARIES) -o $@
+	$(CC) $(WARNINGS) $(INCLUDES) $< $(LIBRARIES) -o $@
