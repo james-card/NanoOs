@@ -29,3 +29,6 @@ all:
 	$(MAKE) -C util
 	$(MAKE) -C src
 
+clean:
+	$(MAKE) -C src clean
+
