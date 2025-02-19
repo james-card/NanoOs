@@ -27,6 +27,8 @@
 
 CC := riscv32-unknown-elf-gcc
 OBJCOPY := riscv32-unknown-elf-objcopy
+RM := rm -f
+
 WARNINGS := -Wall -Wextra -pedantic -Werror
 FLAGS := -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start
 
@@ -53,4 +55,7 @@ $(OBJ_DIR)/%.text: $(OBJ_DIR)/%.elf
 $(BIN_DIR)/%: $(OBJ_DIR)/%.bin $(OBJ_DIR)/%.text
 	cp $(OBJ_DIR)/init.bin $@
 	$(BIN_DIR)/addNanoOsExeMetadata $@ $(OBJ_DIR)/init.text
+
+clean:
+	$(RM) $(OBJ_DIR)/*.text $(OBJ_DIR)/*.bin $(OBJ_DIR)/*.elf
 
