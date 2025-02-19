@@ -30,15 +30,28 @@
 
 #include "NanoOsSystemCalls.h"
 
+// stdint.h types
+typedef char int8_t;
+typedef unsigned char uint8_t;
+typedef short int int16_t;
+typedef unsigned short int uint16_t;
+typedef int int32_t;
+typedef unsigned int uint32_t;
+
+// stddef.h types
+typedef uint32_t size_t;
+typedef int32_t ssize_t;
+typedef uint32_t uintptr_t;
+typedef int32_t intptr_t;
+
+/// string.h prototypes
+size_t strlen(const char *str);
+
 void _start(void) {
   const char *message = "Hello, world!\n";
   
   // Calculate string length
-  int length = 0;
-  const char *ptr = message;
-  while (*ptr++) {
-    length++;
-  }
+  size_t length = strlen(message);
   
   // Write to stdout using syscall
   register int a0 asm("a0") = NANO_OS_STDOUT_FILENO; // stdout file descriptor
@@ -61,3 +74,67 @@ void _start(void) {
     : : "r"(a0), "r"(a7)
   );
 }
+
+/// @fn size_t strlen(const char *str)
+///
+/// @brief Implementation of the standard C strlen function.  Calculates the
+/// number of characters in a given C string, not including the terminating
+/// NUL byte.
+///
+/// @param str A pointer to the C string to examine in memory.
+///
+/// @return Returns the total number of non-NUL characters in the provided C
+/// string.
+size_t strlen(const char *str) {
+  size_t length = 0;
+  for (; *str; str++, length++);
+  return length;
+
+  /*
+   * In theory, the below algorithm would be fast than what we're doing above.
+   * HOWEVER, this implemenation is optimized for the host environment (the
+   * Arduino Nano Every) as opposed to the virtual environment (the RV32I VM).
+   * This is important.  Using the algorithm below is over *EIGHT TIMES* slower
+   * per instruction than using the algorihm above.  Despite the fact that the
+   * algorithm below uses fewer than 1/4 of the VM instructions, the algorithm
+   * above actually executes in less absolute time for the same string.  The
+   * reason for this is the fact that the Nano Every uses the 8-bit ATMEGA4809
+   * processor.  It takes significantly more host instructions and bus time
+   * to do 32-bit calculations than it does to do the simple 8-bit comparison
+   * above.  I'm leaving this implementation optimized for the host environment
+   * so that the total execution time of programs written against it will
+   * execute as fas as possible on the target host environment.
+   *
+   * JBC 2025-02-19
+   *
+   * const char *s = str;
+   * const uint32_t *wordPtr;
+   * 
+   * 
+   * // Align to word boundary
+   * while (((uintptr_t) s) & (sizeof(void*) - 1)) {
+   *   if (*s == '\0') {
+   *     return (size_t) (s - str);
+   *   }
+   *   s++;
+   * }
+   * 
+   * 
+   * // Now check a word at a time
+   * wordPtr = (const uint32_t*) s;
+   * while (1) {
+   *   uint32_t word = *wordPtr;
+   *   
+   *   // Check if any byte in this word is zero
+   *   // Using magic number to detect zero byte
+   *   if ((word - 0x01010101) & ~word & 0x80808080) {
+   *     // Found null terminator, now find exact position
+   *     s = (const char*) wordPtr;
+   *     for (;  *s; s++);
+   *     return (size_t) (s - str);
+   *   }
+   *   wordPtr++;
+   * }
+   */
+}
+
