@@ -36,7 +36,10 @@ OBJ_DIR := ../obj
 INCLUDES := \
     -I../.. \
 
-all: $(BIN_DIR)/init
+PROGRAMS := \
+    $(BIN_DIR)/init \
+
+all: $(PROGRAMS)
 
 $(OBJ_DIR)/%.elf: %.c
 	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $<
