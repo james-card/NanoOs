@@ -28,30 +28,13 @@
 // Doxygen marker
 /// @file
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdint.h>
 #include <stddef.h>
 
 // Declaration of user program entry point
 int main(int argc, char **argv);
-
-/// @fn int fputs(const char *s, FILE *stream)
-///
-/// @brief Implementation of the standard C fputs function.  Prints the provided
-/// string to the provided FILE stream.
-///
-/// @param s A pointer to the C string to print.
-/// @param stream A pointer to the FILE stream to direct the string to.
-///
-/// @return Returns the number of characters written on success, EOF on failure.
-static inline int fputs(const char *s, FILE *stream) {
-  // Calculate string length
-  size_t length = strlen(s);
-  size_t numBytesWritten = fwrite(s, 1, length, stream);
-  
-  return (int) numBytesWritten;
-}
 
 // stdlib.h functions
 
