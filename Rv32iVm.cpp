@@ -912,59 +912,6 @@ static inline int32_t executeJumpAndLinkRegister(
   return 0;
 }
 
-/// @fn int32_t handleSyscall(Rv32iVm *rv32iVm)
-///
-/// @brief Handle system calls from the running program
-///
-/// @param rv32iVm Pointer to the VM state
-///
-/// @return Returns 0 on success, negative on error, positive for program exit
-static int32_t handleSyscall(Rv32iVm *rv32iVm) {
-  // Get syscall number from a7 (x17)
-  uint32_t syscallNumber = rv32iVm->rv32iCoreRegisters->x[17];
-  
-  switch (syscallNumber) {
-    case NANO_OS_SYSCALL_WRITE: {
-      // Get parameters from a0-a2 (x10-x12)
-      FILE *stream = (FILE*) rv32iVm->rv32iCoreRegisters->x[10];
-      uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
-      uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
-      
-      // Limit maximum write length
-      if (length > NANO_OS_MAX_WRITE_LENGTH) {
-        length = NANO_OS_MAX_WRITE_LENGTH;
-      }
-      
-      // Read string from VM memory
-      char *buffer = (char*) malloc(length);
-      uint32_t bytesRead
-        = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
-        bufferAddress, length, buffer);
-      
-      // Write to the stream
-      fwrite(buffer, 1, bytesRead, stream);
-
-      // Free the host-side memory
-      free(buffer); buffer = NULL;
-      
-      // Return number of bytes written
-      rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
-      return 0;
-    }
-    
-    case NANO_OS_SYSCALL_EXIT: {
-      // Get exit code from a0 (x10)
-      rv32iVm->running = false;
-      rv32iVm->exitCode = rv32iVm->rv32iCoreRegisters->x[10];
-      return 0;
-    }
-    
-    default: {
-      return -1;
-    }
-  }
-}
-
 /// @fn static inline int32_t executeSystem(
 ///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, int32_t immediate,
 ///   uint32_t funct3)
@@ -985,7 +932,7 @@ static inline int32_t executeSystem(
   // Handle ECALL/EBREAK first (funct3 == 0)
   if (funct3 == RV32I_FUNCT3_ECALL_EBREAK) {
     if (immediate == RV32I_IMM12_ECALL) {
-      return handleSyscall(rv32iVm);
+      return nanoOsSystemCallHandle(rv32iVm);
     } else if (immediate == RV32I_IMM12_EBREAK) {
       // EBREAK
       // This is intended to drop into a debugger, which we don't support.
