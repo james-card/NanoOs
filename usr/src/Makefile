@@ -43,13 +43,16 @@ INCLUDES := \
 WARNINGS := \
     -Wno-unused-variable \
 
+OBJ_FILES := \
+    $(OBJ_DIR)/start.o \
+
 PROGRAMS := \
     $(BIN_DIR)/init \
 
 all: $(PROGRAMS)
 
 $(OBJ_DIR)/%.elf: %.c
-	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $<
+	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $< $(OBJ_FILES)
 
 $(OBJ_DIR)/%.bin: $(OBJ_DIR)/%.elf
 	$(OBJCOPY) -O binary $< $@
