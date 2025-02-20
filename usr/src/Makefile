@@ -38,6 +38,7 @@ OBJ_DIR := ../obj
 
 INCLUDES := \
     -I../.. \
+    -I../include \
 
 PROGRAMS := \
     $(BIN_DIR)/init \
