@@ -50,6 +50,7 @@ size_t strlen(const char *str);
 // stdio.h types and prototypes
 typedef struct FILE FILE;
 int fputs(const char *s, FILE *stream);
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 FILE *stdin  = (FILE*) 0x0;
 FILE *stdout = (FILE*) 0x1;
 FILE *stderr = (FILE*) 0x2;
@@ -105,20 +106,49 @@ int main(int argc, char **argv) {
 int fputs(const char *s, FILE *stream) {
   // Calculate string length
   size_t length = strlen(s);
+  size_t numBytesWritten = fwrite(s, 1, length, stream);
   
-  // Write to stdout using syscall
-  register FILE *a0 asm("a0") = stream;              // file pointer
-  register const char *a1 asm("a1") = s;             // buffer address
-  register int a2 asm("a2") = length;                // length
-  register int a7 asm("a7") = NANO_OS_SYSCALL_WRITE; // write syscall
+  return (int) numBytesWritten;
+}
 
-  asm volatile(
-    "ecall"
-    : "+r"(a0)
-    : "r"(a1), "r"(a2), "r"(a7)
-  );
+/// @fn size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Implementation of the standard C fwrite function.  Writes the
+/// the specified number of bytes from the provided pointer to the provided
+/// file stream.
+///
+/// @param ptr A pointer to the data in memory to write to the file.
+/// @param size The size, in bytes, of each element to write.
+/// @param nmemb The total number of elements to write.
+/// @param stream A pointer to the FILE object to write to.
+///
+/// @return Returns the number of objects successfully written to the file.
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  size_t numBytesWritten = 0;
+
+  for (size_t totalBytes = size * nmemb; totalBytes > 0; ) {
+    size_t numBytesToWrite
+      = (totalBytes > NANO_OS_MAX_WRITE_LENGTH)
+      ? NANO_OS_MAX_WRITE_LENGTH
+      : totalBytes;
+
+    // Write to stdout using syscall
+    register FILE *a0 asm("a0") = stream;              // file pointer
+    register const char *a1 asm("a1") = ptr;           // buffer address
+    register int a2 asm("a2") = numBytesToWrite;       // length
+    register int a7 asm("a7") = NANO_OS_SYSCALL_WRITE; // write syscall
+
+    asm volatile(
+      "ecall"
+      : "+r"(a0)
+      : "r"(a1), "r"(a2), "r"(a7)
+    );
+
+    numBytesWritten += numBytesToWrite;
+    totalBytes -= numBytesToWrite;
+  }
   
-  return length;
+  return numBytesWritten / size;
 }
 
 /// @fn void exit(int status)
