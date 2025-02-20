@@ -44,72 +44,17 @@ typedef int32_t ssize_t;
 typedef uint32_t uintptr_t;
 typedef int32_t intptr_t;
 
-// string.h prototypes
-size_t strlen(const char *str);
-
-// stdio.h types and prototypes
+// stdio.h types
 typedef struct FILE FILE;
-int fputs(const char *s, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 FILE *stdin  = (FILE*) 0x0;
 FILE *stdout = (FILE*) 0x1;
 FILE *stderr = (FILE*) 0x2;
 #define EOF -1
 
-// stdlib.h prototypes
-void exit(int status);
-
 // Declaration of user program entry point
 int main(int argc, char **argv);
 
-/// @fn void _start(void)
-///
-/// @brief Main entry point of the a program.
-///
-/// @return This function returns no value and, in fact, never returns.
-void _start(void) {
-  char *argv[] = {
-    "main"
-  };
-
-  int returnValue = main(sizeof(argv) / sizeof(argv[0]), argv);
-
-  exit(returnValue & 0xff);
-}
-
-/// @fn int main(int argc, char **argv)
-///
-/// @brief Entry point for the application.
-///
-/// @param argc Number of command line arguments provided on the command line.
-/// @param argv Array of individual arguments from the command line.
-///
-/// @return Returns 0 on success.  Any other value is failure.
-int main(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
-  fputs("Hello, world!\n", stdout);;
-
-  return 0;
-}
-
-/// @fn int fputs(const char *s, FILE *stream)
-///
-/// @brief Implementation of the standard C fputs function.  Prints the provided
-/// string to the provided FILE stream.
-///
-/// @param s A pointer to the C string to print.
-/// @param stream A pointer to the FILE stream to direct the string to.
-///
-/// @return Returns the number of characters written on success, EOF on failure.
-int fputs(const char *s, FILE *stream) {
-  // Calculate string length
-  size_t length = strlen(s);
-  size_t numBytesWritten = fwrite(s, 1, length, stream);
-  
-  return (int) numBytesWritten;
-}
+// stdio.h functions
 
 /// @fn size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 ///
@@ -123,7 +68,7 @@ int fputs(const char *s, FILE *stream) {
 /// @param stream A pointer to the FILE object to write to.
 ///
 /// @return Returns the number of objects successfully written to the file.
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+static inline size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
   size_t numBytesWritten = 0;
 
   for (size_t totalBytes = size * nmemb; totalBytes > 0; ) {
@@ -151,23 +96,7 @@ size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
   return numBytesWritten / size;
 }
 
-/// @fn void exit(int status)
-///
-/// @brief Implementation of the standard C exit function.  Returns the provided
-/// status value back to the host operating system.
-///
-/// @param status The integer value to return back to the OS.
-///
-/// @return This function returns no value and, in fact, never returns.
-void exit(int status) {
-  register int a0 asm("a0") = status;               // exit code 0
-  register int a7 asm("a7") = NANO_OS_SYSCALL_EXIT; // exit syscall
-  
-  asm volatile(
-    "ecall"
-    : : "r"(a0), "r"(a7)
-  );
-}
+// string.h functions
 
 /// @fn size_t strlen(const char *str)
 ///
@@ -179,7 +108,7 @@ void exit(int status) {
 ///
 /// @return Returns the total number of non-NUL characters in the provided C
 /// string.
-size_t strlen(const char *str) {
+static inline size_t strlen(const char *str) {
   size_t length = 0;
   for (; *str; str++, length++);
   return length;
@@ -230,5 +159,76 @@ size_t strlen(const char *str) {
    *   wordPtr++;
    * }
    */
+}
+
+/// @fn int fputs(const char *s, FILE *stream)
+///
+/// @brief Implementation of the standard C fputs function.  Prints the provided
+/// string to the provided FILE stream.
+///
+/// @param s A pointer to the C string to print.
+/// @param stream A pointer to the FILE stream to direct the string to.
+///
+/// @return Returns the number of characters written on success, EOF on failure.
+static inline int fputs(const char *s, FILE *stream) {
+  // Calculate string length
+  size_t length = strlen(s);
+  size_t numBytesWritten = fwrite(s, 1, length, stream);
+  
+  return (int) numBytesWritten;
+}
+
+// stdlib.h functions
+
+/// @fn void exit(int status)
+///
+/// @brief Implementation of the standard C exit function.  Returns the provided
+/// status value back to the host operating system.
+///
+/// @param status The integer value to return back to the OS.
+///
+/// @return This function returns no value and, in fact, never returns.
+static inline void exit(int status) {
+  register int a0 asm("a0") = status;               // exit code 0
+  register int a7 asm("a7") = NANO_OS_SYSCALL_EXIT; // exit syscall
+  
+  asm volatile(
+    "ecall"
+    : : "r"(a0), "r"(a7)
+  );
+}
+
+/// @fn void _start(void)
+///
+/// @brief Main entry point of the a program.
+///
+/// @return This function returns no value and, in fact, never returns.
+__attribute__((section(".text.startup")))
+__attribute__((noinline))
+void _start(void) {
+  char *argv[] = {
+    "main"
+  };
+
+  int returnValue = main(sizeof(argv) / sizeof(argv[0]), argv);
+
+  exit(returnValue & 0xff);
+}
+
+/// @fn int main(int argc, char **argv)
+///
+/// @brief Entry point for the application.
+///
+/// @param argc Number of command line arguments provided on the command line.
+/// @param argv Array of individual arguments from the command line.
+///
+/// @return Returns 0 on success.  Any other value is failure.
+int main(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  fputs("Hello, world!\n", stdout);;
+
+  return 0;
 }
 
