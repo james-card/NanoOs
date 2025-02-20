@@ -55,7 +55,7 @@ make -j$(nproc)
 Once `/opt/riscv32i/bin` is in your path, a program named "Hello.c" could then be built as follows:
 
 ```
-riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start -o Hello.elf Hello.c
+riscv32-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start -o Hello.elf Hello.c
 riscv32-unknown-elf-objcopy -O binary Hello.elf Hello.bin
 riscv32-unknown-elf-objcopy -O binary --only-section=.text Hello.elf Hello.text
 ```
