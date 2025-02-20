@@ -44,18 +44,46 @@ typedef int32_t ssize_t;
 typedef uint32_t uintptr_t;
 typedef int32_t intptr_t;
 
-/// string.h prototypes
+// string.h prototypes
 size_t strlen(const char *str);
 
+// stdio.h types and prototypes
+typedef struct FILE FILE;
+int fputs(const char *s, FILE *stream);
+FILE *stdin  = (FILE*) 0x0;
+FILE *stdout = (FILE*) 0x1;
+FILE *stderr = (FILE*) 0x2;
+#define EOF -1
+
+// stdlib.h prototypes
+void exit(int status);
+
+/// @fn void _start(void)
+///
+/// @brief Main entry point of the a program.
+///
+/// @return This function returns no value and, in fact, never returns.
 void _start(void) {
-  const char *message = "Hello, world!\n";
-  
+  fputs("Hello, world!\n", stdout);;
+  exit(0);
+}
+
+/// @fn int fputs(const char *s, FILE *stream)
+///
+/// @brief Implementation of the standard C fputs function.  Prints the provided
+/// string to the provided FILE stream.
+///
+/// @param s A pointer to the C string to print.
+/// @param stream A pointer to the FILE stream to direct the string to.
+///
+/// @return Returns the number of characters written on success, EOF on failure.
+int fputs(const char *s, FILE *stream) {
   // Calculate string length
-  size_t length = strlen(message);
+  size_t length = strlen(s);
   
   // Write to stdout using syscall
-  register int a0 asm("a0") = NANO_OS_STDOUT_FILENO; // stdout file descriptor
-  register const char *a1 asm("a1") = message;       // buffer address
+  register FILE *a0 asm("a0") = stream;              // file pointer
+  register const char *a1 asm("a1") = s;             // buffer address
   register int a2 asm("a2") = length;                // length
   register int a7 asm("a7") = NANO_OS_SYSCALL_WRITE; // write syscall
 
@@ -65,9 +93,20 @@ void _start(void) {
     : "r"(a1), "r"(a2), "r"(a7)
   );
   
-  // Exit syscall
-  a0 = 0;                    // exit code 0
-  a7 = NANO_OS_SYSCALL_EXIT; // exit syscall
+  return length;
+}
+
+/// @fn void exit(int status)
+///
+/// @brief Implementation of the standard C exit function.  Returns the provided
+/// status value back to the host operating system.
+///
+/// @param status The integer value to return back to the OS.
+///
+/// @return This function returns no value and, in fact, never returns.
+void exit(int status) {
+  register int a0 asm("a0") = status;               // exit code 0
+  register int a7 asm("a7") = NANO_OS_SYSCALL_EXIT; // exit syscall
   
   asm volatile(
     "ecall"
