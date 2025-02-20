@@ -27,8 +27,10 @@
 
 all:
 	$(MAKE) -C util
+	$(MAKE) -C lib
 	$(MAKE) -C src
 
 clean:
 	$(MAKE) -C src clean
+	$(MAKE) -C lib clean
 
