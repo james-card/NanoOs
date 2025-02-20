@@ -42,6 +42,8 @@ extern "C"
 {
 #endif
 
+#include <stdint.h>
+
 /// @enum NanoOsSystemCall
 ///
 /// @brief Enumeration of the system calls supported by NanoOs.
@@ -56,6 +58,8 @@ typedef enum NanoOsSystemCall {
 /// @brief The maximum number of characters that can be written by a user space
 /// program in a single call.
 #define NANO_OS_MAX_WRITE_LENGTH 128
+
+int32_t nanoOsSystemCallHandle(void *vm);
 
 #ifdef __cplusplus
 } // extern "C"
