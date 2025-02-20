@@ -135,6 +135,10 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     return -1;
   }
 
+  // Initialize MISA register to indicate RV32IM support
+  rv32iVm->rv32iCoreRegisters->misa = RV32_MISA_MXL_32 | 
+    RV32_MISA_I_EXT | RV32_MISA_M_EXT;
+
   rv32iVm->running = true;
   return 0;
 }
@@ -325,6 +329,118 @@ static inline int32_t fetchInstruction(
     rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters->pc, instruction);
 }
 
+/// @fn static inline int32_t executeMultiplyDivide(
+///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
+///   uint32_t funct3)
+///
+/// @brief Execute a multiply or divide operation (M-extension)
+///
+/// @param rv32iVm Pointer to the VM state
+/// @param rd Destination register number
+/// @param rs1 First source register number
+/// @param rs2 Second source register number
+/// @param funct3 The funct3 field from instruction
+///
+/// @return 0 on success, negative on error
+static inline int32_t executeMultiplyDivide(
+  Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
+  uint32_t funct3
+) {
+  int32_t src1Signed = (int32_t) rv32iVm->rv32iCoreRegisters->x[rs1];
+  int32_t src2Signed = (int32_t) rv32iVm->rv32iCoreRegisters->x[rs2];
+  uint32_t src1Unsigned = rv32iVm->rv32iCoreRegisters->x[rs1];
+  uint32_t src2Unsigned = rv32iVm->rv32iCoreRegisters->x[rs2];
+  
+  switch (funct3) {
+    case RV32M_FUNCT3_MUL: {
+      // Multiply low
+      rv32iVm->rv32iCoreRegisters->x[rd] = src1Signed * src2Signed;
+      break;
+    }
+    
+    case RV32M_FUNCT3_MULH: {
+      // Multiply high (signed x signed)
+      int64_t result = ((int64_t) src1Signed) * ((int64_t) src2Signed);
+      rv32iVm->rv32iCoreRegisters->x[rd] = (uint32_t) (result >> 32);
+      break;
+    }
+    
+    case RV32M_FUNCT3_MULHSU: {
+      // Multiply high (signed x unsigned)
+      int64_t result = ((int64_t) src1Signed) * ((uint64_t) src2Unsigned);
+      rv32iVm->rv32iCoreRegisters->x[rd] = (uint32_t) (result >> 32);
+      break;
+    }
+    
+    case RV32M_FUNCT3_MULHU: {
+      // Multiply high (unsigned x unsigned)
+      uint64_t result = ((uint64_t) src1Unsigned) * ((uint64_t) src2Unsigned);
+      rv32iVm->rv32iCoreRegisters->x[rd] = (uint32_t) (result >> 32);
+      break;
+    }
+    
+    case RV32M_FUNCT3_DIV: {
+      // Divide signed
+      if (src2Signed == 0) {
+        // Division by zero returns -1
+        rv32iVm->rv32iCoreRegisters->x[rd] = -1;
+      } else if (
+        src1Signed == INT32_MIN && src2Signed == -1
+      ) {
+        // Overflow case: most negative number divided by -1
+        rv32iVm->rv32iCoreRegisters->x[rd] = INT32_MIN;
+      } else {
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Signed / src2Signed;
+      }
+      break;
+    }
+    
+    case RV32M_FUNCT3_DIVU: {
+      // Divide unsigned
+      if (src2Unsigned == 0) {
+        // Division by zero returns maximum unsigned value
+        rv32iVm->rv32iCoreRegisters->x[rd] = UINT32_MAX;
+      } else {
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Unsigned / src2Unsigned;
+      }
+      break;
+    }
+    
+    case RV32M_FUNCT3_REM: {
+      // Remainder signed
+      if (src2Signed == 0) {
+        // Remainder with division by zero returns dividend
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Signed;
+      } else if (
+        src1Signed == INT32_MIN && src2Signed == -1
+      ) {
+        // Overflow case: most negative number divided by -1
+        rv32iVm->rv32iCoreRegisters->x[rd] = 0;
+      } else {
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Signed % src2Signed;
+      }
+      break;
+    }
+    
+    case RV32M_FUNCT3_REMU: {
+      // Remainder unsigned
+      if (src2Unsigned == 0) {
+        // Remainder with division by zero returns dividend
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Unsigned;
+      } else {
+        rv32iVm->rv32iCoreRegisters->x[rd] = src1Unsigned % src2Unsigned;
+      }
+      break;
+    }
+    
+    default: {
+      return -1; // Invalid funct3
+    }
+  }
+  
+  return 0;
+}
+
 /// @fn static inline int32_t executeRegisterOperation(
 ///   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
 ///   uint32_t funct3, uint32_t funct7)
@@ -343,6 +459,10 @@ static inline int32_t executeRegisterOperation(
   Rv32iVm *rv32iVm, uint32_t rd, uint32_t rs1, uint32_t rs2,
   uint32_t funct3, uint32_t funct7
 ) {
+  if (funct7 == RV32M_FUNCT7) {
+    return executeMultiplyDivide(rv32iVm, rd, rs1, rs2, funct3);
+  }
+
   switch (funct3) {
     case RV32I_FUNCT3_ADD_SUB: {
       if (funct7 == RV32I_FUNCT7_ADD) { // ADD
@@ -1181,9 +1301,10 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  //// uint32_t startTime = 0;
-  //// uint32_t runTime = 0;
-  //// startTime = getElapsedMilliseconds(0);
+  uint32_t startTime = 0;
+  uint32_t runTime = 0;
+  uint32_t instructionCount = 0;
+  startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1192,11 +1313,15 @@ int runRv32iProcess(int argc, char **argv) {
 
     rv32iVm.rv32iCoreRegisters->x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
+    instructionCount++;
   }
-  //// runTime = getElapsedMilliseconds(startTime);
-  //// printDebug("Runtime: ");
-  //// printDebug(runTime);
-  //// printDebug(" milliseconds\n");
+  runTime = getElapsedMilliseconds(startTime);
+  printDebug("Runtime: ");
+  printDebug(runTime);
+  printDebug(" milliseconds\n");
+  printDebug("instructionCount = ");
+  printDebug(instructionCount);
+  printDebug("\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.

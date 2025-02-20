@@ -221,6 +221,26 @@ typedef enum Rv32iCsrAddresses {
   RV32I_CSR_MIP       = 0x344   // Machine Interrupt Pending
 } Rv32iCsrAddresses;
 
+// MISA register bits
+#define RV32_MISA_MXL_32  (1UL << 30)  // Machine XLEN = 32
+#define RV32_MISA_M_EXT   (1UL << 12)  // Integer Multiply/Divide extension
+#define RV32_MISA_I_EXT   (1UL << 8)   // Base Integer ISA
+
+// M-extension opcodes (using same opcode as RV32I OP, distinguished by funct7)
+#define RV32M_FUNCT7 0x01
+
+// M-extension funct3 values
+typedef enum Rv32mFunct3 {
+  RV32M_FUNCT3_MUL    = 0x0,  // Multiply
+  RV32M_FUNCT3_MULH   = 0x1,  // Multiply High Signed x Signed
+  RV32M_FUNCT3_MULHSU = 0x2,  // Multiply High Signed x Unsigned
+  RV32M_FUNCT3_MULHU  = 0x3,  // Multiply High Unsigned x Unsigned
+  RV32M_FUNCT3_DIV    = 0x4,  // Divide Signed
+  RV32M_FUNCT3_DIVU   = 0x5,  // Divide Unsigned
+  RV32M_FUNCT3_REM    = 0x6,  // Remainder Signed
+  RV32M_FUNCT3_REMU   = 0x7   // Remainder Unsigned
+} Rv32mFunct3;
+
 /// @struct Rv32iCoreRegisters
 ///
 /// @brief Structure to keep track of the state of a single virtual RV32I core.
