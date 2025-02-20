@@ -28,31 +28,7 @@
 // Doxygen marker
 /// @file
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stddef.h>
-
-// Declaration of user program entry point
-int main(int argc, char **argv);
-
-/// @fn void _start(void)
-///
-/// @brief Main entry point of the a program.
-///
-/// @return This function returns no value and, in fact, never returns.
-__attribute__((section(".text.startup")))
-__attribute__((noinline))
-void _start(void) {
-  char *argv[] = {
-    "main"
-  };
-
-  int returnValue = main(sizeof(argv) / sizeof(argv[0]), argv);
-
-  exit(returnValue & 0xff);
-}
 
 /// @fn int main(int argc, char **argv)
 ///
