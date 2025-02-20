@@ -926,15 +926,9 @@ static int32_t handleSyscall(Rv32iVm *rv32iVm) {
   switch (syscallNumber) {
     case NANO_OS_SYSCALL_WRITE: {
       // Get parameters from a0-a2 (x10-x12)
-      uint32_t fileDescriptor = rv32iVm->rv32iCoreRegisters->x[10];
+      FILE *stream = (FILE*) rv32iVm->rv32iCoreRegisters->x[10];
       uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
       uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
-      
-      // Only handle stdout for now
-      FILE *stream = stdout;
-      if (fileDescriptor == NANO_OS_STDERR_FILENO) {
-        stream = stderr;
-      }
       
       // Limit maximum write length
       if (length > NANO_OS_MAX_WRITE_LENGTH) {
@@ -1172,10 +1166,17 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   int32_t immU = (int32_t) instruction & 0xFFFFF000;
   
   // J-type immediate
-  int32_t immJ = (((int32_t) instruction >> 11) & ~0x1FFFFF) |
-    (instruction & 0xFF000) | // imm[19:12]
-    ((instruction & 0x100000) >> 9) | // imm[11]
-    ((instruction & 0x7FE00000) >> 20); // imm[10:1]
+  int32_t immJ = (
+    ((instruction & 0x80000000) >> 11) |  // Sign bit -> 20
+    ((instruction & 0x7FE00000) >> 20) |  // imm[10:1] -> imm[10:1]
+    ((instruction & 0x00100000) >> 9) |   // imm[11] -> imm[11]
+    (instruction & 0x000FF000)            // imm[19:12] -> imm[19:12]
+  );
+  
+  // Sign extend if negative
+  if (immJ & 0x00100000) {
+    immJ |= 0xFFE00000;
+  }
 
   // Always increment PC by default
   uint32_t nextPc = rv32iVm->rv32iCoreRegisters->pc + RV32I_INSTRUCTION_SIZE;
@@ -1313,15 +1314,26 @@ int runRv32iProcess(int argc, char **argv) {
 
     rv32iVm.rv32iCoreRegisters->x[0] = 0;
     returnValue = executeInstruction(&rv32iVm, instruction);
+    //// if (returnValue != 0) {
+    ////   printDebug("Instruction 0x");
+    ////   printDebug(instruction, HEX);
+    ////   printDebug(" at address 0x");
+    ////   printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
+    ////   printDebug(" failed\n");
+    //// }
     instructionCount++;
   }
   runTime = getElapsedMilliseconds(startTime);
-  printDebug("Runtime: ");
-  printDebug(runTime);
-  printDebug(" milliseconds\n");
-  printDebug("instructionCount = ");
   printDebug(instructionCount);
+  printDebug("/");
+  printDebug(runTime);
   printDebug("\n");
+  //// printDebug("Runtime: ");
+  //// printDebug(runTime);
+  //// printDebug(" milliseconds\n");
+  //// printDebug("instructionCount = ");
+  //// printDebug(instructionCount);
+  //// printDebug("\n");
 
   if (rv32iVm.running == false) {
     // VM exited gracefully.  Pull the status the process exited with.
