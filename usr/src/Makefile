@@ -40,6 +40,9 @@ INCLUDES := \
     -I../.. \
     -I../include \
 
+WARNINGS := \
+    -Wno-unused-variable \
+
 PROGRAMS := \
     $(BIN_DIR)/init \
 
