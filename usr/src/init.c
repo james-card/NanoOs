@@ -58,14 +58,39 @@ FILE *stderr = (FILE*) 0x2;
 // stdlib.h prototypes
 void exit(int status);
 
+// Declaration of user program entry point
+int main(int argc, char **argv);
+
 /// @fn void _start(void)
 ///
 /// @brief Main entry point of the a program.
 ///
 /// @return This function returns no value and, in fact, never returns.
 void _start(void) {
+  char *argv[] = {
+    "main"
+  };
+
+  int returnValue = main(sizeof(argv) / sizeof(argv[0]), argv);
+
+  exit(returnValue & 0xff);
+}
+
+/// @fn int main(int argc, char **argv)
+///
+/// @brief Entry point for the application.
+///
+/// @param argc Number of command line arguments provided on the command line.
+/// @param argv Array of individual arguments from the command line.
+///
+/// @return Returns 0 on success.  Any other value is failure.
+int main(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
   fputs("Hello, world!\n", stdout);;
-  exit(0);
+
+  return 0;
 }
 
 /// @fn int fputs(const char *s, FILE *stream)
