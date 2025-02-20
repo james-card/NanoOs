@@ -41,6 +41,12 @@ extern "C"
 {
 #endif
 
+// Standard C includes
+#include <stddef.h>
+
+// NanoOs includes
+#include "NanoOsSystemCalls.h"
+
 /// @typedef FILE
 ///
 /// @brief Opaque type that represents an open file for a process.
