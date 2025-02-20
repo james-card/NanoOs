@@ -1129,11 +1129,11 @@ ConsoleBuffer* nanoOsIoWaitForInput(void) {
   ConsoleBuffer *nanoOsIoBuffer = NULL;
   FileDescriptor *inputFd = schedulerGetFileDescriptor(stdin);
   if (inputFd == NULL) {
-    printString("ERROR!!!  Could not get input file descriptor for process ");
-    printInt(getRunningProcessId());
-    printString(" and stream ");
-    printInt((intptr_t) stdin);
-    printString(".\n");
+    //// printString("ERROR!!!  Could not get input file descriptor for process ");
+    //// printInt(getRunningProcessId());
+    //// printString(" and stream ");
+    //// printInt((intptr_t) stdin);
+    //// printString(".\n");
 
     // We can't proceed, so bail.
     return nanoOsIoBuffer; // NULL
@@ -1419,12 +1419,12 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
   if ((stream == stdout) || (stream == stderr)) {
     FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
     if (outputFd == NULL) {
-      printString(
-        "ERROR!!!  Could not get output file descriptor for process ");
-      printInt(getRunningProcessId());
-      printString(" and stream ");
-      printInt((intptr_t) stream);
-      printString(".\n");
+      //// printString(
+      ////   "ERROR!!!  Could not get output file descriptor for process ");
+      //// printInt(getRunningProcessId());
+      //// printString(" and stream ");
+      //// printInt((intptr_t) stream);
+      //// printString(".\n");
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
@@ -1449,11 +1449,11 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
           returnValue = EOF;
         }
       } else {
-        printString("ERROR!!!  Request to write to invalid stream ");
-        printInt((intptr_t) stream);
-        printString(" from process ");
-        printInt(getRunningProcessId());
-        printString(".\n");
+        //// printString("ERROR!!!  Request to write to invalid stream ");
+        //// printInt((intptr_t) stream);
+        //// printString(" from process ");
+        //// printInt(getRunningProcessId());
+        //// printString(".\n");
 
         // Release the buffer to avoid creating a leak.
         sendNanoOsMessageToPid(
@@ -1463,10 +1463,10 @@ int nanoOsIoWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsIoBuffer) {
         returnValue = EOF;
       }
     } else {
-      printString(
-        "ERROR!!!  Request to write with no output pipe set from process ");
-      printInt(getRunningProcessId());
-      printString(".\n");
+      //// printString(
+      ////   "ERROR!!!  Request to write with no output pipe set from process ");
+      //// printInt(getRunningProcessId());
+      //// printString(".\n");
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
