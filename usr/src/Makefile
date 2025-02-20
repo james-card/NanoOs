@@ -30,7 +30,8 @@ OBJCOPY := riscv32-unknown-elf-objcopy
 RM := rm -f
 
 WARNINGS := -Wall -Wextra -pedantic -Werror
-FLAGS := -march=rv32i -mabi=ilp32 -nostdlib -nodefaultlibs -fno-builtin -ffreestanding -nostartfiles -Ttext=0x1000 -e _start
+FLAGS := -march=rv32im -mabi=ilp32 -nostdlib -nodefaultlibs -fno-builtin \
+    -ffreestanding -nostartfiles -Ttext=0x1000 -e _start \
 
 BIN_DIR := ../bin
 OBJ_DIR := ../obj
