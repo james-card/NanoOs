@@ -46,9 +46,9 @@ typedef int32_t intptr_t;
 
 // stdio.h types
 typedef struct FILE FILE;
-FILE *stdin  = (FILE*) 0x0;
-FILE *stdout = (FILE*) 0x1;
-FILE *stderr = (FILE*) 0x2;
+FILE *stdin  = (FILE*) 0x1;
+FILE *stdout = (FILE*) 0x2;
+FILE *stderr = (FILE*) 0x3;
 #define EOF -1
 
 // Declaration of user program entry point
