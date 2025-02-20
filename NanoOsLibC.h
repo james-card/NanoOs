@@ -230,8 +230,6 @@ int printLongLong_(long long int integer);
 int printULongLong_(unsigned long long int integer);
 #define printULongLong printULongLong_
 int printDouble(double floatingPointValue);
-int printList_(const char *firstString, ...);
-#define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 unsigned long getElapsedMilliseconds(unsigned long startTime);
 
 // C-like functions
