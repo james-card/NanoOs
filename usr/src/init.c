@@ -28,6 +28,7 @@
 // Doxygen marker
 /// @file
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -35,26 +36,6 @@
 
 // Declaration of user program entry point
 int main(int argc, char **argv);
-
-// stdlib.h functions
-
-/// @fn void exit(int status)
-///
-/// @brief Implementation of the standard C exit function.  Returns the provided
-/// status value back to the host operating system.
-///
-/// @param status The integer value to return back to the OS.
-///
-/// @return This function returns no value and, in fact, never returns.
-static inline void exit(int status) {
-  register int a0 asm("a0") = status;               // exit code 0
-  register int a7 asm("a7") = NANO_OS_SYSCALL_EXIT; // exit syscall
-  
-  asm volatile(
-    "ecall"
-    : : "r"(a0), "r"(a7)
-  );
-}
 
 /// @fn void _start(void)
 ///
