@@ -28,21 +28,10 @@
 // Doxygen marker
 /// @file
 
+#include <stdint.h>
+#include <stddef.h>
+
 #include "NanoOsSystemCalls.h"
-
-// stdint.h types
-typedef char int8_t;
-typedef unsigned char uint8_t;
-typedef short int int16_t;
-typedef unsigned short int uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-
-// stddef.h types
-typedef uint32_t size_t;
-typedef int32_t ssize_t;
-typedef uint32_t uintptr_t;
-typedef int32_t intptr_t;
 
 // stdio.h types
 typedef struct FILE FILE;
