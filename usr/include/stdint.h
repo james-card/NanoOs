@@ -5,8 +5,7 @@
 ///
 /// @file              stdint.h
 ///
-/// @brief             Standard, fixed-width integer definitions for NanoOs
-///                    C programs.
+/// @brief             Implementation of stddef.h for NanoOs C programs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
