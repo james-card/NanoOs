@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
 /// @author            James Card
-/// @date              11.21.2024
+/// @date              02.20.2025
 ///
 /// @file              stdint.h
 ///
-/// @brief             Implementation of stddef.h for NanoOs C programs.
+/// @brief             Implementation of stdint.h for NanoOs C programs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
