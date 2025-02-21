@@ -32,6 +32,8 @@ There is at least one place, however, that cannot be in a header:  The implement
 
 What was a huge deal, though, was the amount of code space that I was now consuming on the Nano.  With all the bug fixes, I was now down to exactly three (3) bytes of program flash left.  I still needed to support some additional system calls for things like reading input into the program and I literally had no space for logic to do that.  Time to free up more space.
 
+The easiest way to do this was to just delete error messages.  I will be the first to admit this is generally not a good idea, however (a) the areas that I needed to extend were unrelated to the error messages I deleted and (b) the places I deleted messages from had already been shown to be working fairly reliably by this point.  So, out they go!  That reclaimed about 1.5 KB.  Enough to start with.
+
 To be continued...
 
 [Table of Contents](.)
