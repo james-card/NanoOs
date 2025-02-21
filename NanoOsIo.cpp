@@ -1526,11 +1526,11 @@ int consolePrintMessage(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to print message \"");
-    printString(message);
-    printString("\" from non-owning process ");
-    printInt(owner);
-    printString("\n");
+    //// printString("WARNING:  Request to print message \"");
+    //// printString(message);
+    //// printString("\" from non-owning process ");
+    //// printInt(owner);
+    //// printString("\n");
     returnValue = processError;
   }
 
@@ -1818,9 +1818,9 @@ int consoleSetPortShellCommandHandler(
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
-    printString("ERROR:  Request to assign ownership of non-existent port ");
-    printInt(consolePort);
-    printString("\n");
+    //// printString("ERROR:  Request to assign ownership of non-existent port ");
+    //// printInt(consolePort);
+    //// printString("\n");
     // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
     // message being done will indicate to the caller that there was a problem
     // servicing the command.
@@ -1868,9 +1868,9 @@ int consoleAssignPortHelper(
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
-    printString("ERROR:  Request to assign ownership of non-existent port ");
-    printInt(consolePort);
-    printString("\n");
+    //// printString("ERROR:  Request to assign ownership of non-existent port ");
+    //// printInt(consolePort);
+    //// printString("\n");
     // *DON'T* call processMessageRelease or processMessageSetDone here.  The
     // lack of the message being done will indicate to the caller that there
     // was a problem servicing the command.
@@ -2041,9 +2041,9 @@ int consoleSetEchoCommandHandler(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to set echo from non-owning process ");
-    printInt(owner);
-    printString("\n");
+    //// printString("WARNING:  Request to set echo from non-owning process ");
+    //// printInt(owner);
+    //// printString("\n");
     nanoOsMessage->data = (intptr_t) -1;
   }
 
@@ -2083,9 +2083,9 @@ int consoleWaitForInputCommandHandler(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to wait for input from non-owning process ");
-    printInt(owner);
-    printString("\n");
+    //// printString("WARNING:  Request to wait for input from non-owning process ");
+    //// printInt(owner);
+    //// printString("\n");
   }
 
   processMessageSetDone(inputMessage);

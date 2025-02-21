@@ -190,7 +190,7 @@ void* startCommand(void *args) {
   // goes back to its work.
   ProcessMessage *processMessage = (ProcessMessage*) args;
   if (processMessage == NULL) {
-    printString("ERROR:  No arguments message provided to startCommand.\n");
+    //// printString("ERROR:  No arguments message provided to startCommand.\n");
     releaseConsole();
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
@@ -208,10 +208,10 @@ void* startCommand(void *args) {
   argv = parseArgs(consoleInput, &argc);
   if (argv == NULL) {
     // Fail.
-    printString("ERROR:  Could not parse input into argc and argv.\n");
-    printString("Received consoleInput:  \"");
-    printString(consoleInput);
-    printString("\"\n");
+    //// printString("ERROR:  Could not parse input into argc and argv.\n");
+    //// printString("Received consoleInput:  \"");
+    //// printString(consoleInput);
+    //// printString("\"\n");
     consoleInput = stringDestroy(consoleInput);
     releaseConsole();
     schedulerCloseAllFileDescriptors();
@@ -350,18 +350,18 @@ ProcessMessage* sendNanoOsMessageToProcess(
   ProcessMessage *processMessage = NULL;
   if (!processRunning(processHandle)) {
     // Can't send to a non-running process.
-    printString("ERROR!!!  Could not send message from process ");
-    printInt(processId(getRunningProcess()));
-    printString("\n");
-    if (processHandle == NULL) {
-      printString("ERROR!!!  processHandle is NULL\n");
-    } else {
-      printString("ERROR!!!  Process ");
-      printInt(processId(processHandle));
-      printString(" is in state ");
-      printInt(processState(processHandle));
-      printString("\n");
-    }
+    //// printString("ERROR!!!  Could not send message from process ");
+    //// printInt(processId(getRunningProcess()));
+    //// printString("\n");
+    //// if (processHandle == NULL) {
+    ////   printString("ERROR!!!  processHandle is NULL\n");
+    //// } else {
+    ////   printString("ERROR!!!  Process ");
+    ////   printInt(processId(processHandle));
+    ////   printString(" is in state ");
+    ////   printInt(processState(processHandle));
+    ////   printString("\n");
+    //// }
     return processMessage; // NULL
   }
 
@@ -383,8 +383,8 @@ ProcessMessage* sendNanoOsMessageToProcess(
     != processSuccess
   ) {
     if (processMessageRelease(processMessage) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not release message from sendNanoOsMessageToProcess.\n");
+      //// printString("ERROR!!!  "
+      ////   "Could not release message from sendNanoOsMessageToProcess.\n");
     }
     processMessage = NULL;
   }
@@ -415,9 +415,9 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   ProcessMessage *processMessage = NULL;
   if (pid >= NANO_OS_NUM_PROCESSES) {
     // Not a valid PID.  Fail.
-    printString("ERROR!!!  ");
-    printInt(pid);
-    printString(" is not a valid PID.\n");
+    //// printString("ERROR!!!  ");
+    //// printInt(pid);
+    //// printString(" is not a valid PID.\n");
     return processMessage; // NULL
   }
 
@@ -425,9 +425,9 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   processMessage
     = sendNanoOsMessageToProcess(process, type, func, data, waiting);
   if (processMessage == NULL) {
-    printString("ERROR!!!  Could not send NanoOs message to process ");
-    printInt(pid);
-    printString("\n");
+    //// printString("ERROR!!!  Could not send NanoOs message to process ");
+    //// printInt(pid);
+    //// printString("\n");
   }
   return processMessage;
 }
@@ -454,8 +454,8 @@ void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
     if (processMessageRelease(incoming) != processSuccess) {
-      printString("ERROR!!!  "
-        "Could not release incoming message from waitForDataMessage.\n");
+      //// printString("ERROR!!!  "
+      ////   "Could not release incoming message from waitForDataMessage.\n");
     }
   }
 

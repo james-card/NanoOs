@@ -323,8 +323,8 @@ int memoryManagerFreeCommandHandler(
   void *ptr = nanoOsMessageDataPointer(incoming, void*);
   localFree(memoryManagerState, ptr);
   if (processMessageRelease(incoming) != processSuccess) {
-    printString("ERROR!!!  "
-      "Could not release message from memoryManagerFreeCommandHandler.\n");
+    //// printString("ERROR!!!  "
+    ////   "Could not release message from memoryManagerFreeCommandHandler.\n");
     returnValue = -1;
   }
 
@@ -397,8 +397,8 @@ int memoryManagerFreeProcessMemoryCommandHandler(
     localFreeProcessMemory(memoryManagerState, pid);
     nanoOsMessage->data = 0;
   } else {
-    printString(
-      "ERROR:  Only the scheduler may free another process's memory.\n");
+    //// printString(
+    ////   "ERROR:  Only the scheduler may free another process's memory.\n");
     nanoOsMessage->data = 1;
     returnValue = -1;
   }
@@ -406,8 +406,8 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   if (processMessageWaiting(incoming) == true) {
     // The client is waiting on us.  Mark the message as done.
     if (processMessageSetDone(incoming) != processSuccess) {
-      printString("ERROR!!!  Could not mark message done in "
-        "memoryManagerFreeProcessMemoryCommandHandler.\n");
+      //// printString("ERROR!!!  Could not mark message done in "
+      ////   "memoryManagerFreeProcessMemoryCommandHandler.\n");
       returnValue = -1;
     }
   } else {
@@ -637,10 +637,10 @@ void* runMemoryManager(void *args) {
       if (messageType < NUM_MEMORY_MANAGER_COMMANDS) {
         memoryManagerCommandHandlers[messageType](
           &memoryManagerState, schedulerMessage);
-      } else {
-        printString("ERROR!!!  Received unknown memory manager command ");
-        printInt(messageType);
-        printString(" from scheduler.\n");
+      //// } else {
+      ////   printString("ERROR!!!  Received unknown memory manager command ");
+      ////   printInt(messageType);
+      ////   printString(" from scheduler.\n");
       }
     } else {
       // No message from the scheduler.  Handle any user process messages in
@@ -805,11 +805,11 @@ int assignMemory(void *ptr, ProcessId pid) {
   ) {
     memNode(ptr)->owner = pid;
   } else if (ptr != NULL) {
-    printString(
-      "ERROR:  Only the scheduler may assign memory to another process.\n");
+    //// printString(
+    ////   "ERROR:  Only the scheduler may assign memory to another process.\n");
     returnValue = -1;
   } else {
-    printString("ERROR:  NULL pointer passed to assignMemory.\n");
+    //// printString("ERROR:  NULL pointer passed to assignMemory.\n");
     returnValue = -1;
   }
   
