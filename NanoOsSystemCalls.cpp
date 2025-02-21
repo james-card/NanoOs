@@ -48,7 +48,7 @@ SystemCall systemCalls[] = {
 ///
 /// @param vm A pointer to a Rv32iVm state object cast to a void*
 ///
-/// @return Returns 0 on success, negative on error, positive for program exit.
+/// @return Returns 0 on success, negative on error.
 int32_t nanoOsSystemCallHandle(void *vm) {
   Rv32iVm *rv32iVm = (Rv32iVm*) vm;
 
