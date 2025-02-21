@@ -16,7 +16,7 @@ Then, I thought I would go one step furhter and pull the write logic out into a 
 
 One option would be to implement the logic in the libc implementation in terms of addition and subtraction.  This was just not acceptable to me, however.  The performance penalty for that would make any application unusable.  I can live without floating point operation support, but multiplication and division instructions are a must.
 
-So, back to Claude to see what it would take to implement support for those operations.  As I figured, it was more code than I wanted, but not a horrible amount.  I added the suggested code to the OS and it did fit in the available storage space but it used almost all of it.  I'm going to have to figure out how to get more space soon.
+So, back to Claude to see what it would take to implement support for those operations.  As I figured, it was more code than I wanted, but not a horrible amount.  I added the suggested code to the OS and it did fit in the available storage space but it used most of it.
 
 Multiplication and division in place, I gave compilation another shot.  It worked.  Ran the program and that worked too.  So far so good.  However, at this point, the "Hello, world!" program was taking 277 milliseconds to run 249 instructions with all the function call overhead.  I wanted to see if I could bring the total execution time down.
 
@@ -27,6 +27,10 @@ I restructured my program so that all the standard C calls were static inline fu
 After another round of debugging, it turned out that the decoder for an immediarte offset wasn't sign extending values correctly.  So, when certain negative values were used for jump instructions, it was jumping to the wrong address.  After a little coaxing with Claude, I got it to come up with the correct decoder and was finally able to run the program.  To my dismay, however, the inlined version of the program used the same number of insturctions and actually took a few more milliseconds to run.  The only reason it would take more time is if the loops were bouncing back and forth between virtual memory segments in the inlined version.  That's just happenstance, but it meant that there was absolutely nothing to be gained from the inlined code.
 
 Then, I realized something:  I hadn't turned on any compiler optimizations yet.  I turned on -O2 with the non-inlined version of the code and got it to run with 85 instructions in 37 milliseconds.  Then, I recompiled with the inlined version and got it to run with 74 instructions in 22 milliseconds.  So, the inlined code did make a difference.  OK!  I have a development strategy now:  I'm going to write a header-only implementation of the standard C calls.
+
+There is at least one place, however, that cannot be in a header:  The implementation of the `_start` function.  From a standards perspective, this is not really a big deal since that function is just a convention and isn't part of the standard.  So, I'll have at least one "library" where support infrastructure will have to live.  Not a huge deal.
+
+What was a huge deal, though, was the amount of code space that I was now consuming on the Nano.  With all the bug fixes, I was now down to exactly three (3) bytes of program flash left.  I still needed to support some additional system calls for things like reading input into the program and I literally had no space for logic to do that.  Time to free up more space.
 
 To be continued...
 
