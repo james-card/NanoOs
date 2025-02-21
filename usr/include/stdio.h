@@ -96,8 +96,8 @@ static inline size_t fwrite(
 
   for (size_t totalBytes = size * nmemb; totalBytes > 0; ) {
     size_t numBytesToWrite
-      = (totalBytes > NANO_OS_MAX_WRITE_LENGTH)
-      ? NANO_OS_MAX_WRITE_LENGTH
+      = (totalBytes > NANO_OS_MAX_READ_WRITE_LENGTH)
+      ? NANO_OS_MAX_READ_WRITE_LENGTH
       : totalBytes;
 
     // Write to stdout using syscall

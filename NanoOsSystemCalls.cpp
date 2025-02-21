@@ -61,8 +61,8 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
   
   // Limit maximum write length
-  if (length > NANO_OS_MAX_WRITE_LENGTH) {
-    length = NANO_OS_MAX_WRITE_LENGTH;
+  if (length > NANO_OS_MAX_READ_WRITE_LENGTH) {
+    length = NANO_OS_MAX_READ_WRITE_LENGTH;
   }
   
   // Read string from VM memory
@@ -74,6 +74,42 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   // Write to the stream
   fwrite(buffer, 1, bytesRead, stream);
 
+  // Free the host-side memory
+  free(buffer); buffer = NULL;
+  
+  // Return number of bytes written
+  rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
+  return 0;
+}
+
+/// @fn int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm)
+///
+/// @brief Handle a user process reading from a FILE pointer.
+///
+/// @param rv32iVm A pointer to the Rv32iVm object that's managing the program's
+/// state.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
+  // Get parameters from a0-a2 (x10-x12)
+  FILE *stream = (FILE*) rv32iVm->rv32iCoreRegisters->x[10];
+  uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
+  uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
+  
+  // Limit maximum write length
+  if (length > NANO_OS_MAX_READ_WRITE_LENGTH) {
+    length = NANO_OS_MAX_READ_WRITE_LENGTH;
+  }
+  
+  // Read string from VM memory
+  char *buffer = (char*) malloc(length);
+
+  // Write to the stream
+  size_t bytesRead = fread(buffer, 1, length, stream);
+
+  virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    bufferAddress, bytesRead, buffer);
+  
   // Free the host-side memory
   free(buffer); buffer = NULL;
   
@@ -95,6 +131,7 @@ typedef int32_t (*SystemCall)(Rv32iVm *rv32iVm);
 SystemCall systemCalls[] = {
   nanoOsSystemCallHandleExit,  // NANO_OS_SYSCALL_EXIT
   nanoOsSystemCallHandleWrite, // NANO_OS_SYSCALL_WRITE
+  nanoOsSystemCallHandleRead,  // NANO_OS_SYSCALL_READ
 };
 
 /// @fn int32_t nanoOsSystemCallHandle(void *vm)

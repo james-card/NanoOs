@@ -50,14 +50,15 @@ extern "C"
 typedef enum NanoOsSystemCall {
   NANO_OS_SYSCALL_EXIT,
   NANO_OS_SYSCALL_WRITE,
+  NANO_OS_SYSCALL_READ,
   NUM_NANO_OS_SYSCALLS
 } NanoOsSystemCall;
 
-/// @def NANO_OS_MAX_WRITE_LENGTH
+/// @def NANO_OS_MAX_READ_WRITE_LENGTH
 ///
 /// @brief The maximum number of characters that can be written by a user space
 /// program in a single call.
-#define NANO_OS_MAX_WRITE_LENGTH 128
+#define NANO_OS_MAX_READ_WRITE_LENGTH 128
 
 int32_t nanoOsSystemCallHandle(void *vm);
 
