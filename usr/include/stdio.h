@@ -180,8 +180,8 @@ static inline size_t fread(
     fputs(numBytes, stdout);
     fputs(" bytes\n", stdout);
 
-    // We only want to continue if we actually read data this round
-    if (a0 == 0) {
+    // We only want to continue if we consumed our buffer this round
+    if (a0 != numBytesToRead) {
       break;
     }
   }
