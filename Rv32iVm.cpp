@@ -1094,9 +1094,15 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   int32_t immI = ((int32_t) instruction) >> 20;
   
   // S-type immediate
-  int32_t immS = (((int32_t) instruction) >> 20 & ~0x1F) | 
-    ((instruction >> 7) & 0x1F);
-    
+  int32_t immS = (
+    // imm[11:5] from instruction[31:25]
+    // No need to bitmask since we want all of the high-order bits and we want
+    // the sign extension that comes along with the right shift.
+    ((int32_t)(instruction >> 20))
+    // imm[4:0] from instruction[11:7]
+    | ((instruction >> 7) & 0x1F)
+  );
+  
   // B-type immediate
   int32_t immB = (
     // Sign extension from bit 12 (bit 31 of instruction)
