@@ -118,6 +118,80 @@ int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
   return 0;
 }
 
+/// @fn int32_t nanoOsSystemCallHandleTimespecGet(Rv32iVm *rv32iVm)
+///
+/// @brief Handle a user process requesting the current time.
+///
+/// @param rv32iVm A pointer to the Rv32iVm object that's managing the program's
+/// state.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int32_t nanoOsSystemCallHandleTimespecGet(Rv32iVm *rv32iVm) {
+  // Get parameters from a0-a1 (x10-x11)
+  uint32_t timespecAddress = rv32iVm->rv32iCoreRegisters->x[10];
+  int base = rv32iVm->rv32iCoreRegisters->x[11];
+  
+  // Get current time
+  struct timespec currentTime;
+  int result = timespec_get(&currentTime, base);
+  
+  if (result != 0) {
+    // Write timespec to VM memory
+    virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+      timespecAddress, sizeof(struct timespec), &currentTime);
+  }
+  
+  // Return result
+  rv32iVm->rv32iCoreRegisters->x[10] = result;
+  return 0;
+}
+
+/// @fn int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm)
+///
+/// @brief Handle a user process requesting to sleep.
+///
+/// @param rv32iVm A pointer to the Rv32iVm object that's managing the program's
+/// state.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
+  // Get parameters from a0-a1 (x10-x11)
+  uint32_t requestAddress = rv32iVm->rv32iCoreRegisters->x[10];
+  uint32_t remainAddress = rv32iVm->rv32iCoreRegisters->x[11];
+  
+  // Read request timespec from VM memory
+  struct timespec request;
+  virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    requestAddress, sizeof(struct timespec), &request);
+  
+  // Sleep
+  struct timespec remain = {};
+  int result = 0;
+  Comessage *comessage = comessageQueueWait(&request);
+  
+  if (comessage != NULL) {
+    // Return an error
+    result = -1;
+
+    if (remainAddress != 0) {
+      uint64_t requestTime = (request.tv_sec * 1000000000) + request.tv_nsec;
+      timespec_get(&request, TIME_UTC);
+      uint64_t now = (request.tv_sec * 1000000000) + request.tv_nsec;
+      if (now < requestTime) {
+        remain.tv_sec = now / 1000000000;
+        remain.tv_nsec = now % 1000000000;
+      }
+      // Write remaining time to VM memory if requested
+      virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+        remainAddress, sizeof(struct timespec), &remain);
+    }
+  }
+  
+  // Return result
+  rv32iVm->rv32iCoreRegisters->x[10] = result;
+  return 0;
+}
+
 /// @typedef SystemCall
 ///
 /// @brief Definition for the structure of a system call handler in this
@@ -129,9 +203,11 @@ typedef int32_t (*SystemCall)(Rv32iVm *rv32iVm);
 /// @brief Array of SystemCall functions that correpsond to the NanoOsSystemCall
 /// values that can be used by user processes.
 SystemCall systemCalls[] = {
-  nanoOsSystemCallHandleExit,  // NANO_OS_SYSCALL_EXIT
-  nanoOsSystemCallHandleWrite, // NANO_OS_SYSCALL_WRITE
-  nanoOsSystemCallHandleRead,  // NANO_OS_SYSCALL_READ
+  nanoOsSystemCallHandleExit,        // NANO_OS_SYSCALL_EXIT
+  nanoOsSystemCallHandleWrite,       // NANO_OS_SYSCALL_WRITE
+  nanoOsSystemCallHandleRead,        // NANO_OS_SYSCALL_READ
+  nanoOsSystemCallHandleTimespecGet, // NANO_OS_SYSCALL_TIMESPEC_GET
+  nanoOsSystemCallHandleNanosleep,   // NANO_OS_SYSCALL_NANOSLEEP
 };
 
 /// @fn int32_t nanoOsSystemCallHandle(void *vm)
