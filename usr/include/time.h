@@ -50,7 +50,7 @@ extern "C"
 /// @typedef time_t
 ///
 /// @brief Definition for time in seconds since the epoch.
-typedef uint64_t time_t;
+typedef int64_t time_t;
 
 /// @struct timespec
 ///
