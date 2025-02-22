@@ -96,7 +96,7 @@ int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
   uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[11];
   uint32_t length = rv32iVm->rv32iCoreRegisters->x[12];
   
-  // Limit maximum write length
+  // Limit maximum read length
   if (length > NANO_OS_MAX_READ_WRITE_LENGTH) {
     length = NANO_OS_MAX_READ_WRITE_LENGTH;
   }
@@ -113,7 +113,7 @@ int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
   // Free the host-side memory
   free(buffer); buffer = NULL;
   
-  // Return number of bytes written
+  // Return number of bytes read
   rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
   return 0;
 }
