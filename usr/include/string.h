@@ -107,6 +107,33 @@ static inline size_t strlen(const char *str) {
    */
 }
 
+/// @fn int strncmp(const char *s1, const char *s2, size_t n)
+///
+/// @brief Compare two strings up to a provided number of characters.
+///
+/// @param s1 The first string to compare.
+/// @param s2 The second string to compare.
+/// @param n The maximum number of characters to compare.
+///
+/// @return Returns a value less than zero if s1 is logically less than s2
+/// within the first n characters, zero if the two strings are equal for the
+/// entirety of the n characters, and a value greater than zero if s1 is
+/// logically greater thsn s2.
+int strncmp(const char *s1, const char *s2, size_t n) {
+  int returnValue = 0;
+
+  while ((*s1) && (*s2) && (returnValue == 0)) {
+    returnValue = ((int) *s1) - ((int) *s2);
+  }
+
+  return returnValue;
+}
+
+/// @def strcmp
+///
+/// @brief Compare the entirety of two strings until one of them ends.
+#define strcmp(s1, s2) strncmp(s1, s2, (size_t) -1)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
