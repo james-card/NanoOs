@@ -183,6 +183,29 @@ static inline int fputs(const char *s, FILE *stream) {
   return (int) numBytesWritten;
 }
 
+/// @fn char *fgets(char *s, int size, FILE *stream)
+///
+/// @brief Get a string of input from a FILE stream.
+///
+/// @param s A pointer to the string to read input into.
+/// @param size The total size of the string pointed to by s.  One fewer than
+///   this number of bytes will be read, max.
+/// @param stream A pointer to the FILE stream to read data from.
+///
+/// @return Returns the provided s parameter on success, NULL on failure.
+static inline char *fgets(char *s, int size, FILE *stream) {
+  char *returnValue = s;
+
+  size_t numBytesRead = fread(s, 1, size - 1, stream);
+  if (numBytesRead > 0) {
+    s[numBytesRead] = '\0';
+  } else {
+    returnValue = NULL;
+  }
+
+  return returnValue;
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
