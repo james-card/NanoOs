@@ -45,6 +45,7 @@ WARNINGS := \
 
 OBJ_FILES := \
     $(OBJ_DIR)/start.o \
+    $(OBJ_DIR)/div64.o \
 
 PROGRAMS := \
     $(BIN_DIR)/init \
