@@ -929,46 +929,21 @@ size_t nanoOsIoFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   }
 
   if (stream == stdin) {
-    // There are two stop conditions:
-    // 1. nanoOsIoWaitForInput returns NULL, signalling the end of the input
-    //    from the stream.
-    // 2. We reach length bytes received from the stream.
-    uint8_t *buffer = (uint8_t*) ptr;
     size_t length = size * nmemb;
     size_t numBytesReceived = 0;
-    size_t numBytesToCopy = 0;
-    size_t nanoOsIoInputLength = 0;
-    int bufferIndex = 0;
-    ConsoleBuffer *nanoOsIoBuffer
-      = (ConsoleBuffer*) getProcessStorage(FGETS_CONSOLE_BUFFER_KEY);
-    if (nanoOsIoBuffer == NULL) {
-      nanoOsIoBuffer = nanoOsIoWaitForInput();
-      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsIoBuffer);
-    }
+    ConsoleBuffer *nanoOsIoBuffer = nanoOsIoWaitForInput();
 
-    while ((nanoOsIoBuffer != NULL) && (numBytesReceived < length)) {
-      nanoOsIoInputLength = (int) nanoOsIoBuffer->numBytes;
+    if (nanoOsIoBuffer != NULL) {
+      size_t nanoOsIoInputLength = (int) nanoOsIoBuffer->numBytes;
 
-      numBytesToCopy
-        = MIN((length - 1 - numBytesReceived), nanoOsIoInputLength);
-      memcpy(&buffer[numBytesReceived], &nanoOsIoBuffer->buffer[bufferIndex],
-        numBytesToCopy);
-      numBytesReceived += numBytesToCopy;
+      size_t numBytesToCopy = MIN(length, nanoOsIoInputLength);
+      memcpy(ptr, nanoOsIoBuffer->buffer, numBytesToCopy);
+      numBytesReceived = numBytesToCopy;
 
-      if (length >= nanoOsIoInputLength) {
-        // Release the buffer.
-        sendNanoOsMessageToPid(
-          NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
-          /* func= */ 0, /* data= */ (uintptr_t) nanoOsIoBuffer, false);
-      }
-
-      if (numBytesReceived < length) {
-        // We need to see if there's anything else left to receive.
-        nanoOsIoBuffer = nanoOsIoWaitForInput();
-        bufferIndex = 0;
-      }
-
-      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsIoBuffer);
+      // Release the buffer.
+      sendNanoOsMessageToPid(
+        NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
+        /* func= */ 0, /* data= */ (uintptr_t) nanoOsIoBuffer, false);
     }
 
     returnValue = numBytesReceived / size;
