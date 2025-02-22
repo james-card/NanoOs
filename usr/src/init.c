@@ -28,6 +28,7 @@
 // Doxygen marker
 /// @file
 
+#include <time.h>
 #include <stdio.h>
 
 /// @fn int main(int argc, char **argv)
@@ -44,27 +45,45 @@ int main(int argc, char **argv) {
 
   char username[NANO_OS_MAX_READ_WRITE_LENGTH];
   char password[NANO_OS_MAX_READ_WRITE_LENGTH];
+  struct timespec now;
+  struct timespec request;
+  uint64_t futureTime;
+
+  if (sizeof(uint32_t) == sizeof(uint64_t)) {
+    fputs("WARNING:  sizeof(uint32_t) == sizeof(uint64_t)\n", stderr);
+  } else if ((sizeof(uint32_t) == 4) && (sizeof(uint64_t) == 8)) {
+    fputs("Sizes of uint32_t and uint64_t are correct\n", stdout);
+  } else {
+    fputs("ERROR:  Unknown configuraiton of uint32_t and uint64_t!\n", stderr);
+  }
 
   while (1) {
-    fputs("login: ", stdout);
-    if (fgets(username, sizeof(username), stdin) != username) {
-      fputs("Error reading username.\n", stderr);
-      continue;
-    }
+    fputs("Hello, world!\n", stdout);
+    timespec_get(&now, TIME_UTC);
+    futureTime = (now.tv_sec * 1000000000) + now.tv_nsec;
+    futureTime += 1000000000;
+    request.tv_sec = futureTime / 1000000000;
+    request.tv_nsec = futureTime % 1000000000;
+    nanosleep(&request, NULL);
+    //// fputs("login: ", stdout);
+    //// if (fgets(username, sizeof(username), stdin) != username) {
+    ////   fputs("Error reading username.\n", stderr);
+    ////   continue;
+    //// }
 
-    fputs("Password: ", stdout);
-    if (fgets(password, sizeof(password), stdin) != password) {
-      fputs("Error reading password.\n", stderr);
-      continue;
-    }
+    //// fputs("Password: ", stdout);
+    //// if (fgets(password, sizeof(password), stdin) != password) {
+    ////   fputs("Error reading password.\n", stderr);
+    ////   continue;
+    //// }
 
-    if (strcmp(username, password) == 0) {
-      fputs("Login success!\n", stdout);
-    } else {
-      fputs("Login failure!\n", stderr);
-    }
+    //// if (strcmp(username, password) == 0) {
+    ////   fputs("Login success!\n", stdout);
+    //// } else {
+    ////   fputs("Login failure!\n", stderr);
+    //// }
 
-    fputs("\n", stdout);
+    //// fputs("\n", stdout);
   }
 
   return 0;
