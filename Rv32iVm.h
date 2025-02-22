@@ -297,6 +297,8 @@ typedef struct Rv32iVm {
   uint8_t mapCacheBuffer[4];
 } Rv32iVm;
 
+void rv32iGetMemorySegmentAndAddress(Rv32iVm *rv32iVm,
+  int *segmentIndex, uint32_t *address);
 int runRv32iProcess(int argc, char **argv);
 
 #ifdef __cplusplus
