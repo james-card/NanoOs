@@ -52,7 +52,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #undef FILE
 
 #ifdef __cplusplus
@@ -112,6 +111,10 @@ typedef struct NanoOsFile NanoOsFile;
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
 
 // Missing from Arduino
+#ifdef time_t
+#undef time_t
+#endif // time_t
+#define time_t uint64_t
 struct timespec {
   time_t tv_sec;
   long   tv_nsec;
