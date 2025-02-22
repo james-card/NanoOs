@@ -122,8 +122,10 @@ static inline size_t strlen(const char *str) {
 int strncmp(const char *s1, const char *s2, size_t n) {
   int returnValue = 0;
 
-  while ((*s1) && (*s2) && (returnValue == 0)) {
+  size_t numChars = 0;
+  while ((*s1) && (*s2) && (returnValue == 0) && (numChars < n)) {
     returnValue = ((int) *s1) - ((int) *s2);
+    numChars++;
   }
 
   return returnValue;
