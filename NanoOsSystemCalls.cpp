@@ -178,12 +178,14 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
     result = -1;
 
     if (remainAddress != 0) {
-      uint64_t requestTime = (request.tv_sec * 1000000000) + request.tv_nsec;
+      int64_t requestTime
+        = (request.tv_sec * 1000000000LL) + ((int64_t) request.tv_nsec);
       timespec_get(&request, TIME_UTC);
-      uint64_t now = (request.tv_sec * 1000000000) + request.tv_nsec;
-      if (now < requestTime) {
-        remain.tv_sec = now / 1000000000;
-        remain.tv_nsec = now % 1000000000;
+      int64_t now
+        = (request.tv_sec * 1000000000LL) + ((int64_t) request.tv_nsec);
+      if (requestTime > now) {
+        remain.tv_sec = (requestTime - now) / 1000000000LL;
+        remain.tv_nsec = (requestTime - now) % 1000000000LL;
       }
       // Write remaining time to VM memory if requested
       virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
