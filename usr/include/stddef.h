@@ -49,6 +49,11 @@ typedef int32_t ssize_t;
 typedef uint32_t uintptr_t;
 typedef int32_t intptr_t;
 
+/// @def NULL
+///
+/// @brief Definition of standard C NULL value.
+#define NULL ((void*) 0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
