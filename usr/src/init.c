@@ -42,7 +42,30 @@ int main(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  fputs("Hello, world!\n", stdout);;
+  char username[NANO_OS_MAX_READ_WRITE_LENGTH];
+  char password[NANO_OS_MAX_READ_WRITE_LENGTH];
+
+  while (1) {
+    fputs("login: ", stdout);
+    if (fgets(username, sizeof(username), stdin) != username) {
+      fputs("Error reading username.\n", stderr);
+      continue;
+    }
+
+    fputs("Password: ", stdout);
+    if (fgets(password, sizeof(password), stdin) != password) {
+      fputs("Error reading password.\n", stderr);
+      continue;
+    }
+
+    if (strcmp(username, password) == 0) {
+      fputs("Login success!\n", stdout);
+    } else {
+      fputs("Login failure!\n", stderr);
+    }
+
+    fputs("\n", stdout);
+  }
 
   return 0;
 }
