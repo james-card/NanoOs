@@ -77,53 +77,6 @@ static FILE *stderr = (FILE*) 0x3;
 /// specified file has been reached.
 #define EOF -1
 
-/// @fn size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
-///
-/// @brief Implementation of the standard C fread function.  Reads up to the
-/// the specified number of bytes into the provided pointer from the provided
-/// file stream.
-///
-/// @param ptr A pointer to the data in memory to read from the file.
-/// @param size The size, in bytes, of each element to write.
-/// @param nmemb The total number of elements to write.
-/// @param stream A pointer to the FILE object to read from.
-///
-/// @return Returns the number of objects successfully read from the file.
-static inline size_t fread(
-  void *ptr, size_t size, size_t nmemb, FILE *stream
-) {
-  size_t numBytesRead = 0;
-
-  for (size_t totalBytes = size * nmemb; totalBytes > 0; ) {
-    size_t numBytesToRead
-      = (totalBytes > NANO_OS_MAX_READ_WRITE_LENGTH)
-      ? NANO_OS_MAX_READ_WRITE_LENGTH
-      : totalBytes;
-
-    // Write to stdout using syscall
-    register uintptr_t a0 asm("a0") = (uintptr_t) stream; // file pointer
-    register const char *a1 asm("a1") = ptr;              // buffer address
-    register int a2 asm("a2") = numBytesToRead;           // length
-    register int a7 asm("a7") = NANO_OS_SYSCALL_READ;     // write syscall
-
-    asm volatile(
-      "ecall"
-      : "+r"(a0)
-      : "r"(a1), "r"(a2), "r"(a7)
-    );
-
-    numBytesRead += a0;
-    totalBytes -= a0;
-    
-    // We only want to continue if we actually read data this round
-    if (a0 == 0) {
-      break;
-    }
-  }
-  
-  return numBytesRead / size;
-}
-
 /// @fn size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 ///
 /// @brief Implementation of the standard C fwrite function.  Writes the
@@ -181,6 +134,59 @@ static inline int fputs(const char *s, FILE *stream) {
   size_t numBytesWritten = fwrite(s, 1, length, stream);
   
   return (int) numBytesWritten;
+}
+
+/// @fn size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Implementation of the standard C fread function.  Reads up to the
+/// the specified number of bytes into the provided pointer from the provided
+/// file stream.
+///
+/// @param ptr A pointer to the data in memory to read from the file.
+/// @param size The size, in bytes, of each element to write.
+/// @param nmemb The total number of elements to write.
+/// @param stream A pointer to the FILE object to read from.
+///
+/// @return Returns the number of objects successfully read from the file.
+static inline size_t fread(
+  void *ptr, size_t size, size_t nmemb, FILE *stream
+) {
+  size_t numBytesRead = 0;
+
+  for (size_t totalBytes = size * nmemb; totalBytes > 0; ) {
+    size_t numBytesToRead
+      = (totalBytes > NANO_OS_MAX_READ_WRITE_LENGTH)
+      ? NANO_OS_MAX_READ_WRITE_LENGTH
+      : totalBytes;
+
+    // Write to stdout using syscall
+    register uintptr_t a0 asm("a0") = (uintptr_t) stream; // file pointer
+    register const char *a1 asm("a1") = ptr;              // buffer address
+    register int a2 asm("a2") = numBytesToRead;           // length
+    register int a7 asm("a7") = NANO_OS_SYSCALL_READ;     // write syscall
+
+    asm volatile(
+      "ecall"
+      : "+r"(a0)
+      : "r"(a1), "r"(a2), "r"(a7)
+    );
+
+    numBytesRead += a0;
+    totalBytes -= a0;
+    
+    char numBytes[2] = {0};
+    fputs("Read ", stdout);
+    numBytes[0] = '0' + numBytesRead;
+    fputs(numBytes, stdout);
+    fputs(" bytes\n", stdout);
+
+    // We only want to continue if we actually read data this round
+    if (a0 == 0) {
+      break;
+    }
+  }
+  
+  return numBytesRead / size;
 }
 
 /// @fn char *fgets(char *s, int size, FILE *stream)
