@@ -159,7 +159,7 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   free(rv32iVm->rv32iCoreRegisters); // No need to nullify it
 }
 
-/// @fn void getMemorySegmentAndAddress(
+/// @fn void rv32iGetMemorySegmentAndAddress(
 ///   Rv32iVm *rv32iVm, int *segmentIndex, uint32_t *address)
 ///
 /// @brief Get the segment index and true address offset given a raw address
@@ -174,7 +174,7 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
 ///   determined memory segment.
 ///
 /// @return This function returns no value.
-void getMemorySegmentAndAddress(Rv32iVm *rv32iVm,
+void rv32iGetMemorySegmentAndAddress(Rv32iVm *rv32iVm,
   int *segmentIndex, uint32_t *address
 ) {
   *segmentIndex = *address >> RV32I_MEMORY_SEGMENT_SHIFT;
@@ -214,7 +214,7 @@ void getMemorySegmentAndAddress(Rv32iVm *rv32iVm,
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead32(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -233,7 +233,7 @@ int32_t rv32iMemoryRead32(Rv32iVm *rv32iVm, uint32_t address, uint32_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead16(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -252,7 +252,7 @@ int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryRead8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -271,7 +271,7 @@ int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite32(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -290,7 +290,7 @@ int32_t rv32iMemoryWrite32(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite16(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -309,7 +309,7 @@ int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
-  getMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
   return virtualMemoryWrite8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
