@@ -2245,10 +2245,10 @@ void runScheduler(SchedulerState *schedulerState) {
     = coroutineResume(processDescriptor->processHandle, NULL);
 
   if (processReturnValue == COROUTINE_CORRUPT) {
-    printString("ERROR!!!  Process corruption detected!!!\n");
-    printString("          Removing process ");
-    printInt(processDescriptor->processId);
-    printString(" from process queues.\n");
+    printString("ERROR! Process corruption detected!\n");
+    //// printString("          Removing process ");
+    //// printInt(processDescriptor->processId);
+    //// printString(" from process queues.\n");
 
     processDescriptor->name = NULL;
     processDescriptor->userId = NO_USER_ID;
@@ -2788,8 +2788,8 @@ __attribute__((noinline)) void startScheduler(
     //// printDebug("          Undefined behavior will result.\n");
   }
 
-  schedulerRunSchedulerProcess(&schedulerState, "init",
-    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID);
+  //// schedulerRunSchedulerProcess(&schedulerState, "init",
+  ////   USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID);
   schedulerRunSchedulerProcess(&schedulerState, "init",
     GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID);
 
