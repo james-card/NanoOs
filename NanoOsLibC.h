@@ -110,11 +110,13 @@ typedef struct NanoOsFile NanoOsFile;
 /// of the owner, so this is an appropriate value.
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
 
-// Missing from Arduino
+// Override definition of time_t in Arduino's time.h
 #ifdef time_t
 #undef time_t
 #endif // time_t
-#define time_t uint64_t
+#define time_t int64_t
+
+// Missing from Arduino
 struct timespec {
   time_t tv_sec;
   long   tv_nsec;
