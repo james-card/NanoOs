@@ -67,8 +67,10 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   
   // Read string from VM memory
   char *buffer = (char*) malloc(length);
+  int segmentIndex = 0;
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &bufferAddress);
   uint32_t bytesRead
-    = virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    = virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
     bufferAddress, length, buffer);
   
   // Write to the stream
@@ -107,7 +109,9 @@ int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
   // Write to the stream
   size_t bytesRead = fread(buffer, 1, length, stream);
 
-  virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+  int segmentIndex = 0;
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &bufferAddress);
+  virtualMemoryWrite(&rv32iVm->memorySegments[segmentIndex],
     bufferAddress, bytesRead, buffer);
   
   // Free the host-side memory
