@@ -996,18 +996,26 @@ size_t nanoOsIoFWrite(
       return returnValue;
     }
 
-    uint32_t length = (uint32_t) (size * nmemb);
+    size_t length = (uint32_t) (size * nmemb);
+    size_t numBytesWritten = 0;
+    char *buffer = (char*) ptr;
     while ((length > 0) && (returnValue == 0)) {
       nanoOsIoBuffer->numBytes
         = (length > CONSOLE_BUFFER_SIZE) ? CONSOLE_BUFFER_SIZE : length;
-      length -= nanoOsIoBuffer->numBytes;
-      memcpy(nanoOsIoBuffer->buffer, ptr, nanoOsIoBuffer->numBytes);
+      memcpy(nanoOsIoBuffer->buffer, &buffer[numBytesWritten],
+        nanoOsIoBuffer->numBytes);
       returnValue = nanoOsIoWriteBuffer(stream, nanoOsIoBuffer);
+      if (returnValue == 0) {
+        length -= nanoOsIoBuffer->numBytes;
+        numBytesWritten += nanoOsIoBuffer->numBytes;
+      }
     }
 
     sendNanoOsMessageToPid(
       NANO_OS_IO_PROCESS_ID, NANO_OS_IO_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) nanoOsIoBuffer, false);
+
+    returnValue = numBytesWritten / size;
   } else {
     NanoOsIoCommandParameters nanoOsIoIoCommandParameters = {
       .file = stream,
