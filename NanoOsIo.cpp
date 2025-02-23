@@ -2285,21 +2285,30 @@ int printSerialString(
   if (newlineAt == NULL) {
     newlineAt = strnchr((char*) string, '\r', numBytes);
   }
+
+  size_t numBytesToWrite = numBytes;
   if (newlineAt != NULL) {
-    numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+    numBytesToWrite = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
   }
   while (newlineAt != NULL) {
-    returnValue += (int) serialPort.write(string, numBytes);
-    returnValue += (int) serialPort.write("\r\n");
+    returnValue += (int) serialPort.write(string, numBytesToWrite);
+    serialPort.write("\r\n");
+    returnValue++;
     string = newlineAt + 1;
-    newlineAt = strchr(string, '\n');
+    if (*string == '\n') {
+      // Carriage return was in the form "\r\n".  Move one more byte forward.
+      string++;
+      returnValue++;
+    }
+    newlineAt = strnchr((char*) string, '\n', numBytes - returnValue);
     if (newlineAt == NULL) {
-      numBytes = strlen(string);
+      numBytesToWrite = numBytes - returnValue;
     } else {
-      numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
+      numBytesToWrite
+        = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
     }
   }
-  returnValue += (int) serialPort.write(string, numBytes);
+  returnValue += (int) serialPort.write(string, numBytesToWrite);
 
   return returnValue;
 }
