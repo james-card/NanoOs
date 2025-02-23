@@ -1029,7 +1029,9 @@ int fat16Seek(NanoOsIoState *nanoOsIoState, Fat16File *file, int32_t offset,
     
     // Only read FAT block if different from current
     if (fatBlock != currentFatBlock) {
-      if (sdSpiReadBlock(&nanoOsIoState->sdCardState, fatBlock, nanoOsIoState->filesystemState.blockBuffer)) {
+      if (sdSpiReadBlock(&nanoOsIoState->sdCardState, fatBlock,
+        nanoOsIoState->filesystemState.blockBuffer)
+      ) {
         return -1;
       }
       currentFatBlock = fatBlock;
