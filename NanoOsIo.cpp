@@ -555,8 +555,8 @@ static void fat16FormatFilename(const char *pathname, char *formattedName) {
 ///   found, FAT16_DIR_SEARCH_NOT_FOUND if no matching entry found
 static int fat16FindDirectoryEntry(NanoOsIoState *nanoOsIoState,
     Fat16File *file, const char *pathname, uint8_t **entry, uint32_t *block,
-    uint16_t *entryIndex)
-{
+    uint16_t *entryIndex
+) {
   char upperName[FAT16_FULL_NAME_LENGTH + 1];
   fat16FormatFilename(pathname, upperName);
   upperName[FAT16_FULL_NAME_LENGTH] = '\0';
@@ -564,16 +564,20 @@ static int fat16FindDirectoryEntry(NanoOsIoState *nanoOsIoState,
   for (uint16_t ii = 0; ii < file->rootEntries; ii++) {
     *block = file->rootStart + (ii / (file->bytesPerSector >>
       FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT));
-    if (sdSpiReadBlock(&nanoOsIoState->sdCardState, *block, nanoOsIoState->filesystemState.blockBuffer)) {
+    if (sdSpiReadBlock(&nanoOsIoState->sdCardState,
+      *block, nanoOsIoState->filesystemState.blockBuffer)
+    ) {
       return FAT16_DIR_SEARCH_ERROR;
     }
     
-    *entry = nanoOsIoState->filesystemState.blockBuffer + ((ii % (file->bytesPerSector >>
+    *entry = nanoOsIoState->filesystemState.blockBuffer
+      + ((ii % (file->bytesPerSector >>
       FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT)) * FAT16_BYTES_PER_DIRECTORY_ENTRY);
     uint8_t firstChar = (*entry)[FAT16_DIR_FILENAME];
     
     if (memcmp(*entry + FAT16_DIR_FILENAME, upperName,
-        FAT16_FULL_NAME_LENGTH) == 0) {
+        FAT16_FULL_NAME_LENGTH) == 0
+    ) {
       if (entryIndex) {
         *entryIndex = ii;
       }
@@ -628,7 +632,8 @@ Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
 
   // Read boot sector
   if (sdSpiReadBlock(&nanoOsIoState->sdCardState,
-      nanoOsIoState->filesystemState.startLba, buffer)) {
+      nanoOsIoState->filesystemState.startLba, buffer)
+  ) {
     goto exit;
   }
   
@@ -683,7 +688,8 @@ Fat16File* fat16Fopen(NanoOsIoState *nanoOsIoState, const char *pathname,
     nanoOsIoState->filesystemState.numOpenFiles++;
   } else if (createFile && 
       (result == FAT16_DIR_SEARCH_DELETED || 
-       result == FAT16_DIR_SEARCH_NOT_FOUND)) {
+       result == FAT16_DIR_SEARCH_NOT_FOUND)
+  ) {
     // Create new file using the entry location we found
     fat16FormatFilename(pathname, upperName);
     memcpy(entry + FAT16_DIR_FILENAME, upperName, FAT16_FULL_NAME_LENGTH);
@@ -1194,8 +1200,8 @@ int fat16Remove(NanoOsIoState *nanoOsIoState, const char *pathname) {
   
   uint8_t *entry;
   uint32_t block;
-  int result = fat16FindDirectoryEntry(nanoOsIoState, file, pathname, &entry, &block,
-    NULL);
+  int result = fat16FindDirectoryEntry(
+    nanoOsIoState, file, pathname, &entry, &block, NULL);
     
   if (result != FAT16_DIR_SEARCH_FOUND) {
     free(file);
@@ -1262,29 +1268,38 @@ int getPartitionInfo(NanoOsIoState *nanoOsIoState) {
     return -1;
   }
 
-  if (sdSpiReadBlock(&nanoOsIoState->sdCardState, 0, nanoOsIoState->filesystemState.blockBuffer) != 0) {
+  if (sdSpiReadBlock(&nanoOsIoState->sdCardState, 0,
+    nanoOsIoState->filesystemState.blockBuffer) != 0
+  ) {
     return -2;
   }
 
-  uint8_t *partitionTable = nanoOsIoState->filesystemState.blockBuffer + FAT16_PARTITION_TABLE_OFFSET;
-  uint8_t *entry = partitionTable +
-    ((nanoOsIoState->filesystemState.partitionNumber - 1) * FAT16_PARTITION_ENTRY_SIZE);
+  uint8_t *partitionTable
+    = nanoOsIoState->filesystemState.blockBuffer
+    + FAT16_PARTITION_TABLE_OFFSET;
+  uint8_t *entry
+    = partitionTable
+    + ((nanoOsIoState->filesystemState.partitionNumber - 1)
+    * FAT16_PARTITION_ENTRY_SIZE);
   uint8_t type = entry[4];
   
   if ((type == FAT16_PARTITION_TYPE_FAT16_LBA) || 
-      (type == FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED)) {
-    nanoOsIoState->filesystemState.startLba = (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 3]) << 24) |
-      (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 2]) << 16) |
-      (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 1]) << 8) |
-      ((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET]);
+      (type == FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED)
+  ) {
+    nanoOsIoState->filesystemState.startLba
+      = (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 3]) << 24)
+      | (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 2]) << 16)
+      | (((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET + 1]) << 8)
+      | ((uint32_t) entry[FAT16_PARTITION_LBA_OFFSET]);
       
-    uint32_t numSectors = 
-      (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 3]) << 24) |
-      (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 2]) << 16) |
-      (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 1]) << 8) |
-      ((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET]);
+    uint32_t numSectors
+      = (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 3]) << 24)
+      | (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 2]) << 16)
+      | (((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET + 1]) << 8)
+      | ((uint32_t) entry[FAT16_PARTITION_SECTORS_OFFSET]);
       
-    nanoOsIoState->filesystemState.endLba = nanoOsIoState->filesystemState.startLba + numSectors - 1;
+    nanoOsIoState->filesystemState.endLba
+      = nanoOsIoState->filesystemState.startLba + numSectors - 1;
     return 0;
   }
   
