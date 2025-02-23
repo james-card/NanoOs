@@ -34,6 +34,12 @@ What was a huge deal, though, was the amount of code space that I was now consum
 
 The easiest way to do this was to just delete error messages.  I will be the first to admit this is generally not a good idea, however (a) the areas that I needed to extend were unrelated to the error messages I deleted and (b) the places I deleted messages from had already been shown to be working fairly reliably by this point.  So, out they go!  That reclaimed about 1.5 KB.  Enough to start with.
 
+Then began a debug session.  My original problem was that my fwrite calls were producing mangled output on the user terminal.  I hadn't implemented a `printf` function in user space yet but I needed to see how many characters it thought it was printing.  I came up with a very simple solution:  Print a variable that holds a single byte that contains the character `'0'` plus the number of characters written.  Since I was dealing with fairly small messages, this shouldn't have been a big deal.
+
+However, it turned out to be an enormous deal.  Writing a value to that variable was corrupting memory.  Skipping over a lot of detail and entire day of debugging, the problem turned out to be the way an immediate value was being parsed from instructions:  It wasn't being properly sign-extended.  So, rather than adding a negative value to a base address, it was adding a positive value and coming up with I-don't-know-what to manipulate.
+
+I had to wonder at this point if the guys who wrote the first version of UNIX had this problem.  At the moment, there are always three places that a bug can be:  My user space implementation, my kernel space implementation, or my VM implementation.  Did they have to wonder if bugs they were seeing could be in the PDP-7 hardware they were using or did they have high confidence in it and could focus on just their kernel and user code?  At the moment I don't know.
+
 To be continued...
 
 [Table of Contents](.)
