@@ -325,8 +325,8 @@ int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 static inline int32_t fetchInstruction(
   Rv32iVm *rv32iVm, uint32_t *instruction
 ) {
-  return
-    rv32iMemoryRead32(rv32iVm, rv32iVm->rv32iCoreRegisters->pc, instruction);
+  return virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
+    rv32iVm->rv32iCoreRegisters->pc, instruction);
 }
 
 /// @fn static inline int32_t executeMultiplyDivide(
@@ -1255,10 +1255,10 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  uint32_t startTime = 0;
-  uint32_t runTime = 0;
-  uint32_t instructionCount = 0;
-  startTime = getElapsedMilliseconds(0);
+  //// uint32_t startTime = 0;
+  //// uint32_t runTime = 0;
+  //// uint32_t instructionCount = 0;
+  //// startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       returnValue = -1;
@@ -1274,13 +1274,13 @@ int runRv32iProcess(int argc, char **argv) {
     ////   printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
     ////   printDebug(" failed\n");
     //// }
-    instructionCount++;
+    //// instructionCount++;
   }
-  runTime = getElapsedMilliseconds(startTime);
-  printDebug(instructionCount);
-  printDebug("/");
-  printDebug(runTime);
-  printDebug("\n");
+  //// runTime = getElapsedMilliseconds(startTime);
+  //// printDebug(instructionCount);
+  //// printDebug("/");
+  //// printDebug(runTime);
+  //// printDebug("\n");
   //// printDebug("Runtime: ");
   //// printDebug(runTime);
   //// printDebug(" milliseconds\n");
