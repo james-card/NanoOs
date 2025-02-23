@@ -310,6 +310,7 @@ int32_t rv32iMemoryWrite16(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
 int32_t rv32iMemoryWrite8(Rv32iVm *rv32iVm, uint32_t address, uint32_t value) {
   int segmentIndex = 0;
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+
   return virtualMemoryWrite8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -1102,6 +1103,10 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
     // imm[4:0] from instruction[11:7]
     | ((instruction >> 7) & 0x1F)
   );
+  if (instruction & 0x80000000) {
+    // Sign-extend the value.
+    immS |= 0xfffff000;
+  }
   
   // B-type immediate
   int32_t immB = (
