@@ -257,14 +257,14 @@ int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
   int segmentIndex = 0;
-  printDebug("Reading byte at address 0x");
-  printDebug(address, HEX);
+  //// printDebug("Reading byte at address 0x");
+  //// printDebug(address, HEX);
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
-  printDebug(" (");
-  printDebug(segmentIndex);
-  printDebug(", 0x");
-  printDebug(address, HEX);
-  printDebug(")\n");
+  //// printDebug(" (");
+  //// printDebug(segmentIndex);
+  //// printDebug(", 0x");
+  //// printDebug(address, HEX);
+  //// printDebug(")\n");
   return virtualMemoryRead8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -697,6 +697,19 @@ static inline int32_t executeLoad(
       if (result != 0) {
         return result;
       }
+      //// if (rd == 15) {
+      ////   printDebug("Loading value 0x");
+      ////   printDebug(wordValue, HEX);
+      ////   printDebug(" to x15 from address ");
+      ////   printDebug(address, HEX);
+      ////   printDebug(", rs1 = ");
+      ////   printDebug(rs1);
+      ////   printDebug(", immediate = 0x");
+      ////   printDebug(immediate, HEX);
+      ////   printDebug(", via instruction at address 0x");
+      ////   printDebug(rv32iVm->rv32iCoreRegisters->pc, HEX);
+      ////   printDebug("\n");
+      //// }
       rv32iVm->rv32iCoreRegisters->x[rd] = wordValue;
       break;
     }
@@ -1126,14 +1139,7 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   }
   
   // S-type immediate
-  int32_t immS = (
-    // imm[11:5] from instruction[31:25]
-    // No need to bitmask since we want all of the high-order bits and we want
-    // the sign extension that comes along with the right shift.
-    ((int32_t)(instruction >> 20))
-    // imm[4:0] from instruction[11:7]
-    | ((instruction >> 7) & 0x1F)
-  );
+  int32_t immS = ((instruction >> 20) & 0xFE0) | ((instruction >> 7) & 0x1F);
   if (instruction & 0x80000000) {
     // Sign-extend the value.
     immS |= 0xfffff000;
