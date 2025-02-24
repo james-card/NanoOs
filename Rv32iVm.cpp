@@ -47,6 +47,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   NanoOsExeMetadata *nanoOsExeMetadata = nanoOsExeMetadataRead(programPath);
   if (nanoOsExeMetadata == NULL) {
     // This is not one of our executables and there's nothing we can do.  Bail.
+    //// printDebug("Not our exe");
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
@@ -65,6 +66,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
     virtualMemoryFilename, 128, NULL) != 0
   ) {
+    //// printDebug("phy init failed");
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
@@ -75,6 +77,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     sizeof(rv32iVm->dataCacheBuffer),
     rv32iVm->dataCacheBuffer) != 0
   ) {
+    //// printDebug("data init failed");
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
@@ -84,6 +87,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 
   VirtualMemoryState programBinary = {};
   if (virtualMemoryInit(&programBinary, programPath, 0, NULL) != 0) {
+    //// printDebug("program init failed");
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
@@ -93,6 +97,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], RV32I_PROGRAM_START,
     virtualMemorySize(&programBinary)) < virtualMemorySize(&programBinary)
   ) {
+    //// printDebug("copy failed");
     virtualMemoryCleanup(&programBinary, false);
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
@@ -252,7 +257,14 @@ int32_t rv32iMemoryRead16(Rv32iVm *rv32iVm, uint32_t address, uint16_t *value) {
 /// @return 0 on success, negative on error.
 int32_t rv32iMemoryRead8(Rv32iVm *rv32iVm, uint32_t address, uint8_t *value) {
   int segmentIndex = 0;
+  printDebug("Reading byte at address 0x");
+  printDebug(address, HEX);
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &address);
+  printDebug(" (");
+  printDebug(segmentIndex);
+  printDebug(", 0x");
+  printDebug(address, HEX);
+  printDebug(")\n");
   return virtualMemoryRead8(
     &rv32iVm->memorySegments[segmentIndex], address, value);
 }
@@ -690,6 +702,9 @@ static inline int32_t executeLoad(
     }
     case RV32I_FUNCT3_LBU: {
       // Load byte unsigned (zero extend)
+      //// printDebug("x15 = ");
+      //// printDebug(rv32iVm->rv32iCoreRegisters->x[15], HEX);
+      //// printDebug("\n");
       uint8_t byteValue = 0;
       int32_t result = rv32iMemoryRead8(rv32iVm, address, &byteValue);
       if (result != 0) {
@@ -906,6 +921,18 @@ static inline int32_t executeJumpAndLinkRegister(
   // Save the return address before calculating target
   rv32iVm->rv32iCoreRegisters->x[rd] = rv32iVm->rv32iCoreRegisters->pc + 4;
   
+  //// if (rv32iVm->rv32iCoreRegisters->pc == 0x103C) {
+  ////   printDebug("rd ");
+  ////   printDebug(rd);
+  ////   printDebug(", base address ");
+  ////   printDebug(rv32iVm->rv32iCoreRegisters->x[rs1], HEX);
+  ////   printDebug(", rs1 ");
+  ////   printDebug(rs1);
+  ////   printDebug(", immediate ");
+  ////   printDebug(immediate, HEX);
+  ////   printDebug("\n");
+  //// }
+
   // Calculate target address: (rs1 + immediate) & ~1
   // The & ~1 clears the least significant bit as per RISC-V spec
   *nextPc = (rv32iVm->rv32iCoreRegisters->x[rs1] + immediate) & ~1;
@@ -1093,6 +1120,10 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
   
   // R-type immediate
   int32_t immI = ((int32_t) instruction) >> 20;
+  if (instruction & 0x80000000) {
+    // Sign-extend the value.
+    immI |= 0xfffff000;
+  }
   
   // S-type immediate
   int32_t immS = (
@@ -1119,6 +1150,10 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
     // imm[4:1] (bits 11:8 of instruction)
     ((instruction >> 7) & 0x1E)
   );
+  if (instruction & 0x80000000) {
+    // Sign-extend the value.
+    immB |= 0xffffe000;
+  }
     
   // U-type immediate
   int32_t immU = (int32_t) instruction & 0xFFFFF000;
@@ -1217,6 +1252,14 @@ int32_t executeInstruction(Rv32iVm *rv32iVm, uint32_t instruction) {
     return result;
   }
 
+  //// if (nextPc == 0x1658) {
+  ////   printDebug("Instruction 0x");
+  ////   printDebug(instruction, HEX);
+  ////   printDebug(" at address ");
+  ////   printDebug(rv32iVm->rv32iCoreRegisters->pc, HEX);
+  ////   printDebug(" yielded nexPc of 0x1658\n");
+  //// }
+
   // Update PC to next instruction
   rv32iVm->rv32iCoreRegisters->pc = nextPc;
   return 0;
@@ -1264,21 +1307,32 @@ int runRv32iProcess(int argc, char **argv) {
   //// uint32_t runTime = 0;
   //// uint32_t instructionCount = 0;
   //// startTime = getElapsedMilliseconds(0);
+  //// printDebug("Starting ");
+  //// printDebug(argv[0]);
+  //// printDebug("\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
+      //// printDebug("Fetching instruction at address 0x");
+      //// printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
+      //// printDebug(" failed\n");
       returnValue = -1;
       break;
     }
 
     rv32iVm.rv32iCoreRegisters->x[0] = 0;
+    //// printDebug("Running instruction 0x");
+    //// printDebug(instruction, HEX);
+    //// printDebug(" at address 0x");
+    //// printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
+    //// printDebug("\n");
     returnValue = executeInstruction(&rv32iVm, instruction);
-    //// if (returnValue != 0) {
-    ////   printDebug("Instruction 0x");
-    ////   printDebug(instruction, HEX);
-    ////   printDebug(" at address 0x");
-    ////   printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
-    ////   printDebug(" failed\n");
-    //// }
+    if (returnValue != 0) {
+      printDebug("Instruction 0x");
+      printDebug(instruction, HEX);
+      printDebug(" at address 0x");
+      printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
+      printDebug(" failed\n");
+    }
     //// instructionCount++;
   }
   //// runTime = getElapsedMilliseconds(startTime);
@@ -1297,6 +1351,9 @@ int runRv32iProcess(int argc, char **argv) {
     // VM exited gracefully.  Pull the status the process exited with.
     returnValue = rv32iVm.exitCode;
   }
+  //// printDebug("Exiting with status ");
+  //// printDebug(returnValue);
+  //// printDebug("\n");
 
   rv32iVmCleanup(&rv32iVm);
   //// printDebug(getFreeMemory());
