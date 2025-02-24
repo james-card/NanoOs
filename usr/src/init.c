@@ -47,7 +47,9 @@ int main(int argc, char **argv) {
   char password[NANO_OS_MAX_READ_WRITE_LENGTH];
   struct timespec now;
   struct timespec request;
-  uint64_t futureTime;
+  int64_t futureTime;
+
+  fputs("Starting init...\n", stdout);
 
   if (sizeof(uint32_t) == sizeof(uint64_t)) {
     fputs("WARNING:  sizeof(uint32_t) == sizeof(uint64_t)\n", stderr);
@@ -57,13 +59,13 @@ int main(int argc, char **argv) {
     fputs("ERROR:  Unknown configuraiton of uint32_t and uint64_t!\n", stderr);
   }
 
-  while (1) {
+  for (int ii = 0; ii < 2; ii++) {
     fputs("Hello, world!\n", stdout);
     timespec_get(&now, TIME_UTC);
-    futureTime = (now.tv_sec * 1000000000) + now.tv_nsec;
-    futureTime += 1000000000;
-    request.tv_sec = futureTime / 1000000000;
-    request.tv_nsec = futureTime % 1000000000;
+    futureTime = (now.tv_sec * 1000000000LL) + ((int64_t) now.tv_nsec);
+    futureTime += 1000000000LL;
+    request.tv_sec = futureTime / 1000000000LL;
+    request.tv_nsec = futureTime % 1000000000LL;
     nanosleep(&request, NULL);
     //// fputs("login: ", stdout);
     //// if (fgets(username, sizeof(username), stdin) != username) {

@@ -31,7 +31,7 @@ RM := rm -f
 
 WARNINGS := -Wall -Wextra -pedantic -Werror
 FLAGS := -march=rv32im -mabi=ilp32 -nostdlib -nodefaultlibs -fno-builtin \
-    -ffreestanding -nostartfiles -Ttext=0x1000 -e _start -O2 \
+    -ffreestanding -nostartfiles -Ttext=0x1000 \
 
 BIN_DIR := ../bin
 OBJ_DIR := ../obj
@@ -47,13 +47,19 @@ OBJ_FILES := \
     $(OBJ_DIR)/start.o \
     $(OBJ_DIR)/div64.o \
 
+LINKS := \
+    -Wl,-e_start \
+
 PROGRAMS := \
     $(BIN_DIR)/init \
 
 all: $(PROGRAMS)
 
-$(OBJ_DIR)/%.elf: %.c
-	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -o $@ $< $(OBJ_FILES)
+$(OBJ_DIR)/%.o: %.c
+	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.elf: $(OBJ_DIR)/%.o
+	$(CC) $(INCLUDES) $(WARNINGS) $(FLAGS) $(OBJ_FILES) $< $(LINKS) -o $@
 
 $(OBJ_DIR)/%.bin: $(OBJ_DIR)/%.elf
 	$(OBJCOPY) -O binary $< $@
@@ -66,5 +72,5 @@ $(BIN_DIR)/%: $(OBJ_DIR)/%.bin $(OBJ_DIR)/%.text
 	$(BIN_DIR)/addNanoOsExeMetadata $@ $(OBJ_DIR)/$*.text
 
 clean:
-	$(RM) $(OBJ_DIR)/*.text $(OBJ_DIR)/*.bin $(OBJ_DIR)/*.elf
+	$(RM) $(OBJ_DIR)/*.text $(OBJ_DIR)/*.bin $(OBJ_DIR)/*.elf $(OBJ_DIR)/*.o
 
