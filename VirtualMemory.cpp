@@ -170,7 +170,7 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
 
   // Check if requested memory is in the buffer.
   if ((offset >= state->bufferBaseOffset) && 
-      (offset < state->bufferBaseOffset + state->bufferValidBytes)) {
+      ((offset + 4) < state->bufferBaseOffset + state->bufferValidBytes)) {
     return &state->buffer[offset - state->bufferBaseOffset];
   }
 
