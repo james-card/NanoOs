@@ -97,16 +97,12 @@ int32_t virtualMemoryRead16(
   VirtualMemoryState *state, uint32_t offset, uint16_t *value);
 int32_t virtualMemoryRead32(
   VirtualMemoryState *state, uint32_t offset, uint32_t *value);
-int32_t virtualMemoryRead64(
-  VirtualMemoryState *state, uint32_t offset, uint64_t *value);
 int32_t virtualMemoryWrite8(
   VirtualMemoryState *state, uint32_t offset, uint8_t value);
 int32_t virtualMemoryWrite16(
   VirtualMemoryState *state, uint32_t offset, uint16_t value);
 int32_t virtualMemoryWrite32(
   VirtualMemoryState *state, uint32_t offset, uint32_t value);
-int32_t virtualMemoryWrite64(
-  VirtualMemoryState *state, uint32_t offset, uint64_t value);
 uint32_t virtualMemoryRead(VirtualMemoryState *state,
   uint32_t offset, uint32_t length, void *buffer);
 uint32_t virtualMemoryWrite(VirtualMemoryState *state,

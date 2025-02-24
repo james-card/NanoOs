@@ -288,36 +288,6 @@ int32_t virtualMemoryRead32(
   return returnValue;
 }
 
-/// @fn int32_t virtualMemoryRead64(
-///   VirtualMemoryState *state, uint32_t offset, uint64_t *value)
-///
-/// @brief Read a 64-bit value from virtual memory.
-///
-/// @param state Pointer to virtual memory state.
-/// @param offset Offset in file to read from.
-/// @param value Pointer to store read value.
-///
-/// @return Returns 0 on success, -1 on error.
-int32_t virtualMemoryRead64(
-  VirtualMemoryState *state, uint32_t offset, uint64_t *value
-) {
-  // The state variable and its necessary components will be verified by
-  // virtualMemoryGet, so just check value here.
-  if (value == NULL) {
-    return -1;
-  }
-
-  int returnValue = 0;
-  uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
-  if (memoryAddr != NULL) {
-    *value = *memoryAddr;
-  } else {
-    returnValue = -1;
-  }
-
-  return returnValue;
-}
-
 /// @fn int32_t virtualMemoryWrite8(
 ///   VirtualMemoryState *state, uint32_t offset, uint8_t *value)
 ///
@@ -383,31 +353,6 @@ int32_t virtualMemoryWrite32(
 ) {
   int returnValue = 0;
   uint32_t *memoryAddr = (uint32_t*) virtualMemoryGet(state, offset);
-  if (memoryAddr != NULL) {
-    *memoryAddr = value;
-    state->dirty = true;
-  } else {
-    returnValue = -1;
-  }
-
-  return returnValue;
-}
-
-/// @fn int32_t virtualMemoryWrite64(
-///   VirtualMemoryState *state, uint32_t offset, uint64_t *value)
-///
-/// @brief Write a 64-bit value to virtual memory.
-///
-/// @param state Pointer to virtual memory state.
-/// @param offset Offset in file to write to.
-/// @param value Value to write to virtual memory.
-///
-/// @return Returns 0 on success, -1 on error.
-int32_t virtualMemoryWrite64(
-  VirtualMemoryState *state, uint32_t offset, uint64_t value
-) {
-  int returnValue = 0;
-  uint64_t *memoryAddr = (uint64_t*) virtualMemoryGet(state, offset);
   if (memoryAddr != NULL) {
     *memoryAddr = value;
     state->dirty = true;
