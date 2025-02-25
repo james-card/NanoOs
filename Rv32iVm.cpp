@@ -1319,6 +1319,7 @@ int runRv32iProcess(int argc, char **argv) {
 
   rv32iVm.rv32iCoreRegisters->pc = RV32I_PROGRAM_START;
   rv32iVm.rv32iCoreRegisters->x[2] = RV32I_STACK_START;
+  rv32iVm.rv32iCoreRegisters->x[3] = RV32I_PROGRAM_START;
 
   int returnValue = 0;
   uint32_t instruction = 0;
@@ -1329,8 +1330,6 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug("Starting ");
   //// printDebug(argv[0]);
   //// printDebug("\n");
-  //// rv32iVm.rv32iCoreRegisters->x[3] = 0x333f;
-  rv32iVm.rv32iCoreRegisters->x[3] = 0x1000;
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       //// printDebug("Fetching instruction at address 0x");
