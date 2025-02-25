@@ -53,6 +53,7 @@ extern "C"
 #define RV32I_PHYSICAL_MEMORY_SIZE                               0x01000000
 #define RV32I_STACK_START                                        0x02000000
 #define RV32I_CLINT_BASE_ADDR                                    0x02000000
+#define RV32I_STACK_ADDR_MASK              (RV32I_PHYSICAL_MEMORY_SIZE - 1)
 #define RV32I_CLINT_ADDR_MASK                   (RV32I_CLINT_BASE_ADDR - 1)
 #define RV32I_MEMORY_SEGMENT_SHIFT                                       24
 
