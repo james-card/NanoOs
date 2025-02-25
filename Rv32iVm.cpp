@@ -193,7 +193,8 @@ void rv32iGetMemorySegmentAndAddress(Rv32iVm *rv32iVm,
       }
     case RV32I_STACK_MEMORY:
       {
-        *address = RV32I_STACK_START - *address - RV32I_INSTRUCTION_SIZE;
+        //// *address = RV32I_STACK_START - *address - RV32I_INSTRUCTION_SIZE;
+        *address &= RV32I_STACK_ADDR_MASK;
         break;
       }
     case RV32I_MAPPED_MEMORY:
@@ -1346,13 +1347,13 @@ int runRv32iProcess(int argc, char **argv) {
     //// printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
     //// printDebug("\n");
     returnValue = executeInstruction(&rv32iVm, instruction);
-    if (returnValue != 0) {
-      printDebug("Instruction 0x");
-      printDebug(instruction, HEX);
-      printDebug(" at address 0x");
-      printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
-      printDebug(" failed\n");
-    }
+    //// if (returnValue != 0) {
+    ////   printDebug("Instruction 0x");
+    ////   printDebug(instruction, HEX);
+    ////   printDebug(" at address 0x");
+    ////   printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
+    ////   printDebug(" failed\n");
+    //// }
     //// instructionCount++;
   }
   //// runTime = getElapsedMilliseconds(startTime);
