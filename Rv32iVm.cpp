@@ -693,6 +693,19 @@ static inline int32_t executeLoad(
     case RV32I_FUNCT3_LW: {
       // Load word (no sign extension needed)
       uint32_t wordValue = 0;
+      //// if (rv32iVm->rv32iCoreRegisters->pc == 0x17DC) {
+      ////   printDebug("Loading word from address 0x");
+      ////   printDebug(address, HEX);
+      ////   printDebug(", x");
+      ////   printDebug(rs1);
+      ////   printDebug(" = ");
+      ////   printDebug(rv32iVm->rv32iCoreRegisters->x[rs1]);
+      ////   printDebug(", immediate = 0x");
+      ////   printDebug(immediate, HEX);
+      ////   printDebug(" into x");
+      ////   printDebug(rd);
+      ////   printDebug("\n");
+      //// }
       int32_t result = rv32iMemoryRead32(rv32iVm, address, &wordValue);
       if (result != 0) {
         return result;
@@ -1316,6 +1329,8 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug("Starting ");
   //// printDebug(argv[0]);
   //// printDebug("\n");
+  //// rv32iVm.rv32iCoreRegisters->x[3] = 0x333f;
+  rv32iVm.rv32iCoreRegisters->x[3] = 0x1000;
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       //// printDebug("Fetching instruction at address 0x");
@@ -1357,9 +1372,9 @@ int runRv32iProcess(int argc, char **argv) {
     // VM exited gracefully.  Pull the status the process exited with.
     returnValue = rv32iVm.exitCode;
   }
-  //// printDebug("Exiting with status ");
-  //// printDebug(returnValue);
-  //// printDebug("\n");
+  printDebug("Exiting with status ");
+  printDebug(returnValue);
+  printDebug("\n");
 
   rv32iVmCleanup(&rv32iVm);
   //// printDebug(getFreeMemory());
