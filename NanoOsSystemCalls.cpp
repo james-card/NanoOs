@@ -238,10 +238,6 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
   // Read request timespec from VM memory
   struct timespec request;
   nanoOsSystemCallGetVmTimespec(rv32iVm, requestAddress, &request);
-  printDebug((int32_t) request.tv_sec);
-  printDebug(", ");
-  printDebug((int32_t) request.tv_nsec);
-  printDebug("\n");
   
   // Sleep
   struct timespec remain = {};
