@@ -177,12 +177,6 @@ void* virtualMemoryGet(VirtualMemoryState *state, uint32_t offset) {
     return &state->buffer[offset - state->bufferBaseOffset];
   }
 
-  //// printDebug("0x");
-  //// printDebug((intptr_t) state, HEX);
-  //// printDebug(": 0x");
-  //// printDebug(offset, HEX);
-  //// printDebug("\n");
-
   // Need to load new data into the buffer.
   virtualMemoryPrepare(state, offset + state->bufferSize + 1);
 
