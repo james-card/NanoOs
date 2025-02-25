@@ -51,6 +51,30 @@ SECTIONS
     PROVIDE(_text_end = .);
   }
 
+  /* Read-only data */
+  .rodata : {
+    PROVIDE(_rodata_start = .);
+    *(.rodata .rodata.*)
+    PROVIDE(_rodata_end = .);
+  }
+
+  /* Small data section that is addressable by the global pointer */
+  .sdata : {
+    _gp = . + 0x800; /* Traditional placement of _gp is 0x800 bytes into .sdata */
+    PROVIDE(_sdata_start = .);
+    *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*)
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
+    PROVIDE(_sdata_end = .);
+  }
+
+  /* BSS section - zero-initialized data */
+  .bss : {
+    PROVIDE(_bss_start = .);
+    *(.bss .bss.*)
+    *(COMMON)
+    PROVIDE(_bss_end = .);
+  }
+
   /* Initialized data section */
   .data : {
     PROVIDE(_data_start = .);
@@ -62,9 +86,5 @@ SECTIONS
   /DISCARD/ : {
     *(.eh_frame)
     *(.comment)
-    *(.rodata .rodata.*)
-    *(.sdata .sdata.*)
-    *(.bss .bss.*)
-    *(COMMON)
   }
 }
