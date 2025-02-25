@@ -159,7 +159,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], true);
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], true);
+  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], true);
   free(rv32iVm->rv32iCoreRegisters); // No need to nullify it
 }
@@ -1307,8 +1307,8 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug(freeMemory);
   //// printDebug(" bytes free before rv32iVmInit\n");
   if (rv32iVmInit(&rv32iVm, argv[0]) != 0) {
-    rv32iVmCleanup(&rv32iVm);
     printString("rv32iVmInit failed\n");
+    rv32iVmCleanup(&rv32iVm);
     return -1;
   }
   //// printDebug(getFreeMemory());
@@ -1371,7 +1371,7 @@ int runRv32iProcess(int argc, char **argv) {
     // VM exited gracefully.  Pull the status the process exited with.
     returnValue = rv32iVm.exitCode;
   }
-  printDebug("Exiting with status ");
+  //// printDebug("Exiting with status ");
   printDebug(returnValue);
   printDebug("\n");
 
