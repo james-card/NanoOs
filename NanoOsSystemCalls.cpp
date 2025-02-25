@@ -72,6 +72,10 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   uint32_t bytesRead
     = virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
     bufferAddress, length, buffer);
+  //// printDebug("length: ");
+  //// printDebug(length);
+  //// printDebug("\n");
+  Serial.write(buffer, length);
   
   // Write to the stream
   fwrite(buffer, 1, bytesRead, stream);
@@ -141,7 +145,9 @@ int32_t nanoOsSystemCallHandleTimespecGet(Rv32iVm *rv32iVm) {
   
   if (result != 0) {
     // Write timespec to VM memory
-    virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+    int segmentIndex = 0;
+    rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &timespecAddress);
+    virtualMemoryWrite(&rv32iVm->memorySegments[segmentIndex],
       timespecAddress, sizeof(struct timespec), &currentTime);
   }
   
@@ -165,7 +171,9 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
   
   // Read request timespec from VM memory
   struct timespec request;
-  virtualMemoryRead(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+  int segmentIndex = 0;
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &requestAddress);
+  virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
     requestAddress, sizeof(struct timespec), &request);
   
   // Sleep
@@ -188,7 +196,8 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
         remain.tv_nsec = (requestTime - now) % 1000000000LL;
       }
       // Write remaining time to VM memory if requested
-      virtualMemoryWrite(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
+      rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &remainAddress);
+      virtualMemoryWrite(&rv32iVm->memorySegments[segmentIndex],
         remainAddress, sizeof(struct timespec), &remain);
     }
   }
