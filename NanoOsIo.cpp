@@ -2484,6 +2484,9 @@ void* runNanoOsIo(void *args) {
     printString("ERROR! sdSpiCardInit returned status ");
     printInt(nanoOsIoState.sdCardState.sdCardVersion);
     printString("\n");
+    //// printDebug("ERROR 0x");
+    //// printDebug(nanoOsIoState.sdCardState.sdCardVersion, HEX);
+    //// printDebug("\n");
     // We can't proceed with the rest of this library if the SD card can't be
     // initialized, so return NULL here instead of yielding.  This will
     // indicate to the caller that we're dead.
