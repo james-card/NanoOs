@@ -48,7 +48,7 @@ OBJ_FILES := \
     $(OBJ_DIR)/div64.o \
 
 LINKS := \
-    -Wl,-e_start \
+    -T ../lib/rv32i.ld \
 
 PROGRAMS := \
     $(BIN_DIR)/init \
