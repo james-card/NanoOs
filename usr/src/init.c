@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   struct timespec request;
   int64_t futureTime;
 
-  fputs("Starting init...\n", stdout);
+  fputs("\n\nStarting init...\n", stdout);
 
   if (sizeof(uint32_t) == sizeof(uint64_t)) {
     fputs("WARNING:  sizeof(uint32_t) == sizeof(uint64_t)\n", stderr);
@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
     //// fputs("\n", stdout);
   }
 
-  return 0;
+  fputs("Exiting init.\n", stdout);
+  return 1;
 }
 
