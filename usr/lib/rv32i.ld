@@ -49,14 +49,14 @@ SECTIONS
     *(.text.init)
     *(.text .text.*)
     PROVIDE(_text_end = .);
-  }
+  } :text
 
   /* Read-only data */
   .rodata : {
     PROVIDE(_rodata_start = .);
     *(.rodata .rodata.*)
     PROVIDE(_rodata_end = .);
-  }
+  } :rodata
 
   /* Small data section that is addressable by the global pointer */
   .sdata : {
@@ -65,22 +65,22 @@ SECTIONS
     *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*)
     *(.sdata .sdata.* .gnu.linkonce.s.*)
     PROVIDE(_sdata_end = .);
-  }
-
-  /* BSS section - zero-initialized data */
-  .bss : {
-    PROVIDE(_bss_start = .);
-    *(.bss .bss.*)
-    *(COMMON)
-    PROVIDE(_bss_end = .);
-  }
+  } :data
 
   /* Initialized data section */
   .data : {
     PROVIDE(_data_start = .);
     *(.data .data.*)
     PROVIDE(_data_end = .);
-  }
+  } :data
+
+  /* BSS section - zero-initialized data */
+  .bss (NOLOAD) : {
+    PROVIDE(_bss_start = .);
+    *(.bss .bss.*)
+    *(COMMON)
+    PROVIDE(_bss_end = .);
+  } :bss
 
   /* Discard unused sections */
   /DISCARD/ : {
@@ -88,3 +88,13 @@ SECTIONS
     *(.comment)
   }
 }
+
+/* Define memory segment permissions */
+PHDRS
+{
+  text   PT_LOAD FLAGS(5);  /* 5 = RX (read + execute) */
+  rodata PT_LOAD FLAGS(4);  /* 4 = R (read-only) */
+  data   PT_LOAD FLAGS(6);  /* 6 = RW (read + write) */
+  bss    PT_LOAD FLAGS(6);  /* 6 = RW (read + write) */
+}
+
