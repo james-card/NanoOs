@@ -58,7 +58,7 @@ int nanoOsSystemCallGetVmTimespec(
   int segmentIndex = 0;
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &vmTimespecAddress);
   virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
-    vmTimespecAddress, sizeof(timespecBuffer), &timespecBuffer);
+    vmTimespecAddress, sizeof(timespecBuffer), timespecBuffer);
 
   // Pull the data out of the buffer into the struct timespec we were provided.
   // On the VM, a time_t (tv_sec) consumes 8 bytes and a long (tv_nsec)
@@ -95,7 +95,7 @@ int nanoOsSystemCallSetVmTimespec(
   int segmentIndex = 0;
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &vmTimespecAddress);
   virtualMemoryWrite(&rv32iVm->memorySegments[segmentIndex],
-    vmTimespecAddress, sizeof(timespecBuffer), &timespecBuffer);
+    vmTimespecAddress, sizeof(timespecBuffer), timespecBuffer);
 
   return 0;
 }
@@ -238,6 +238,10 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
   // Read request timespec from VM memory
   struct timespec request;
   nanoOsSystemCallGetVmTimespec(rv32iVm, requestAddress, &request);
+  printDebug((int32_t) request.tv_sec);
+  printDebug(", ");
+  printDebug((int32_t) request.tv_nsec);
+  printDebug("\n");
   
   // Sleep
   struct timespec remain = {};
