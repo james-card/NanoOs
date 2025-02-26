@@ -60,7 +60,7 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     return -1;
   }
 
-  // We're going to use the same file for both program and data memory.
+  // We're going to use the same file for program, data, and stack memory.
   sprintf(virtualMemoryFilename, "pid%uphy.mem", getRunningProcessId());
   if (virtualMemoryInit(
     &rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
@@ -78,6 +78,12 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     rv32iVm->dataCacheBuffer) != 0
   ) {
     //// printDebug("data init failed");
+    nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
+    return -1;
+  }
+  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
+    virtualMemoryFilename, 32, NULL) != 0
+  ) {
     nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
     return -1;
   }
@@ -116,22 +122,16 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     = rv32iVm->dataStart + nanoOsExeMetadataDataLength(nanoOsExeMetadata);
   nanoOsExeMetadata = nanoOsExeMetadataDestroy(nanoOsExeMetadata);
 
-  // Prime the program and data virtual memory segments.
+  // Prime the program, data, and stack virtual memory segments.
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY],
     RV32I_PROGRAM_START, (uint8_t*) virtualMemoryFilename);
   virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_DATA_MEMORY],
     rv32iVm->dataStart, (uint8_t*) virtualMemoryFilename);
-
-  sprintf(virtualMemoryFilename, "pid%ustk.mem", getRunningProcessId());
-  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    virtualMemoryFilename, 32, NULL) != 0
-  ) {
-    return -1;
-  }
   virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
     RV32I_PHYSICAL_MEMORY_SIZE - sizeof(uint32_t),
     (uint32_t*) virtualMemoryFilename);
 
+  // Mapped memory is separate.
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
     virtualMemoryFilename,
