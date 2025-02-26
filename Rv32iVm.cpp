@@ -128,8 +128,9 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   ) {
     return -1;
   }
-  virtualMemoryRead8(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
-    0x0, (uint8_t*) virtualMemoryFilename);
+  virtualMemoryRead32(&rv32iVm->memorySegments[RV32I_STACK_MEMORY],
+    RV32I_PHYSICAL_MEMORY_SIZE - sizeof(uint32_t),
+    (uint32_t*) virtualMemoryFilename);
 
   sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
   if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
@@ -1327,10 +1328,10 @@ int runRv32iProcess(int argc, char **argv) {
   uint32_t startTime = 0;
   uint32_t runTime = 0;
   uint32_t instructionCount = 0;
+  printDebug("Starting ");
+  printDebug(argv[0]);
+  printDebug("\n");
   startTime = getElapsedMilliseconds(0);
-  //// printDebug("Starting ");
-  //// printDebug(argv[0]);
-  //// printDebug("\n");
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       //// printDebug("Fetching instruction at address 0x");
