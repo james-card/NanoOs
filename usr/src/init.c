@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
   char username[NANO_OS_MAX_READ_WRITE_LENGTH];
   char password[NANO_OS_MAX_READ_WRITE_LENGTH];
-  struct timespec now;
+  volatile struct timespec now;
   struct timespec request;
   int64_t futureTime;
 
@@ -59,9 +59,14 @@ int main(int argc, char **argv) {
     fputs("ERROR:  Unknown configuraiton of uint32_t and uint64_t!\n", stderr);
   }
 
+  char timeString[3];
+  timeString[1] = '\n';
+  timeString[2] = '\0';
   for (int ii = 0; ii < 2; ii++) {
     fputs("Hello, world!\n", stdout);
     timespec_get(&now, TIME_UTC);
+    timeString[0] = '0' + ((char) now.tv_sec);
+    fputs(timeString, stdout);
     futureTime = (now.tv_sec * 1000000000LL) + ((int64_t) now.tv_nsec);
     futureTime += 1000000000LL;
     request.tv_sec = futureTime / 1000000000LL;
