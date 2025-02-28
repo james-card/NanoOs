@@ -29,7 +29,6 @@ CC := riscv32-unknown-elf-gcc
 OBJCOPY := riscv32-unknown-elf-objcopy
 RM := rm -f
 
-WARNINGS := -Wall -Wextra -pedantic -Werror
 FLAGS := -march=rv32im -mabi=ilp32 -nostdlib -nodefaultlibs -fno-builtin \
     -ffreestanding -nostartfiles -Ttext=0x1000 -O2 \
 
@@ -41,6 +40,10 @@ INCLUDES := \
     -I../include \
 
 WARNINGS := \
+    -Wall \
+    -Wextra \
+    -pedantic \
+    -Werror \
     -Wno-unused-variable \
 
 OBJ_FILES := \
