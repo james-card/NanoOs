@@ -90,7 +90,7 @@ static FILE *stderr = (FILE*) 0x3;
 ///
 /// @return Returns the number of objects successfully written to the file.
 static inline size_t fwrite(
-  const volatile void *ptr, size_t size, size_t nmemb, FILE *stream
+  const void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
   size_t numBytesWritten = 0;
 
@@ -128,7 +128,7 @@ static inline size_t fwrite(
 /// @param stream A pointer to the FILE stream to direct the string to.
 ///
 /// @return Returns the number of characters written on success, EOF on failure.
-static inline int fputs(const volatile char *s, FILE *stream) {
+static inline int fputs(const char *s, FILE *stream) {
   // Calculate string length
   size_t length = strlen(s);
   size_t numBytesWritten = fwrite(s, 1, length, stream);
@@ -149,7 +149,7 @@ static inline int fputs(const volatile char *s, FILE *stream) {
 ///
 /// @return Returns the number of objects successfully read from the file.
 static inline size_t fread(
-  volatile void *ptr, size_t size, size_t nmemb, FILE *stream
+  void *ptr, size_t size, size_t nmemb, FILE *stream
 ) {
   size_t numBytesRead = 0;
 
@@ -185,6 +185,7 @@ static inline size_t fread(
       break;
     }
   }
+  asm volatile("" ::: "memory"); // Tell compiler that memory might have changed
   
   return numBytesRead / size;
 }
@@ -199,7 +200,7 @@ static inline size_t fread(
 /// @param stream A pointer to the FILE stream to read data from.
 ///
 /// @return Returns the provided s parameter on success, NULL on failure.
-static inline char *fgets(volatile char *s, int size, FILE *stream) {
+static inline char *fgets(char *s, int size, FILE *stream) {
   char *returnValue = (char*) s;
 
   size_t numBytesRead = fread(s, 1, size - 1, stream);
