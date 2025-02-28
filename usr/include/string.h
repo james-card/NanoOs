@@ -54,7 +54,7 @@ extern "C"
 ///
 /// @return Returns the total number of non-NUL characters in the provided C
 /// string.
-static inline size_t strlen(const char *str) {
+static inline size_t strlen(const volatile char *str) {
   size_t length = 0;
   for (; *str; str++, length++);
   return length;
@@ -119,7 +119,7 @@ static inline size_t strlen(const char *str) {
 /// within the first n characters, zero if the two strings are equal for the
 /// entirety of the n characters, and a value greater than zero if s1 is
 /// logically greater thsn s2.
-int strncmp(const char *s1, const char *s2, size_t n) {
+int strncmp(const volatile char *s1, const volatile char *s2, size_t n) {
   int returnValue = 0;
 
   size_t numChars = 0;
