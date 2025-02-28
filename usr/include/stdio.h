@@ -102,7 +102,7 @@ static inline size_t fwrite(
 
     // Write to stdout using syscall
     register FILE *a0 asm("a0") = stream;              // file pointer
-    register const char *a1 asm("a1") = ptr;           // buffer address
+    register const volatile char *a1 asm("a1") = ptr;  // buffer address
     register int a2 asm("a2") = numBytesToWrite;       // length
     register int a7 asm("a7") = NANO_OS_SYSCALL_WRITE; // write syscall
 
@@ -161,7 +161,7 @@ static inline size_t fread(
 
     // Write to stdout using syscall
     register uintptr_t a0 asm("a0") = (uintptr_t) stream; // file pointer
-    register const char *a1 asm("a1") = ptr;              // buffer address
+    register volatile char *a1 asm("a1") = ptr;           // buffer address
     register int a2 asm("a2") = numBytesToRead;           // length
     register int a7 asm("a7") = NANO_OS_SYSCALL_READ;     // write syscall
 
@@ -200,7 +200,7 @@ static inline size_t fread(
 ///
 /// @return Returns the provided s parameter on success, NULL on failure.
 static inline char *fgets(volatile char *s, int size, FILE *stream) {
-  char *returnValue = s;
+  char *returnValue = (char*) s;
 
   size_t numBytesRead = fread(s, 1, size - 1, stream);
   if (numBytesRead > 0) {
