@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
   char username[NANO_OS_MAX_READ_WRITE_LENGTH];
   char password[NANO_OS_MAX_READ_WRITE_LENGTH];
-  volatile struct timespec now;
+  struct timespec now;
   struct timespec request;
   int64_t futureTime;
 
