@@ -45,55 +45,32 @@ int main(int argc, char **argv) {
 
   char username[NANO_OS_MAX_READ_WRITE_LENGTH];
   char password[NANO_OS_MAX_READ_WRITE_LENGTH];
-  struct timespec now;
-  struct timespec request;
-  int64_t futureTime;
 
   fputs("\n\nStarting init...\n", stdout);
 
-  if (sizeof(uint32_t) == sizeof(uint64_t)) {
-    fputs("WARNING:  sizeof(uint32_t) == sizeof(uint64_t)\n", stderr);
-  } else if ((sizeof(uint32_t) == 4) && (sizeof(uint64_t) == 8)) {
-    fputs("Sizes of uint32_t and uint64_t are correct\n", stdout);
-  } else {
-    fputs("ERROR:  Unknown configuraiton of uint32_t and uint64_t!\n", stderr);
-  }
+  while (1) {
+    fputs("login: ", stdout);
+    if (fgets(username, sizeof(username), stdin) != username) {
+      fputs("Error reading username.\n", stderr);
+      continue;
+    }
 
-  char timeString[3];
-  timeString[1] = '\n';
-  timeString[2] = '\0';
-  for (int ii = 0; ii < 2; ii++) {
-    fputs("Hello, world!\n", stdout);
-    timespec_get(&now, TIME_UTC);
-    timeString[0] = '0' + ((char) now.tv_sec);
-    fputs(timeString, stdout);
-    futureTime = (now.tv_sec * 1000000000LL) + ((int64_t) now.tv_nsec);
-    futureTime += 1000000000LL;
-    request.tv_sec = futureTime / 1000000000LL;
-    request.tv_nsec = futureTime % 1000000000LL;
-    nanosleep(&request, NULL);
-    //// fputs("login: ", stdout);
-    //// if (fgets(username, sizeof(username), stdin) != username) {
-    ////   fputs("Error reading username.\n", stderr);
-    ////   continue;
-    //// }
+    fputs("Password: ", stdout);
+    if (fgets(password, sizeof(password), stdin) != password) {
+      fputs("Error reading password.\n", stderr);
+      continue;
+    }
 
-    //// fputs("Password: ", stdout);
-    //// if (fgets(password, sizeof(password), stdin) != password) {
-    ////   fputs("Error reading password.\n", stderr);
-    ////   continue;
-    //// }
+    if (strcmp(username, password) == 0) {
+      fputs("Login success!\n", stdout);
+    } else {
+      fputs("Login failure!\n", stderr);
+    }
 
-    //// if (strcmp(username, password) == 0) {
-    ////   fputs("Login success!\n", stdout);
-    //// } else {
-    ////   fputs("Login failure!\n", stderr);
-    //// }
-
-    //// fputs("\n", stdout);
+    fputs("\n", stdout);
   }
 
   fputs("Exiting init.\n", stdout);
-  return 1;
+  return 0;
 }
 
