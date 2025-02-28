@@ -76,8 +76,8 @@ struct timespec {
 /// @param base The time base to use (currently only TIME_UTC is supported).
 ///
 /// @return Returns the base value on success, 0 on failure.
-static inline int timespec_get(struct timespec *ts, int base) {
-  register struct timespec *a0 asm("a0") = ts;                  // timespec ptr
+static inline int timespec_get(volatile struct timespec *ts, int base) {
+  volatile register struct timespec *a0 asm("a0") = ts;         // timespec ptr
   register int a1 asm("a1") = base;                             // base value
   register int a7 asm("a7") = NANO_OS_SYSCALL_TIMESPEC_GET;     // syscall number
   
