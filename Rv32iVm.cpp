@@ -1331,13 +1331,13 @@ int runRv32iProcess(int argc, char **argv) {
 
   int returnValue = 0;
   uint32_t instruction = 0;
-  uint32_t startTime = 0;
-  uint32_t runTime = 0;
-  uint32_t instructionCount = 0;
-  printDebug("Starting ");
-  printDebug(argv[0]);
-  printDebug("\n");
-  startTime = getElapsedMilliseconds(0);
+  //// uint32_t startTime = 0;
+  //// uint32_t runTime = 0;
+  //// uint32_t instructionCount = 0;
+  //// printDebug("Starting ");
+  //// printDebug(argv[0]);
+  //// printDebug("\n");
+  //// startTime = getElapsedMilliseconds(0);
   while ((rv32iVm.running == true) && (returnValue == 0)) {
     if (fetchInstruction(&rv32iVm, &instruction) != 0) {
       //// printDebug("Fetching instruction at address 0x");
@@ -1361,13 +1361,13 @@ int runRv32iProcess(int argc, char **argv) {
     ////   printDebug(rv32iVm.rv32iCoreRegisters->pc, HEX);
     ////   printDebug(" failed\n");
     //// }
-    instructionCount++;
+    //// instructionCount++;
   }
-  runTime = getElapsedMilliseconds(startTime);
-  printDebug(instructionCount);
-  printDebug("/");
-  printDebug(runTime);
-  printDebug("\n");
+  //// runTime = getElapsedMilliseconds(startTime);
+  //// printDebug(instructionCount);
+  //// printDebug("/");
+  //// printDebug(runTime);
+  //// printDebug("\n");
   //// printDebug("Runtime: ");
   //// printDebug(runTime);
   //// printDebug(" milliseconds\n");
@@ -1379,9 +1379,9 @@ int runRv32iProcess(int argc, char **argv) {
     // VM exited gracefully.  Pull the status the process exited with.
     returnValue = rv32iVm.exitCode;
   }
-  //// printDebug("Exiting with status ");
-  //// printDebug(returnValue);
-  //// printDebug("\n");
+  printDebug("Exiting with status ");
+  printDebug(returnValue);
+  printDebug("\n");
 
   rv32iVmCleanup(&rv32iVm);
   //// printDebug(getFreeMemory());
