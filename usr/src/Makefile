@@ -31,7 +31,7 @@ RM := rm -f
 
 WARNINGS := -Wall -Wextra -pedantic -Werror
 FLAGS := -march=rv32im -mabi=ilp32 -nostdlib -nodefaultlibs -fno-builtin \
-    -ffreestanding -nostartfiles -Ttext=0x1000 \
+    -ffreestanding -nostartfiles -Ttext=0x1000 -O2 \
 
 BIN_DIR := ../bin
 OBJ_DIR := ../obj
