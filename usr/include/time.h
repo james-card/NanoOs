@@ -112,6 +112,7 @@ static inline int nanosleep(
     : "+r"(a0)
     : "r"(a1), "r"(a7)
   );
+  asm volatile("" ::: "memory"); // Tell compiler that memory might have changed
   
   return (int) a0;
 }
