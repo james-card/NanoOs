@@ -131,15 +131,17 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
     RV32I_PHYSICAL_MEMORY_SIZE - sizeof(uint32_t),
     (uint32_t*) virtualMemoryFilename);
 
-  // Mapped memory is separate.
-  sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
-  if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
-    virtualMemoryFilename,
-    sizeof(rv32iVm->mapCacheBuffer),
-    rv32iVm->mapCacheBuffer) != 0
-  ) {
-    return -1;
-  }
+  /*
+   * // Mapped memory is separate.
+   * sprintf(virtualMemoryFilename, "pid%umap.mem", getRunningProcessId());
+   * if (virtualMemoryInit(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY],
+   *   virtualMemoryFilename,
+   *   sizeof(rv32iVm->mapCacheBuffer),
+   *   rv32iVm->mapCacheBuffer) != 0
+   * ) {
+   *   return -1;
+   * }
+   */
 
   // Initialize MISA register to indicate RV32IM support
   rv32iVm->rv32iCoreRegisters->misa = RV32_MISA_MXL_32 | 
@@ -158,7 +160,9 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
 ///
 /// @return This function returns no value.
 void rv32iVmCleanup(Rv32iVm *rv32iVm) {
-  virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
+  /*
+   * virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_MAPPED_MEMORY], false);
+   */
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_STACK_MEMORY], true);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], true);
@@ -198,11 +202,13 @@ void rv32iGetMemorySegmentAndAddress(Rv32iVm *rv32iVm,
         *address &= RV32I_STACK_ADDR_MASK;
         break;
       }
+    /*
     case RV32I_MAPPED_MEMORY:
       {
         *address &= RV32I_CLINT_ADDR_MASK;
         break;
       }
+     */
     // default:  No need to do anything to the address.
   }
 }
