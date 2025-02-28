@@ -125,6 +125,8 @@ int strncmp(const volatile char *s1, const volatile char *s2, size_t n) {
   size_t numChars = 0;
   while ((*s1) && (*s2) && (returnValue == 0) && (numChars < n)) {
     returnValue = ((int) *s1) - ((int) *s2);
+    s1++;
+    s2++;
     numChars++;
   }
 
