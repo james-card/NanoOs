@@ -141,10 +141,6 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   uint32_t bytesRead
     = virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
     bufferAddress, length, buffer);
-  //// printDebug("length: ");
-  //// printDebug(length);
-  //// printDebug("\n");
-  Serial.write(buffer, length);
   
   // Write to the stream
   fwrite(buffer, 1, bytesRead, stream);
