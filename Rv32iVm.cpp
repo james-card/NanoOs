@@ -147,7 +147,14 @@ int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   rv32iVm->rv32iCoreRegisters->misa = RV32_MISA_MXL_32 | 
     RV32_MISA_I_EXT | RV32_MISA_M_EXT;
 
+  // Start the VM
+  rv32iVm->rv32iCoreRegisters->pc = RV32I_PROGRAM_START;
+  // Stack pointer (sp):
+  rv32iVm->rv32iCoreRegisters->x[2] = RV32I_STACK_START;
+  // Global pointer (gp):
+  rv32iVm->rv32iCoreRegisters->x[3] = RV32I_PROGRAM_START;
   rv32iVm->running = true;
+
   return 0;
 }
 
@@ -1324,10 +1331,6 @@ int runRv32iProcess(int argc, char **argv) {
   //// printDebug("rv32iVmInit consumed ");
   //// printDebug(freeMemory - getFreeMemory() - 516);
   //// printDebug(" bytes\n");
-
-  rv32iVm.rv32iCoreRegisters->pc = RV32I_PROGRAM_START;
-  rv32iVm.rv32iCoreRegisters->x[2] = RV32I_STACK_START;
-  rv32iVm.rv32iCoreRegisters->x[3] = RV32I_PROGRAM_START;
 
   int returnValue = 0;
   uint32_t instruction = 0;
