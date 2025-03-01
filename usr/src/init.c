@@ -97,10 +97,11 @@ int main(int argc, char **argv) {
     disableEcho();
     if (fgets(password, sizeof(password), stdin) != password) {
       enableEcho();
-      fputs("Error reading password.\n", stderr);
+      fputs("\nError reading password.\n", stderr);
       continue;
     }
     enableEcho();
+    fputs("\n", stdout);
 
     if (strcmp(username, password) == 0) {
       fputs("Login success!\n", stdout);
