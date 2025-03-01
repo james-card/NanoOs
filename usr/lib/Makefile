@@ -46,6 +46,7 @@ WARNINGS := \
 OBJ_FILES := \
     $(OBJ_DIR)/start.o \
     $(OBJ_DIR)/div64.o \
+    $(OBJ_DIR)/termios.o \
 
 all: $(OBJ_FILES)
 
