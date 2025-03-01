@@ -30,6 +30,11 @@
 
 #include <stdlib.h>
 
+/// @var errno
+///
+/// @brief Standard C errno global variable.  Initialized to 0 as per the spec.
+int errno = 0;
+
 // Declaration of user program entry point
 int main(int argc, char **argv);
 
