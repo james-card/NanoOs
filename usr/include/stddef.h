@@ -45,9 +45,10 @@ extern "C"
 #include <stdint.h>
 
 typedef uint32_t size_t;
-typedef int32_t ssize_t;
+typedef int32_t  ssize_t;
 typedef uint32_t uintptr_t;
-typedef int32_t intptr_t;
+typedef int32_t  intptr_t;
+typedef intptr_t ptrdiff_t;
 
 /// @def NULL
 ///
