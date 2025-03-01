@@ -28,8 +28,12 @@
 // Doxygen marker
 /// @file
 
+// Standard C includes
 #include <termios.h>
 #include <errno.h>
+
+// NanoOs includes
+#include "NanoOsSystemCalls.h"
 
 /// @var terminalIos
 ///
@@ -146,6 +150,17 @@ int tcsetattr(int fd, int optional_actions, const struct termios *termios_p) {
   }
 
   terminalIos[fd] = *termios_p;
-  return 0;
+
+  // desiredEchoState is a Boolean value.
+  register int a0 asm("a0") = ((termios_p->c_lflag & ECHO) != 0);
+  register int a7 asm("a7") = NANO_OS_SYSCALL_SET_ECHO; // syscall number
+
+  asm volatile(
+    "ecall"
+    : "+r"(a0)
+    : "r"(a7)
+  );
+
+  return a0;
 }
 
