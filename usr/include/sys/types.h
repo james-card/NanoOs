@@ -37,6 +37,7 @@
 #define SYS_TYPES_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* Integer types */
 typedef uint8_t   uchar;
