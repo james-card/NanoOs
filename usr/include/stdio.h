@@ -174,12 +174,6 @@ static inline size_t fread(
     numBytesRead += a0;
     totalBytes -= a0;
     
-    char numBytes[2] = {0};
-    fputs("Read ", stdout);
-    numBytes[0] = '0' + numBytesRead;
-    fputs(numBytes, stdout);
-    fputs(" bytes\n", stdout);
-
     // We only want to continue if we consumed our buffer this round
     if (a0 != numBytesToRead) {
       break;
