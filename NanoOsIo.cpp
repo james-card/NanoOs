@@ -2661,7 +2661,7 @@ int getOwnedConsolePort(void) {
 
 /// @fn int setConsoleEcho(bool desiredEchoState)
 ///
-/// @brief Get the echo state for all ports owned by the current process.
+/// @brief Set the echo state for all ports owned by the current process.
 ///
 /// @return Returns 0 if the echo state was set for the current process's
 /// ports, -1 on failure.
