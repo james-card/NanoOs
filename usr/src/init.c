@@ -30,6 +30,44 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+
+/// @fn void disableEcho(void)
+///
+/// @brief Turn off echo of characters typed in the console.
+///
+/// @return This function returns no value.
+void disableEcho(void) {
+    struct termios term;
+    
+    // Get the current terminal settings
+    tcgetattr(STDIN_FILENO, &term);
+    
+    // Turn off echo
+    term.c_lflag &= ~ECHO;
+    
+    // Apply the new settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+}
+
+/// @fn void enableEcho(void)
+///
+/// @brief Turn on echo of characters typed in the console.
+///
+/// @return This function returns no value.
+void enableEcho(void) {
+    struct termios term;
+    
+    // Get the current terminal settings
+    tcgetattr(STDIN_FILENO, &term);
+    
+    // Turn on echo
+    term.c_lflag |= ECHO;
+    
+    // Apply the new settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+}
 
 /// @fn int main(int argc, char **argv)
 ///
@@ -56,10 +94,13 @@ int main(int argc, char **argv) {
     }
 
     fputs("Password: ", stdout);
+    disableEcho();
     if (fgets(password, sizeof(password), stdin) != password) {
+      enableEcho();
       fputs("Error reading password.\n", stderr);
       continue;
     }
+    enableEcho();
 
     if (strcmp(username, password) == 0) {
       fputs("Login success!\n", stdout);
