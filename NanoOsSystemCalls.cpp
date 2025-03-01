@@ -264,6 +264,26 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
   return 0;
 }
 
+/// @fn int32_t nanoOsSystemCallHandleSetEcho(Rv32iVm *rv32iVm)
+///
+/// @brief Handle a user process requesting to set the echo state for its
+/// console.
+///
+/// @param rv32iVm A pointer to the Rv32iVm object that's managing the program's
+/// state.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int32_t nanoOsSystemCallHandleSetEcho(Rv32iVm *rv32iVm) {
+  // Get parameters from a0 (x10)
+  bool desiredEchoState = (bool) rv32iVm->rv32iCoreRegisters->x[10];
+  
+  int result = setConsoleEcho(desiredEchoState);
+  
+  // Return result
+  rv32iVm->rv32iCoreRegisters->x[10] = result;
+  return 0;
+}
+
 /// @typedef SystemCall
 ///
 /// @brief Definition for the structure of a system call handler in this
@@ -280,6 +300,7 @@ SystemCall systemCalls[] = {
   nanoOsSystemCallHandleRead,        // NANO_OS_SYSCALL_READ
   nanoOsSystemCallHandleTimespecGet, // NANO_OS_SYSCALL_TIMESPEC_GET
   nanoOsSystemCallHandleNanosleep,   // NANO_OS_SYSCALL_NANOSLEEP
+  nanoOsSystemCallHandleSetEcho,     // NANO_OS_SYSCALL_SET_ECHO
 };
 
 /// @fn int32_t nanoOsSystemCallHandle(void *vm)
