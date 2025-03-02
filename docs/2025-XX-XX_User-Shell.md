@@ -1,6 +1,6 @@
 # XX-Xxx-2025 - User Shell
 
-Time to make a shell for user space!  Well, actually, I needed to make a little more than that.  I also needed an init process to manage user logins.  Regardless, though, I needed a lot of infrastructure and I needed it both in kernel space and in user space.  Fortunately, I didn't need very much in kernel space because flash was very tight.
+Time to make a shell for user space!  Well, actually, I needed to make a little more than that.  I also needed an init process to manage user logins.  Regardless, though, I needed a lot of infrastructure and I needed it both in kernel space and in user space.
 
 The first thing I started with was making a proper `strlen` function for my "Hello, world!" program rather calculating the length inline in the `_start` function.  This turned out to be a bigger problem than I thought it would be for a variety of reasons.  The first reason was that the linker put the `strlen` function at the beginning of the binary instead of the `_start` function, so my VM was crashing.  After I got that resolved, the program did run correctly.  It was significantly slower than before due to the extra function call and the different memory alignment, but it was still over 1 kHz, so I'm not going to complain.
 
@@ -39,6 +39,14 @@ Then began a debug session.  My original problem was that my fwrite calls were p
 However, it turned out to be an enormous deal.  Writing a value to that variable was corrupting memory.  Skipping over a lot of detail and entire day of debugging, the problem turned out to be the way an immediate value was being parsed from instructions:  It wasn't being properly sign-extended.  So, rather than adding a negative value to a base address, it was adding a positive value and coming up with I-don't-know-what to manipulate.
 
 I had to wonder at this point if the guys who wrote the first version of UNIX had this problem.  At the moment, there are always three places that a bug can be:  My user space implementation, my kernel space implementation, or my VM implementation.  Did they have to wonder if bugs they were seeing could be in the PDP-7 hardware they were using or did they have high confidence in it and could focus on just their kernel and user code?  At the moment I don't know.
+
+Skipping over about 5 days worth of additonal debugging of VM + OS + libc, I was eventually able to get an init process that read a username and password and printed `"Login success!"` if they matched and `"Login failure!"` if not.  This, however, is not enough.  A successful login needs to spawn a command shell.  For that, I needed a system call that would run a command line.
+
+And, this is where things became intractable.  The infrastructure to run a command has been in place for a long time, however adding the system call handler to do it from user space pushed the OS more than 300 bytes over the 48 KB program storage limit.  There are no more strings to remove to get me space quickly.  The only way I have of reclaiming space at this point is to refactor code and/or remove functionality.
+
+During this work, I've also been reading a lot about other, non-UNIX-like OS architectures.  I realized that I made an architectural mistake in the context of the current direction of the OS.  My goal has always been to support as much of POSIX as possible.  When I started, though, I was thinking about supporting POSIX in the context of the kernel processes.  I had that line of thinking at the time because I didn't see any path to being able to run arbitrary processes from a filesystem.  Once the VM path proved viable, however, the separation of user space and kernel space emerged.  POSIX is a user space specification.  It says nothing about kernel space.  If I really intend to support POSIX in a user-space VM, my focus in the kernel should be to enable that in the way that makes the most sense for user space.  The consequence of trying to make the kernel space conform to POSIX is that I now have a lot of code that's really unnecessary.
+
+So, I have a problem now.  I won't merge my dev branch to main without a viable shell and that's simply not possible with the kernel the way it is right now.  If it's possible to fix it, it will take serious restructuring of the kernel.  That effort is likely to eliminate the possibility of kernel processes entirely.  Meanwhile, what I have on main is a multitasking OS with the condition that the code for all the processes has to reside in program storage and not on an SD card filesystem.
 
 To be continued...
 
