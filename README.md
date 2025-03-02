@@ -52,27 +52,20 @@ mkdir build; cd build
 make -j$(nproc)
 ```
 
-Once `/opt/riscv32i/bin` is in your path, a program named "Hello.c" could then be built as follows:
+Once `/opt/riscv32i/bin` is in your path, you will need to run `make` from the `usr/lib` directory of the repo to build the system libraries.  After that, you can add your source file to the usr/src file and add your prorgram to the `PROGRAMS` variable of `usr/src/Makefile`.  Note that your source file in the `usr/src` directory will need to have the same stem as your program name, plus the `.c` file extension.
+
+The user space libc implementation is a work in progress.  Only basic I/O and string operations are implemented at the moment.  This will be expanded over time.
+
+The FAT16 implementation in the kernel only supports files in the root directory.  Once your program is built, place it in the root directory of your SD card and it can be run from the OS.
+
+### Virtual Memory
+
+User processes rely on a virtual memory implementation in the kernel which, in turn, relies on a FAT16 implementation.  There is a known bug in the FAT16 cluster allocation algorithm that prevents the system from working correctly without the virtual memory files being created and initialized when the system starts.  As a workaround, the necessary files can be created with a `dd` command from Linux.  One virtual memory file is needed per user process.  To create the necessary files, you can run:
 
 ```
-riscv32-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostdlib -nostartfiles -Ttext=0x1000 -e _start -o Hello.elf Hello.c
-riscv32-unknown-elf-objcopy -O binary Hello.elf Hello.bin
-riscv32-unknown-elf-objcopy -O binary --only-section=.text Hello.elf Hello.text
+dd if=/dev/zero of=/path/to/sd/card/PID3PHY.MEM bs=1M count=16
+dd if=/dev/zero of=/path/to/sd/card/PID4PHY.MEM bs=1M count=16
 ```
-
-You will need to build the `addNanoOsExeMetadata` utility that is in the `usr/util` directory and run it on the `Hello.bin` program before NanoOs can parse and use it.  From the `usr/util` directory, you can built the utility with:
-
-```
-gcc -I../.. addNanoOsExeMetadata.c ../../NanoOsExe.c -o ../bin/addNanoOsExeMetadata
-```
-
-Once the `addNanoOsExeMetadata` utility is in your path, you can make the `Hello.bin` program runnable from the location of your `Hello.bin` and `Hello.text` files with:
-
-```
-addNanoOsExeMetadata Hello.bin Hello.text
-```
-
-Right now, only the NANO\_OS\_SYSCALL\_EXIT and NANO\_OS\_SYSCALL\_WRITE system calls are implemented.  The LIBC needed for more complete program development is in development.
 
 ### Foreground Processes
 
@@ -98,15 +91,19 @@ NanoOs processes are coroutines.  As such, they use the primitives defined in th
 
 When a user process needs something from one of the kernel processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the kernel process.  All system operations are handled this way.
 
-## Dynamic Memory
+## Kernel Space Dynamic Memory
 
-NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last process and makes use of all of the remaining memory at that time.  As of 18-Feb-2025, that amount is about 2765 bytes.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
+NanoOs does support dynamic memory in the kernel, just not very much of it.  The memory manager is started as the last process and makes use of all of the remaining memory at that time.  As of 18-Feb-2025, that amount is about 2765 bytes.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
 
 The memory manager is a modified bump allocator that supports automatic memory compaction.  Any time the last pointer in the allocation list is freed, the next pointer is moved backward until a block that has not been freed is found or until the beginning of dynamic memory is reached.  The number of outstanding memory allocations is not tracked because it's unnecessary.  This allows partial reclamation of memory space without having to free all outstanding allocations.
 
 The memory manager also tracks the size of each allocation.  This allows for realloc to function correctly.  If the size of the reallocation is less than or equal to the size already allocated, no action is taken.  If the size of the reallocation is greater than the size already allocated, the old memory can be copied to the new location before returning the new pointer to the user (as is supposed to happen for realloc).
 
 The owning process of a piece of dynamically-allocated memory is also tracked.  By default, this is the process that originally made the allocation request.  However, the scheduler has the ability to reassign ownership on process creation.  This allows for all memory owned by an individual process to be freed in the event it is prematurely terminated.
+
+## User Space Dynamic Memory
+
+User space dynamic memory is possible, but not implemented at the moment.  The C memory management functions would need to be implemented in the user space libraries instead of in kernel space.  There are plans to do this in the future.
 
 ## Filesystem
 
