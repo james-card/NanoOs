@@ -2,7 +2,7 @@
 
 A multitasking nanokernel OS for an Arduino Nano.
 
-**NOTE:** No code may ever be merged to this branch again.  This branch now exists soley for the purpose of documentation.  The two main codebases derived from this branch have diverged and are no longer compatible.  For the codebase with user processes that are compiled into the binary, see the [embedded branch](https://github.com/james-card/NanoOs/tree/embedded) branch.  For the codebase with user processes that are run from a filesystem on an SD card in an RV32I VM, see the [rv32i-vm branch](https://github.com/james-card/NanoOs/tree/rv32i-vm).
+**NOTE:** No code may ever be merged to this branch again.  This branch now exists soley for the purpose of documentation.  The two main codebases derived from this branch have diverged and are no longer compatible.  For the codebase with user processes that are compiled into the binary, see the [embedded branch](https://github.com/james-card/NanoOs/tree/embedded).  For the codebase with user processes that are run from a filesystem on an SD card in an RV32I VM, see the [rv32i-vm branch](https://github.com/james-card/NanoOs/tree/rv32i-vm).
 
 ## Goals
 
