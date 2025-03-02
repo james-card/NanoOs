@@ -1043,38 +1043,34 @@ int schedulerKillProcess(ProcessId processId) {
   return returnValue;
 }
 
-/// @fn int schedulerRunProcess(const CommandEntry *commandEntry,
-///   char *consoleInput, int consolePort)
+/// @fn int schedulerRunProcess(char *commandString)
 ///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to start a process.
+/// @brief Launch a process specified by a user.
 ///
-/// @param commandEntry A pointer to the CommandEntry that describes the command
-///   to run.
-/// @param consoleInput The raw consoleInput that was captured for the command
-///   line.
-/// @param consolePort The index of the console port the process is being
-///   launched from.
+/// @param commandString The raw command line.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int schedulerRunProcess(const CommandEntry *commandEntry,
-  char *consoleInput, int consolePort
-) {
+int schedulerRunProcess(char *commandString) {
   int returnValue = 1;
+
+  char *consoleInput = (char*) malloc(strlen(commandString) + 1);
+  if (consoleInput == NULL) {
+    return returnValue; // 1
+  }
+  strcpy(consoleInput, commandString);
+
   CommandDescriptor *commandDescriptor
     = (CommandDescriptor*) malloc(sizeof(CommandDescriptor));
   if (commandDescriptor == NULL) {
-    //// printString("ERROR!!!  Could not allocate CommandDescriptor.\n");
     return returnValue; // 1
   }
   commandDescriptor->consoleInput = consoleInput;
-  commandDescriptor->consolePort = consolePort;
+  commandDescriptor->consolePort = getOwnedConsolePort();
   commandDescriptor->callingProcess = processId(getRunningProcess());
 
   ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-    (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
-    true);
+    (NanoOsMessageData) 0, (NanoOsMessageData) commandDescriptor, true);
   if (sent == NULL) {
     //// printString("ERROR!!!  Could not communicate with scheduler.\n");
     return returnValue; // 1
