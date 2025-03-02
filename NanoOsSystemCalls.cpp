@@ -30,6 +30,7 @@
 
 #include "NanoOsSystemCalls.h"
 #include "Rv32iVm.h"
+#include "Scheduler.h"
 
 /// @def RV32I_TIMESPEC_SIZE
 ///
@@ -135,19 +136,15 @@ int32_t nanoOsSystemCallHandleWrite(Rv32iVm *rv32iVm) {
   }
   
   // Read string from VM memory
-  char *buffer = (char*) malloc(length);
   int segmentIndex = 0;
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &bufferAddress);
   uint32_t bytesRead
     = virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
-    bufferAddress, length, buffer);
+    bufferAddress, length, rv32iVm->transferBuffer);
   
   // Write to the stream
-  fwrite(buffer, 1, bytesRead, stream);
+  fwrite(rv32iVm->transferBuffer, 1, bytesRead, stream);
 
-  // Free the host-side memory
-  free(buffer); buffer = NULL;
-  
   // Return number of bytes written
   rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
   return 0;
@@ -172,19 +169,13 @@ int32_t nanoOsSystemCallHandleRead(Rv32iVm *rv32iVm) {
     length = NANO_OS_MAX_READ_WRITE_LENGTH;
   }
   
-  // Read string from VM memory
-  char *buffer = (char*) malloc(length);
-
-  // Write to the stream
-  size_t bytesRead = fread(buffer, 1, length, stream);
+  // Read from the stream
+  size_t bytesRead = fread(rv32iVm->transferBuffer, 1, length, stream);
 
   int segmentIndex = 0;
   rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &bufferAddress);
   virtualMemoryWrite(&rv32iVm->memorySegments[segmentIndex],
-    bufferAddress, bytesRead, buffer);
-  
-  // Free the host-side memory
-  free(buffer); buffer = NULL;
+    bufferAddress, bytesRead, rv32iVm->transferBuffer);
   
   // Return number of bytes read
   rv32iVm->rv32iCoreRegisters->x[10] = bytesRead;
@@ -284,6 +275,37 @@ int32_t nanoOsSystemCallHandleSetEcho(Rv32iVm *rv32iVm) {
   return 0;
 }
 
+/// @fn int32_t nanoOsSystemCallHandleRunProcess(Rv32iVm *rv32iVm)
+///
+/// @brief Handle a user process launching a new process.
+///
+/// @param rv32iVm A pointer to the Rv32iVm object that's managing the program's
+/// state.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int32_t nanoOsSystemCallHandleRunProcess(Rv32iVm *rv32iVm) {
+  // Get parameters from a0-a1 (x10-x11)
+  uint32_t bufferAddress = rv32iVm->rv32iCoreRegisters->x[10];
+  uint32_t length = rv32iVm->rv32iCoreRegisters->x[11];
+  
+  // Limit maximum write length
+  if (length > NANO_OS_MAX_READ_WRITE_LENGTH) {
+    length = NANO_OS_MAX_READ_WRITE_LENGTH;
+  }
+  
+  // Read string from VM memory
+  int segmentIndex = 0;
+  rv32iGetMemorySegmentAndAddress(rv32iVm, &segmentIndex, &bufferAddress);
+  virtualMemoryRead(&rv32iVm->memorySegments[segmentIndex],
+    bufferAddress, length, rv32iVm->transferBuffer);
+  
+  // Launch the process and store the result
+  rv32iVm->rv32iCoreRegisters->x[10]
+    = schedulerRunProcess((char*) rv32iVm->transferBuffer);
+
+  return 0;
+}
+
 /// @typedef SystemCall
 ///
 /// @brief Definition for the structure of a system call handler in this
@@ -301,6 +323,7 @@ SystemCall systemCalls[] = {
   nanoOsSystemCallHandleTimespecGet, // NANO_OS_SYSCALL_TIMESPEC_GET
   nanoOsSystemCallHandleNanosleep,   // NANO_OS_SYSCALL_NANOSLEEP
   nanoOsSystemCallHandleSetEcho,     // NANO_OS_SYSCALL_SET_ECHO
+  //// nanoOsSystemCallHandleRunProcess,  // NANO_OS_SYSCALL_RUN_PROCESS
 };
 
 /// @fn int32_t nanoOsSystemCallHandle(void *vm)
