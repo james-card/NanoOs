@@ -2435,24 +2435,24 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
 
   printString("\n");
-  printString("Main stack size = ");
-  printInt(ABS_DIFF(
-    ((intptr_t) schedulerProcess),
-    ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
-  ));
-  printString(" bytes\n");
-  printString("schedulerState size = ");
-  printInt(sizeof(SchedulerState));
-  printString(" bytes\n");
-  printString("messagesStorage size = ");
-  printInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
-  printString(" bytes\n");
-  printString("nanoOsMessagesStorage size = ");
-  printInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
-  printString(" bytes\n");
-  printString("ConsoleState size = ");
-  printInt(sizeof(ConsoleState));
-  printString(" bytes\n");
+  //// printString("Main stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((intptr_t) schedulerProcess),
+  ////   ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
+  //// ));
+  //// printString(" bytes\n");
+  //// printString("schedulerState size = ");
+  //// printInt(sizeof(SchedulerState));
+  //// printString(" bytes\n");
+  //// printString("messagesStorage size = ");
+  //// printInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
+  //// printString(" bytes\n");
+  //// printString("nanoOsMessagesStorage size = ");
+  //// printInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
+  //// printString(" bytes\n");
+  //// printString("ConsoleState size = ");
+  //// printInt(sizeof(ConsoleState));
+  //// printString(" bytes\n");
 
   // Create the SD card process.
   processHandle = 0;
@@ -2507,29 +2507,29 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[ii].userId = NO_USER_ID;
   }
 
-  printString("Console stack size = ");
-  printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
-    - sizeof(Coroutine)
-  );
-  printString(" bytes\n");
+  //// printString("Console stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
+  ////   - sizeof(Coroutine)
+  //// );
+  //// printString(" bytes\n");
 
-  printString("Coroutine stack size = ");
-  printInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
-    - sizeof(Coroutine)
-  );
-  printString(" bytes\n");
+  //// printString("Coroutine stack size = ");
+  //// printInt(ABS_DIFF(
+  ////   ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
+  ////   - sizeof(Coroutine)
+  //// );
+  //// printString(" bytes\n");
 
-  printString("Coroutine size = ");
-  printInt(sizeof(Coroutine));
-  printString("\n");
+  //// printString("Coroutine size = ");
+  //// printInt(sizeof(Coroutine));
+  //// printString("\n");
 
-  printString("standardKernelFileDescriptors size = ");
-  printInt(sizeof(standardKernelFileDescriptors));
-  printString("\n");
+  //// printString("standardKernelFileDescriptors size = ");
+  //// printInt(sizeof(standardKernelFileDescriptors));
+  //// printString("\n");
 
   // Create the memory manager process.  !!! THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT !!!
