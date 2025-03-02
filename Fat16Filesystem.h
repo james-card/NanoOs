@@ -96,7 +96,9 @@ typedef struct __attribute__((packed)) Fat16File {
   uint32_t  currentPosition;
   uint32_t  fileSize;
   uint16_t  firstCluster;
-  char     *pathname;
+  // Directory entry location info:
+  uint32_t  directoryBlock;     // Block containing the directory entry
+  uint16_t  directoryOffset;    // Offset within block to directory entry
   // Common values:
   uint16_t  bytesPerSector;
   uint8_t   sectorsPerCluster;
