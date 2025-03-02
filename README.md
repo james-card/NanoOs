@@ -2,6 +2,8 @@
 
 A multitasking nanokernel OS for an Arduino Nano.
 
+**NOTE:** No code may ever be merged to this branch again.  This branch now exists soley for the purpose of documentation.  The two main codebases derived from this branch have diverged and are no longer compatible.  For the codebase with user processes that are compiled into the binary, see the [embedded branch](https://github.com/james-card/NanoOs/tree/embedded) branch.  For the codebase with user processes that are run from a filesystem on an SD card in an RV32I VM, see the [rv32i-vm branch](https://github.com/james-card/NanoOs/tree/rv32i-vm).
+
 ## Goals
 
 This work started out as an experiment to see if I could implement an operating system similar to an early version of UNIX in a similar environment.  The first version of UNIX ran on a PDP-7 with 8 kilowords of memory (where each word was 18-bits) and an approximately 571 kHz processor.  Arduinos are the closest modern devices to that kind of environment, so that's where I started.  This code was written for an Arduino Nano Every, which has a 20 MHz processor and 6 KB of RAM.  Quite a bit faster, but much less RAM.  Definitely a challenging environment.
