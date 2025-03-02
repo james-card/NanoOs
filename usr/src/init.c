@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
   fputs("\n\nStarting init...\n", stdout);
 
   while (1) {
-    fputs("login: ", stdout);
+    fputs("\nlogin: ", stdout);
     if (fgets(username, sizeof(username), stdin) != username) {
       fputs("Error reading username.\n", stderr);
       continue;
@@ -108,8 +108,6 @@ int main(int argc, char **argv) {
     } else {
       fputs("Login failure!\n", stderr);
     }
-
-    fputs("\n", stdout);
   }
 
   fputs("Exiting init.\n", stdout);
