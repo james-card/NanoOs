@@ -44,6 +44,12 @@
 int rv32iVmInit(Rv32iVm *rv32iVm, const char *programPath) {
   char virtualMemoryFilename[13];
 
+  rv32iVm->transferBuffer = (uint8_t*) malloc(NANO_OS_MAX_READ_WRITE_LENGTH);
+  if (rv32iVm->transferBuffer == NULL) {
+    // Nothing to destroy at this point.
+    return -1;
+  }
+
   NanoOsExeMetadata *nanoOsExeMetadata = nanoOsExeMetadataRead(programPath);
   if (nanoOsExeMetadata == NULL) {
     // This is not one of our executables and there's nothing we can do.  Bail.
@@ -174,6 +180,7 @@ void rv32iVmCleanup(Rv32iVm *rv32iVm) {
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_DATA_MEMORY], false);
   virtualMemoryCleanup(&rv32iVm->memorySegments[RV32I_PROGRAM_MEMORY], true);
   free(rv32iVm->rv32iCoreRegisters); // No need to nullify it
+  free(rv32iVm->transferBuffer); // No need to nullify it
 }
 
 /// @fn void rv32iGetMemorySegmentAndAddress(

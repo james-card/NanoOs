@@ -296,6 +296,7 @@ typedef struct Rv32iVm {
   uint32_t dataEnd;
   uint8_t dataCacheBuffer[16];
   uint8_t mapCacheBuffer[4];
+  uint8_t *transferBuffer;
 } Rv32iVm;
 
 void rv32iGetMemorySegmentAndAddress(Rv32iVm *rv32iVm,
