@@ -81,7 +81,7 @@ Piping of stdout from one process to stdin of another process was supported in a
 
 ## Multi-user Support
 
-NanoOs supports two login shells:  One on the serial port available through the USB connection and one on the serial port available through the GPIO connection.  The shells are started at boot time and are automatically restarted by the scheduler if exit for any reason.  Like the first version of UNIX, this means that NanoOs can support two (2) concurrent users.
+NanoOs supports two login shells:  One on the serial port available through the USB connection and one on the serial port available through the GPIO connection.  The shells are started at boot time and are automatically restarted by the scheduler if exit for any reason.  Like the first version of UNIX, this means that NanoOs can support two (2) concurrent users.  At the time of this update (2-Mar-2025), there is a bug preventing the shell on the USB connection from running correctly.
 
 When the shells are started, they are unowned.  When a user logs in, the user takes over ownership of the shell.  Any processes started by the shell become owned by the user that owns the shell.  Only the same user or the root user can kill a process owned by a user.  Only the root user can kill an unowned shell process.
 
