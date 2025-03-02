@@ -48,6 +48,12 @@ During this work, I've also been reading a lot about other, non-UNIX-like OS arc
 
 So, I have a problem now.  I won't merge my dev branch to main without a viable shell and that's simply not possible with the kernel the way it is right now.  If it's possible to fix it, it will take serious restructuring of the kernel.  That effort is likely to eliminate the possibility of kernel processes entirely.  Meanwhile, what I have on main is a multitasking OS with the condition that the code for all the processes has to reside in program storage and not on an SD card filesystem.
 
-To be continued...
+I effectively have two competing architectures and directions now.  The OS on main is really suited for an embedded environment.  The OS on dev is headed in a direction that makes more sense in an environment with more resources but can't be finished in the environment I'm working in.  I don't want to lose either one.  That said, it doesn't really make sense to keep the one on dev labeled as "dev" if I'm not going to continue to develop it with intent to merge it to main.
+
+I think what needs to happen at this point is that I need to have two branches and I may need to fork the repo.  What's on main needs to remain focused on embedded environments and what's on dev needs to be in a position that can be extended to a more robust operating system in the future if time, resources, and desire allow.
+
+Right now, time definitely does not allow.  I have an upcoming obligation that's going to constrain the amount of time that I have to dedicate to this effort.  While I will undoubtedly come back to this a short time later (because I'm a bit of a code-writing addict), I'll have to mothball this for the time being.
+
+So, I'll organize the branches into a meaningful configuration and maybe fork the repo (not sure on that part) and then come back to this again in the future.  We'll see what happens after that.  To (eventually) be continued...
 
 [Table of Contents](.)
