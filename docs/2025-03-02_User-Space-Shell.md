@@ -1,4 +1,4 @@
-# 2-Mar-2025 - User Shell?
+# 2-Mar-2025 - User Space Shell?
 
 Time to make a shell for user space!  Well, actually, I needed to make a little more than that.  I also needed an init process to manage user logins.  Regardless, though, I needed a lot of infrastructure and I needed it both in kernel space and in user space.
 
