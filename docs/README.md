@@ -47,3 +47,5 @@ This work started out as an experiment to see if I could implement an operating 
 [2025-02-08: VM Optimizations Part II](2025-02-08_VM-Optimizations-Part-II.md)
 
 [2025-02-18: Cleanup](2025-02-18_Cleanup.md)
+
+[2025-03-02: User Shell?](2025-03-02_User-Shell.md)
