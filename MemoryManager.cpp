@@ -567,34 +567,34 @@ void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
   initializeGlobals(memoryManagerState, returnBuffer, topOfStack);
 }
 
-/// @fn void printMemoryManagerState(MemoryManagerState *memoryManagerState)
-///
-/// @brief Debugging function to print all the values of the MemoryManagerState.
-///
-/// @param memoryManagerState A pointer to the MemoryManagerState maintained by
-///   the process.
-///
-/// @return This function returns no value.
-void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
-  extern int __heap_start;
-  printString("memoryManagerState.mallocBuffer = ");
-  printInt((uintptr_t) memoryManagerState->mallocBuffer);
-  printString("\n");
-  printString("memoryManagerState.mallocNext = ");
-  printInt((uintptr_t) memoryManagerState->mallocNext);
-  printString("\n");
-  printString("memoryManagerState.mallocStart = ");
-  printInt(memoryManagerState->mallocStart);
-  printString("\n");
-  printString("memoryManagerState.mallocEnd = ");
-  printInt(memoryManagerState->mallocEnd);
-  printString("\n");
-  printString("&__heap_start = ");
-  printInt((uintptr_t) &__heap_start);
-  printString("\n");
-  
-  return;
-}
+//// /// @fn void printMemoryManagerState(MemoryManagerState *memoryManagerState)
+//// ///
+//// /// @brief Debugging function to print all the values of the MemoryManagerState.
+//// ///
+//// /// @param memoryManagerState A pointer to the MemoryManagerState maintained by
+//// ///   the process.
+//// ///
+//// /// @return This function returns no value.
+//// void printMemoryManagerState(MemoryManagerState *memoryManagerState) {
+////   extern int __heap_start;
+////   printString("memoryManagerState.mallocBuffer = ");
+////   printInt((uintptr_t) memoryManagerState->mallocBuffer);
+////   printString("\n");
+////   printString("memoryManagerState.mallocNext = ");
+////   printInt((uintptr_t) memoryManagerState->mallocNext);
+////   printString("\n");
+////   printString("memoryManagerState.mallocStart = ");
+////   printInt(memoryManagerState->mallocStart);
+////   printString("\n");
+////   printString("memoryManagerState.mallocEnd = ");
+////   printInt(memoryManagerState->mallocEnd);
+////   printString("\n");
+////   printString("&__heap_start = ");
+////   printInt((uintptr_t) &__heap_start);
+////   printString("\n");
+////   
+////   return;
+//// }
 
 /// @fn void* runMemoryManager(void *args)
 ///
@@ -619,7 +619,7 @@ void* runMemoryManager(void *args) {
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
   
-  printMemoryManagerState(&memoryManagerState);
+  //// printMemoryManagerState(&memoryManagerState);
   dynamicMemorySize
     = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
   printConsole("Using ");
