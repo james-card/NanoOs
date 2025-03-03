@@ -7,6 +7,7 @@ As I prepare to shelve this work for a bit, and as I approach the four-month mar
 - [Distributed Computing](#distributed-computing)
 - ["Everything is a... process???"](#everything-is-a-process)
 - [Kernel Architecture](#kernel-architecture)
+- [Permissions](#permissions)
 
 ## User Space
 
@@ -92,12 +93,28 @@ I am extremely leery of microkernels.  One of the things I researched was the GN
 
 This is not the way NanoOs works, and there is absolutely no way I would ever build a system like that.  Processes today have the ability to communicate directly with each other and I have no intention to change that.  NanoOs also doesn't do any copying of messages.  The memory used to send a message from one process is the same memory that's accessed in the receiving process.  I have no intention of changing that either.  There may be some kind of permissions operations that happen on the memory that's used, but there's no way I'd require a copy... and certainly not \*TWO\* copies!
 
-Both z/OS and Linux are monolithic kernels, as was the the original UNIX kernel and some of the BSD implementations that remain today.  The z/OS kernel is considered a "hardware assisted" monolithic kernel.  The first version of Linux was too.  I have to wonder if [Linus Torvalds](https://en.wikipedia.org/wiki/Linus_Torvalds) would have chosen a purely monolithic kernel architecture if he had known he would have to relinquish that in future versions.
+Both z/OS and Linux are monolithic kernels, as was the the original UNIX kernel and some of the BSD implementations that remain today.  The z/OS kernel is considered a "hardware assisted" monolithic kernel.  The first version of Linux was too.  I have to wonder if [Linus Torvalds](https://en.wikipedia.org/wiki/Linus_Torvalds) would have chosen a purely monolithic kernel architecture if he had known he would have to relinquish that in future versions.  Linux has proven that it's possible for a monolithic kernel to be portable to different hardware, but (a) that wasn't the goal when Linux was first created and (b) I'm not sure that a monolithic kernel would be the best choice if that was a goal.  I have heard (although I have no direct evidence of this) that the monolithic architecture of Linux does make it more challenging to port it to different hardware than it would be if the core of it had been more of a microkernel.
 
 Consolidating the console, filesystem, and MicroSD card processes into a single I/O process made NanoOs more like a monolithc kernel.  I was not a fan of the result.  First and foremost, doing that blatantly violated the separation of concerns princple of opertaing systems.  More practically, however, it made the code more difficult to manage and maintain.  If I extend the OS into a system with more resources, I will definitely separate them out again.
 
 My VM implementation and the direction I favor with subsystem design, however, does make the OS function *conceptually* like a monolithic kernel from the standpoint of a process.  In my concept of a subsystem, it would be the subsystem's responsibility to construct and pass a message to the appropriate process.
 
+In this architecture, there would be no such thing as a hardware abstraction "layer," nor would there be any need for one.  A process that directly interacted with a piece of hardware would be responsible for the abstraction.  Like the MicroSD card process, a device driver would be a process with a well-defined message API.  Processes that needed access to the hardware would interface with it via (zero-copy) messages.
+
 So, I'm not really sure what to call this architecture.  Is it a "hybrid kernel"?  A "modular monolithic kernel"?  Something else entirely?  ::shrug::  I don't know and maybe the name isn't important.  It's an architecture that seems to scale well from the embedded space upward.  Not sure what to call that.
+
+## Permissions
+
+I only got into the area of permissions a very little bit this round.  It's fine for the embedded version, but I would need to take this much, much further (and do it right) if I were to extend the OS.
+
+I did develop a concept of memory ownership, but I didn't get into the area of memory permissions.  I would need to do that in order to properly manage zero-copy messages.
+
+Then, there's the issue of permissions on resources such as files and devices.  These are POSIX entities, though.  Exposing these things via a subsystem puts some amount of enforcement burden on the subsystem, not just the kernel.  I would need to work out both the division of enforcement responsibility as well as the communication of permissions between the kernel and the subsystem.
+
+Regardless, I would need to work out some sort of [Access Control List (ACL)](https://en.wikipedia.org/wiki/Access-control_list) mechanism.  One of the things I wondered about was what the permissions between processes should be.  Should ever kernel process be allowed to talk to every other kernel process?  How should a process receiving a message determine whether or not the sending process was authorized for particular operation?  How would the permissions of operations be communicated?  What would do the communication?  What happens to permissions when a process exits?
+
+This is all to say there would be a whole lot to do in this area.  I definitely do \*NOT\* want to build an OS that doesn't take security into account from the beginning.  Even the embedded OS has some concept of permissions because there are certain operations that only the scheduler is allowed to perform.  This is an area that deserves a lot of thought and attention.
+
+The risk here is that I could make an oversight.  Security and permissions concepts have come a very long way since the early versions of UNIX.  There's a reason why Windows NT's ACLs were more advanced than UNIX's at the time and why Linux has extended things with [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux).  I really need to do my homework here.
 
 [Table of Contents](.)
