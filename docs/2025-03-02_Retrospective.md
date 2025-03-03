@@ -34,7 +34,7 @@ So, I think for me, a "subsystem" would be "a virtual address space using a spec
 
 ## Persistent Storage
 
-The more I learned about z/OS, the more it blew my mind.  It bears absolutely zero resemblance to UNIX.  I realized in learning about it how much the UNIX model has affected both my own mindset and the development of other major operating systems.  As much as Dave Cutler claims to hate UNIX, both Windows and VMS are much more like UNIX than z/OS is.
+The more I learned about z/OS, the more it blew my mind.  It bears absolutely zero resemblance to UNIX.  I realized in learning about it how much the UNIX model has affected both my own mindset and the development of other major operating systems.  As much as [Dave Cutler](https://en.wikipedia.org/wiki/Dave_Cutler) claims to hate UNIX, both Windows and [VMS](https://en.wikipedia.org/wiki/OpenVMS) are much more like UNIX than z/OS is.
 
 One of the main ways that z/OS is radically different is in how persistent storage is managed.  Prior to z/OS, all of the operating systems I'd come in contact with had a concept of a "file" that was a collection of bytes that resided in a "filesystem".  z/OS has no such concept natively.  USS provides something that looks like files in a filesystem, but there's a compatibility layer that does translation to the real underlying storage.
 
