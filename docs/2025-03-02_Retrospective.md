@@ -12,7 +12,7 @@ My final push to get arbitrary processes running in "user space" opened my eyes 
 
 What's particularly interesting about that question is the way the answer has changed for Windows Subsystem for Linux (WSL).  The answer for WSL version 1 was, "a translation layer," meaning a layer of software that converted Linux system calls to their Windows equivalents (the inverse of Wine).  The answer for WSL version 2 is, "a hardware virtual machine," meaning that a complete Linux kernel runs in a dedicated VM.
 
-Another related technology is z/OS's "Unix System Services (USS)."  Unlike the Windows approach, this provides API compatibility, not ABI compatibility.  POSIX-compliant programs will run if they're recompiled to run within z/OS's USS environment, but it doesn't run a native binary from any other platform.  So, in that context, a subsystem could be, "a compiler and set of libraries."
+Another related technology is [z/OS](https://en.wikipedia.org/wiki/Z/OS)'s [Unix System Services (USS)](https://en.wikipedia.org/wiki/UNIX_System_Services).  Unlike the Windows approach, this provides API compatibility, not ABI compatibility.  POSIX-compliant programs will run if they're recompiled to run within z/OS's USS environment, but it doesn't run a native binary from any other platform.  So, in that context, a subsystem could be, "a compiler and set of libraries."
 
 The work I did to develop the RV32I VM was super educational, but not terribly useful in its current form.  The user space functionality depends on services provided by the kernel.  Ultimately, if the kernel can't provide the functionality needed by user space, the ability to execute the instructions is of no value.  I didn't have enough kernel program space to get to the point of needing kernel services with the WASM VM, but I would have run into the same problem there.  So, I think that, regardless of the definition of, "subsystem," it has to include services provided by the kernel at some level.
 
@@ -63,5 +63,7 @@ That means that one of the things I'll have to consider is what an inter-process
 Extending this to a networked operating system, though, begs the question of how processes should be identified.  POSIX is insufficent here.  It only provides a mechanism to address a queue, not a process.  So, it will be up to me to come up with something that makes more sense.
 
 I should note here that the format of the messages themselves is really not up for debate for me.  I spent a lot of time ironing that out during the development of the OS.  The contents of the thread messages and the coroutine messages are identical.  It's only the functional implementation that's different.  I would use the same format between processes as well.
+
+What would become necessary (and perhaps it alredy is) is a serialization/deserialization mechanism for the messages.  The possibility of sending data over the wire necessitates a standard encoding and decoding scheme between OS instances.  Within the same OS, memory can simply be copied, of course.
 
 [Table of Contents](.)
