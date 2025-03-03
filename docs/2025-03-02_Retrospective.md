@@ -1,0 +1,61 @@
+# 2-Mar-2025 - Retrospective
+
+As I prepare to shelve this work for a bit, and as I approach the four-month mark of this effort, I thought it would be good to do a bit of a retrospective on how this has gone, what I've learned thus far, and what my thoughts are going forward.
+
+- [User Space](#user-space)
+- [Persistent Storage](#persistent-storage)
+- [Distributed Computing](#distributed-computing)
+
+## User Space
+
+My final push to get arbitrary processes running in "user space" opened my eyes to the value of a kernel that supports subsystems.  But, my research into other operating systems left me with the question, "What defines a subsystem?"  The term is heavily overloaded in the industry.
+
+What's particularly interesting about that question is the way the answer has changed for Windows Subsystem for Linux (WSL).  The answer for WSL version 1 was, "a translation layer," meaning a layer of software that converted Linux system calls to their Windows equivalents (the inverse of Wine).  The answer for WSL version 2 is, "a hardware virtual machine," meaning that a complete Linux kernel runs in a dedicated VM.
+
+Another related technology is z/OS's "Unix System Services (USS)."  Unlike the Windows approach, this provides API compatibility, not ABI compatibility.  POSIX-compliant programs will run if they're recompiled to run within z/OS's USS environment, but it doesn't run a native binary from any other platform.  So, in that context, a subsystem could be, "a compiler and set of libraries."
+
+The work I did to develop the RV32I VM was super educational, but not terribly useful in its current form.  The user space functionality depends on services provided by the kernel.  Ultimately, if the kernel can't provide the functionality needed by user space, the ability to execute the instructions is of no value.  I didn't have enough kernel program space to get to the point of needing kernel services with the WASM VM, but I would have run into the same problem there.  So, I think that, regardless of the definition of, "subsystem," it has to include services provided by the kernel at some level.
+
+The direction I was headed with my RV32I VM most resembled the WSL version 1 approach to a subsystem.  The use of kernel services happened via the use of ECALL instructions (instructions that switched from the user context to the kernel context).  In my case, I was defining system calls that were unique to NanoOs, but I could have just as well defined calls that were compatible with Linux or Windows or any other OS.
+
+There is a reason, however, that Microsoft abandoned that approach in WSL version 2:  It's not generic or versatile.  Intercepting calls at that level means that you forever play catch-up with whatever OS you're emulating.  Supporting multiple OS environments means forever playing catch-up with each OS vendor.  Intercepting calls at the hardware interface level, however, gives the developer more freedom.  As long as you emulate hardware that's supported by the guest OS, you can run any application that the OS supports.  The developer can choose to standardize on a particular set of hardware or hardware that conforms to industry standards and not have to update their subsystem with each new patch that comes out for the supported OS.  And, any OS that runs on the emulated hardware can (in theory) be supported.
+
+But, even that isn't good enough for mission-critical applications.  Hosting a guest OS exposes the application to all of the bugs that come along with the OS.  Code running in a VM will also never be as performant as native code.  In fact, the translation layer approach might actually be more stable and performant.  Really, for a mission-critical application where both stability and performance are absolutely paramount, the only suitable choice is to compile the application for the host OS.  This is why IBM went with API compatiblity for z/OS's USS instead of ABI compatibility.
+
+z/OS does have "z/OS Container Extensions (zCX)," though.  That feature provides a Docker-compatible container runtime environment, which allows unmodified, x86-64 Linux binaries to run within z/OS.  I thought this concept was especially interesting because it's almost identical to the way I had designed my VM in that it both emulates the x86-64 instructions in software and intercepts the system calls to enable Linux functionality.  The neat thing about this is that I didn't find out about this feature until after I had already built my VM.  Great minds think alike!!!
+
+All of these approaches have something in common:  The use of virtual memory.  The real power of virtual memory was never apparent to me before my efforts to implement the RV32I VM.  Virtual memory is really what enables multitasking to work.  It's what allows every program to have the same memory model and address organization.  Without virtual memory, modern operating systems wouldn't even be possible.  We'd all still be stuck using one program at a time!
+
+One of the other things I learned is that "static" linking on Windows isn't truly static the way it is on Linux.  On Windows, even programs that are statically linked still make calls into dynamically-linked system libraries.  That's what makes the subsystem model possible on Windows.  Programs literally have no alternative but to go through OS libraries for some things.  They cannot directly call into the kernel.  I liked that idea a lot.
+
+Unfortunately, I don't think it's realistic.  It's only possible on Windows because Microsoft controls the entire environment and has all the way back to Windows 1.0.  For everyone else in the world, I think the only feasible intercept point is at the system call boundary the way zCX and my current VM implementation have done things.
+
+So, I think for me, a "subsystem" would be "a virtual address space using a specific instruction set and system call set."  That seems like the simplest and cleanest model to me at the moment.  That's likely the direction I would pursue if I continue down the road of extending my user space model.  That "specific instruction set" doesn't necessarily have to be software emulated like it is now.  From where I'm sitting right now, I don't see any reason why it couldn't be the native instruction set of the hardware running the OS (assuming that the hardware had adequate memory protection), but it could also continue to be software emulated.
+
+## Persistent Storage
+
+The more I learned about z/OS, the more it blew my mind.  It bears absolutely zero resemblance to UNIX.  I realized in learning about it how much the UNIX model has affected both my own mindset and the development of other major operating systems.  As much as Dave Cutler claims to hate UNIX, both Windows and VMS are much more like UNIX than z/OS is.
+
+One of the main ways that z/OS is radically different is in how persistent storage is managed.  Prior to z/OS, all of the operating systems I'd come in contact with had a concept of a "file" that was a collection of bytes that resided in a "filesystem".  z/OS has no such concept natively.  USS provides something that looks like files in a filesystem, but there's a compatibility layer that does translation to the real underlying storage.
+
+z/OS's concept of a unit of persistent storage is a "record".  I'm still struggling to understand what, exactly, a record is.  I understand it's akin to a record in a database, but the specifics elude me.  As in a database, records are managed in transactions that are atomic.  This is one of the features of the OS that helps it be so reliable.  Data corruption is basically a non-issue.
+
+With that in mind, I wondered if maintining raw storage in a filesystem was really what I should do.  I definitely want to support POSIX.  But, as I mentioned in a previous post, POSIX defines user space, not kernel space.  AS IBM has clearly shown with USS, it's certainly possible to have a POSIX-compliant subsystem that has a completely different underlying architecture.  And, given z/OS's reputation as the most stable operating system in the world, there's certainly reason to challenge the idea that the OS has to natively be organized around a filesystem.
+
+Another reason to challenge the idea is [WinFS](https://en.wikipedia.org/wiki/WinFS).  This was Microsoft's attempt to fix the problem of related information being distributed across different places in a filesystem hierarchy.  Like z/OS's native storage, it's based around a database model (specifically a relational database model in this case).  Bill Gates once mentioned the failure to get WinFS adopted as his greatest regret about his time at Microsoft.  In his view, it was an idea that was ahead of its time.  Be that as it may, the fact that it shares similarity with z/OS's storage should give pause at the least.
+
+For me personally, however, deviating from the filesystem model comes with risk.  The filesystem model has been battle hardened over the past 50 years via thousands of person years.  The database model, while potentially much more stable and powerful, is proprietary.  If I'm going to try and recreate that model (or any other model), I would be on my own.  The fact that even the operating systems that Dave Cutler has made are still basically organized around the concept of files says something about the value of the idea.
+
+So, I don't know on this one.  I'm in love with the idea of a persistent storage system that makes data corruption impossible.  And, given my preference for mandating that all processes be run in a subsystem, there's no reason why that subsystem can't present a filesystem to the application when none really exists internally.  There would definitely be a lot of work to do here if I really want to go down the road of database-like storage, but maybe it would be worth it?  Not sure.  I'm definitely going to consider it but I don't have a firm idea one way or the other right now.
+
+## Distributed Computing
+
+When I started this effort, I had not yet added message passing to my coroutines library or to my C threads libraries.  That has proven to be the single-most-significant aspect of this work.  Nothing else I've done throughout this effort would have been possible without that development... at least, not without significantly more complex and messier code.  Using that infrastructure was a huge help and simplification to the rest of the design.  The advent of that functionality alone has made this effort worthwhile.
+
+So, my libraries now have message passing between coroutines and between threads.  If I can ever get the attention of the C standard committee, maybe those things will become standard parts of C at some point in the future.  C has no mechanism for inter-process messaging, though, and that's very, very unfortunate.  POSIX does define a mechanism, but I've never liked having to rely on POSIX for things at the process level.  I digress, though.
+
+I will eventually have to add in support for networking into my OS if I take it far enough.  I've been reading a lot of [Alan Kay's](https://en.wikipedia.org/wiki/Alan_Kay) thoughts on computing recently.  In his original concept of "object-oriented programming," an "object" was more like a process or even an entire operating system than the objects we know today in languages like C++.  In his vision, an object is something that receives messages, does something with them, and sends messages either back to the original entity or to the next object that's appropriate for processing.
+
+All this is to say that, as I consider the future direction of my OS, I want to keep in mind that its main responsibility is to facilitate processing of data.  From the standpoint of the OS, the messaging required to do that may be between processes running within the same OS or between processes running on different hosts.  I would **REALLY** like it if the processes didn't know the difference.
+
+[Table of Contents](.)
