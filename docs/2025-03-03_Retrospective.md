@@ -6,6 +6,7 @@ As I prepare to shelve this work for a bit, and as I approach the four-month mar
 - [Persistent Storage](#persistent-storage)
 - [Distributed Computing](#distributed-computing)
 - ["Everything is a... process???"](#everything-is-a-process)
+- [Kernel Architecture](#kernel-architecture)
 
 ## User Space
 
@@ -71,7 +72,7 @@ IP networking definitely would have to be supported, as would some reliable data
 
 But, how do you identify a process?  In the embedded OS, the kernel processes have well-known PIDs, so they're easy to address.  In a distributed environment, that's really not sufficient.  Really what you'd want is a service in the OS that a process can register with to receive messages.  Processes would probably want to register with a name.  If two processes register with the same name, then you'd want to have an index into the processes registered with that name.  So, I think a full "process ID" would be an IP address, port number, process name, and process index.
 
-There's an open question of how different OS instances would become aware of each other.  This matters because it has the potential to affect how processes address one another.  In lieu of an IP address, a domain name might be a more-appropriate addressing mechanism at the host level.  However, that would be a "central authority" based addressing scheme.  Peer-to-peer mechanisms could also be possible.  This is getting off into the weeds, though and is really a topic for further down the road.
+There's an open question of how different OS instances would become aware of each other.  This matters because it has the potential to affect how processes address one another.  In lieu of an IP address, a domain name might be a more-appropriate addressing mechanism at the host level.  However, that would be a "central authority" based addressing scheme.  Peer-to-peer mechanisms could also be possible.  This is getting off into the weeds, though, and is really a topic for further down the road.
 
 ## "Everything is a... process???"
 
@@ -79,6 +80,16 @@ One of the things I did in the embedded OS - and one of the things that brought 
 
 The console manager, the kernel memory manager, and the filesystem were also all processes.  Even the scheduler was a process.  The organization of functionality into processes plus the use of the message passing infrastructure made "separation of concerns" and construction of well-defined APIs both pretty trivial.  This was a very clean model and I would definitely keep it in a more-extensive OS.
 
-This smacks a bit of functional programming... which is probably to be expected since I just came off a project that was using a functional programming language.  Pure functional programming or any other paradigm is not a goal, though.  I am by no means an idealist.  But, I do try to apply useful concepts where it makes sense.  Process-oriented organization and message passing between processes makes a lot of sense for an operating system.
+This smacks a bit of functional programming... which is probably to be expected since I just came off a project that was using a functional programming language.  Pure functional programming or any other paradigm is not a goal, though.  I am by no means an idealist.  But, I do try to apply useful concepts where it makes sense.  Process-oriented organization and message passing between processes makes a lot of sense for an operating system.  Having things oriented around processes also facilitates the longer-term goal of distributed computing.
+
+## Kernel Architecture
+
+NanoOs was built as a nanokernel, which means that there was no kernel.  There were processes that provided kernel services, but there was no distinction between kernel space and user space, and there was certainly no memory protection in the original design.
+
+That said, the architecture didn't really fit the term "nanokernel" as it applied to MacOS 9 and prior.  In that environment, there were really just a collection of libraries that provided the functionality that a kernel would provide.  To  my knowledge, that system wasn't designed around the idea of message passing between processes.  The fact that NanoOs was organized around process boundaries with a message passing system gave it properties of a microkernel.
+
+I am extremely leery of microkernels.  One of the things I researched was the GNU Hurd kernel.  I was appalled by the design.  I had always heard that worked poorly but I had never looked into what the issues were or why they existed.  The problem, as I discovered, is that just about everything is in user space, including hardware drivers.  To make matters worse, there's no direct communication between processes.  EVERYTHING has to go through the kernel to communicate with another process.  And, on top of that, every message has to be copied \*TWICE\*:  Once from the sender into kernel space and again from kernel space to the recipient.
+
+This is not the way NanoOs works, and there is absolutely no way I would ever build a system like that.  Processes today have the ability to communicate directly with each other and I have no intention to change that.  NanoOs also doesn't do any copying of messages.  The memory used to send a message from one process is the same memory that's accessed in the receiving process.  I have no intention of changing that either.  There may be some kind of permissions operations that happen on the memory that's used, but there's no way I'd require a copy... and certainly not \*TWO\* copies!
 
 [Table of Contents](.)
