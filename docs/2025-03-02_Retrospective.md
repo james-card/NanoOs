@@ -50,12 +50,18 @@ So, I don't know on this one.  I'm in love with the idea of a persistent storage
 
 ## Distributed Computing
 
-When I started this effort, I had not yet added message passing to my coroutines library or to my C threads libraries.  That has proven to be the single-most-significant aspect of this work.  Nothing else I've done throughout this effort would have been possible without that development... at least, not without significantly more complex and messier code.  Using that infrastructure was a huge help and simplification to the rest of the design.  The advent of that functionality alone has made this effort worthwhile.
+When I started this effort, I had not yet added message passing to my coroutines library or to my C threads libraries.  That has proven to be the single-most-significant aspect of this work.  Nothing else I've done throughout this effort would have been possible without that development... at least, not without significantly more-complex and messier code.  Using that infrastructure was a huge help and simplification to the rest of the design.  The advent of that functionality alone has made this effort worthwhile.
 
 So, my libraries now have message passing between coroutines and between threads.  If I can ever get the attention of the C standard committee, maybe those things will become standard parts of C at some point in the future.  C has no mechanism for inter-process messaging, though, and that's very, very unfortunate.  POSIX does define a mechanism, but I've never liked having to rely on POSIX for things at the process level.  I digress, though.
 
 I will eventually have to add in support for networking into my OS if I take it far enough.  I've been reading a lot of [Alan Kay's](https://en.wikipedia.org/wiki/Alan_Kay) thoughts on computing recently.  In his original concept of "object-oriented programming," an "object" was more like a process or even an entire operating system than the objects we know today in languages like C++.  In his vision, an object is something that receives messages, does something with them, and sends messages either back to the original entity or to the next object that's appropriate for processing.
 
-All this is to say that, as I consider the future direction of my OS, I want to keep in mind that its main responsibility is to facilitate processing of data.  From the standpoint of the OS, the messaging required to do that may be between processes running within the same OS or between processes running on different hosts.  I would **REALLY** like it if the processes didn't know the difference.
+All this is to say that, as I consider the future direction of my OS, I want to keep in mind that its main responsibility is to facilitate the processing of data by processes.  From the standpoint of the OS, the messaging required to do that may be between processes running within the same OS or between processes running on different hosts.  I would **REALLY** like it if the processes didn't know the difference.
+
+That means that one of the things I'll have to consider is what an inter-process message looks like.  In the embedded version of the OS, it's just a coroutine message and that's all that will ever make sense.  In that model, "processes" are addressed by their numeric process IDs which are then translated to the real Coroutine objects that manage the state of the process.
+
+Extending this to a networked operating system, though, begs the question of how processes should be identified.  POSIX is insufficent here.  It only provides a mechanism to address a queue, not a process.  So, it will be up to me to come up with something that makes more sense.
+
+I should note here that the format of the messages themselves is really not up for debate for me.  I spent a lot of time ironing that out during the development of the OS.  The contents of the thread messages and the coroutine messages are identical.  It's only the functional implementation that's different.  I would use the same format between processes as well.
 
 [Table of Contents](.)
