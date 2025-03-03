@@ -8,6 +8,7 @@ As I prepare to shelve this work for a bit, and as I approach the four-month mar
 - ["Everything is a... process???"](#everything-is-a-process)
 - [Kernel Architecture](#kernel-architecture)
 - [Permissions](#permissions)
+- [Final Thoughts](#final-thoughts)
 
 ## User Space
 
@@ -120,5 +121,15 @@ Regardless, I would need to work out some sort of [Access Control List (ACL)](ht
 This is all to say there would be a whole lot to do in this area.  I definitely do \*NOT\* want to build an OS that doesn't take security into account from the beginning.  Even the embedded OS has some concept of permissions because there are certain operations that only the scheduler is allowed to perform.  This is an area that deserves a lot of thought and attention.
 
 The risk here is that I could make an oversight.  Security and permissions concepts have come a very long way since the early versions of UNIX.  There's a reason why Windows NT's ACLs were more advanced than UNIX's at the time NT was created and why Linux has extended things with [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux).  I really need to do my homework here.
+
+## Final Thoughts
+
+This has been an incredibly valuable experience.  I have learned a ton, I have done a ton, and I have come up with some very cool ideas.  I'm certainly glad to have worked on this effort for the past four months.
+
+Whether or not I extend this effort into a non-embedded realm is an open question right now.  If I did, there would be zero code reuse, so I would be bringing in my learning and my thoughts above only.  It would be a much larger effort than what I've done in this context and there would be a lot more detail to work out.  I would also have to learn a lot more about the internals of other operating systems so that I benefit from what's come before me and (hopefully) avoid the pitfalls that they had to deal with along the way.
+
+Regardless, this has taught me a lot of things that I can carry forward in other work that I do.  Things like the benefits of zero-copy messaging are painfully obvious to me now.  I definitely did not have that context going into this.
+
+So, all in all, I'm very happy with how this has gone.  I'm looking forward to what comes next!!!
 
 [Table of Contents](.)
