@@ -62,8 +62,12 @@ That means that one of the things I'll have to consider is what an inter-process
 
 Extending this to a networked operating system, though, begs the question of how processes should be identified.  POSIX is insufficent here.  It only provides a mechanism to address a queue, not a process.  So, it will be up to me to come up with something that makes more sense.
 
-I should note here that the format of the messages themselves is really not up for debate for me.  I spent a lot of time ironing that out during the development of the OS.  The contents of the thread messages and the coroutine messages are identical.  It's only the functional implementation that's different.  I would use the same format between processes as well.
+I should note that the format of the messages themselves is really not up for debate for me.  I spent a lot of time ironing that out during the development of the OS.  The contents of the thread messages and the coroutine messages are identical.  It's only the functional implementation that's different.  I would use the same format between processes as well.
 
 What would become necessary (and perhaps it alredy is) is a serialization/deserialization mechanism for the messages.  The possibility of sending data over the wire necessitates a standard encoding and decoding scheme between OS instances.  Within the same OS, memory can simply be copied, of course.
+
+IP networking definitely would have to be supported, as would some reliable data exchange protocol.  TCP would probably be fine, but SCTP is probably more appropriate given that we're talking discrete packets of information.  In either case, we're talking about an IP address and a port number to identify a running instance of an OS.
+
+But, how do you identify a process?  In the embedded OS, the kernel processes have well-known PIDs, so they're easy to address.  In a distributed environment, that's really not sufficient.  Really what you'd want is a service in the OS that a process can register with to receive messages.  Processes would probably want to register with a name.  If two processes register with the same name, then you'd want to have an index into the processes registered with that name.  So, I think a full "process ID" would be an IP address, port number, process name, and process index.
 
 [Table of Contents](.)
