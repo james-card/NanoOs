@@ -71,7 +71,7 @@ I should note that the format of the messages themselves is really not up for de
 
 What would become necessary (and perhaps it alredy is) is a serialization/deserialization mechanism for the messages.  The possibility of sending data over the wire necessitates a standard encoding and decoding scheme between OS instances.  Within the same OS, memory can simply be copied, of course.
 
-IP networking definitely would have to be supported, as would some reliable data exchange protocol.  TCP would probably be fine, but SCTP is probably more appropriate given that we're talking discrete packets of information.  In either case, we're talking about an IP address and a port number to identify a running instance of an OS.
+IP networking definitely would have to be supported, as would some reliable data exchange protocol.  [TCP](https://en.wikipedia.org/wiki/Transmission_Control_Protocol) would probably be fine, but [SCTP](https://en.wikipedia.org/wiki/Stream_Control_Transmission_Protocol) is probably more appropriate given that we're talking discrete packets of information.  In either case, we're talking about an IP address and a port number to identify a running instance of an OS.
 
 But, how do you identify a process?  In the embedded OS, the kernel processes have well-known PIDs, so they're easy to address.  In a distributed environment, that's really not sufficient.  Really what you'd want is a service in the OS that a process can register with to receive messages.  Processes would probably want to register with a name.  If two processes register with the same name, then you'd want to have an index into the processes registered with that name.  So, I think a full "process ID" would be an IP address, port number, process name, and process index.
 
