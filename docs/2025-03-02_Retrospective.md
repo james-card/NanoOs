@@ -5,6 +5,7 @@ As I prepare to shelve this work for a bit, and as I approach the four-month mar
 - [User Space](#user-space)
 - [Persistent Storage](#persistent-storage)
 - [Distributed Computing](#distributed-computing)
+- [Devices](#devices)
 
 ## User Space
 
@@ -71,5 +72,11 @@ IP networking definitely would have to be supported, as would some reliable data
 But, how do you identify a process?  In the embedded OS, the kernel processes have well-known PIDs, so they're easy to address.  In a distributed environment, that's really not sufficient.  Really what you'd want is a service in the OS that a process can register with to receive messages.  Processes would probably want to register with a name.  If two processes register with the same name, then you'd want to have an index into the processes registered with that name.  So, I think a full "process ID" would be an IP address, port number, process name, and process index.
 
 There's an open question of how different OS instances would become aware of each other.  This matters because it has the potential to affect how processes address one another.  In lieu of an IP address, a domain name might be a more-appropriate addressing mechanism at the host level.  However, that would be a "central authority" based addressing scheme.  Peer-to-peer mechanisms could also be possible.  This is getting off into the weeds, though and is really a topic for further down the road.
+
+## Devices
+
+One of the things I did in the embedded OS - and one of the first things that brought the UNIX model of "everything is a file" into question for me - was that I made a process directly responsible for managing a device (the MicroSD card) and defined a message-passing API for other processes to interface with the device.  This was a very clean model and I would definitely keep it in a more-extensive OS.  (Note that I wound up collapsing the console, the filesystem, and the SD card into a single process in the RV32I VM version of the OS to conserve space, but that was out of desperation and not because I thought it was a good architectural decision.)
+
+For the purposes of POSIX compliance in user space, I would present devices under `/dev` as per usual in UNIX environments.  In kernel space, however, having them as processes is a very convenient and easy-to-manage abstraction.  Calls that addressed by file path from user space would be translated to the appropriate process and process API, though.
 
 [Table of Contents](.)
