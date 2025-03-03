@@ -103,7 +103,9 @@ My VM implementation and the direction I favor with subsystem design, however, d
 
 In this architecture, there would be no such thing as a hardware abstraction "layer," nor would there be any need for one.  A process that directly interacted with a piece of hardware would be responsible for the abstraction.  Like the MicroSD card process, a device driver would be a process with a well-defined message API.  Processes that needed access to the hardware would interface with it via (zero-copy) messages.
 
-So, I'm not really sure what to call this architecture.  Is it a "hybrid kernel"?  A "modular monolithic kernel"?  Something else entirely?  ::shrug::  I don't know and maybe the name isn't important.  It's an architecture that seems to scale well from the embedded space upward.  Not sure what to call that.
+I watched an interview with Dave Cutler in which he stated that UNIX is extended by adding things to the filesystem while Windows is extended by adding new objects.  I think that's taking things a bit far but, in that example, this architecture would be closer to the Windows model than the UNIX model if a process is an "object" (as it would be under Alan Kay's definition of the term).  New functionality could be added to the OS at any time just by launching a new kernel process.
+
+So, I'm not really sure what to call this architecture.  Is it a "hybrid kernel"?  It almost seems like the inverse of what usually goes by that name.  Is it a "modular monolithic kernel"?  It kind of looks that way from the standpoint of a user space program.  Is it something else entirely?  ::shrug::  I don't know and maybe the name isn't important.  It's an architecture that seems to scale well from the embedded space upward.  Not sure what to call that.
 
 ## Permissions
 
@@ -113,10 +115,10 @@ I did develop a concept of memory ownership, but I didn't get into the area of m
 
 Then, there's the issue of permissions on resources such as files and devices.  These are POSIX entities, though.  Exposing these things via a subsystem puts some amount of enforcement burden on the subsystem, not just the kernel.  I would need to work out both the division of enforcement responsibility as well as the communication of permissions between the kernel and the subsystem.
 
-Regardless, I would need to work out some sort of [Access Control List (ACL)](https://en.wikipedia.org/wiki/Access-control_list) mechanism.  One of the things I wondered about was what the permissions between processes should be.  Should ever kernel process be allowed to talk to every other kernel process?  How should a process receiving a message determine whether or not the sending process was authorized for particular operation?  How would the permissions of operations be communicated?  What would do the communication?  What happens to permissions when a process exits?
+Regardless, I would need to work out some sort of [Access Control List (ACL)](https://en.wikipedia.org/wiki/Access-control_list) mechanism.  One of the things I wondered about was what the permissions between processes should be.  Should every kernel process be allowed to talk to every other kernel process?  How should a process receiving a message determine whether or not the sending process was authorized for particular operation?  How would the permissions of operations be communicated?  What would do the communication?  What happens to permissions when a process exits?
 
 This is all to say there would be a whole lot to do in this area.  I definitely do \*NOT\* want to build an OS that doesn't take security into account from the beginning.  Even the embedded OS has some concept of permissions because there are certain operations that only the scheduler is allowed to perform.  This is an area that deserves a lot of thought and attention.
 
-The risk here is that I could make an oversight.  Security and permissions concepts have come a very long way since the early versions of UNIX.  There's a reason why Windows NT's ACLs were more advanced than UNIX's at the time and why Linux has extended things with [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux).  I really need to do my homework here.
+The risk here is that I could make an oversight.  Security and permissions concepts have come a very long way since the early versions of UNIX.  There's a reason why Windows NT's ACLs were more advanced than UNIX's at the time NT was created and why Linux has extended things with [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux).  I really need to do my homework here.
 
 [Table of Contents](.)
