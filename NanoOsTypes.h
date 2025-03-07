@@ -105,7 +105,7 @@ typedef CoroutineId ProcessId;
 ///
 /// @brief Definition of the ProcessMessage object that processes will use for
 /// inter-process communication.
-typedef Comessage ProcessMessage;
+typedef msg_t ProcessMessage;
 
 /// @typedef CommandFunction
 ///
