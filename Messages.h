@@ -145,6 +145,20 @@ typedef struct msg_t {
   bool coro_init;
 } msg_t;
 
+/// @enum msg_element_t
+///
+/// @brief Enumeration of member elements of msg_t that are user-accessible.
+typedef enum msg_element_t {
+  MSG_ELEMENT_TYPE,
+  MSG_ELEMENT_DATA,
+  MSG_ELEMENT_SIZE,
+  MSG_ELEMENT_WAITING,
+  MSG_ELEMENT_DONE,
+  MSG_ELEMENT_IN_USE,
+  MSG_ELEMENT_FROM,
+  MSG_ELEMENT_TO,
+  NUM_MSG_ELEMENTS
+} msg_element_t;
 
 #ifdef THREAD_SAFE_COROUTINES
 
@@ -196,6 +210,7 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
   const struct timespec *ts);
 
 // Message accessors
+void* msg_element(msg_t *msg, msg_element_t msg_element);
 #define msg_type(msg_ptr) \
   (((msg_ptr) != NULL) ? (msg_ptr)->type : 0)
 #define msg_data(msg_ptr) \
@@ -217,8 +232,6 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
   (((msg_ptr) != NULL) ? (msg_ptr)->from.thrd : 0)
 #define msg_thrd_to(msg_ptr) \
   (((msg_ptr) != NULL) ? (msg_ptr)->to.thrd : 0)
-#define msg_configured(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->configured : false)
 
 
 #ifdef __cplusplus
