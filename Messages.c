@@ -844,3 +844,61 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release,
   return NULL;
 }
 
+/// @fn void* msg_element(msg_t *msg, msg_element_t msg_element)
+///
+/// @brief Get a pointer to an element of a msg_t object.
+///
+/// @param msg A pointer to the msg_t to get the member of.
+/// @param msg_element The member element of the msg_t to get.
+///
+/// @return Returns a pointer to the specified element on success, NULL on
+/// failure.
+void* msg_element(msg_t *msg, msg_element_t msg_element) {
+  switch (msg_element) {
+    case MSG_ELEMENT_TYPE: {
+      return &msg->type;
+      break;
+    }
+
+    case MSG_ELEMENT_DATA: {
+      return &msg->data;
+      break;
+    }
+
+    case MSG_ELEMENT_SIZE: {
+      return &msg->size;
+      break;
+    }
+
+    case MSG_ELEMENT_WAITING: {
+      return &msg->waiting;
+      break;
+    }
+
+    case MSG_ELEMENT_DONE: {
+      return &msg->done;
+      break;
+    }
+
+    case MSG_ELEMENT_IN_USE: {
+      return &msg->in_use;
+      break;
+    }
+
+    case MSG_ELEMENT_FROM: {
+      return &msg->from;
+      break;
+    }
+
+    case MSG_ELEMENT_TO: {
+      return &msg->to;
+      break;
+    }
+
+    default: {
+      return NULL;
+      break;
+    }
+  }
+}
+
