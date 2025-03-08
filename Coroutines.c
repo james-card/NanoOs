@@ -2391,8 +2391,8 @@ int comessageQueuePush(Coroutine *coroutine, msg_t *msg) {
   if ((coroutine != NULL)
     && (comutexLock(&coroutine->messageLock) == coroutineSuccess)
   ){
-    msg->coro_from = getRunningCoroutine();
-    msg->coro_to = coroutine;
+    msg->from.coro = getRunningCoroutine();
+    msg->to.coro = coroutine;
     msg->next = NULL;
     if (coroutine->lastMessage != NULL) {
       coroutine->lastMessage->next = msg;

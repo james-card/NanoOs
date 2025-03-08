@@ -61,9 +61,9 @@ static inline int msg_start_use(msg_t *msg) {
       msg->waiting = false;
       msg->done = true;
       msg->in_use = true;
-      msg->coro_from = NULL;
+      msg->from.coro = NULL;
 #ifdef THREAD_SAFE_COROUTINES
-      msg->thrd_from = 0;
+      msg->from.thrd = 0;
 #endif // THREAD_SAFE_COROUTINES
       msg->recipient = MESSAGE_RECIPIENT_NOT_SET;
       if (msg->configured == false) {
@@ -257,7 +257,7 @@ int msg_init(
   msg->waiting = waiting;
   msg->done = false;
   // No need to set msg->in_use since we called msg_start_use above.
-  // Don't touch msg->thrd_from in case this message is being reused.
+  // Don't touch msg->from.thrd in case this message is being reused.
   return_value = msg_success;
   
   return return_value;
@@ -284,7 +284,7 @@ int msg_release(msg_t *msg) {
   // Don't touch msg->next.
   // Don't touch msg->waiting.
   msg->in_use = false;
-  // Don't touch msg->thrd_from.
+  // Don't touch msg->from.thrd.
   if (msg->configured == true) {
     if (((msg->coro_init == false)
         || (comutexTryLock(&msg->coro_lock) == coroutineSuccess))
@@ -394,7 +394,7 @@ int msg_set_done(msg_t *msg) {
     msg->done = true;
     return_value = msg_success;
   }
-  // Don't touch msg->thrd_from.
+  // Don't touch msg->from.thrd.
   // Don't touch msg->thrd_condition.
   // Don't touch msg->thrd_lock.
   // Don't touch msg->configured.
@@ -544,7 +544,7 @@ msg_t* msg_wait_for_reply_with_type_thrd(
 
   // We need to grab the original recipient of the message that was sent before
   // we wait for done in case the recipient reuses this message as the reply.
-  thrd_t recipient = sent->thrd_to;
+  thrd_t recipient = sent->to.thrd;
 
   if (msg_wait_for_done(sent, ts) != msg_success) {
     // Invalid state of the message.  Fail.
@@ -586,7 +586,7 @@ msg_t* msg_wait_for_reply_with_type_thrd(
   int wait_status = msg_success;
   while (reply == NULL) {
     while ((cur != NULL)
-      && ((cur->thrd_from != recipient)
+      && ((cur->from.thrd != recipient)
         || ((type != NULL) && (cur->type != searchType))
       )
     ) {
@@ -674,7 +674,7 @@ msg_t* msg_wait_for_reply_with_type_coro(
   // We need to grab the original recipient of the message that was sent before
   // we wait for done in case the recipient reuses this message as the reply.
   // message.
-  Coroutine *recipient = sent->coro_to;
+  Coroutine *recipient = sent->to.coro;
 
   if (msg_wait_for_done(sent, ts) != coroutineSuccess) {
     // Invalid state of the message.  Fail.
@@ -720,7 +720,7 @@ msg_t* msg_wait_for_reply_with_type_coro(
   int wait_status = coroutineSuccess;
   while (reply == NULL) {
     while ((cur != NULL)
-      && ((cur->coro_from != recipient)
+      && ((cur->from.coro != recipient)
         || ((type != NULL) && (cur->type != searchType))
       )
     ) {

@@ -121,13 +121,21 @@ typedef struct msg_t {
   bool waiting;
   bool done;
   bool in_use;
-  Coroutine *coro_from;
-  Coroutine *coro_to;
+  union {
+    Coroutine *coro;
+#ifdef THREAD_SAFE_COROUTINES
+    thrd_t thrd;
+#endif // THREAD_SAFE_COROUTINES
+  } from;
+  union {
+    Coroutine *coro;
+#ifdef THREAD_SAFE_COROUTINES
+    thrd_t thrd;
+#endif // THREAD_SAFE_COROUTINES
+  } to;
   Cocondition coro_condition;
   Comutex coro_lock;
 #ifdef THREAD_SAFE_COROUTINES
-  thrd_t thrd_from;
-  thrd_t thrd_to;
   cnd_t thrd_condition;
   mtx_t thrd_lock;
 #endif // THREAD_SAFE_COROUTINES
@@ -136,6 +144,7 @@ typedef struct msg_t {
   msg_recip_t recipient;
   bool coro_init;
 } msg_t;
+
 
 #ifdef THREAD_SAFE_COROUTINES
 
@@ -201,13 +210,13 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
 #define msg_in_use(msg_ptr) \
   (((msg_ptr) != NULL) ? (msg_ptr)->in_use : false)
 #define msg_coro_from(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->coro_from : 0)
+  (((msg_ptr) != NULL) ? (msg_ptr)->from.coro : 0)
 #define msg_coro_to(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->coro_to : 0)
+  (((msg_ptr) != NULL) ? (msg_ptr)->to.coro : 0)
 #define msg_thrd_from(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->thrd_from : 0)
+  (((msg_ptr) != NULL) ? (msg_ptr)->from.thrd : 0)
 #define msg_thrd_to(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->thrd_to : 0)
+  (((msg_ptr) != NULL) ? (msg_ptr)->to.thrd : 0)
 #define msg_configured(msg_ptr) \
   (((msg_ptr) != NULL) ? (msg_ptr)->configured : false)
 
