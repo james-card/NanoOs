@@ -209,29 +209,28 @@ msg_t* msg_wait_for_reply(msg_t *sent, bool release, const struct timespec *ts);
 msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
   const struct timespec *ts);
 
-// Message accessors
+// Message element accessors
 void* msg_element(msg_t *msg, msg_element_t msg_element);
 #define msg_type(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->type : 0)
+  *((int*) msg_element((msg_ptr), MSG_ELEMENT_TYPE))
 #define msg_data(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->data : NULL)
+  *((void**) msg_element((msg_ptr), MSG_ELEMENT_DATA))
 #define msg_size(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->size : 0)
-// No accessor for next member element.
+  *((size_t*) msg_element((msg_ptr), MSG_ELEMENT_SIZE))
 #define msg_waiting(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->waiting : false)
+  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_WAITING))
 #define msg_done(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->done : true)
+  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_DONE))
 #define msg_in_use(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->in_use : false)
+  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_IN_USE))
 #define msg_coro_from(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->from.coro : 0)
+  *((Coroutine**) msg_element((msg_ptr), MSG_ELEMENT_FROM))
 #define msg_coro_to(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->to.coro : 0)
+  *((Coroutine**) msg_element((msg_ptr), MSG_ELEMENT_TO))
 #define msg_thrd_from(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->from.thrd : 0)
+  *((thrd_t*) msg_element((msg_ptr), MSG_ELEMENT_FROM))
 #define msg_thrd_to(msg_ptr) \
-  (((msg_ptr) != NULL) ? (msg_ptr)->to.thrd : 0)
+  *((thrd_t*) msg_element((msg_ptr), MSG_ELEMENT_TO))
 
 
 #ifdef __cplusplus
