@@ -2403,7 +2403,7 @@ int comessageQueuePush(Coroutine *coroutine, msg_t *msg) {
       coroutine->nextMessage = msg;
       coroutine->lastMessage = msg;
     }
-    msg->recipient = MESSAGE_RECIPIENT_COROUTINE;
+    msg->endpoint_type = MESSAGE_ENDPOINT_TYPE_COROUTINE;
 
     // Let all the waiters know that there's something new in the queue now.
     returnValue = coconditionBroadcast(&coroutine->messageCondition);

@@ -65,7 +65,7 @@ static inline int msg_start_use(msg_t *msg) {
 #ifdef THREAD_SAFE_COROUTINES
       msg->from.thrd = 0;
 #endif // THREAD_SAFE_COROUTINES
-      msg->recipient = MESSAGE_RECIPIENT_NOT_SET;
+      msg->endpoint_type = MESSAGE_ENDPOINT_TYPE_NOT_SET;
       if (msg->configured == false) {
         msg->coro_init = (getRunningCoroutine() != NULL);
         if (msg->coro_init == true) {
@@ -186,13 +186,13 @@ msg_t* msg_destroy(msg_t *msg) {
       } else {
         // Something is waiting.  Signal the waiters.  It will be up to them to
         // destroy this message again later.
-        if (msg->recipient == MESSAGE_RECIPIENT_COROUTINE) {
+        if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE) {
           if (msg->coro_init == true) {
             coconditionBroadcast(&msg->coro_condition);
             comutexUnlock(&msg->coro_lock);
           }
 #ifdef THREAD_SAFE_COROUTINES
-        } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+        } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
           cnd_broadcast(&msg->thrd_condition);
           mtx_unlock(&msg->thrd_lock);
 #endif // THREAD_SAFE_COROUTINES
@@ -297,12 +297,12 @@ int msg_release(msg_t *msg) {
       if (msg->waiting == true) {
         // Something is waiting.  Signal the waiters.  It will be up to them to
         // destroy this message again later.
-        if (msg->recipient == MESSAGE_RECIPIENT_COROUTINE) {
+        if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE) {
           if (msg->coro_init == true) {
             coconditionBroadcast(&msg->coro_condition);
           }
 #ifdef THREAD_SAFE_COROUTINES
-        } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+        } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
           cnd_broadcast(&msg->thrd_condition);
 #endif // THREAD_SAFE_COROUTINES
         }
@@ -366,7 +366,7 @@ int msg_set_done(msg_t *msg) {
       // Something is waiting.  Signal the waiters.  It will be up to them to
       // destroy this message again later.
       if ((msg->coro_init == true)
-        && (msg->recipient == MESSAGE_RECIPIENT_COROUTINE)
+        && (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE)
       ) {
         if (coconditionBroadcast(&msg->coro_condition)
           == coroutineSuccess
@@ -374,7 +374,7 @@ int msg_set_done(msg_t *msg) {
           return_value = msg_success;
         } // else, return_value remains msg_error.
 #ifdef THREAD_SAFE_COROUTINES
-      } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+      } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
         if (cnd_broadcast(&msg->thrd_condition) == thrd_success) {
           return_value = msg_success;
         } // else return_value remains msg_error.
@@ -435,7 +435,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
     return_value = msg_success;
   } else {
     if ((msg->coro_init == true)
-      && (msg->recipient == MESSAGE_RECIPIENT_COROUTINE)
+      && (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE)
     ) {
       if (ts == NULL) {
         lock_status = comutexLock(&msg->coro_lock);
@@ -443,7 +443,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
         lock_status = comutexTimedLock(&msg->coro_lock, ts);
       }
 #ifdef THREAD_SAFE_COROUTINES
-    } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+    } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
       if (ts == NULL) {
         lock_status = mtx_lock(&msg->thrd_lock);
       } else {
@@ -461,7 +461,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
     msg->waiting = true;
     while (msg->done == false) {
       if ((msg->coro_init == true)
-        && (msg->recipient == MESSAGE_RECIPIENT_COROUTINE)
+        && (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE)
       ) {
         if (ts == NULL) {
           wait_status = coconditionWait(&msg->coro_condition, &msg->coro_lock);
@@ -470,7 +470,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
             = coconditionTimedWait(&msg->coro_condition, &msg->coro_lock, ts);
         }
 #ifdef THREAD_SAFE_COROUTINES
-      } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+      } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
         if (ts == NULL) {
           wait_status = cnd_wait(&msg->thrd_condition, &msg->thrd_lock);
         } else {
@@ -492,11 +492,11 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
     }
 
     if ((msg->coro_init == true)
-      && (msg->recipient == MESSAGE_RECIPIENT_COROUTINE)
+      && (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE)
     ) {
       comutexUnlock(&msg->coro_lock);
 #ifdef THREAD_SAFE_COROUTINES
-    } else if (msg->recipient == MESSAGE_RECIPIENT_THREAD) {
+    } else if (msg->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
       mtx_unlock(&msg->thrd_lock);
 #endif // THREAD_SAFE_COROUTINES
     }
@@ -794,10 +794,10 @@ msg_t* msg_wait_for_reply(msg_t *sent, bool release,
     return NULL;
   }
 
-  if (sent->recipient == MESSAGE_RECIPIENT_COROUTINE) {
+  if (sent->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE) {
     return msg_wait_for_reply_with_type_coro(sent, release, NULL, ts);
 #ifdef THREAD_SAFE_COROUTINES
-  } else if (sent->recipient == MESSAGE_RECIPIENT_THREAD) {
+  } else if (sent->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
     return msg_wait_for_reply_with_type_thrd(sent, release, NULL, ts);
 #endif // THREAD_SAFE_COROUTINES
   }
@@ -832,10 +832,10 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release,
     return NULL;
   }
 
-  if (sent->recipient == MESSAGE_RECIPIENT_COROUTINE) {
+  if (sent->endpoint_type == MESSAGE_ENDPOINT_TYPE_COROUTINE) {
     return msg_wait_for_reply_with_type_coro(sent, release, &type, ts);
 #ifdef THREAD_SAFE_COROUTINES
-  } else if (sent->recipient == MESSAGE_RECIPIENT_THREAD) {
+  } else if (sent->endpoint_type == MESSAGE_ENDPOINT_TYPE_THREAD) {
     return msg_wait_for_reply_with_type_thrd(sent, release, &type, ts);
 #endif // THREAD_SAFE_COROUTINES
   }

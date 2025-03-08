@@ -67,17 +67,17 @@ extern "C"
 #define msg_nomem      2
 #define msg_timedout   3
 
-/// @enum msg_recip_t
+/// @enum msg_endpoint_type_t
 ///
 /// @brief Indicator of what kind of entity a message was sent to.
-typedef enum msg_recip_t {
-  MESSAGE_RECIPIENT_NOT_SET,
-  MESSAGE_RECIPIENT_COROUTINE,
+typedef enum msg_endpoint_type_t {
+  MESSAGE_ENDPOINT_TYPE_NOT_SET,
+  MESSAGE_ENDPOINT_TYPE_COROUTINE,
 #ifdef THREAD_SAFE_COROUTINES
-  MESSAGE_RECIPIENT_THREAD,
+  MESSAGE_ENDPOINT_TYPE_THREAD,
 #endif // THREAD_SAFE_COROUTINES
-  NUM_MESSAGE_RECIPIENTS
-} msg_recip_t;
+  NUM_MESSAGE_ENDPOINT_TYPES
+} msg_endpoint_type_t;
 
 /// @struct msg_t
 ///
@@ -110,8 +110,8 @@ typedef enum msg_recip_t {
 ///   initialization have been configured yet.
 /// @param dynamically_allocated Whether or not the message was dynamically
 ///   allocated with msg_create.
-/// @param recipient A msg_recip_t that indicates the kind of entity that the
-///   message was sent to, if any.
+/// @param endpoint_type A msg_endpoint_type_t that indicates the kind of
+///   entity that the message was sent to, if any.
 /// @param coro_init Whether or not coroutines are initialized on the system.
 typedef struct msg_t {
   int type;
@@ -141,7 +141,7 @@ typedef struct msg_t {
 #endif // THREAD_SAFE_COROUTINES
   bool configured;
   bool dynamically_allocated;
-  msg_recip_t recipient;
+  msg_endpoint_type_t endpoint_type;
   bool coro_init;
 } msg_t;
 
