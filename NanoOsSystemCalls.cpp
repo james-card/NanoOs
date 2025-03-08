@@ -229,9 +229,9 @@ int32_t nanoOsSystemCallHandleNanosleep(Rv32iVm *rv32iVm) {
   // Sleep
   struct timespec remain = {};
   int result = 0;
-  Comessage *comessage = comessageQueueWait(&request);
+  ProcessMessage *msg = processMessageQueueWait(&request);
   
-  if (comessage != NULL) {
+  if (msg != NULL) {
     // Return an error
     result = -1;
 

@@ -464,7 +464,7 @@ int schedulerSendProcessMessageToProcess(
   // processMessageQueuePush. We're not using that mechanism here, so we have
   // to do it manually.  If we don't do this, then commands that validate that
   // the message came from the scheduler will fail.
-  processMessage->from = schedulerProcess;
+  msg_coro_from(processMessage) = schedulerProcess;
 
   void *processReturnValue = coroutineResume(processHandle, processMessage);
   if (processReturnValue == COROUTINE_CORRUPT) {
@@ -616,7 +616,7 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  sent->from = schedulerProcess;
+  msg_coro_from(sent) = schedulerProcess;
 
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
@@ -708,7 +708,7 @@ void kfree(void *ptr) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  sent->from = schedulerProcess;
+  msg_coro_from(sent) = schedulerProcess;
 
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,

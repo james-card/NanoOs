@@ -191,7 +191,7 @@ typedef enum CoroutineState {
 typedef struct Comutex Comutex;
 typedef struct Cocondition Cocondition;
 typedef struct Coroutine Coroutine;
-typedef struct Comessage Comessage;
+typedef struct msg_t msg_t;
 
 /// @typedef CoroutineFunction
 ///
@@ -331,8 +331,8 @@ typedef struct Coroutine {
   struct Coroutine *prevToSignal;
   jmp_buf resetContext;
   CoroutineFuncData passed;
-  Comessage *nextMessage;
-  Comessage *lastMessage;
+  msg_t *nextMessage;
+  msg_t *lastMessage;
   Cocondition messageCondition;
   Comutex messageLock;
   Comutex *blockingComutex;
@@ -341,44 +341,6 @@ typedef struct Coroutine {
 } Coroutine;
 
 // Coroutine message support.
-
-/// @struct Comessage
-///
-/// @brief Definition for a coroutine message that can be pushed onto a
-/// Coroutine's message queue.
-///
-/// @param type Integer value designating the type of message for the receiving
-///   coroutine.
-/// @param data A pointer to the data of the message, if any.
-/// @param size The number of bytes pointed to by the data pointer.
-/// @param next A pointer to the next Comessage in a coroutine's message queue.
-/// @param waiting A Boolean flag to indicate whether or not the sender is
-///   waiting on a response message from the recipient of the message.
-/// @param done A Boolean flag to indicate whether or not the receiving
-///   coroutine has handled the message yet.
-/// @param inUse A Boolean flag to indicate whether or not this Comessage is in
-///   in use.
-/// @param from A pointer to the Coroutine instance for the sending coroutine.
-/// @param to A pointer to the Coroutine instance for the receiving coroutine.
-/// @param condition A condition (Cocondition) that will allow for signalling
-///   between coroutines when setting the done flag.
-/// @param lock A mutex (Comutex) to guard the condition.
-/// @param configured Whether or not the members of the message that requrie
-///   initializatoin have been configured yet.
-typedef struct Comessage {
-  int type;
-  void *data;
-  size_t size;
-  struct Comessage *next;
-  bool waiting;
-  bool done;
-  bool inUse;
-  Coroutine *from;
-  Coroutine *to;
-  Cocondition condition;
-  Comutex lock;
-  bool configured;
-} Comessage;
 
 // Support functions
 int64_t coroutineGetNanoseconds(const struct timespec *ts);
@@ -467,53 +429,20 @@ int coconditionWait(Cocondition *cond, Comutex *mtx);
 void* coconditionLastYieldValue(Cocondition *cond);
 
 
-// Comessage queue functions
+// Message queue functions
 int comessageQueueDestroy(Coroutine *coroutine);
-Comessage* comessageQueuePeek(void);
-Comessage* comessageQueuePop(void);
-Comessage* comessageQueuePopType(int type);
-Comessage* comessageQueueWait(const struct timespec *ts);
-Comessage* comessageQueueWaitForType(int type, const struct timespec *ts);
-int comessageQueuePush(Coroutine *coroutine, Comessage *comessage);
-
-
-// Comessage functions
-int comessageDestroy(Comessage *comessage);
-int comessageInit(
-  Comessage *comessage, int type, void *data, size_t size, bool waiting);
-int comessageRelease(Comessage *comessage);
-int comessageSetDone(Comessage *comessage);
-int comessageWaitForDone(Comessage *comessage, const struct timespec *ts);
-Comessage* comessageWaitForReply(Comessage *sent, bool releaseAfterDone,
-  const struct timespec *ts);
-Comessage* comessageWaitForReplyWithType(Comessage *sent, bool releaseAfterDone,
-  int type, const struct timespec *ts);
-
-
-// Comessage accessors
-#define comessageType(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->type : 0)
-#define comessageData(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->data : NULL)
-#define comessageSize(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->size : 0)
-// No accessor for next member element.
-#define comessageWaiting(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->waiting : false)
-#define comessageDone(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->done : true)
-#define comessageInUse(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->inUse : false)
-#define comessageFrom(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->from : NULL)
-#define comessageTo(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->to : NULL)
-#define comessageConfigured(comessagePointer) \
-  (((comessagePointer) != NULL) ? (comessagePointer)->configured : false)
+msg_t* comessageQueuePeek(void);
+msg_t* comessageQueuePop(void);
+msg_t* comessageQueuePopType(int type);
+msg_t* comessageQueueWait(const struct timespec *ts);
+msg_t* comessageQueueWaitForType(int type, const struct timespec *ts);
+int comessageQueuePush(Coroutine *coroutine, msg_t *comessage);
 
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+#include "Messages.h"
 
 #endif // COROUTINES_H

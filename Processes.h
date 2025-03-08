@@ -112,32 +112,32 @@ extern "C"
 ///
 /// @brief Function macro to initialize a process message.
 #define processMessageInit(processMessage, type, data, size, waiting) \
-  comessageInit(processMessage, type, data, size, waiting)
+  msg_init(processMessage, type, data, size, waiting)
 
 /// @def processMessageSetDone
 ///
 /// @brief Function macro to set a process message to the 'done' state.
 #define processMessageSetDone(processMessage) \
-  comessageSetDone(processMessage)
+  msg_set_done(processMessage)
 
 /// @def processMessageRelease
 ///
 /// @brief Function macro to release a process message.
 #define processMessageRelease(processMessage) \
-  comessageRelease(processMessage)
+  msg_release(processMessage)
 
 /// @def processMessageWaitForDone
 ///
 /// @brief Function macro to wait for a process message to enter the 'done'
 /// state.
 #define processMessageWaitForDone(processMessage, ts) \
-  comessageWaitForDone(processMessage, ts)
+  msg_wait_for_done(processMessage, ts)
 
 /// @def processMessageWaitForReplyWithType
 ///
 /// @brief Function macro to wait on a reply to a message with a specified type.
 #define processMessageWaitForReplyWithType(sent, releaseAfterDone, type, ts) \
-  comessageWaitForReplyWithType(sent, releaseAfterDone, type, ts)
+  msg_wait_for_reply_with_type(sent, releaseAfterDone, type, ts)
 
 /// @def processMessageQueueWaitForType
 ///
@@ -145,6 +145,13 @@ extern "C"
 /// onto the running process's message queue.
 #define processMessageQueueWaitForType(type, ts) \
   comessageQueueWaitForType(type, ts)
+
+/// @def processMessageQueueWait
+///
+/// @brief Function macro to wait for a message to be pushed onto the running
+/// process's message queue.
+#define processMessageQueueWait(ts) \
+  comessageQueueWait(ts)
 
 /// @def processMessageQueuePush
 ///
@@ -168,23 +175,23 @@ extern "C"
 
 // Process message accessors
 #define processMessageType(processMessagePointer) \
-  comessageType(processMessagePointer)
+  msg_type(processMessagePointer)
 #define processMessageData(processMessagePointer) \
-  comessageData(processMessagePointer)
+  msg_data(processMessagePointer)
 #define processMessageSize(processMessagePointer) \
-  comessageSize(processMessagePointer)
+  msg_size(processMessagePointer)
 #define processMessageWaiting(processMessagePointer) \
-  comessageWaiting(processMessagePointer)
+  msg_waiting(processMessagePointer)
 #define processMessageDone(processMessagePointer) \
-  comessageDone(processMessagePointer)
+  msg_done(processMessagePointer)
 #define processMessageInUse(processMessagePointer) \
-  comessageInUse(processMessagePointer)
+  msg_in_use(processMessagePointer)
 #define processMessageFrom(processMessagePointer) \
-  comessageFrom(processMessagePointer)
+  msg_coro_from(processMessagePointer)
 #define processMessageTo(processMessagePointer) \
-  comessageTo(processMessagePointer)
+  msg_coro_to(processMessagePointer)
 #define processMessageConfigured(processMessagePointer) \
-  comessageConfigured(processMessagePointer)
+  msg_configured(processMessagePointer)
 
 /// @def nanoOsMessageFuncValue
 ///

@@ -316,7 +316,7 @@ ProcessMessage* getAvailableMessage(void) {
   ProcessMessage *availableMessage = NULL;
 
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
-    if (messages[ii].inUse == false) {
+    if (msg_in_use(&messages[ii]) == false) {
       availableMessage = &messages[ii];
       processMessageInit(availableMessage, 0,
         &nanoOsMessages[ii], sizeof(nanoOsMessages[ii]), false);
