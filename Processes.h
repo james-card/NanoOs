@@ -187,9 +187,9 @@ extern "C"
 #define processMessageInUse(processMessagePointer) \
   msg_in_use(processMessagePointer)
 #define processMessageFrom(processMessagePointer) \
-  msg_coro_from(processMessagePointer)
+  msg_from(processMessagePointer).coro
 #define processMessageTo(processMessagePointer) \
-  msg_coro_to(processMessagePointer)
+  msg_to(processMessagePointer).coro
 #define processMessageConfigured(processMessagePointer) \
   msg_configured(processMessagePointer)
 
