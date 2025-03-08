@@ -146,6 +146,13 @@ extern "C"
 #define processMessageQueueWaitForType(type, ts) \
   comessageQueueWaitForType(type, ts)
 
+/// @def processMessageQueueWait
+///
+/// @brief Function macro to wait for a message to be pushed onto the running
+/// process's message queue.
+#define processMessageQueueWait(ts) \
+  comessageQueueWait(ts)
+
 /// @def processMessageQueuePush
 ///
 /// @brief Function macro to push a process message on to a process's message
