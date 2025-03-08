@@ -67,17 +67,28 @@ extern "C"
 #define msg_nomem      2
 #define msg_timedout   3
 
-/// @enum msg_recip_t
+/// @enum msg_endpoint_type_t
 ///
 /// @brief Indicator of what kind of entity a message was sent to.
-typedef enum msg_recip_t {
-  MESSAGE_RECIPIENT_NOT_SET,
-  MESSAGE_RECIPIENT_COROUTINE,
+typedef enum msg_endpoint_type_t {
+  MESSAGE_ENDPOINT_TYPE_NOT_SET,
+  MESSAGE_ENDPOINT_TYPE_COROUTINE,
 #ifdef THREAD_SAFE_COROUTINES
-  MESSAGE_RECIPIENT_THREAD,
+  MESSAGE_ENDPOINT_TYPE_THREAD,
 #endif // THREAD_SAFE_COROUTINES
-  NUM_MESSAGE_RECIPIENTS
-} msg_recip_t;
+  NUM_MESSAGE_ENDPOINT_TYPES
+} msg_endpoint_type_t;
+
+/// @union msg_endpoint_t
+///
+/// @brief Union of all possible valid endpoints for a msg_t to be sent to (or
+/// received from).
+typedef union msg_endpoint_t {
+    Coroutine *coro;
+#ifdef THREAD_SAFE_COROUTINES
+    thrd_t thrd;
+#endif // THREAD_SAFE_COROUTINES
+} msg_endpoint_t;
 
 /// @struct msg_t
 ///
@@ -94,15 +105,11 @@ typedef enum msg_recip_t {
 ///   has handled the message yet.
 /// @param in_use A Boolean flag to indicate whether or not this msg_t is in
 ///   use.
-/// @param coro_from A pointer to the Coroutine instance for the sending
-///   coroutine.
-/// @param coro_to A pointer to the Coroutine instance for the receiving
-///   coroutine.
+/// @param from A msg_endpoint_t that represents the sending entity.
+/// @param to A msg_endpoint_t that represents the receiveing entity.
 /// @param coro_condition A condition (Cocondition) that will allow for
 ///   signalling between coroutines when setting the done flag.
 /// @param coro_lock A mutex (Comutex) to guard the coroutine condition.
-/// @param thrd_from The thrd_t value for the sending thread.
-/// @param thrd_to The thrd_t value for the receiving thread.
 /// @param thrd_condition A condition (cnd_t) that will allow for signalling
 ///   between threads when setting the done flag.
 /// @param thrd_lock A mutex (mtx_t) to guard the thread condition.
@@ -110,8 +117,8 @@ typedef enum msg_recip_t {
 ///   initialization have been configured yet.
 /// @param dynamically_allocated Whether or not the message was dynamically
 ///   allocated with msg_create.
-/// @param recipient A msg_recip_t that indicates the kind of entity that the
-///   message was sent to, if any.
+/// @param endpoint_type A msg_endpoint_type_t that indicates the kind of
+///   entity that the message was sent to, if any.
 /// @param coro_init Whether or not coroutines are initialized on the system.
 typedef struct msg_t {
   int type;
@@ -121,18 +128,8 @@ typedef struct msg_t {
   bool waiting;
   bool done;
   bool in_use;
-  union {
-    Coroutine *coro;
-#ifdef THREAD_SAFE_COROUTINES
-    thrd_t thrd;
-#endif // THREAD_SAFE_COROUTINES
-  } from;
-  union {
-    Coroutine *coro;
-#ifdef THREAD_SAFE_COROUTINES
-    thrd_t thrd;
-#endif // THREAD_SAFE_COROUTINES
-  } to;
+  msg_endpoint_t from;
+  msg_endpoint_t to;
   Cocondition coro_condition;
   Comutex coro_lock;
 #ifdef THREAD_SAFE_COROUTINES
@@ -141,7 +138,7 @@ typedef struct msg_t {
 #endif // THREAD_SAFE_COROUTINES
   bool configured;
   bool dynamically_allocated;
-  msg_recip_t recipient;
+  msg_endpoint_type_t endpoint_type;
   bool coro_init;
 } msg_t;
 
@@ -212,25 +209,21 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
 // Message element accessors
 void* msg_element(msg_t *msg, msg_element_t msg_element);
 #define msg_type(msg_ptr) \
-  *((int*) msg_element((msg_ptr), MSG_ELEMENT_TYPE))
+  (*((int*) msg_element((msg_ptr), MSG_ELEMENT_TYPE)))
 #define msg_data(msg_ptr) \
-  *((void**) msg_element((msg_ptr), MSG_ELEMENT_DATA))
+  (*((void**) msg_element((msg_ptr), MSG_ELEMENT_DATA)))
 #define msg_size(msg_ptr) \
-  *((size_t*) msg_element((msg_ptr), MSG_ELEMENT_SIZE))
+  (*((size_t*) msg_element((msg_ptr), MSG_ELEMENT_SIZE)))
 #define msg_waiting(msg_ptr) \
-  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_WAITING))
+  (*((bool*) msg_element((msg_ptr), MSG_ELEMENT_WAITING)))
 #define msg_done(msg_ptr) \
-  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_DONE))
+  (*((bool*) msg_element((msg_ptr), MSG_ELEMENT_DONE)))
 #define msg_in_use(msg_ptr) \
-  *((bool*) msg_element((msg_ptr), MSG_ELEMENT_IN_USE))
-#define msg_coro_from(msg_ptr) \
-  *((Coroutine**) msg_element((msg_ptr), MSG_ELEMENT_FROM))
-#define msg_coro_to(msg_ptr) \
-  *((Coroutine**) msg_element((msg_ptr), MSG_ELEMENT_TO))
-#define msg_thrd_from(msg_ptr) \
-  *((thrd_t*) msg_element((msg_ptr), MSG_ELEMENT_FROM))
-#define msg_thrd_to(msg_ptr) \
-  *((thrd_t*) msg_element((msg_ptr), MSG_ELEMENT_TO))
+  (*((bool*) msg_element((msg_ptr), MSG_ELEMENT_IN_USE)))
+#define msg_from(msg_ptr) \
+  (*((msg_endpoint_t*) msg_element((msg_ptr), MSG_ELEMENT_FROM)))
+#define msg_to(msg_ptr) \
+  (*((msg_endpoint_t*) msg_element((msg_ptr), MSG_ELEMENT_TO)))
 
 
 #ifdef __cplusplus
