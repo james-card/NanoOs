@@ -854,6 +854,10 @@ msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release,
 /// @return Returns a pointer to the specified element on success, NULL on
 /// failure.
 void* msg_element(msg_t *msg, msg_element_t msg_element) {
+  if (msg == NULL) {
+    return NULL;
+  }
+
   switch (msg_element) {
     case MSG_ELEMENT_TYPE: {
       return &msg->type;
