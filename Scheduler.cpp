@@ -2418,6 +2418,11 @@ __attribute__((noinline)) void startScheduler(
       = (FileDescriptor*) standardKernelFileDescriptors;
   }
 
+  // Extend the scheduler stack.
+  if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
+    printString("Could not extend scheduler stack.\n");
+  }
+
   // Create the console process.
   ProcessHandle processHandle = 0;
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
