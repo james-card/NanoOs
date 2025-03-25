@@ -2423,12 +2423,13 @@ __attribute__((noinline)) void startScheduler(
   }
 
   // Extend the scheduler stack.
-  if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
+  ProcessHandle processHandle = 0;
+  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
     printString("Could not extend scheduler stack.\n");
   }
 
   // Create the console process.
-  ProcessHandle processHandle = 0;
+  processHandle = 0;
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
