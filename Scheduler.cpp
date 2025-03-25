@@ -468,6 +468,10 @@ int schedulerSendProcessMessageToProcess(
   // the message came from the scheduler will fail.
   msg_from(processMessage).coro = schedulerProcess;
 
+  // Have to set the endpoint type manually since we're not using
+  // comessageQueuePush.
+  processMessage->endpoint_type = MESSAGE_ENDPOINT_TYPE_COROUTINE;
+
   void *processReturnValue = coroutineResume(processHandle, processMessage);
   if (processReturnValue == COROUTINE_CORRUPT) {
     printString("ERROR:  Called process is corrupted!!!\n");
