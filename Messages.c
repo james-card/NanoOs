@@ -505,137 +505,6 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
   return return_value;
 }
 
-#ifdef THREAD_SAFE_COROUTINES
-
-/// @fn msg_t* msg_wait_for_reply_with_type_(
-///   msg_t *sent, bool release, int *type, const struct timespec *ts)
-///
-/// @brief Wait for a reply from the thread recipient of a message.
-///
-/// @param sent The message that was originally sent to the recipient.
-/// @param release Whether or not the provided sent message should be released
-///   (*NOT* destroyed) after the recipient has indicated that they're done
-///   processing our sent message.
-/// @param type A pointer to an integer type of message that the caller is
-///   waiting for.  If this parameter is NULL, no type will be considered.
-/// @param ts A pointer to a struct timespec that holds the end time to wait
-///   until for a reply.  If this parameter is NULL, then an infinite timeout
-///   will be used.
-///
-/// @return Returns a pointer to the msg_t received from the recipient of
-/// the original message on success, NULL on failure or if the provided timeout
-/// time is reached.
-msg_t* msg_wait_for_reply_with_type_thrd(
-  msg_t *sent, bool release,
-  int *type, const struct timespec *ts
-) {
-  msg_t *reply = NULL;
-
-  thrd_msg_q_t *queue = get_thread_thrd_msg_q();
-  if (queue == NULL) {
-    // Something is wrong.  Bail.
-    return reply; // NULL
-  }
-
-  if (sent == NULL) {
-    // Invalid.
-    return reply; // NULL
-  }
-
-  // We need to grab the original recipient of the message that was sent before
-  // we wait for done in case the recipient reuses this message as the reply.
-  thrd_t recipient = sent->to.thrd;
-
-  if (msg_wait_for_done(sent, ts) != msg_success) {
-    // Invalid state of the message.  Fail.
-    return reply; // NULL
-  }
-
-  if (release == true) {
-    // We're done with the message that was originally sent and the caller has
-    // indicated that it is to be released now.
-    msg_release(sent);
-  }
-
-  // Recipient has processed the message.  We now need to wait for their reply.
-  int lock_status = msg_success;
-  if (ts == NULL) {
-    lock_status = mtx_lock(&queue->lock);
-  } else {
-    lock_status = mtx_timedlock(&queue->lock, ts);
-  }
-  if (lock_status != msg_success) {
-    // Either we've timed out or there's a problem with the lock.  Either way,
-    // we're done.  Bail.
-    return reply; // NULL
-  }
-
-  // mtx_timedlock will return thrd_timedout if the timeout is
-  // reached, so we'll never reach this point if we've exceeded our timeout.
-  msg_t *prev = NULL;
-  msg_t *cur = queue->head;
-  msg_t **prev_next = &queue->head;
-  int searchType = 0;
-  if (type != NULL) {
-    // This saves us from having to dereference the pointer in every iteration
-    // of the loop below.
-    searchType = *type;
-  }
-
-  // Enter our main wait loop.
-  int wait_status = msg_success;
-  while (reply == NULL) {
-    while ((cur != NULL)
-      && ((cur->from.thrd != recipient)
-        || ((type != NULL) && (cur->type != searchType))
-      )
-    ) {
-      prev = cur;
-      prev_next = &cur->next;
-      cur = cur->next;
-    }
-
-    if (cur != NULL) {
-      // Desired reply was found.  Remove the message from the thread.
-      reply = cur;
-      *prev_next = cur->next;
-
-      if (queue->head == NULL) {
-        // Empty queue.  Set queue->tail to NULL too.
-        queue->tail = NULL;
-      }
-      if (queue->tail == cur) {
-        queue->tail = prev;
-      }
-      cur->next = NULL;
-    } else {
-      // Desired reply was not found.  Block until something else is pushed.
-      if (ts == NULL) {
-        wait_status = cnd_wait(&queue->condition, &queue->lock);
-      } else {
-        wait_status = cnd_timedwait(
-          &queue->condition, &queue->lock, ts);
-      }
-      if (wait_status != msg_success) {
-        // Something isn't as expected.  Bail.
-        break;
-      }
-      // cnd_timedwait will return thrd_timedout if the timeout is
-      // reached, so we won't continue the loop if we've exceeded our timeout.
-    }
-
-    prev = NULL;
-    cur = queue->head;
-    prev_next = &queue->head;
-  }
-
-  mtx_unlock(&queue->lock);
-
-  return reply;
-}
-
-#endif // THREAD_SAFE_COROUTINES
-
 /// @fn msg_t* msg_wait_for_reply_with_type_coro(msg_t *sent,
 ///   bool releaseAfterDone, int *type, const struct timespec *ts)
 ///
@@ -770,6 +639,15 @@ msg_t* msg_wait_for_reply_with_type_coro(
 
   return reply;
 }
+
+#ifdef THREAD_SAFE_COROUTINES
+
+// Defined in CThreadsMessages.c
+msg_t* msg_wait_for_reply_with_type_thrd(
+  msg_t *sent, bool release,
+  int *type, const struct timespec *ts);
+
+#endif // THREAD_SAFE_COROUTINES
 
 /// @fn msg_t* msg_wait_for_reply(
 ///   msg_t *sent, bool release, const struct timespec *ts)
