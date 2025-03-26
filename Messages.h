@@ -157,43 +157,6 @@ typedef enum msg_element_t {
   NUM_MSG_ELEMENTS
 } msg_element_t;
 
-#ifdef THREAD_SAFE_COROUTINES
-
-/// @struct thrd_msg_q_t
-///
-/// @brief Definition for a thread's message queue.
-///
-/// @param head The head of the message queue.  Messages will be removed from
-///   this pointer.
-/// @param tail The tail of the message queue.  Messages will be added to this
-///   pointer.
-/// @param condition A condition (cnd_t) that will allow for signalling between
-///   threads when adding a message to the queue.
-/// @param lock A mutex (mtx_t) to guard the condition.
-typedef struct thrd_msg_q_t {
-  msg_t *head;
-  msg_t *tail;
-  cnd_t condition;
-  mtx_t lock;
-} thrd_msg_q_t;
-
-// Defined and documented in CThreadsMessages.c
-extern Trie *message_queues;
-
-/// @fn thrd_msg_q_t* get_thread_thrd_msg_q(void)
-///
-/// @brief Get the message queue for the current thread.
-///
-/// @return Returns a pointer to the thrd_msg_q_t for the thread making this
-/// call.  This should always be a non-NULL value unless something is wrong with
-/// the system.
-static inline thrd_msg_q_t* get_thread_thrd_msg_q(void) {
-  thrd_t thr = thrd_current();
-  return (thrd_msg_q_t*) trieGetValue(message_queues, &thr, sizeof(thr));
-}
-
-#endif // THREAD_SAFE_COROUTINES
-
 // Message functions
 msg_t* msg_create(void);
 msg_t* msg_destroy(msg_t *msg);
