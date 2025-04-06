@@ -470,7 +470,7 @@ int schedulerSendProcessMessageToProcess(
 
   // Have to set the endpoint type manually since we're not using
   // comessageQueuePush.
-  processMessage->endpoint_type = MESSAGE_ENDPOINT_TYPE_COROUTINE;
+  processMessage->msg_sync = &msg_sync_array[MSG_CORO_SAFE];
 
   void *processReturnValue = coroutineResume(processHandle, processMessage);
   if (processReturnValue == COROUTINE_CORRUPT) {
