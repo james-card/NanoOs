@@ -49,19 +49,19 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdint.h>
-#include "NanoOsLibC.h"
+
+#include "CoroutineSync.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#if !defined(SINGLE_CORE_COROUTINES) && !defined(THREAD_SAFE_COROUTINES)
-#define THREAD_SAFE_COROUTINES
-#endif
-#if defined(SINGLE_CORE_COROUTINES) && defined(THREAD_SAFE_COROUTINES)
-#error "Only one of SINGLE_CORE_COROUTINES or THREAD_SAFE_COROUTINES may be defined."
-#endif
+// Forward declarations.  Doxygen below.
+typedef struct Coroutine Coroutine;
+typedef struct msg_t msg_t;
+
+#include "Messages.h"
 
 // Base coroutine support.
 
@@ -108,7 +108,7 @@ extern "C"
 ///
 /// @brief The size of a single chunk of the stack allocated by
 /// coroutineAllocateStack.
-#define COROUTINE_STACK_CHUNK_SIZE 64
+#define COROUTINE_STACK_CHUNK_SIZE 32
 
 /// @def COROUTINE_DEFAULT_STACK_SIZE
 ///
@@ -187,12 +187,6 @@ typedef enum CoroutineState {
   NUM_COROUTINE_STATES
 } CoroutineState;
 
-// Forward declarations.  Doxygen below.
-typedef struct Comutex Comutex;
-typedef struct Cocondition Cocondition;
-typedef struct Coroutine Coroutine;
-typedef struct msg_t msg_t;
-
 /// @typedef CoroutineFunction
 ///
 /// @brief Function signature that can be used as a coroutine.
@@ -227,64 +221,6 @@ typedef union CoroutineFuncData {
   void *data;
 } CoroutineFuncData;
 
-// Coroutine mutex support.
-
-// Comutex types
-#define comutexPlain     0
-#define comutexRecursive 1
-#define comutexTimed     2
-
-/// @struct Comutex
-///
-/// @brief Definition for a coroutine mutex to provide mutual exclusion between
-/// coroutines.
-///
-/// @param lastYieldValue The last value returned by a yield call if a comutex
-///   lock function blocked while acquiring the lock, or NULL if the lock was
-///   acquired on the first attempt.
-/// @param type The type of the mutex (see above type definitions)
-/// @param coroutine The coroutine that has the lock.
-/// @param recursionLevel The number of times this mutex has been successfully
-///   locked in this coroutine.
-/// @param head The next coroutine in the queue to lock this mutex.
-/// @param timeoutTime The time at which a call to comutexTimedLock will
-///   timeout.
-typedef struct Comutex {
-  void *lastYieldValue;
-  int type;
-  Coroutine *coroutine;
-  int recursionLevel;
-  Coroutine *head;
-  int64_t timeoutTime;
-} Comutex;
-
-// Coroutine condition support.
-
-/// @struct Cocondition
-///
-/// @brief Definition for a coroutine condition for signaling between
-/// coroutines.
-///
-/// @param lastYieldValue The last value returned by a yield call while a
-///   cocondition wait function was blocked.
-/// @param numWaiters The number of coroutines blocked waiting on this
-///   condition.
-/// @param numSignal The number of signals emitted for unblocking waiting
-///   coroutines.
-/// @param head The head of the coroutine queue (the next coroutine to signal).
-/// @param tail The tail of the coroutine queue (where the next waiting
-///   coroutine will be added).
-/// @param timeoutTime The time at which a call to coconditionTimedWait will
-///   timeout.
-typedef struct Cocondition {
-  void *lastYieldValue;
-  int numWaiters;
-  int numSignals;
-  Coroutine *head;
-  Coroutine *tail;
-  int64_t timeoutTime;
-} Cocondition;
-
 // Coroutine base support.
 
 /// @struct Coroutine
@@ -306,13 +242,8 @@ typedef struct Cocondition {
 ///   after a coroutine has been terminated and the value of context is reset.
 /// @param passed The CoroutineFuncData that's passed between contexts by the
 ///   coroutinePass function (on a yield or resume call).
-/// @param nextMessage A pointer to the next message that is waiting for the
-///   coroutine to process.
-/// @param lastMessage A pointer to the last message that is waiting for the
-///   coroutine to process.
-/// @param messageCondition A condition (Cocondition) that will allow for
-///   signalling between coroutines when adding a message to the queue.
-/// @param messageLock A mutex (Comutex) to guard the message condition.
+/// @param messageQueue A msg_q_t that holds the messages sent to this
+///   coroutine.
 /// @param blockingComutex A pointer to the mutex (Comutex) that the coroutine
 ///   is currently waiting to lock.
 /// @param blockingCocondition A pointer to a condition (Cocondition) that the
@@ -331,10 +262,7 @@ typedef struct Coroutine {
   struct Coroutine *prevToSignal;
   jmp_buf resetContext;
   CoroutineFuncData passed;
-  msg_t *nextMessage;
-  msg_t *lastMessage;
-  Cocondition messageCondition;
-  Comutex messageLock;
+  msg_q_t messageQueue;
   Comutex *blockingComutex;
   Cocondition *blockingCocondition;
   uint32_t guard2;
@@ -408,29 +336,13 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes);
 Coroutine* getRunningCoroutine(void);
 
 
-// Coroutine mutex function prototypes.  Doxygen inline in source file.
-int comutexInit(Comutex *mtx, int type);
-int comutexLock(Comutex *mtx);
-int comutexUnlock(Comutex *mtx);
-void comutexDestroy(Comutex *mtx);
-int comutexTimedLock(Comutex *mtx, const struct timespec *ts);
-int comutexTryLock(Comutex *mtx);
-void* comutexLastYieldValue(Comutex *mtx);
-
-
-// Coroutine condition function prototypes.  Doxygen inline in source file.
-int coconditionBroadcast(Cocondition *cond);
-void coconditionDestroy(Cocondition *cond);
-int coconditionInit(Cocondition *cond);
-int coconditionSignal(Cocondition *cond);
-int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
+// Message functions
+msg_t* comessageWaitForReply(msg_t *sent, bool release,
   const struct timespec *ts);
-int coconditionWait(Cocondition *cond, Comutex *mtx);
-void* coconditionLastYieldValue(Cocondition *cond);
-
+msg_t* comessageWaitForReplyWithType(msg_t *sent, bool release, int type,
+  const struct timespec *ts);
 
 // Message queue functions
-int comessageQueueDestroy(Coroutine *coroutine);
 msg_t* comessageQueuePeek(void);
 msg_t* comessageQueuePop(void);
 msg_t* comessageQueuePopType(int type);
@@ -442,7 +354,5 @@ int comessageQueuePush(Coroutine *coroutine, msg_t *comessage);
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-#include "Messages.h"
 
 #endif // COROUTINES_H

@@ -38,57 +38,117 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "Coroutines.h"
 
-#ifdef THREAD_SAFE_COROUTINES
-#include "Trie.h"
-// Forward declarations needed for CThreadsMessages.h, which is eventually
-// included from CThreads.h.
-typedef struct Trie Trie;
-typedef struct msg_t msg_t;
-#ifdef __cplusplus
-extern "C" {
-#endif
-  void* trieGetValue(Trie *tree, const volatile void *key, size_t keySize);
-#ifdef __cplusplus
-}
-#endif
-#include "CThreads.h"
-#endif // THREAD_SAFE_COROUTINES
+#if defined(__linux__) || defined(_WIN32)
+#include "ProcessSync.h"
+#endif // defined(__linux__) || defined(_WIN32)
+#include "CoroutineSync.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-// Return statuses
+// Return statuses.  These need to match the corresponding thrd_* values.
 #define msg_success    0
-#define msg_error      1
-#define msg_nomem      2
-#define msg_timedout   3
+#define msg_busy       1
+#define msg_error      2
+#define msg_nomem      3
+#define msg_timedout   4
 
-/// @enum msg_endpoint_type_t
+// Mutex types
+#define msg_mtx_plain     0
+#define msg_mtx_recursive 1
+#define msg_mtx_timed     2
+
+/// @enum msg_safety_t
 ///
-/// @brief Indicator of what kind of entity a message was sent to.
-typedef enum msg_endpoint_type_t {
-  MESSAGE_ENDPOINT_TYPE_NOT_SET,
-  MESSAGE_ENDPOINT_TYPE_COROUTINE,
+/// @brief Indicator of what level of safety to employ with message operations
+/// (process, thread, or coroutine).
+typedef enum msg_safety_t {
+#ifdef PROCESS_SYNC_H
+  MSG_PROC_SAFE,
+#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
-  MESSAGE_ENDPOINT_TYPE_THREAD,
+  MSG_THRD_SAFE,
 #endif // THREAD_SAFE_COROUTINES
-  NUM_MESSAGE_ENDPOINT_TYPES
-} msg_endpoint_type_t;
+  MSG_CORO_SAFE,
+} msg_safety_t;
+
+/// @struct msg_sync_t
+///
+/// @brief Structure of function pointers that will be used for synchronization
+/// operations for the queues and messages.
+typedef struct msg_sync_t {
+  int  (*mtx_init)(void *mtx, int type);
+  int  (*mtx_lock)(void *mtx);
+  int  (*mtx_unlock)(void *mtx);
+  void (*mtx_destroy)(void *mtx);
+  int  (*mtx_timedlock)(void *mtx, const struct timespec *ts);
+  int  (*mtx_trylock)(void *mtx);
+  int  (*cnd_broadcast)(void *cond);
+  void (*cnd_destroy)(void *cond);
+  int  (*cnd_init)(void *cond);
+  int  (*cnd_signal)(void *cond);
+  int  (*cnd_timedwait)(void *cond, void *mtx, const struct timespec *ts);
+  int  (*cnd_wait)(void *cond, void *mtx);
+} msg_sync_t;
+
+// Array of these structures declared and instantiated in Messages.c.
+extern msg_sync_t msg_sync_array[];
+
+/// @union msg_mtx_t
+///
+/// Union of all possible valid mutexe types for a msg_t or msg_q_t.
+typedef union msg_mtx_t {
+#ifdef PROCESS_SYNC_H
+  proc_mtx_t proc_mtx;
+#endif // PROCESS_SYNC_H
+#ifdef THREAD_SAFE_COROUTINES
+  mtx_t thrd_mtx;
+#endif // THREAD_SAFE_COROUTINES
+  Comutex coro_mtx;
+} msg_mtx_t;
+
+/// @union msg_cnd_t
+///
+/// Union of all possible valid condition types for a msg_t or msg_q_t.
+typedef union msg_cnd_t {
+#ifdef PROCESS_SYNC_H
+  proc_cnd_t proc_cnd;
+#endif // PROCESS_SYNC_H
+#ifdef THREAD_SAFE_COROUTINES
+  cnd_t thrd_cnd;
+#endif // THREAD_SAFE_COROUTINES
+  Cocondition coro_cnd;
+} msg_cnd_t;
 
 /// @union msg_endpoint_t
 ///
 /// @brief Union of all possible valid endpoints for a msg_t to be sent to (or
 /// received from).
 typedef union msg_endpoint_t {
-    Coroutine *coro;
+#ifdef PROCESS_SYNC_H
+  proc_t proc;
+#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
-    thrd_t thrd;
+  thrd_t thrd;
 #endif // THREAD_SAFE_COROUTINES
+  Coroutine *coro;
 } msg_endpoint_t;
+
+// Forward declaration so that the function pointer typedefs will work.
+typedef struct msg_t msg_t;
+
+/// @typedef msg_allocator_t
+///
+/// Signature for a function that will allocate a msg_t in a custom way.
+typedef msg_t* (*msg_allocator_t)(void);
+
+/// @typedef msg_deallocator_t
+///
+/// Signature for a function that will deallocate a msg_t in a custom way.
+typedef void (*msg_deallocator_t)(msg_t*);
 
 /// @struct msg_t
 ///
@@ -105,21 +165,19 @@ typedef union msg_endpoint_t {
 ///   has handled the message yet.
 /// @param in_use A Boolean flag to indicate whether or not this msg_t is in
 ///   use.
-/// @param from A msg_endpoint_t that represents the sending entity.
-/// @param to A msg_endpoint_t that represents the receiveing entity.
-/// @param coro_condition A condition (Cocondition) that will allow for
-///   signalling between coroutines when setting the done flag.
-/// @param coro_lock A mutex (Comutex) to guard the coroutine condition.
-/// @param thrd_condition A condition (cnd_t) that will allow for signalling
-///   between threads when setting the done flag.
-/// @param thrd_lock A mutex (mtx_t) to guard the thread condition.
+/// @param from A msg_endpoint_t union that represents the sending entity.
+/// @param to A msg_endpoint_t union that represents the receiveing entity.
+/// @param condition A msg_cnd_t union that will allow for signalling between
+///   the endpoints.
+/// @param lock A msg_mtx_t union to guard the condition.
 /// @param configured Whether or not the members of the message that require
 ///   initialization have been configured yet.
 /// @param dynamically_allocated Whether or not the message was dynamically
 ///   allocated with msg_create.
-/// @param endpoint_type A msg_endpoint_type_t that indicates the kind of
-///   entity that the message was sent to, if any.
-/// @param coro_init Whether or not coroutines are initialized on the system.
+/// @param deallocator A pointer to a function that will deallocate a msg_t in a
+///   custom way.
+/// @param msg_sync A pointer to the msg_sync_t that defines the synchronization
+///   primitive functions to use with the conditions and mutexes in this object.
 typedef struct msg_t {
   int type;
   void *data;
@@ -130,17 +188,53 @@ typedef struct msg_t {
   bool in_use;
   msg_endpoint_t from;
   msg_endpoint_t to;
-  Cocondition coro_condition;
-  Comutex coro_lock;
-#ifdef THREAD_SAFE_COROUTINES
-  cnd_t thrd_condition;
-  mtx_t thrd_lock;
-#endif // THREAD_SAFE_COROUTINES
+  msg_cnd_t condition;
+  msg_mtx_t lock;
   bool configured;
   bool dynamically_allocated;
-  msg_endpoint_type_t endpoint_type;
-  bool coro_init;
+  msg_deallocator_t deallocator;
+  msg_sync_t *msg_sync;
 } msg_t;
+
+// Forward declaration so that the function pointer typedefs will work.
+typedef struct msg_q_t msg_q_t;
+
+/// @typedef msg_q_allocator_t
+///
+/// Signature for a function that will allocate a msg_q_t in a custom way.
+typedef msg_q_t* (*msg_q_allocator_t)(void);
+
+/// @typedef msg_q_deallocator_t
+///
+/// Signature for a function that will deallocate a msg_q_t in a custom way.
+typedef void (*msg_q_deallocator_t)(msg_q_t*);
+
+/// @struct msg_q_t
+///
+/// @brief Definition for a thread's message queue.
+///
+/// @param head The head of the message queue.  Messages will be removed from
+///   this pointer.
+/// @param tail The tail of the message queue.  Messages will be added to this
+///   pointer.
+/// @param condition A msg_cnd_t union that will allow for signalling between
+///   the endpoints.
+/// @param lock A msg_mtx_t union to guard the condition.
+/// @param dynamically_allocated Whether or not the message queue was
+///   dynamically allocated.
+/// @param deallocator A pointer to a function that will deallocate a msg_q_t in
+///   a custom way.
+/// @param msg_sync A pointer to the msg_sync_t that defines the synchronization
+///   primitive functions to use with the conditions and mutexes in this object.
+typedef struct msg_q_t {
+  msg_t *head;
+  msg_t *tail;
+  msg_cnd_t condition;
+  msg_mtx_t lock;
+  bool dynamically_allocated;
+  msg_q_deallocator_t deallocator;
+  msg_sync_t *msg_sync;
+} msg_q_t;
 
 /// @enum msg_element_t
 ///
@@ -158,16 +252,18 @@ typedef enum msg_element_t {
 } msg_element_t;
 
 // Message functions
-msg_t* msg_create(void);
+msg_t* msg_create(msg_safety_t msg_safety,
+  msg_allocator_t msg_allocator, msg_deallocator_t msg_deallocator);
 msg_t* msg_destroy(msg_t *msg);
-int msg_init(
-  msg_t *msg, int type, void *data, size_t size, bool waiting);
+int msg_init(msg_t *msg, msg_safety_t msg_safety,
+  int type, void *data, size_t size, bool waiting);
 int msg_release(msg_t *msg);
 int msg_set_done(msg_t *msg);
 int msg_wait_for_done(msg_t *msg, const struct timespec *ts);
-msg_t* msg_wait_for_reply(msg_t *sent, bool release, const struct timespec *ts);
-msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release, int type,
-  const struct timespec *ts);
+msg_t* msg_wait_for_reply(msg_q_t *queue, msg_t *sent,
+  bool release, const struct timespec *ts);
+msg_t* msg_wait_for_reply_with_type(msg_q_t *queue, msg_t *sent,
+  bool release, int type, const struct timespec *ts);
 
 // Message element accessors
 void* msg_element(msg_t *msg, msg_element_t msg_element);
@@ -188,6 +284,17 @@ void* msg_element(msg_t *msg, msg_element_t msg_element);
 #define msg_to(msg_ptr) \
   (*((msg_endpoint_t*) msg_element((msg_ptr), MSG_ELEMENT_TO)))
 
+// Message queue functions
+msg_q_t* msg_q_create(msg_q_t *q, msg_safety_t msg_safety,
+  msg_q_allocator_t msg_q_allocator, msg_q_deallocator_t msg_q_deallocator);
+int msg_q_destroy(msg_q_t *queue);
+msg_t* msg_q_peek(msg_q_t *queue);
+msg_t* msg_q_pop(msg_q_t *queue);
+msg_t* msg_q_pop_type(msg_q_t *queue, int type);
+msg_t* msg_q_wait(msg_q_t *queue, const struct timespec *ts);
+msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
+  const struct timespec *ts);
+int msg_q_push(msg_q_t *queue, msg_t *msg);
 
 #ifdef __cplusplus
 }
