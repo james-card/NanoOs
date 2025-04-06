@@ -112,7 +112,7 @@ extern "C"
 ///
 /// @brief Function macro to initialize a process message.
 #define processMessageInit(processMessage, type, data, size, waiting) \
-  msg_init(processMessage, type, data, size, waiting)
+  msg_init(processMessage, MSG_CORO_SAFE, type, data, size, waiting)
 
 /// @def processMessageSetDone
 ///
@@ -137,7 +137,7 @@ extern "C"
 ///
 /// @brief Function macro to wait on a reply to a message with a specified type.
 #define processMessageWaitForReplyWithType(sent, releaseAfterDone, type, ts) \
-  msg_wait_for_reply_with_type(sent, releaseAfterDone, type, ts)
+  comessageWaitForReplyWithType(sent, releaseAfterDone, type, ts)
 
 /// @def processMessageQueueWaitForType
 ///
