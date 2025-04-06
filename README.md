@@ -70,7 +70,7 @@ When a user process needs something from one of the kernel processes, it prepare
 
 ## Dynamic Memory
 
-NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last process and makes use of all of the remaining memory at that time.  As of 2-Mar-2025, that amount is about 1300 bytes.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
+NanoOs does support dynamic memory, just not very much of it.  The memory manager is started as the last process and makes use of all of the remaining memory at that time.  As of 6-Apr-2025, that amount is about 800 bytes.  Due to the way the data structures are organized, the maximum amount of dynamic memory supported is 4 KB.
 
 The memory manager is a modified bump allocator that supports automatic memory compaction.  Any time the last pointer in the allocation list is freed, the next pointer is moved backward until a block that has not been freed is found or until the beginning of dynamic memory is reached.  The number of outstanding memory allocations is not tracked because it's unnecessary.  This allows partial reclamation of memory space without having to free all outstanding allocations.
 
