@@ -540,7 +540,7 @@ msg_t* msg_wait_for_reply_with_type_(
   int wait_status = msg_success;
   while (reply == NULL) {
     while ((cur != NULL)
-      && ((memcmp(&cur->from, &recipient, sizeof(msg_endpoint_t)) == 0)
+      && ((memcmp(&cur->from, &recipient, sizeof(msg_endpoint_t)) != 0)
         || ((type != NULL) && (cur->type != searchType))
       )
     ) {
