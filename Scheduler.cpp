@@ -2629,6 +2629,7 @@ __attribute__((noinline)) void startScheduler(
       kfclose(&schedulerState, hostnameFile);
     } else {
       printString("ERROR! kfopen of hostname returned NULL!\n");
+      strcpy(schedulerState.hostname, "localhost");
     }
   } else {
     printString("ERROR! schedulerState.hostname is NULL!\n");
