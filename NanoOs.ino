@@ -73,12 +73,16 @@ void loop() {
   // scheduler.
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
-  coroutineConfig(
+  if (coroutineConfig(
     &_mainCoroutine,
     NANO_OS_STACK_SIZE,
     &coroutineStatePointer,
     comutexUnlockCallback,
-    coconditionSignalCallback);
+    coconditionSignalCallback) != coroutineSuccess
+  ) {
+    printString("coroutineConfig failed.\n");
+    while(1);
+  }
   // Create but *DO NOT* resume one dummy process.  This will double the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
