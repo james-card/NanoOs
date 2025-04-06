@@ -54,7 +54,7 @@ extern "C"
 /// @brief The minimum size for an individual process's stack.  Actual size will
 /// be slightly larger than this.  This value needs to be a multiple of 
 /// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
-#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 5)
+#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 10)
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
