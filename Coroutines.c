@@ -1222,6 +1222,9 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
       cond->tail = targetCoroutine->prevToSignal;
     }
     cond->numWaiters--;
+    if (cond->numSignals > 0) {
+      cond->numSignals--;
+    }
   }
   // targetCoroutine->prevToSignal->nextToSignal is taken care of above.
   if (targetCoroutine->nextToSignal != NULL) {
