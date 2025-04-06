@@ -491,7 +491,7 @@ msg_t* msg_wait_for_reply_with_type_(
 ) {
   msg_t *reply = NULL;
 
-  if (sent == NULL) {
+  if ((queue == NULL) || (sent == NULL)) {
     // Invalid.
     return reply; // NULL
   }
