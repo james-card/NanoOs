@@ -336,12 +336,6 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes);
 Coroutine* getRunningCoroutine(void);
 
 
-// Message functions
-msg_t* comessageWaitForReply(msg_t *sent, bool release,
-  const struct timespec *ts);
-msg_t* comessageWaitForReplyWithType(msg_t *sent, bool release, int type,
-  const struct timespec *ts);
-
 // Message queue functions
 msg_t* comessageQueuePeek(void);
 msg_t* comessageQueuePop(void);

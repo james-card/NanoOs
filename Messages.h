@@ -39,6 +39,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Do forward declarations before including headers from this library to avoid
+// circular dependencies.
+typedef struct msg_t msg_t;
+typedef struct msg_q_t msg_q_t;
+
 #if defined(__linux__) || defined(_WIN32)
 #include "ProcessSync.h"
 #endif // defined(__linux__) || defined(_WIN32)
@@ -137,8 +142,9 @@ typedef union msg_endpoint_t {
   Coroutine *coro;
 } msg_endpoint_t;
 
-// Forward declaration so that the function pointer typedefs will work.
+// Forward declarations so that the function pointer typedefs will work.
 typedef struct msg_t msg_t;
+typedef struct msg_q_t msg_q_t;
 
 /// @typedef msg_allocator_t
 ///
@@ -178,6 +184,7 @@ typedef void (*msg_deallocator_t)(msg_t*);
 ///   custom way.
 /// @param msg_sync A pointer to the msg_sync_t that defines the synchronization
 ///   primitive functions to use with the conditions and mutexes in this object.
+/// @param reply_to A pointer to the msg_q_t to reply to.
 typedef struct msg_t {
   int type;
   void *data;
@@ -194,10 +201,8 @@ typedef struct msg_t {
   bool dynamically_allocated;
   msg_deallocator_t deallocator;
   msg_sync_t *msg_sync;
+  msg_q_t *reply_to;
 } msg_t;
-
-// Forward declaration so that the function pointer typedefs will work.
-typedef struct msg_q_t msg_q_t;
 
 /// @typedef msg_q_allocator_t
 ///
@@ -260,9 +265,9 @@ int msg_init(msg_t *msg, msg_safety_t msg_safety,
 int msg_release(msg_t *msg);
 int msg_set_done(msg_t *msg);
 int msg_wait_for_done(msg_t *msg, const struct timespec *ts);
-msg_t* msg_wait_for_reply(msg_q_t *queue, msg_t *sent,
+msg_t* msg_wait_for_reply(msg_t *sent,
   bool release, const struct timespec *ts);
-msg_t* msg_wait_for_reply_with_type(msg_q_t *queue, msg_t *sent,
+msg_t* msg_wait_for_reply_with_type(msg_t *sent,
   bool release, int type, const struct timespec *ts);
 
 // Message element accessors
@@ -294,7 +299,7 @@ msg_t* msg_q_pop_type(msg_q_t *queue, int type);
 msg_t* msg_q_wait(msg_q_t *queue, const struct timespec *ts);
 msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
   const struct timespec *ts);
-int msg_q_push(msg_q_t *queue, msg_t *msg);
+int msg_q_push(msg_q_t *queue, msg_q_t *reply_to, msg_t *msg);
 
 #ifdef __cplusplus
 }

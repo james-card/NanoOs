@@ -589,13 +589,12 @@ msg_t* msg_wait_for_reply_with_type_(
   return reply;
 }
 
-/// @fn msg_t* msg_wait_for_reply(msg_q_t *queue, msg_t *sent,
+/// @fn msg_t* msg_wait_for_reply(msg_t *sent,
 ///   bool release, const struct timespec *ts)
 ///
 /// @brief Block until a reply has been received from the original recipient of
 /// the provided message or until a specified future time has been reached.
 ///
-/// @param queue The queue to monitor for a reply.
 /// @param sent The message that was originally sent to the recipient.
 /// @param release Whether or not the provided sent message should be released
 ///   (*NOT* destroyed) after the recipient has indicated that they're done
@@ -606,24 +605,24 @@ msg_t* msg_wait_for_reply_with_type_(
 ///
 /// @return Returns a pointer to the msg_t received from the recipient of
 /// the original message on success, NULL on failure.
-msg_t* msg_wait_for_reply(msg_q_t *queue, msg_t *sent, bool release,
+msg_t* msg_wait_for_reply(msg_t *sent, bool release,
   const struct timespec *ts
 ) {
-  if ((queue == NULL) || (sent == NULL)) {
+  if (sent == NULL) {
     return NULL;
   }
 
-  return msg_wait_for_reply_with_type_(queue, sent, release, NULL, ts);
+  return msg_wait_for_reply_with_type_(
+    sent->reply_to, sent, release, NULL, ts);
 }
 
-/// @fn msg_t* msg_wait_for_reply_with_type(msg_q_t *queue, msg_t *sent,
+/// @fn msg_t* msg_wait_for_reply_with_type(msg_t *sent,
 ///   bool release, int type, const struct timespec *ts)
 ///
 /// @brief Block until a reply of a specified type has been received from the
 /// original recipient of the provided message or until a specified future time
 /// has been reached.
 ///
-/// @param queue The queue to monitor for a reply.
 /// @param sent The message that was originally sent to the recipient.
 /// @param release Whether or not the provided sent message should be released
 ///   (*NOT* destroyed) after the recipient has indicated that they're done
@@ -636,14 +635,15 @@ msg_t* msg_wait_for_reply(msg_q_t *queue, msg_t *sent, bool release,
 /// @return Returns a pointer to the msg_t received from the recipient of
 /// the original message of the specified tyep on success, NULL on failure or if
 /// the provided timeout time is reached.
-msg_t* msg_wait_for_reply_with_type(msg_q_t *queue, msg_t *sent, bool release,
+msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release,
   int type, const struct timespec *ts
 ) {
-  if ((queue == NULL) || (sent == NULL)) {
+  if (sent == NULL) {
     return NULL;
   }
 
-  return msg_wait_for_reply_with_type_(queue, sent, release, &type, ts);
+  return msg_wait_for_reply_with_type_(
+    sent->reply_to, sent, release, &type, ts);
 }
 
 /// @fn void* msg_element(msg_t *msg, msg_element_t msg_element)
@@ -1055,16 +1055,17 @@ msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
 }
 
 
-/// @fn int msg_q_push(msg_q_t *queue, msg_t *msg)
+/// @fn int msg_q_push(msg_q_t *queue, msg_q_t *reply_to, msg_t *msg)
 ///
 /// @brief Push a message onto the message queue of a specified thread.
 ///
 /// @param queue The queue to push onto.
+/// @param reply_to The queue that should be replied to, if any.
 /// @param msg A pointer to the msg_t to push onto the destination thread's
 /// message queue.
 ///
 /// @return Returns msg_success on success, msg_error on failure.
-int msg_q_push(msg_q_t *queue, msg_t *msg) {
+int msg_q_push(msg_q_t *queue, msg_q_t *reply_to, msg_t *msg) {
   int return_value = msg_error;
   
   if (msg == NULL) {
@@ -1091,6 +1092,7 @@ int msg_q_push(msg_q_t *queue, msg_t *msg) {
     queue->head = msg;
     queue->tail = msg;
   }
+  msg->reply_to = reply_to;
   
   // Let all the waiters know that there's something new in the queue now.
   return_value = queue->msg_sync->cnd_broadcast(&queue->condition);
