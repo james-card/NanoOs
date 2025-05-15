@@ -2151,7 +2151,7 @@ int comessageQueueCreate(Coroutine *coroutine) {
     return returnValue; // coroutineError
   }
 
-  if (msg_q_create(&coroutine->messageQueue, MSG_CORO_SAFE, NULL, NULL)
+  if (msg_q_create(&coroutine->messageQueue, MSG_CORO_SAFE)
     == &coroutine->messageQueue
   ) {
     returnValue = coroutineSuccess;

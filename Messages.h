@@ -38,6 +38,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 // Do forward declarations before including headers from this library to avoid
 // circular dependencies.
@@ -45,7 +46,7 @@ typedef struct msg_t msg_t;
 typedef struct msg_q_t msg_q_t;
 
 #if defined(__linux__) || defined(_WIN32)
-#include "ProcessSync.h"
+//// #include "ProcessSync.h"
 #endif // defined(__linux__) || defined(_WIN32)
 #include "CoroutineSync.h"
 
@@ -80,23 +81,31 @@ typedef enum msg_safety_t {
   MSG_CORO_SAFE,
 } msg_safety_t;
 
+// Forward declarations so that the function pointer typedefs will work.
+typedef struct msg_t msg_t;
+typedef struct msg_q_t msg_q_t;
+
 /// @struct msg_sync_t
 ///
 /// @brief Structure of function pointers that will be used for synchronization
 /// operations for the queues and messages.
 typedef struct msg_sync_t {
-  int  (*mtx_init)(void *mtx, int type);
-  int  (*mtx_lock)(void *mtx);
-  int  (*mtx_unlock)(void *mtx);
-  void (*mtx_destroy)(void *mtx);
-  int  (*mtx_timedlock)(void *mtx, const struct timespec *ts);
-  int  (*mtx_trylock)(void *mtx);
-  int  (*cnd_broadcast)(void *cond);
-  void (*cnd_destroy)(void *cond);
-  int  (*cnd_init)(void *cond);
-  int  (*cnd_signal)(void *cond);
-  int  (*cnd_timedwait)(void *cond, void *mtx, const struct timespec *ts);
-  int  (*cnd_wait)(void *cond, void *mtx);
+  msg_t*   (*msg_allocate)(void);
+  void     (*msg_deallocate)(msg_t*);
+  msg_q_t* (*msg_q_allocate)(void);
+  void     (*msg_q_deallocate)(msg_q_t*);
+  int      (*mtx_init)(void *mtx, int type);
+  int      (*mtx_lock)(void *mtx);
+  int      (*mtx_unlock)(void *mtx);
+  void     (*mtx_destroy)(void *mtx);
+  int      (*mtx_timedlock)(void *mtx, const struct timespec *ts);
+  int      (*mtx_trylock)(void *mtx);
+  int      (*cnd_broadcast)(void *cond);
+  void     (*cnd_destroy)(void *cond);
+  int      (*cnd_init)(void *cond);
+  int      (*cnd_signal)(void *cond);
+  int      (*cnd_timedwait)(void *cond, void *mtx, const struct timespec *ts);
+  int      (*cnd_wait)(void *cond, void *mtx);
 } msg_sync_t;
 
 // Array of these structures declared and instantiated in Messages.c.
@@ -142,20 +151,6 @@ typedef union msg_endpoint_t {
   Coroutine *coro;
 } msg_endpoint_t;
 
-// Forward declarations so that the function pointer typedefs will work.
-typedef struct msg_t msg_t;
-typedef struct msg_q_t msg_q_t;
-
-/// @typedef msg_allocator_t
-///
-/// Signature for a function that will allocate a msg_t in a custom way.
-typedef msg_t* (*msg_allocator_t)(void);
-
-/// @typedef msg_deallocator_t
-///
-/// Signature for a function that will deallocate a msg_t in a custom way.
-typedef void (*msg_deallocator_t)(msg_t*);
-
 /// @struct msg_t
 ///
 /// @brief Definition for a message that can be pushed onto a message queue.
@@ -199,20 +194,9 @@ typedef struct msg_t {
   msg_mtx_t lock;
   bool configured;
   bool dynamically_allocated;
-  msg_deallocator_t deallocator;
   msg_sync_t *msg_sync;
   msg_q_t *reply_to;
 } msg_t;
-
-/// @typedef msg_q_allocator_t
-///
-/// Signature for a function that will allocate a msg_q_t in a custom way.
-typedef msg_q_t* (*msg_q_allocator_t)(void);
-
-/// @typedef msg_q_deallocator_t
-///
-/// Signature for a function that will deallocate a msg_q_t in a custom way.
-typedef void (*msg_q_deallocator_t)(msg_q_t*);
 
 /// @struct msg_q_t
 ///
@@ -237,7 +221,6 @@ typedef struct msg_q_t {
   msg_cnd_t condition;
   msg_mtx_t lock;
   bool dynamically_allocated;
-  msg_q_deallocator_t deallocator;
   msg_sync_t *msg_sync;
 } msg_q_t;
 
@@ -257,8 +240,7 @@ typedef enum msg_element_t {
 } msg_element_t;
 
 // Message functions
-msg_t* msg_create(msg_safety_t msg_safety,
-  msg_allocator_t msg_allocator, msg_deallocator_t msg_deallocator);
+msg_t* msg_create(msg_safety_t msg_safety);
 msg_t* msg_destroy(msg_t *msg);
 int msg_init(msg_t *msg, msg_safety_t msg_safety,
   int type, void *data, size_t size, bool waiting);
@@ -290,8 +272,7 @@ void* msg_element(msg_t *msg, msg_element_t msg_element);
   (*((msg_endpoint_t*) msg_element((msg_ptr), MSG_ELEMENT_TO)))
 
 // Message queue functions
-msg_q_t* msg_q_create(msg_q_t *q, msg_safety_t msg_safety,
-  msg_q_allocator_t msg_q_allocator, msg_q_deallocator_t msg_q_deallocator);
+msg_q_t* msg_q_create(msg_q_t *q, msg_safety_t msg_safety);
 int msg_q_destroy(msg_q_t *queue);
 msg_t* msg_q_peek(msg_q_t *queue);
 msg_t* msg_q_pop(msg_q_t *queue);
