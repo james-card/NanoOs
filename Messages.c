@@ -33,9 +33,6 @@ typedef struct msg_t msg_t;
 typedef struct msg_q_t msg_q_t;
 
 #include "Messages.h"
-#ifdef PROCESS_SYNC_H
-#include "ProcessMessages.h"
-#endif // PROCESS_SYNC_H
 
 #if LOGGING_ENABLED && CTHREADS_LOGGING_ENABLED
 #include "LoggingLib.h"
@@ -46,58 +43,13 @@ typedef struct msg_q_t msg_q_t;
 #define LOG_MALLOC_FAILURE(...) {}
 #endif
 
-/// @fn msg_t* calloc_msg_allocator(void)
-///
-/// @brief Default function to use for dynamically allocating a msg_t.
-///
-/// @return Returns a pointer to a newly-allocated msg_t on success, NULL on
-/// failure.
-msg_t* calloc_msg_allocator(void) {
-  return (msg_t*) calloc(1, sizeof(msg_t));
-}
-
-/// @fn msg_q_t* calloc_msg_allocator(void)
-///
-/// @brief Default function to use for dynamically allocating a msg_q_t.
-///
-/// @return Returns a pointer to a newly-allocated msg_q_t on success, NULL on
-/// failure.
-msg_q_t* calloc_msg_q_allocator(void) {
-  return (msg_q_t*) calloc(1, sizeof(msg_q_t));
-}
-
 /// @var msg_sync_array
 ///
 /// @brief Array of msg_sync_t objects that hold the function pointers to use
 /// with the synchronization primitives
 msg_sync_t msg_sync_array[] = {
-#ifdef PROCESS_SYNC_H
-  {
-    (msg_t*   (*)(void)) proc_msg_allocate,
-    (void     (*)(msg_t*)) proc_msg_deallocate,
-    (msg_q_t* (*)(void)) proc_msg_q_allocate,
-    (void     (*)(msg_q_t*)) proc_msg_q_deallocate,
-    (int      (*)(void *mtx, int type)) proc_mtx_init,
-    (int      (*)(void *mtx)) proc_mtx_lock,
-    (int      (*)(void *mtx)) proc_mtx_unlock,
-    (void     (*)(void *mtx)) proc_mtx_destroy,
-    (int      (*)(void *mtx, const struct timespec *ts)) proc_mtx_timedlock,
-    (int      (*)(void *mtx)) proc_mtx_trylock,
-    (int      (*)(void *cond)) proc_cnd_broadcast,
-    (void     (*)(void *cond)) proc_cnd_destroy,
-    (int      (*)(void *cond)) proc_cnd_init,
-    (int      (*)(void *cond)) proc_cnd_signal,
-    (int      (*)(void *cond, void *mtx, const struct timespec *ts))
-      proc_cnd_timedwait,
-    (int      (*)(void *cond, void *mtx)) proc_cnd_wait,
-  },
-#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
   {
-    (msg_t*   (*)(void)) calloc_msg_allocator,
-    (void     (*)(msg_t*)) free,
-    (msg_q_t* (*)(void)) calloc_msg_q_allocator,
-    (void     (*)(msg_q_t*)) free,
     (int      (*)(void *mtx, int type)) mtx_init,
     (int      (*)(void *mtx)) mtx_lock,
     (int      (*)(void *mtx)) mtx_unlock,
@@ -114,10 +66,6 @@ msg_sync_t msg_sync_array[] = {
   },
 #endif // THREAD_SAFE_COROUTINES
   {
-    (msg_t*   (*)(void)) calloc_msg_allocator,
-    (void     (*)(msg_t*)) free,
-    (msg_q_t* (*)(void)) calloc_msg_q_allocator,
-    (void     (*)(msg_q_t*)) free,
     (int      (*)(void *mtx, int type)) comutexInit,
     (int      (*)(void *mtx)) comutexLock,
     (int      (*)(void *mtx)) comutexUnlock,
@@ -196,14 +144,14 @@ static inline int msg_start_use(msg_t *msg, msg_safety_t msg_safety) {
 msg_t* msg_create(msg_safety_t msg_safety) {
   msg_t *msg = NULL;
   // Use the allocator the user wants to use.
-  msg = msg_sync_array[msg_safety].msg_allocate();
+  msg = (msg_t*) calloc(1, sizeof(msg_t));
 
   if (msg != NULL) {
     if (msg_start_use(msg, msg_safety) == msg_success) {
       msg->dynamically_allocated = true;
     } else {
       // Some kind of problem.  Can't use this message.
-      msg_sync_array[msg_safety].msg_deallocate(msg); msg = NULL;
+      free(msg); msg = NULL;
     }
   }
   
@@ -245,7 +193,7 @@ msg_t* msg_destroy(msg_t *msg) {
         msg->msg_sync->mtx_destroy(&msg->lock);
         msg->configured = false;
         if (msg->dynamically_allocated == true) {
-          msg->msg_sync->msg_deallocate(msg); msg = NULL;
+          free(msg); msg = NULL;
         }
       } else {
         // Something is waiting.  Signal the waiters.  It will be up to them to
@@ -261,12 +209,12 @@ msg_t* msg_destroy(msg_t *msg) {
       msg->msg_sync->mtx_destroy(&msg->lock);
       msg->configured = false;
       if (msg->dynamically_allocated == true) {
-        msg->msg_sync->msg_deallocate(msg); msg = NULL;
+        free(msg); msg = NULL;
       }
     }
   } else if (msg->dynamically_allocated == true) {
     // msg->lock and mtx->condition are not initialized, so notihing to destroy.
-    msg->msg_sync->msg_deallocate(msg); msg = NULL;
+    free(msg); msg = NULL;
   }
   
   return msg;
@@ -738,7 +686,7 @@ msg_q_t* msg_q_create(msg_q_t *q, msg_safety_t msg_safety) {
   
   if (q == NULL) {
     // No queue was provided.  Allocate a new one.  This is the expected case.
-    return_value = msg_sync_array[msg_safety].msg_q_allocate();
+    return_value = (msg_q_t*) calloc(1, sizeof(msg_q_t));
 
     if (return_value == NULL) {
       // Allocation failed.  Bail.
@@ -776,7 +724,7 @@ cnd_init_failure:
   if (q == NULL) {
     // No queue was provided by the user, so we dynamically allocated one.
     // Destroy it.
-    return_value->msg_sync->msg_q_deallocate(return_value);
+    free(return_value);
   }
 queue_alloc_failure:
   return_value = NULL;
@@ -790,10 +738,8 @@ queue_alloc_failure:
 ///
 /// @param queue The queue to destroy.
 ///
-/// @return Returns msg_success on success, msg_error on failure.
+/// @return Returns msg_success on success or msg_error on failure.
 int msg_q_destroy(msg_q_t *queue) {
-  int return_value = msg_success;
-  
   for (msg_t *cur = queue->head; cur != NULL; ) {
     msg_t *next = cur->next;
     msg_destroy(cur);
@@ -806,11 +752,11 @@ int msg_q_destroy(msg_q_t *queue) {
   queue->msg_sync->mtx_destroy(&queue->lock);
   queue->msg_sync->cnd_destroy(&queue->condition);
   if (queue->dynamically_allocated == true) {
-    queue->msg_sync->msg_q_deallocate(queue);
+    free(queue);
   }
   queue = NULL;
   
-  return return_value;
+  return msg_success;
 }
 
 /// @fn msg_t* msg_q_peek(msg_q_t *queue) {

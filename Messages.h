@@ -45,9 +45,6 @@
 typedef struct msg_t msg_t;
 typedef struct msg_q_t msg_q_t;
 
-#if defined(__linux__) || defined(_WIN32)
-//// #include "ProcessSync.h"
-#endif // defined(__linux__) || defined(_WIN32)
 #include "CoroutineSync.h"
 
 #ifdef __cplusplus
@@ -72,9 +69,6 @@ extern "C"
 /// @brief Indicator of what level of safety to employ with message operations
 /// (process, thread, or coroutine).
 typedef enum msg_safety_t {
-#ifdef PROCESS_SYNC_H
-  MSG_PROC_SAFE,
-#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
   MSG_THRD_SAFE,
 #endif // THREAD_SAFE_COROUTINES
@@ -90,10 +84,6 @@ typedef struct msg_q_t msg_q_t;
 /// @brief Structure of function pointers that will be used for synchronization
 /// operations for the queues and messages.
 typedef struct msg_sync_t {
-  msg_t*   (*msg_allocate)(void);
-  void     (*msg_deallocate)(msg_t*);
-  msg_q_t* (*msg_q_allocate)(void);
-  void     (*msg_q_deallocate)(msg_q_t*);
   int      (*mtx_init)(void *mtx, int type);
   int      (*mtx_lock)(void *mtx);
   int      (*mtx_unlock)(void *mtx);
@@ -115,9 +105,6 @@ extern msg_sync_t msg_sync_array[];
 ///
 /// Union of all possible valid mutexe types for a msg_t or msg_q_t.
 typedef union msg_mtx_t {
-#ifdef PROCESS_SYNC_H
-  proc_mtx_t proc_mtx;
-#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
   mtx_t thrd_mtx;
 #endif // THREAD_SAFE_COROUTINES
@@ -128,9 +115,6 @@ typedef union msg_mtx_t {
 ///
 /// Union of all possible valid condition types for a msg_t or msg_q_t.
 typedef union msg_cnd_t {
-#ifdef PROCESS_SYNC_H
-  proc_cnd_t proc_cnd;
-#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
   cnd_t thrd_cnd;
 #endif // THREAD_SAFE_COROUTINES
@@ -142,9 +126,6 @@ typedef union msg_cnd_t {
 /// @brief Union of all possible valid endpoints for a msg_t to be sent to (or
 /// received from).
 typedef union msg_endpoint_t {
-#ifdef PROCESS_SYNC_H
-  proc_t proc;
-#endif // PROCESS_SYNC_H
 #ifdef THREAD_SAFE_COROUTINES
   thrd_t thrd;
 #endif // THREAD_SAFE_COROUTINES
