@@ -374,7 +374,7 @@ void* runShell(void *args) {
 ///
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the
-///            binarysearch will work!!!
+///            binary search will work!!!
 const CommandEntry commands[] = {
   {
     .name = "echo",
@@ -386,11 +386,11 @@ const CommandEntry commands[] = {
     .func = logoutCommandHandler,
     .help = "Exit the current shell."
   },
-  {
-    .name = "grep",
-    .func = grepCommandHandler,
-    .help = "Find text in piped output."
-  },
+  //// {
+  ////   .name = "grep",
+  ////   .func = grepCommandHandler,
+  ////   .help = "Find text in piped output."
+  //// },
   {
     .name = "help",
     .func = helpCommandHandler,
@@ -401,11 +401,11 @@ const CommandEntry commands[] = {
     .func = killCommandHandler,
     .help = "Kill a running process."
   },
-  {
-    .name = "logout",
-    .func = logoutCommandHandler,
-    .help = "Logout of the system."
-  },
+  //// {
+  ////   .name = "logout",
+  ////   .func = logoutCommandHandler,
+  ////   .help = "Logout of the system."
+  //// },
   {
     .name = "ps",
     .func = psCommandHandler,

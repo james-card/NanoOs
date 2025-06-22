@@ -221,7 +221,7 @@ msg_t* msg_destroy(msg_t *msg) {
 }
 
 /// @fn int msg_init(msg_t *msg, msg_safety_t msg_safety,
-///   int type, void *data, size_t size, bool waiting)
+///   int64_t type, void *data, size_t size, bool waiting)
 ///
 /// @brief Initialize a message to make it ready for sending to another thread.
 ///
@@ -237,7 +237,7 @@ msg_t* msg_destroy(msg_t *msg) {
 ///
 /// @return Returns msg_success on success, msg_error on failure.
 int msg_init(msg_t *msg, msg_safety_t msg_safety,
-  int type, void *data, size_t size, bool waiting
+  int64_t type, void *data, size_t size, bool waiting
 ) {
   int return_value = msg_error;
   
@@ -431,7 +431,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
 
 /// @fn msg_t* msg_wait_for_reply_with_type_(
 ///   msg_q_t *queue, msg_t *sent, bool release,
-///   int *type, const struct timespec *ts)
+///   int64_t *type, const struct timespec *ts)
 ///
 /// @brief Wait for a reply from the recipient of a message.
 ///
@@ -450,7 +450,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
 /// time is reached.
 msg_t* msg_wait_for_reply_with_type_(
   msg_q_t *queue, msg_t *sent, bool release,
-  int *type, const struct timespec *ts
+  int64_t *type, const struct timespec *ts
 ) {
   msg_t *reply = NULL;
 
@@ -580,7 +580,7 @@ msg_t* msg_wait_for_reply(msg_t *sent, bool release,
 }
 
 /// @fn msg_t* msg_wait_for_reply_with_type(msg_t *sent,
-///   bool release, int type, const struct timespec *ts)
+///   bool release, int64_t type, const struct timespec *ts)
 ///
 /// @brief Block until a reply of a specified type has been received from the
 /// original recipient of the provided message or until a specified future time
@@ -599,7 +599,7 @@ msg_t* msg_wait_for_reply(msg_t *sent, bool release,
 /// the original message of the specified tyep on success, NULL on failure or if
 /// the provided timeout time is reached.
 msg_t* msg_wait_for_reply_with_type(msg_t *sent, bool release,
-  int type, const struct timespec *ts
+  int64_t type, const struct timespec *ts
 ) {
   if (sent == NULL) {
     return NULL;
@@ -814,7 +814,7 @@ msg_t* msg_q_pop(msg_q_t *queue) {
   return head;
 }
 
-/// @fn msg_t* msg_q_pop_type(msg_q_t *queue, int type)
+/// @fn msg_t* msg_q_pop_type(msg_q_t *queue, int64_t type)
 ///
 /// @brief Get the first message of the specified type from the provided message
 /// queue and remove it from the queue.
@@ -824,7 +824,7 @@ msg_t* msg_q_pop(msg_q_t *queue) {
 ///
 /// @return Returns the first message of the queue with the specified type on
 /// success, NULL on failure.
-msg_t* msg_q_pop_type(msg_q_t *queue, int type) {
+msg_t* msg_q_pop_type(msg_q_t *queue, int64_t type) {
   msg_t *return_value = NULL;
   if (queue == NULL) {
     return return_value; // NULL
@@ -865,7 +865,7 @@ msg_t* msg_q_pop_type(msg_q_t *queue, int type) {
   return return_value;
 }
 
-/// @fn msg_t* msg_q_wait_for_type_(msg_q_t *queue, int *type,
+/// @fn msg_t* msg_q_wait_for_type_(msg_q_t *queue, int64_t *type,
 ///   const struct timespec *ts)
 ///
 /// @brief Wait for a message of a given type to be available in the message
@@ -883,7 +883,7 @@ msg_t* msg_q_pop_type(msg_q_t *queue, int type) {
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-msg_t* msg_q_wait_for_type_(msg_q_t *queue, int *type,
+msg_t* msg_q_wait_for_type_(msg_q_t *queue, int64_t *type,
   const struct timespec *ts
 ) {
   msg_t *return_value = NULL;
@@ -984,7 +984,7 @@ msg_t* msg_q_wait(msg_q_t *queue, const struct timespec *ts) {
   return msg_q_wait_for_type_(queue, NULL, ts);
 }
 
-/// @fn msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
+/// @fn msg_t* msg_q_wait_for_type(msg_q_t *queue, int64_t type,
 ///   const struct timespec *ts)
 ///
 /// @brief Wait until there is a message of a specified type in the queue or
@@ -1000,7 +1000,7 @@ msg_t* msg_q_wait(msg_q_t *queue, const struct timespec *ts) {
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
+msg_t* msg_q_wait_for_type(msg_q_t *queue, int64_t type,
   const struct timespec *ts
 ) {
   return msg_q_wait_for_type_(queue, &type, ts);

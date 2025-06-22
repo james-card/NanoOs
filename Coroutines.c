@@ -2255,7 +2255,7 @@ msg_t* comessageQueuePopType(int type) {
 
 // Underlying worker function in Messages.c.  Expose the prototype here so that
 // we can bypass a layer of abstraction into the Messages library.
-msg_t* msg_q_wait_for_type_(msg_q_t *queue, int *type,
+msg_t* msg_q_wait_for_type_(msg_q_t *queue, int64_t *type,
   const struct timespec *ts);
 
 /// @fn msg_t* comessageQueueWait(const struct timespec *ts)
@@ -2281,7 +2281,7 @@ msg_t* comessageQueueWait(const struct timespec *ts) {
   return returnValue;
 }
 
-/// @fn msg_t* comessageQueueWaitForType(int type, const struct timespec *ts)
+/// @fn msg_t* comessageQueueWaitForType(int64_t type, const struct timespec *ts)
 ///
 /// @brief Wait for a message of a specified type to be available in the current
 /// coroutine's message queue.
@@ -2294,7 +2294,7 @@ msg_t* comessageQueueWait(const struct timespec *ts) {
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
 /// within that time period or if an error occurrs.
-msg_t* comessageQueueWaitForType(int type, const struct timespec *ts) {
+msg_t* comessageQueueWaitForType(int64_t type, const struct timespec *ts) {
   msg_t *returnValue = NULL;
 
   Coroutine *coroutine = getRunningCoroutine();

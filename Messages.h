@@ -162,7 +162,7 @@ typedef union msg_endpoint_t {
 ///   primitive functions to use with the conditions and mutexes in this object.
 /// @param reply_to A pointer to the msg_q_t to reply to.
 typedef struct msg_t {
-  int type;
+  int64_t type;
   void *data;
   size_t size;
   struct msg_t *next;
@@ -224,14 +224,14 @@ typedef enum msg_element_t {
 msg_t* msg_create(msg_safety_t msg_safety);
 msg_t* msg_destroy(msg_t *msg);
 int msg_init(msg_t *msg, msg_safety_t msg_safety,
-  int type, void *data, size_t size, bool waiting);
+  int64_t type, void *data, size_t size, bool waiting);
 int msg_release(msg_t *msg);
 int msg_set_done(msg_t *msg);
 int msg_wait_for_done(msg_t *msg, const struct timespec *ts);
 msg_t* msg_wait_for_reply(msg_t *sent,
   bool release, const struct timespec *ts);
 msg_t* msg_wait_for_reply_with_type(msg_t *sent,
-  bool release, int type, const struct timespec *ts);
+  bool release, int64_t type, const struct timespec *ts);
 
 // Message element accessors
 void* msg_element(msg_t *msg, msg_element_t msg_element);
@@ -257,9 +257,9 @@ msg_q_t* msg_q_create(msg_q_t *q, msg_safety_t msg_safety);
 int msg_q_destroy(msg_q_t *queue);
 msg_t* msg_q_peek(msg_q_t *queue);
 msg_t* msg_q_pop(msg_q_t *queue);
-msg_t* msg_q_pop_type(msg_q_t *queue, int type);
+msg_t* msg_q_pop_type(msg_q_t *queue, int64_t type);
 msg_t* msg_q_wait(msg_q_t *queue, const struct timespec *ts);
-msg_t* msg_q_wait_for_type(msg_q_t *queue, int type,
+msg_t* msg_q_wait_for_type(msg_q_t *queue, int64_t type,
   const struct timespec *ts);
 int msg_q_push(msg_q_t *queue, msg_q_t *reply_to, msg_t *msg);
 

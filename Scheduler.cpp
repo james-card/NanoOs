@@ -2617,7 +2617,7 @@ __attribute__((noinline)) void startScheduler(
       if (kFilesystemFGets(&schedulerState,
         schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
       ) {
-        printString("ERROR! fgets did not read hostname!\n");
+        //// printString("ERROR! fgets did not read hostname!\n");
       }
       if (strchr(schedulerState.hostname, '\r')) {
         *strchr(schedulerState.hostname, '\r') = '\0';
@@ -2628,11 +2628,11 @@ __attribute__((noinline)) void startScheduler(
       }
       kfclose(&schedulerState, hostnameFile);
     } else {
-      printString("ERROR! kfopen of hostname returned NULL!\n");
+      //// printString("ERROR! kfopen of hostname returned NULL!\n");
       strcpy(schedulerState.hostname, "localhost");
     }
   } else {
-    printString("ERROR! schedulerState.hostname is NULL!\n");
+    //// printString("ERROR! schedulerState.hostname is NULL!\n");
   }
 
   //// do {
