@@ -32,7 +32,6 @@
 #include "NanoOs.h"
 #include "Scheduler.h"
 #include "SdCard.h"
-#include "Fat16Filesystem.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
@@ -40,12 +39,12 @@ void runScheduler(SchedulerState *schedulerState);
 /// @def USB_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the USB serial port shell.
-#define USB_SERIAL_PORT_SHELL_PID 5
+#define USB_SERIAL_PORT_SHELL_PID 4
 
 /// @def GPIO_SERIAL_PORT_SHELL_PID
 ///
 /// @brief The process ID (PID) of the GPIO serial port shell.
-#define GPIO_SERIAL_PORT_SHELL_PID 6
+#define GPIO_SERIAL_PORT_SHELL_PID 5
 
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
@@ -1460,211 +1459,6 @@ int closeProcessFileDescriptors(
   return 0;
 }
 
-/// @fn FILE* kfopen(SchedulerState *schedulerState,
-///   const char *pathname, const char *mode)
-///
-/// @brief Version of fopen for the scheduler.
-///
-/// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
-/// @param pathname A pointer to the C string with the full path to the file to
-///   open.
-/// @param mode A pointer to the C string that defines the way to open the file.
-///
-/// @return Returns a pointer to the opened file on success, NULL on failure.
-FILE* kfopen(SchedulerState *schedulerState,
-  const char *pathname, const char *mode
-) {
-  FILE *returnValue = NULL;
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
-  }
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->func = (intptr_t) mode;
-  nanoOsMessage->data = (intptr_t) pathname;
-  processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
-    nanoOsMessage, sizeof(*nanoOsMessage), true);
-  processMessageQueuePush(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    processMessage);
-
-  while (processMessageDone(processMessage) == false) {
-    runScheduler(schedulerState);
-  }
-
-  returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
-
-  processMessageRelease(processMessage);
-  return returnValue;
-}
-
-/// @fn int kfclose(SchedulerState *schedulerState, FILE *stream)
-///
-/// @brief Version of fclose for the scheduler.
-///
-/// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
-/// @param stream A pointer to the FILE object that was previously opened.
-///
-/// @return Returns 0 on success, EOF on failure.  On failure, the value of
-/// errno is also set to the appropriate error.
-int kfclose(SchedulerState *schedulerState, FILE *stream) {
-  int returnValue = 0;
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
-  }
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) stream;
-  processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
-    nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    processMessage);
-
-  while (processMessageDone(processMessage) == false) {
-    runScheduler(schedulerState);
-  }
-
-  processMessageRelease(processMessage);
-  return returnValue;
-}
-
-/// @fn int kremove(SchedulerState *schedulerState, const char *pathname)
-///
-/// @brief Version of remove for the scheduler.
-///
-/// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
-/// @param pathname A pointer to the C string with the full path to the file to
-///   remove.
-///
-/// @return Returns 0 on success, -1 on failure.
-int kremove(SchedulerState *schedulerState, const char *pathname) {
-  int returnValue = 0;
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
-  }
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) pathname;
-  processMessageInit(processMessage, FILESYSTEM_REMOVE_FILE,
-    nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    processMessage);
-
-  while (processMessageDone(processMessage) == false) {
-    runScheduler(schedulerState);
-  }
-
-  processMessageRelease(processMessage);
-  return returnValue;
-}
-
-/// @fn int kFilesystemFGets(SchedulerState *schedulerState,
-///   char *buffer, int size, FILE *stream)
-///
-/// @brief Version of fgets for the scheduler.
-///
-/// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
-/// @param buffer The character buffer to read the file data into.
-/// @param size The size of the buffer provided, in bytes.
-/// @param stream A pointer to the FILE object that was previously opened.
-///
-/// @return Returns a pointer to the provided buffer on success, NULL on
-/// failure.
-char* kFilesystemFGets(SchedulerState *schedulerState,
-  char *buffer, int size, FILE *stream
-) {
-  char *returnValue = NULL;
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
-    .file = stream,
-    .buffer = buffer,
-    .length = (uint32_t) size - 1
-  };
-
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
-  }
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_READ_FILE,
-    nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    processMessage);
-
-  while (processMessageDone(processMessage) == false) {
-    runScheduler(schedulerState);
-  }
-  if (filesystemIoCommandParameters.length > 0) {
-    buffer[filesystemIoCommandParameters.length] = '\0';
-    returnValue = buffer;
-  }
-
-  processMessageRelease(processMessage);
-  return returnValue;
-}
-
-/// @fn int kFilesystemFPuts(SchedulerState *schedulerState,
-///   const char *s, FILE *stream)
-///
-/// @brief Version of fputs for the scheduler.
-///
-/// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
-/// @param s A pointer to the C string to write to the file.
-/// @param stream A pointer to the FILE object that was previously opened.
-///
-/// @return Returns 0 on success, EOF on failure.  On failure, the value of
-/// errno is also set to the appropriate error.
-int kFilesystemFPuts(SchedulerState *schedulerState,
-  const char *s, FILE *stream
-) {
-  int returnValue = 0;
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
-    .file = stream,
-    .buffer = (void*) s,
-    .length = (uint32_t) strlen(s)
-  };
-
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
-  }
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_WRITE_FILE,
-    nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    processMessage);
-
-  while (processMessageDone(processMessage) == false) {
-    runScheduler(schedulerState);
-  }
-  if (filesystemIoCommandParameters.length == 0) {
-    returnValue = EOF;
-  }
-
-  processMessageRelease(processMessage);
-  return returnValue;
-}
-
 /// @fn int schedulerRunProcessCommandHandler(
 ///   SchedulerState *schedulerState, ProcessMessage *processMessage)
 ///
@@ -2482,20 +2276,6 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
   sdDevice->partitionNumber = 1;
 
-  // Create the filesystem process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runFat16Filesystem, sdDevice)
-    != processSuccess
-  ) {
-    printString("Could not start filesystem process.\n");
-  }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
-    = NANO_OS_FILESYSTEM_PROCESS_ID;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
-
   // We need to do an initial population of all the commands because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
@@ -2519,7 +2299,7 @@ __attribute__((noinline)) void startScheduler(
 
   //// printString("Console stack size = ");
   //// printInt(ABS_DIFF(
-  ////   ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
+  ////   ((uintptr_t) allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle),
   ////   ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
   ////   - sizeof(Coroutine)
   //// );
@@ -2589,8 +2369,6 @@ __attribute__((noinline)) void startScheduler(
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
@@ -2605,124 +2383,14 @@ __attribute__((noinline)) void startScheduler(
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
     NULL);
-  coroutineResume(
-    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    NULL);
 
   // Allocate memory for the hostname.
   schedulerState.hostname = (char*) kcalloc(1, 30);
   if (schedulerState.hostname != NULL) {
-    FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
-    if (hostnameFile != NULL) {
-      if (kFilesystemFGets(&schedulerState,
-        schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
-      ) {
-        //// printString("ERROR! fgets did not read hostname!\n");
-      }
-      if (strchr(schedulerState.hostname, '\r')) {
-        *strchr(schedulerState.hostname, '\r') = '\0';
-      } else if (strchr(schedulerState.hostname, '\n')) {
-        *strchr(schedulerState.hostname, '\n') = '\0';
-      } else if (*schedulerState.hostname == '\0') {
-        strcpy(schedulerState.hostname, "localhost");
-      }
-      kfclose(&schedulerState, hostnameFile);
-    } else {
-      //// printString("ERROR! kfopen of hostname returned NULL!\n");
-      strcpy(schedulerState.hostname, "localhost");
-    }
+    strcpy(schedulerState.hostname, HOSTNAME);
   } else {
-    //// printString("ERROR! schedulerState.hostname is NULL!\n");
+    printString("ERROR! schedulerState.hostname is NULL!\n");
   }
-
-  //// do {
-  ////   FILE *helloFile = kfopen(&schedulerState, "hello", "w");
-  ////   if (helloFile == NULL) {
-  ////     printDebug("ERROR: Could not open hello file for writing!\n");
-  ////     break;
-  ////   }
-
-  ////   if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
-  ////     printDebug("ERROR: Could not write to hello file!\n");
-  ////     kfclose(&schedulerState, helloFile);
-  ////     break;
-  ////   }
-  ////   kfclose(&schedulerState, helloFile);
-
-  ////   helloFile = kfopen(&schedulerState, "hello", "r");
-  ////   if (helloFile == NULL) {
-  ////     printDebug("ERROR: Could not open hello file for reading after write!\n");
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-
-  ////   char worldString[11] = {0};
-  ////   if (kFilesystemFGets(&schedulerState,
-  ////     worldString, sizeof(worldString), helloFile) != worldString
-  ////   ) {
-  ////     printDebug("ERROR: Could not read worldString after write!\n");
-  ////     kfclose(&schedulerState, helloFile);
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-
-  ////   if (strcmp(worldString, "world") != 0) {
-  ////     printDebug("ERROR: Expected \"world\", read \"");
-  ////     printDebug(worldString);
-  ////     printDebug("\"!\n");
-  ////     kfclose(&schedulerState, helloFile);
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-  ////   printDebug("Successfully read \"world\" from \"hello\"!\n");
-  ////   kfclose(&schedulerState, helloFile);
-
-  ////   helloFile = kfopen(&schedulerState, "hello", "a");
-  ////   if (helloFile == NULL) {
-  ////     printDebug("ERROR: Could not open hello file for appending!\n");
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-
-  ////   if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
-  ////     printDebug("ERROR: Could not append to hello file!\n");
-  ////     kfclose(&schedulerState, helloFile);
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-  ////   kfclose(&schedulerState, helloFile);
-
-  ////   helloFile = kfopen(&schedulerState, "hello", "r");
-  ////   if (helloFile == NULL) {
-  ////     printDebug(
-  ////       "ERROR: Could not open hello file for reading after append!\n");
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-
-  ////   if (kFilesystemFGets(&schedulerState,
-  ////     worldString, sizeof(worldString), helloFile) != worldString
-  ////   ) {
-  ////     printDebug( "ERROR: Could not read worldString after append!\n");
-  ////     kfclose(&schedulerState, helloFile);
-  ////     kremove(&schedulerState, "hello");
-  ////     break;
-  ////   }
-
-  ////   if (strcmp(worldString, "worldworld") == 0) {
-  ////     printDebug(
-  ////       "Successfully read \"worldworld\" from \"hello\"!\n");
-  ////   } else {
-  ////     printDebug("ERROR: Expected \"worldworld\", read \"");
-  ////     printDebug(worldString);
-  ////     printDebug("\"!\n");
-  ////   }
-
-  ////   kfclose(&schedulerState, helloFile);
-  ////   if (kremove(&schedulerState, "hello") != 0) {
-  ////     printDebug("ERROR: kremove failed to remove the \"hello\" file.\n");
-  ////   }
-  //// } while (0);
 
   // Run our scheduler.
   while (1) {

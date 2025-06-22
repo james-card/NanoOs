@@ -339,7 +339,7 @@ void* runShell(void *args) {
   }
   const char *processUsername = getUsernameByUserId(processUserId);
   while (1) {
-    printf("%s@localhost%s ", processUsername, prompt);
+    printf("%s@%s%s ", processUsername, hostname, prompt);
     fgets(commandBuffer, sizeof(commandBuffer), stdin);
     const CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
     if (commandEntry == NULL) {
@@ -386,11 +386,11 @@ const CommandEntry commands[] = {
     .func = logoutCommandHandler,
     .help = "Exit the current shell."
   },
-  //// {
-  ////   .name = "grep",
-  ////   .func = grepCommandHandler,
-  ////   .help = "Find text in piped output."
-  //// },
+  {
+    .name = "grep",
+    .func = grepCommandHandler,
+    .help = "Find text in piped output."
+  },
   {
     .name = "help",
     .func = helpCommandHandler,
@@ -401,11 +401,11 @@ const CommandEntry commands[] = {
     .func = killCommandHandler,
     .help = "Kill a running process."
   },
-  //// {
-  ////   .name = "logout",
-  ////   .func = logoutCommandHandler,
-  ////   .help = "Logout of the system."
-  //// },
+  {
+    .name = "logout",
+    .func = logoutCommandHandler,
+    .help = "Logout of the system."
+  },
   {
     .name = "ps",
     .func = psCommandHandler,

@@ -972,24 +972,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
     }
   } else {
-    // stream is a regular FILE.
-    FilesystemIoCommandParameters filesystemIoCommandParameters = {
-      .file = stream,
-      .buffer = buffer,
-      .length = (uint32_t) size - 1
-    };
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
-      FILESYSTEM_READ_FILE,
-      /* func= */ 0,
-      /* data= */ (intptr_t) &filesystemIoCommandParameters,
-      true);
-    processMessageWaitForDone(processMessage, NULL);
-    if (filesystemIoCommandParameters.length > 0) {
-      buffer[filesystemIoCommandParameters.length] = '\0';
-      returnValue = buffer;
-    }
-    processMessageRelease(processMessage);
+    printString("ERROR!!!  Request to read from regular file.\n");
   }
 
   return returnValue;
@@ -1195,23 +1178,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       returnValue = EOF;
     }
   } else {
-    // stream is a regular FILE.
-    FilesystemIoCommandParameters filesystemIoCommandParameters = {
-      .file = stream,
-      .buffer = nanoOsBuffer->buffer,
-      .length = (uint32_t) strlen(nanoOsBuffer->buffer)
-    };
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
-      FILESYSTEM_WRITE_FILE,
-      /* func= */ 0,
-      /* data= */ (intptr_t) &filesystemIoCommandParameters,
-      true);
-    processMessageWaitForDone(processMessage, NULL);
-    if (filesystemIoCommandParameters.length == 0) {
-      returnValue = EOF;
-    }
-    processMessageRelease(processMessage);
+    printString("ERROR!!!  Request to write to regular file.\n");
   }
 
   return returnValue;
