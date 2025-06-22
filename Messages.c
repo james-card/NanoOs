@@ -740,6 +740,10 @@ queue_alloc_failure:
 ///
 /// @return Returns msg_success on success or msg_error on failure.
 int msg_q_destroy(msg_q_t *queue) {
+  if (queue == NULL) {
+    return msg_success;
+  }
+  
   for (msg_t *cur = queue->head; cur != NULL; ) {
     msg_t *next = cur->next;
     msg_destroy(cur);
@@ -822,6 +826,10 @@ msg_t* msg_q_pop(msg_q_t *queue) {
 /// success, NULL on failure.
 msg_t* msg_q_pop_type(msg_q_t *queue, int type) {
   msg_t *return_value = NULL;
+  if (queue == NULL) {
+    return return_value; // NULL
+  }
+  
   msg_t *prev = NULL;
   msg_t *cur = queue->head;
   msg_t **prev_next = &queue->head;
@@ -879,6 +887,10 @@ msg_t* msg_q_wait_for_type_(msg_q_t *queue, int *type,
   const struct timespec *ts
 ) {
   msg_t *return_value = NULL;
+  if (queue == NULL) {
+    return return_value; // NULL
+  }
+  
   msg_t *prev = NULL;
   msg_t *cur = queue->head;
   msg_t **prev_next = &queue->head;
