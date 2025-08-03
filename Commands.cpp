@@ -158,6 +158,8 @@ int grepCommandHandler(int argc, char **argv) {
     return 1;
   }
 
+#ifdef MATCH_REGULAR_EXPRESSIONS
+
   // Construct the data structures we need for pattern matching.
   Regex *regex = (Regex*) malloc(sizeof(Regex));
   if (regex == NULL) {
@@ -175,6 +177,16 @@ int grepCommandHandler(int argc, char **argv) {
 
   // Destroy the data structures we were using.
   free(regex); regex = NULL;
+
+#else // Do an exact match instead
+
+  while (fgets(buffer, sizeof(buffer), stdin)) {
+    if (strstr(buffer, argv[1])) {
+      fputs(buffer, stdout);
+    }
+  }
+
+#endif // MATCH_REGULAR_EXPRESSIONS
 
   if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
     fputs("\n", stdout);
