@@ -30,6 +30,7 @@
 
 #include "Commands.h"
 #include "Scheduler.h"
+#include "Regex.h"
 
 // Defined at the bottom of this file:
 extern const CommandEntry commands[];
@@ -157,11 +158,23 @@ int grepCommandHandler(int argc, char **argv) {
     return 1;
   }
 
+  // Construct the data structures we need for pattern matching.
+  Regex *regex = (Regex*) malloc(sizeof(Regex));
+  if (regex == NULL) {
+    fputs("ERROR:  Could not allocate regex.\n", stderr);
+    return 1;
+  }
+  regexCompile(regex, argv[1]);
+  Matcher matcher;
+
   while (fgets(buffer, sizeof(buffer), stdin)) {
-    if (strstr(buffer, argv[1])) {
+    if (regexMatchMatcher(regex, buffer, &matcher)) {
       fputs(buffer, stdout);
     }
   }
+
+  // Destroy the data structures we were using.
+  free(regex); regex = NULL;
 
   if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
     fputs("\n", stdout);
