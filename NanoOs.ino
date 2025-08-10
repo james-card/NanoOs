@@ -34,7 +34,7 @@
 // coroutines needs to be done in the loop function.
 void setup() {
   // Start the USB serial port at 1000000 bps:
-  Serial.begin(9600);
+  Serial.begin(1000000);
   // wait for serial port to connect. Needed for native USB port only.
   while (!Serial);
 
