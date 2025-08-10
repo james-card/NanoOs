@@ -789,17 +789,17 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-/// @fn int readSerialByte(ConsolePort *consolePort, UartClass &serialPort)
+/// @fn int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort)
 ///
 /// @brief Do a non-blocking read of a serial port.
 ///
 /// @param ConsolePort A pointer to the ConsolePort data structure that contains
 ///   the buffer information to use.
-/// @param serialPort A reference to the UartClass object (Serial or Serial1)
-///   to read a byte from.
+/// @param serialPort A reference to the HardwareSerial object (Serial or
+///   Serial1) to read a byte from.
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readSerialByte(ConsolePort *consolePort, UartClass &serialPort) {
+int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort) {
   int serialData = -1;
   serialData = serialPort.read();
   if (serialData > -1) {
@@ -846,16 +846,16 @@ int readGpioSerialByte(ConsolePort *consolePort) {
   return readSerialByte(consolePort, Serial1);
 }
 
-/// @fn int printSerialString(UartClass &serialPort, const char *string)
+/// @fn int printSerialString(HardwareSerial &serialPort, const char *string)
 ///
 /// @brief Print a string to the default serial port.
 ///
-/// @param serialPort A reference to the UartClass object (Serial or Serial1)
-///   to read a byte from.
+/// @param serialPort A reference to the HardwareSerial object (Serial or
+///   Serial1) to read a byte from.
 /// @param string A pointer to the string to print.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printSerialString(UartClass &serialPort, const char *string) {
+int printSerialString(HardwareSerial &serialPort, const char *string) {
   int returnValue = 0;
   size_t numBytes = 0;
 
@@ -1039,13 +1039,16 @@ void* runConsole(void *args) {
 /// @return This function is non-blocking, always succeeds, and always returns
 /// 0.
 int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
+  printDebug("Entering printConsoleValue.\n");
   NanoOsMessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
   memcpy(&message, value, length);
 
+  printDebug("Sending message to console process.\n");
   sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     valueType, message, false);
 
+  printDebug("Leaving printConsoleValue.\n");
   return 0;
 }
 

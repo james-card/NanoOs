@@ -183,7 +183,7 @@ int grepCommandHandler(int argc, char **argv) {
 int helpCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
-  char formatString[12];
+  char formatString[19];
 
   size_t maxCommandNameLength = 0;
   for (int ii = 0; ii < NUM_COMMANDS; ii++) {

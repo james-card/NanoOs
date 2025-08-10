@@ -52,9 +52,8 @@ extern "C"
 /// @def NANO_OS_STACK_SIZE
 ///
 /// @brief The minimum size for an individual process's stack.  Actual size will
-/// be slightly larger than this.  This value needs to be a multiple of 
-/// COROUTINE_STACK_CHUNK_SIZE in Coroutines.h
-#define NANO_OS_STACK_SIZE (COROUTINE_STACK_CHUNK_SIZE * 10)
+/// be slightly larger than this.
+#define NANO_OS_STACK_SIZE 768
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
@@ -143,11 +142,11 @@ extern "C"
 /// @def printDebug
 ///
 /// @brief Macro to identify debugging prints when necessary.
-#define printDebug(message) Serial.print(message)
+#define printDebug Serial.print
 
 #else // NANO_OS_DEBUG
 
-#define printDebug(message) {}
+#define printDebug(msg, ...) {}
 
 #endif // NANO_OS_DEBUG
 

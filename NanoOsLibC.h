@@ -105,10 +105,6 @@ typedef struct NanoOsFile NanoOsFile;
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
 
 // Missing from Arduino
-struct timespec {
-  time_t tv_sec;
-  long   tv_nsec;
-};
 #define TIME_UTC 1
 int timespec_get(struct timespec* spec, int base);
 
@@ -144,7 +140,7 @@ int timespec_get(struct timespec* spec, int base);
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
 
 
-#define NANO_OS_DEBUG
+//// #define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
@@ -226,6 +222,7 @@ int printDouble(double floatingPointValue);
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 unsigned long getElapsedMilliseconds(unsigned long startTime);
+void msleep(unsigned int durationMs);
 
 // C-like functions
 int vsscanf(const char *buffer, const char *format, va_list args);

@@ -34,12 +34,15 @@
 // coroutines needs to be done in the loop function.
 void setup() {
   // Start the USB serial port at 1000000 bps:
-  Serial.begin(1000000);
+  Serial.begin(9600);
   // wait for serial port to connect. Needed for native USB port only.
   while (!Serial);
 
   // Start the secondary serial port at 1000000 bps:
   Serial1.begin(1000000);
+
+  printString("\nBooting...\n");
+  msleep(7000);
 }
 
 // In a normal Arduino sketch, the loop function runs over and over again
@@ -90,6 +93,7 @@ void loop() {
   }
 
   // Enter the scheduler.  This never returns.
+  printString("Starting scheduler.\n");
   startScheduler(&coroutineStatePointer);
 }
 

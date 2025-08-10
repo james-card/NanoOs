@@ -45,8 +45,8 @@
 ///   necessarily the process that allocated it).
 typedef struct MemNode {
   struct MemNode *prev;
-  size_t          size:12;
-  ProcessId       owner:4;
+  uint16_t        size;
+  ProcessId       owner;
 } MemNode;
 
 /// @def memNode
@@ -170,6 +170,8 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
 void* localRealloc(MemoryManagerState *memoryManagerState,
   void *ptr, size_t size, ProcessId pid
 ) {
+  size += 7;
+  size &= ~((size_t) 7);
   char *charPointer = (char*) ptr;
   char *returnValue = NULL;
   
@@ -244,6 +246,11 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
     localFree(memoryManagerState, ptr);
   }
   
+  printDebug("Allocated ");
+  printDebug(size);
+  printDebug(" bytes at ");
+  printDebug((uintptr_t) returnValue, HEX);
+  printDebug("\n");
   return returnValue;
 }
 
@@ -484,11 +491,24 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
 void initializeGlobals(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, char *stack
 ) {
-  extern int __heap_start;
-  extern char *__brkval;
-  char mallocBufferStart = '\0';
+  extern char __bss_end__;
+  printDebug("&__bss_end__ = ");
+  printDebug((uintptr_t) &__bss_end__);
+  printDebug("\n");
+  // The buffer needs to be 64-bit aligned, so we need to use a 64-bit pointer
+  // as the placeholder value.  This ensures that the compiler puts it at a
+  // valid (aligned) address.
+  uint64_t mallocBufferStart = 0;
+  printDebug("&mallocBufferStart = ");
+  printDebug((intptr_t) &mallocBufferStart);
+  printDebug("\n");
   
-  memoryManagerState->mallocBuffer = &mallocBufferStart;
+  // To allocate mallocBufferStart, we had to decrement the stack pointer by at
+  // least sizeof(mallocBufferStart) bytes first.  So, the true beginning of our
+  // buffer is not at the address of mallocBufferStart but that address plus
+  // sizeof(mallocBufferStart);
+  memoryManagerState->mallocBuffer
+    = ((char*) &mallocBufferStart) + sizeof(mallocBufferStart);
   memoryManagerState->mallocNext = memoryManagerState->mallocBuffer;
   memNode(memoryManagerState->mallocNext)->prev = NULL;
   memoryManagerState->mallocStart
@@ -498,30 +518,22 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
   uintptr_t memorySize
-    = ((uintptr_t) (((uintptr_t) &mallocBufferStart)
-        - ((__brkval == NULL)
-          ? (uintptr_t) &__heap_start
-          : (uintptr_t) __brkval
-        )
-      )
-    )
-    + 1;
-  
-  // The size element of a MemNode is stored as an 12-bit number, which means we
-  // can only support a maximum of 4096 bytes.  Make sure we don't exceed that.
-  if (memorySize > 4096) {
-    memorySize = 4096;
-  }
+    = (((uintptr_t) memoryManagerState->mallocBuffer)
+    - ((uintptr_t) &__bss_end__));
+  printDebug("memorySize = ");
+  printDebug(memorySize);
+  printDebug("\n");
   
   // The value at memNode(memoryManagerState->mallocNext)->size needs to be
   // non-zero in order for the memory compaction algorithm in localFree to work
   // properly.
   memoryManagerState->mallocEnd
-    = ((uintptr_t) memoryManagerState->mallocBuffer) - memorySize;
+    = ((uintptr_t) memoryManagerState->mallocStart) - memorySize;
   memNode(memoryManagerState->mallocNext)->size = memorySize;
   memNode(memoryManagerState->mallocNext)->owner = PROCESS_ID_NOT_SET;
   
-  longjmp(returnBuffer, (int) stack);
+  printDebug("Leaving initializeGlobals in MemoryManager.cpp\n");
+  longjmp(returnBuffer, (intptr_t) stack);
 }
 
 /// @fn void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
@@ -618,10 +630,14 @@ void* runMemoryManager(void *args) {
     allocateMemoryManagerStack(&memoryManagerState, returnBuffer,
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
+  printDebug("Returned from allocateMemoryManagerStack.\n");
   
   //// printMemoryManagerState(&memoryManagerState);
   dynamicMemorySize
-    = memoryManagerState.mallocStart - memoryManagerState.mallocEnd + 1;
+    = memoryManagerState.mallocStart - memoryManagerState.mallocEnd;
+  printDebug("dynamicMemorySize = ");
+  printDebug(dynamicMemorySize);
+  printDebug("\n");
   printConsole("Using ");
   printConsole(dynamicMemorySize);
   printConsole(" bytes of dynamic memory.\n");

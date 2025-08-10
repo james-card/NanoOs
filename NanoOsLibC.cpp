@@ -837,6 +837,19 @@ unsigned long getElapsedMilliseconds(unsigned long startTime) {
   return now - startTime;
 }
 
+/// @fn void msleep(unsigned int duration)
+///
+/// @brief Delay execution for a specified number of milliseconds.
+///
+/// @param durationMs The number of milliseconds to wait before contiuing
+///   execution.
+///
+/// @return This function returns no value.
+void msleep(unsigned int durationMs) {
+  unsigned long start = getElapsedMilliseconds(0);
+  while (getElapsedMilliseconds(start) < durationMs);
+}
+
 // Input support functions.
 
 /// @fn ConsoleBuffer* nanoOsWaitForInput(void)
