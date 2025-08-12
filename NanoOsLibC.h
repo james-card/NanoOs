@@ -140,7 +140,7 @@ int timespec_get(struct timespec* spec, int base);
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
 
 
-//// #define NANO_OS_DEBUG
+#define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
