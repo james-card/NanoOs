@@ -1067,7 +1067,7 @@ void* runFat16Filesystem(void *args) {
   return NULL;
 }
 
-/// @fn long filesystemFTell(FILE *stream)
+/// @fn long fat16FilesystemFTell(FILE *stream)
 ///
 /// @brief Get the current value of the position indicator of a
 /// previously-opened file.
@@ -1075,7 +1075,7 @@ void* runFat16Filesystem(void *args) {
 /// @param stream A pointer to a previously-opened file.
 ///
 /// @return Returns the current position of the file on success, -1 on failure.
-long filesystemFTell(FILE *stream) {
+long fat16FilesystemFTell(FILE *stream) {
   if (stream == NULL) {
     return -1;
   }

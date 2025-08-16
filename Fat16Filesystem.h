@@ -45,6 +45,12 @@ extern "C"
 {
 #endif
 
+long fat16FilesystemFTell(FILE *stream);
+#ifdef ftell
+#undef ftell
+#endif // ftell
+#define ftell fat16FilesystemFTell
+
 // Exported functionality
 void* runFat16Filesystem(void *args);
 
