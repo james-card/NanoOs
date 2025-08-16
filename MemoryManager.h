@@ -60,8 +60,10 @@ extern "C"
 //// #define MEMORY_MANAGER_DEBUG
 #ifdef MEMORY_MANAGER_DEBUG
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
-#else
+#elif defined(__AVR__)
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 128
+#elif defined(__arm__)
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
 #endif // MEMORY_MANAGER_DEBUG
 
 
