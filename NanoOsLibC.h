@@ -105,6 +105,12 @@ typedef struct NanoOsFile NanoOsFile;
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
 
 // Missing from Arduino
+#ifndef __arm__
+struct timespec {
+  time_t tv_sec;
+  long   tv_nsec;
+};
+#endif // __arm__
 #define TIME_UTC 1
 int timespec_get(struct timespec* spec, int base);
 
