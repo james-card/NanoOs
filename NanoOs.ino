@@ -41,7 +41,7 @@ void setup() {
   // Start the secondary serial port at 1000000 bps:
   Serial1.begin(1000000);
 
-  printDebug("\nBooting...\n");
+  printString("\nBooting...\n");
   msleep(7000);
 }
 
