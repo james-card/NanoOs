@@ -502,7 +502,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
 #if defined(__arm__)
   extern char __bss_end__;
   uintptr_t memorySize
-    = (((uintptr_t) mallocBufferStart)
+    = (((uintptr_t) &mallocBufferStart)
     - ((uintptr_t) &__bss_end__));
 #elif defined(__AVR__)
   extern int __heap_start;
