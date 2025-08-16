@@ -60,7 +60,7 @@ int consolePrintMessage(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to print message \"");
+    printString("WARNING: Request to print message \"");
     printString(message);
     printString("\" from non-owning process ");
     printInt(owner);
@@ -81,7 +81,7 @@ int consolePrintMessage(
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (processMessageWaiting(inputMessage) == false) {
     if (processMessageRelease(inputMessage) != processSuccess) {
-      Serial.print("ERROR!!!  Could not release inputMessage from ");
+      Serial.print("ERROR: Could not release inputMessage from ");
       Serial.print(__func__);
       Serial.print("\n");
     }
@@ -352,7 +352,7 @@ void consoleSetPortShellCommandHandler(
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
-    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printString("ERROR: Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
     // *DON'T* call processMessageRelease or processMessageSetDone here.  The lack of the
@@ -400,7 +400,7 @@ void consoleAssignPortHelper(
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
   } else {
-    printString("ERROR:  Request to assign ownership of non-existent port ");
+    printString("ERROR: Request to assign ownership of non-existent port ");
     printInt(consolePort);
     printString("\n");
     // *DON'T* call processMessageRelease or processMessageSetDone here.  The
@@ -571,7 +571,7 @@ void consoleSetEchoCommandHandler(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to set echo from non-owning process ");
+    printString("WARNING: Request to set echo from non-owning process ");
     printInt(owner);
     printString("\n");
     nanoOsMessage->data = (intptr_t) -1;
@@ -612,7 +612,7 @@ void consoleWaitForInputCommandHandler(
   }
 
   if (portFound == false) {
-    printString("WARNING:  Request to wait for input from non-owning process ");
+    printString("WARNING: Request to wait for input from non-owning process ");
     printInt(owner);
     printString("\n");
   }
@@ -1010,7 +1010,7 @@ void* runConsole(void *args) {
       if (messageType < NUM_CONSOLE_COMMANDS) {
         consoleCommandHandlers[messageType](&consoleState, schedulerMessage);
       } else {
-        printString("ERROR!!!  Received unknown console command ");
+        printString("ERROR: Received unknown console command ");
         printInt(messageType);
         printString(" from scheduler.\n");
       }

@@ -66,7 +66,7 @@ int psCommandHandler(int argc, char **argv) {
     }
     free(processInfo); processInfo = NULL;
   } else {
-    printf("ERROR:  Could not get process information from scheduler.\n");
+    printf("ERROR: Could not get process information from scheduler.\n");
   }
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
@@ -222,7 +222,7 @@ int logoutCommandHandler(int argc, char **argv) {
   (void) argv;
 
   if (schedulerSetProcessUser(NO_USER_ID) != 0) {
-    fputs("WARNING:  Could not clear owner of current process.\n", stderr);
+    fputs("WARNING: Could not clear owner of current process.\n", stderr);
   }
 
   return 0;
@@ -374,7 +374,7 @@ void* runShell(void *args) {
 ///
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the
-///            binary search will work!!!
+///            binary search will work:
 const CommandEntry commands[] = {
   {
     .name = "echo",

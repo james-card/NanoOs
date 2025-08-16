@@ -41,7 +41,7 @@ void setup() {
   // Start the secondary serial port at 1000000 bps:
   Serial1.begin(1000000);
 
-  printString("\nBooting...\n");
+  printDebug("\nBooting...\n");
   msleep(7000);
 }
 
@@ -93,7 +93,7 @@ void loop() {
   }
 
   // Enter the scheduler.  This never returns.
-  printString("Starting scheduler.\n");
+  printDebug("Starting scheduler.\n");
   startScheduler(&coroutineStatePointer);
 }
 

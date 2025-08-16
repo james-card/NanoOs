@@ -330,7 +330,7 @@ int memoryManagerFreeCommandHandler(
   void *ptr = nanoOsMessageDataPointer(incoming, void*);
   localFree(memoryManagerState, ptr);
   if (processMessageRelease(incoming) != processSuccess) {
-    printString("ERROR!!!  "
+    printString("ERROR: "
       "Could not release message from memoryManagerFreeCommandHandler.\n");
     returnValue = -1;
   }
@@ -405,7 +405,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
     nanoOsMessage->data = 0;
   } else {
     printString(
-      "ERROR:  Only the scheduler may free another process's memory.\n");
+      "ERROR: Only the scheduler may free another process's memory.\n");
     nanoOsMessage->data = 1;
     returnValue = -1;
   }
@@ -413,7 +413,7 @@ int memoryManagerFreeProcessMemoryCommandHandler(
   if (processMessageWaiting(incoming) == true) {
     // The client is waiting on us.  Mark the message as done.
     if (processMessageSetDone(incoming) != processSuccess) {
-      printString("ERROR!!!  Could not mark message done in "
+      printString("ERROR: Could not mark message done in "
         "memoryManagerFreeProcessMemoryCommandHandler.\n");
       returnValue = -1;
     }
@@ -491,16 +491,40 @@ void handleMemoryManagerMessages(MemoryManagerState *memoryManagerState) {
 void initializeGlobals(MemoryManagerState *memoryManagerState,
   jmp_buf returnBuffer, char *stack
 ) {
-  extern char __bss_end__;
-  printDebug("&__bss_end__ = ");
-  printDebug((uintptr_t) &__bss_end__);
-  printDebug("\n");
+  // We want to grab as much memory as we can support for the memory manager.
+  // Get the delta between the address of mallocBufferStart and the end of
+  // memory.
+#ifdef __arm__
   // The buffer needs to be 64-bit aligned, so we need to use a 64-bit pointer
   // as the placeholder value.  This ensures that the compiler puts it at a
   // valid (aligned) address.
   uint64_t mallocBufferStart = 0;
+  
+  extern char __bss_end__;
+  uintptr_t memorySize
+    = (((uintptr_t) mallocBufferStart)
+    - ((uintptr_t) &__bss_end__));
+#else
+  char mallocBufferStart = '\0';
+  
+  extern int __heap_start;
+  extern char *__brkval;
+  uintptr_t memorySize
+    = ((uintptr_t) (((uintptr_t) &mallocBufferStart)
+        - ((__brkval == NULL)
+          ? (uintptr_t) &__heap_start
+          : (uintptr_t) __brkval
+        )
+      )
+    );
+#endif // __arm__
+
   printDebug("&mallocBufferStart = ");
   printDebug((intptr_t) &mallocBufferStart);
+  printDebug("\n");
+
+  printDebug("memorySize = ");
+  printDebug(memorySize);
   printDebug("\n");
   
   // To allocate mallocBufferStart, we had to decrement the stack pointer by at
@@ -514,16 +538,6 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memoryManagerState->mallocStart
     = (uintptr_t) memoryManagerState->mallocNext;
   
-  // We want to grab as much memory as we can support for the memory manager.
-  // Get the delta between the address of mallocBufferStart and the end of
-  // memory.
-  uintptr_t memorySize
-    = (((uintptr_t) memoryManagerState->mallocBuffer)
-    - ((uintptr_t) &__bss_end__));
-  printDebug("memorySize = ");
-  printDebug(memorySize);
-  printDebug("\n");
-  
   // The value at memNode(memoryManagerState->mallocNext)->size needs to be
   // non-zero in order for the memory compaction algorithm in localFree to work
   // properly.
@@ -533,7 +547,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memNode(memoryManagerState->mallocNext)->owner = PROCESS_ID_NOT_SET;
   
   printDebug("Leaving initializeGlobals in MemoryManager.cpp\n");
-  longjmp(returnBuffer, (intptr_t) stack);
+  longjmp(returnBuffer, (int) stack);
 }
 
 /// @fn void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
@@ -655,7 +669,7 @@ void* runMemoryManager(void *args) {
         memoryManagerCommandHandlers[messageType](
           &memoryManagerState, schedulerMessage);
       } else {
-        printString("ERROR!!!  Received unknown memory manager command ");
+        printString("ERROR: Received unknown memory manager command ");
         printInt(messageType);
         printString(" from scheduler.\n");
       }
@@ -823,10 +837,10 @@ int assignMemory(void *ptr, ProcessId pid) {
     memNode(ptr)->owner = pid;
   } else if (ptr != NULL) {
     printString(
-      "ERROR:  Only the scheduler may assign memory to another process.\n");
+      "ERROR: Only the scheduler may assign memory to another process.\n");
     returnValue = -1;
   } else {
-    printString("ERROR:  NULL pointer passed to assignMemory.\n");
+    printString("ERROR: NULL pointer passed to assignMemory.\n");
     returnValue = -1;
   }
   

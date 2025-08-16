@@ -774,7 +774,7 @@ void* runSdCard(void *args) {
       if (messageType < NUM_SD_CARD_COMMANDS) {
         sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
       } else {
-        printString("ERROR!!!  Received unknown sdCard command ");
+        printString("ERROR: Received unknown sdCard command ");
         printInt(messageType);
         printString(" from scheduler.\n");
       }

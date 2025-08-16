@@ -862,7 +862,7 @@ ConsoleBuffer* nanoOsWaitForInput(void) {
   ConsoleBuffer *nanoOsBuffer = NULL;
   FileDescriptor *inputFd = schedulerGetFileDescriptor(stdin);
   if (inputFd == NULL) {
-    printString("ERROR!!!  Could not get input file descriptor for process ");
+    printString("ERROR: Could not get input file descriptor for process ");
     printInt(getRunningProcessId());
     printString(" and stream ");
     printInt((intptr_t) stdin);
@@ -1152,7 +1152,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
     FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
     if (outputFd == NULL) {
       printString(
-        "ERROR!!!  Could not get output file descriptor for process ");
+        "ERROR: Could not get output file descriptor for process ");
       printInt(getRunningProcessId());
       printString(" and stream ");
       printInt((intptr_t) stream);
@@ -1181,7 +1181,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
           returnValue = EOF;
         }
       } else {
-        printString("ERROR!!!  Request to write to invalid stream ");
+        printString("ERROR: Request to write to invalid stream ");
         printInt((intptr_t) stream);
         printString(" from process ");
         printInt(getRunningProcessId());
@@ -1196,7 +1196,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       }
     } else {
       printString(
-        "ERROR!!!  Request to write with no output pipe set from process ");
+        "ERROR: Request to write with no output pipe set from process ");
       printInt(getRunningProcessId());
       printString(".\n");
 

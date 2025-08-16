@@ -295,7 +295,7 @@ void login(void) {
   password = stringDestroy(password);
 
   if (schedulerSetProcessUser(userId) != 0) {
-    fputs("WARNING:  "
+    fputs("WARNING: "
       "Could not set owner of current process to authenticated user.\n",
       stderr);
   }

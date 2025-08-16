@@ -53,7 +53,11 @@ extern "C"
 ///
 /// @brief The minimum size for an individual process's stack.  Actual size will
 /// be slightly larger than this.
+#ifdef __arm__
 #define NANO_OS_STACK_SIZE 768
+#else
+#define NANO_OS_STACK_SIZE 320
+#endif // __arm__
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
