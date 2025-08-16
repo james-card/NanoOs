@@ -36,6 +36,73 @@
 #define FAT16_DIR_SEARCH_DELETED 1
 #define FAT16_DIR_SEARCH_NOT_FOUND 2
 
+// General FAT16 specification values
+#define FAT16_BYTES_PER_DIRECTORY_ENTRY 32
+#define FAT16_ENTRIES_PER_CLUSTER 16
+#define FAT16_CLUSTER_CHAIN_END 0xFFF8
+#define FAT16_FILENAME_LENGTH 8
+#define FAT16_EXTENSION_LENGTH 3
+#define FAT16_FULL_NAME_LENGTH (FAT16_FILENAME_LENGTH + FAT16_EXTENSION_LENGTH)
+#define FAT16_DIR_ENTRIES_PER_SECTOR_SHIFT 5
+
+// File system limits and special values
+#define FAT16_MAX_CLUSTER_NUMBER 0xFF0
+#define FAT16_DELETED_MARKER 0xE5
+#define FAT16_EMPTY_ENTRY 0x00
+#define FAT16_MIN_DATA_CLUSTER 2
+
+// File attributes
+#define FAT16_ATTR_READ_ONLY 0x01
+#define FAT16_ATTR_HIDDEN 0x02
+#define FAT16_ATTR_SYSTEM 0x04
+#define FAT16_ATTR_VOLUME_ID 0x08
+#define FAT16_ATTR_DIRECTORY 0x10
+#define FAT16_ATTR_ARCHIVE 0x20
+#define FAT16_ATTR_NORMAL_FILE FAT16_ATTR_ARCHIVE
+
+// Partition table constants
+#define FAT16_PARTITION_TABLE_OFFSET 0x1BE
+#define FAT16_PARTITION_ENTRY_SIZE 16
+#define FAT16_PARTITION_TYPE_FAT16_LBA 0x0E
+#define FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED 0x1E
+#define FAT16_PARTITION_LBA_OFFSET 8
+#define FAT16_PARTITION_SECTORS_OFFSET 12
+
+// Boot sector offsets
+#define FAT16_BOOT_BYTES_PER_SECTOR 0x0B
+#define FAT16_BOOT_SECTORS_PER_CLUSTER 0x0D
+#define FAT16_BOOT_RESERVED_SECTORS 0x0E
+#define FAT16_BOOT_NUMBER_OF_FATS 0x10
+#define FAT16_BOOT_ROOT_ENTRIES 0x11
+#define FAT16_BOOT_SECTORS_PER_FAT 0x16
+
+// Directory entry offsets
+#define FAT16_DIR_FILENAME 0x00
+#define FAT16_DIR_ATTRIBUTES 0x0B
+#define FAT16_DIR_FIRST_CLUSTER_LOW 0x1A
+#define FAT16_DIR_FILE_SIZE 0x1C
+
+typedef struct __attribute__((packed)) Fat16File {
+  uint16_t  currentCluster;
+  uint32_t  currentPosition;
+  uint32_t  fileSize;
+  uint16_t  firstCluster;
+  // Directory entry location info:
+  uint32_t  directoryBlock;     // Block containing the directory entry
+  uint16_t  directoryOffset;    // Offset within block to directory entry
+  // Common values:
+  uint16_t  bytesPerSector;
+  uint8_t   sectorsPerCluster;
+  uint16_t  reservedSectors;
+  uint8_t   numberOfFats;
+  uint16_t  rootEntries;
+  uint16_t  sectorsPerFat;
+  uint32_t  bytesPerCluster;
+  uint32_t  fatStart;
+  uint32_t  rootStart;
+  uint32_t  dataStart;
+} Fat16File;
+
 /// @fn int fat16ReadBlock(FilesystemState *fs, uint32_t block,
 ///   uint8_t *buffer)
 ///
@@ -998,182 +1065,6 @@ void* runFat16Filesystem(void *args) {
     }
   }
   return NULL;
-}
-
-/// @fn FILE* filesystemFOpen(const char *pathname, const char *mode)
-///
-/// @brief Implementation of the standard C fopen call.
-///
-/// @param pathname The full pathname to the file.  NOTE:  This implementation
-///   can only open files in the root directory.  Subdirectories are NOT
-///   supported.
-/// @param mode The standard C file mode to open the file as.
-///
-/// @return Returns a pointer to an initialized FILE object on success, NULL on
-/// failure.
-FILE* filesystemFOpen(const char *pathname, const char *mode) {
-  if ((pathname == NULL) || (*pathname == '\0')
-    || (mode == NULL) || (*mode == '\0')
-  ) {
-    return NULL;
-  }
-
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
-    (intptr_t) mode, (intptr_t) pathname, true);
-  processMessageWaitForDone(msg, NULL);
-  FILE *file = nanoOsMessageDataPointer(msg, FILE*);
-  processMessageRelease(msg);
-  return file;
-}
-
-/// @fn int filesystemFClose(FILE *stream)
-///
-/// @brief Implementation of the standard C fclose call.
-///
-/// @param stream A pointer to a previously-opened FILE object.
-///
-/// @return This function always succeeds and always returns 0.
-int filesystemFClose(FILE *stream) {
-  if (stream != NULL) {
-    ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
-      0, (intptr_t) stream, true);
-    processMessageWaitForDone(msg, NULL);
-    processMessageRelease(msg);
-  }
-  return 0;
-}
-
-/// @fn int filesystemRemove(const char *pathname)
-///
-/// @brief Implementation of the standard C remove call.
-///
-/// @param pathname The full pathname to the file.  NOTE:  This implementation
-///   can only open files in the root directory.  Subdirectories are NOT
-///   supported.
-///
-/// @return Returns 0 on success, -1 on failure.
-int filesystemRemove(const char *pathname) {
-  int returnValue = 0;
-  if ((pathname != NULL) && (*pathname != '\0')) {
-    ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
-      /* func= */ 0, (intptr_t) pathname, true);
-    processMessageWaitForDone(msg, NULL);
-    returnValue = nanoOsMessageDataValue(msg, int);
-    processMessageRelease(msg);
-  }
-  return returnValue;
-}
-
-/// @fn int filesystemFSeek(FILE *stream, long offset, int whence)
-///
-/// @brief Implementation of the standard C fseek call.
-///
-/// @param stream A pointer to a previously-opened FILE object.
-/// @param offset A signed integer value that will be added to the specified
-///   position.
-/// @param whence The location within the file to apply the offset to.  Valid
-///   values are SEEK_SET (the beginning of the file), SEEK_CUR (the current
-///   file positon), and SEEK_END (the end of the file).
-///
-/// @return Returns 0 on success, -1 on failure.
-int filesystemFSeek(FILE *stream, long offset, int whence) {
-  if (stream == NULL) {
-    return -1;
-  }
-
-  FilesystemSeekParameters filesystemSeekParameters = {
-    .stream = stream,
-    .offset = offset,
-    .whence = whence,
-  };
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
-    /* func= */ 0, (intptr_t) &filesystemSeekParameters, true);
-  processMessageWaitForDone(msg, NULL);
-  int returnValue = nanoOsMessageDataValue(msg, int);
-  processMessageRelease(msg);
-  return returnValue;
-}
-
-/// @fn size_t filesystemFRead(
-///   void *ptr, size_t size, size_t nmemb, FILE *stream)
-///
-/// @brief Read data from a previously-opened file.
-///
-/// @param ptr A pointer to the memory to read data into.
-/// @param size The size, in bytes, of each element that is to be read from the
-///   file.
-/// @param nmemb The number of elements that are to be read from the file.
-/// @param stream A pointer to the previously-opened file.
-///
-/// @return Returns the total number of objects successfully read from the
-/// file.
-size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-  size_t returnValue = 0;
-  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
-    // Nothing to do.
-    return returnValue; // 0
-  }
-
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
-    .file = stream,
-    .buffer = ptr,
-    .length = (uint32_t) (size * nmemb)
-  };
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
-    FILESYSTEM_READ_FILE,
-    /* func= */ 0,
-    /* data= */ (intptr_t) &filesystemIoCommandParameters,
-    true);
-  processMessageWaitForDone(processMessage, NULL);
-  returnValue = (filesystemIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
-
-  return returnValue;
-}
-
-/// @fn size_t filesystemFWrite(
-///   const void *ptr, size_t size, size_t nmemb, FILE *stream)
-///
-/// @brief Write data to a previously-opened file.
-///
-/// @param ptr A pointer to the memory to write data from.
-/// @param size The size, in bytes, of each element that is to be written to
-///   the file.
-/// @param nmemb The number of elements that are to be written to the file.
-/// @param stream A pointer to the previously-opened file.
-///
-/// @return Returns the total number of objects successfully written to the
-/// file.
-size_t filesystemFWrite(
-  const void *ptr, size_t size, size_t nmemb, FILE *stream
-) {
-  size_t returnValue = 0;
-  if ((ptr == NULL) || (size == 0) || (nmemb == 0) || (stream == NULL)) {
-    // Nothing to do.
-    return returnValue; // 0
-  }
-
-  FilesystemIoCommandParameters filesystemIoCommandParameters = {
-    .file = stream,
-    .buffer = (void*) ptr,
-    .length = (uint32_t) (size * nmemb)
-  };
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
-    FILESYSTEM_WRITE_FILE,
-    /* func= */ 0,
-    /* data= */ (intptr_t) &filesystemIoCommandParameters,
-    true);
-  processMessageWaitForDone(processMessage, NULL);
-  returnValue = (filesystemIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
-
-  return returnValue;
 }
 
 /// @fn long filesystemFTell(FILE *stream)
