@@ -397,15 +397,12 @@ typedef struct ReallocMessage {
 /// @brief State metadata the memory manager process uses for allocations and
 /// deallocations.
 ///
-/// @parm mallocBuffer A pointer to the first character of the buffer to
-///   allocate memory from.
 /// @param mallocNext A pointer to the next free piece of memory.
 /// @param mallocStart The numeric value of the first address available to
 ///   allocate memory from.
 /// @param mallocEnd The numeric value of the last address available to allocate
 ///   memory from.
 typedef struct MemoryManagerState {
-  char *mallocBuffer;
   char *mallocNext;
   uintptr_t mallocStart;
   uintptr_t mallocEnd;
