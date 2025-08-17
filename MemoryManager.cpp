@@ -516,6 +516,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
       )
     );
 #endif // __arm__
+  memorySize &= ((uintptr_t) ~7);
 
   printDebug("&mallocBufferStart = ");
   printDebug((intptr_t) &mallocBufferStart);
