@@ -529,9 +529,8 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // least sizeof(mallocBufferStart) bytes first.  So, the true beginning of our
   // buffer is not at the address of mallocBufferStart but that address plus
   // sizeof(mallocBufferStart);
-  memoryManagerState->mallocBuffer
+  memoryManagerState->mallocNext
     = ((char*) &mallocBufferStart) + sizeof(mallocBufferStart);
-  memoryManagerState->mallocNext = memoryManagerState->mallocBuffer;
   memNode(memoryManagerState->mallocNext)->prev = NULL;
   memoryManagerState->mallocStart
     = (uintptr_t) memoryManagerState->mallocNext;
