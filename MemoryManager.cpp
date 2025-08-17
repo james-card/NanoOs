@@ -494,32 +494,30 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // The buffer needs to be 64-bit aligned, so we need to use a 64-bit pointer
   // as the placeholder value.  This ensures that the compiler puts it at a
   // valid (aligned) address.
-  uint64_t mallocBufferStart = 0;
+  char *mallocBufferStart = NULL;
   
   // We want to grab as much memory as we can support for the memory manager.
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
 #if defined(__arm__)
   extern char __bss_end__;
-  uintptr_t memorySize
-    = (((uintptr_t) &mallocBufferStart)
-    - ((uintptr_t) &__bss_end__));
+  mallocBufferStart = &__bss_end__;
 #elif defined(__AVR__)
   extern int __heap_start;
   extern char *__brkval;
-  uintptr_t memorySize
-    = ((uintptr_t) (((uintptr_t) &mallocBufferStart)
-        - ((__brkval == NULL)
-          ? (uintptr_t) &__heap_start
-          : (uintptr_t) __brkval
-        )
-      )
-    );
+  mallocBufferStart = (__brkval == NULL) ? (char*) &__heap_start : __brkval;
 #endif // __arm__
+  uintptr_t memorySize
+    = (((uintptr_t) &mallocBufferStart)
+    - ((uintptr_t) mallocBufferStart));
   memorySize &= ((uintptr_t) ~7);
 
+  printDebug("mallocBufferStart = ");
+  printDebug((uintptr_t) mallocBufferStart);
+  printDebug("\n");
+
   printDebug("&mallocBufferStart = ");
-  printDebug((intptr_t) &mallocBufferStart);
+  printDebug((uintptr_t) &mallocBufferStart);
   printDebug("\n");
 
   printDebug("memorySize = ");
