@@ -146,6 +146,11 @@ typedef struct ExFatDriverState {
   ExFatFileHandle   openFiles[EXFAT_MAX_OPEN_FILES]; // Open file handles
 } ExFatDriverState;
 
+/// @typedef ExFatCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
+
 /// @brief Read a sector from the storage device
 ///
 /// @param driverState Pointer to driver state
@@ -587,7 +592,8 @@ static ExFatFileHandle* getFileHandle(ExFatDriverState* driverState,
 ///
 /// @return EXFAT_SUCCESS on success, EXFAT_ERROR on failure
 int exFatInitialize(ExFatDriverState* driverState, 
-                    FilesystemState* filesystemState) {
+  FilesystemState* filesystemState
+) {
   if (driverState == NULL || filesystemState == NULL) {
     return EXFAT_INVALID_PARAMETER;
   }
@@ -626,54 +632,17 @@ int exFatInitialize(ExFatDriverState* driverState,
   return EXFAT_SUCCESS;
 }
 
-/// @brief Open a file on the exFAT filesystem
-///
-/// @param driverState Pointer to driver state
-/// @param pathname Path to the file to open
-/// @param mode File open mode (not fully implemented)
-///
-/// @return FILE pointer on success, NULL on failure
-FILE* exFatOpen(ExFatDriverState* driverState, const char* pathname, 
-                const char* mode) {
-  if (driverState == NULL || pathname == NULL || mode == NULL) {
-    return NULL;
-  }
-
-  FILE *stream = (FILE*) malloc(sizeof(FILE));
-  if (stream == NULL) {
-    return NULL;
-  }
-
-  ExFatFileHandle* fileHandle = getFreeFileHandle(driverState);
-  if (fileHandle == NULL) {
-    return NULL;
-  }
-
-  // For simplicity, assume all files are in root directory
-  int result = findFileInDirectory(driverState, 
-                                   driverState->rootDirectoryCluster,
-                                   pathname, fileHandle);
-  if (result != EXFAT_SUCCESS) {
-    return NULL;
-  }
-
-  stream->file = fileHandle;
-  return stream;
-}
-
 /// @brief Close an open file
 ///
 /// @param driverState Pointer to driver state
 /// @param stream File stream to close
 ///
 /// @return 0 on success, EOF on failure
-int exFatClose(ExFatDriverState* driverState, FILE* stream) {
-  if (driverState == NULL || stream == NULL) {
+int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
+  if (driverState == NULL || fileHandle == NULL) {
     return EOF;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*)stream->file;
-  free(stream); stream = NULL;
   if (!fileHandle->inUse) {
     return EOF;
   }
@@ -682,29 +651,73 @@ int exFatClose(ExFatDriverState* driverState, FILE* stream) {
   return 0;
 }
 
+/// @brief Open a file on the exFAT filesystem
+///
+/// @param driverState Pointer to driver state
+/// @param pathname Path to the file to open
+/// @param mode File open mode (not fully implemented)
+///
+/// @return ExFatFileHandle pointer on success, NULL on failure
+ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
+                const char* mode) {
+  ExFatFileHandle* fileHandle = NULL;
+  int result = 0;
+
+  if (driverState == NULL || pathname == NULL || mode == NULL) {
+    goto exit;
+  }
+
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    driverState->filesystemState->blockBuffer = (uint8_t*) malloc(
+      driverState->filesystemState->blockSize);
+    if (driverState->filesystemState->blockBuffer == NULL) {
+      goto exit;
+    }
+  }
+
+  fileHandle = getFreeFileHandle(driverState);
+  if (fileHandle == NULL) {
+    goto exit;
+  }
+
+  // For simplicity, assume all files are in root directory
+  result = findFileInDirectory(driverState, 
+                               driverState->rootDirectoryCluster,
+                               pathname, fileHandle);
+  if (result == EXFAT_SUCCESS) {
+    goto exit;
+  }
+
+  // If we got here then findFileInDirectory failed.  Close the handle we got.
+  exFatFclose(driverState, fileHandle);
+  fileHandle = NULL;
+
+exit:
+  return fileHandle;
+}
+
 /// @brief Read data from a file
 ///
 /// @param driverState Pointer to driver state
 /// @param ptr Buffer to read data into
-/// @param size Size of each element
-/// @param nmemb Number of elements to read
-/// @param stream File stream to read from
+/// @param totalBytes The total number of bytes to read
+/// @param fileHandle A pointer to the ExFatFileHandle to read from
 ///
-/// @return Number of elements read
-size_t exFatRead(ExFatDriverState* driverState, void* ptr, size_t size, 
-                 size_t nmemb, FILE* stream) {
-  if (driverState == NULL || ptr == NULL || stream == NULL ||
-      size == 0 || nmemb == 0) {
-    return 0;
+/// @return Number of bytes read on success, -1 on failure.
+int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
+  ExFatFileHandle* fileHandle
+) {
+  if ((driverState == NULL) || (ptr == NULL)
+    || (fileHandle == NULL) || (totalBytes == 0)
+  ) {
+    return -1;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*)stream->file;
   if (!fileHandle->inUse) {
-    return 0;
+    return -1;
   }
 
-  size_t totalBytes = size * nmemb;
-  size_t bytesRead = 0;
+  uint32_t bytesRead = 0;
   uint8_t* buffer = (uint8_t*)ptr;
 
   while (bytesRead < totalBytes && 
@@ -753,32 +766,31 @@ size_t exFatRead(ExFatDriverState* driverState, void* ptr, size_t size,
     }
   }
 
-  return bytesRead / size;
+  return bytesRead;
 }
 
 /// @brief Write data to a file
 ///
 /// @param driverState Pointer to driver state
 /// @param ptr Buffer containing data to write
-/// @param size Size of each element
-/// @param nmemb Number of elements to write
-/// @param stream File stream to write to
+/// @param totalBytes The total number of bytes to read
+/// @param fileHandle A pointer to the ExFatFileHandle to read from
 ///
-/// @return Number of elements written
-size_t exFatWrite(ExFatDriverState* driverState, const void* ptr, 
-                  size_t size, size_t nmemb, FILE* stream) {
-  if (driverState == NULL || ptr == NULL || stream == NULL ||
-      size == 0 || nmemb == 0) {
-    return 0;
+/// @return Number of bytse written on success, -1 on failure.
+int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr, 
+  uint32_t totalBytes, ExFatFileHandle *fileHandle
+) {
+  if ((driverState == NULL) || (ptr == NULL)
+    || (fileHandle == NULL) || (totalBytes == 0)
+  ) {
+    return -1;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*)stream->file;
   if (!fileHandle->inUse) {
-    return 0;
+    return -1;
   }
 
-  size_t totalBytes = size * nmemb;
-  size_t bytesWritten = 0;
+  uint32_t bytesWritten = 0;
   const uint8_t* buffer = (const uint8_t*)ptr;
 
   while (bytesWritten < totalBytes) {
@@ -884,7 +896,7 @@ size_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
     }
   }
 
-  return bytesWritten / size;
+  return bytesWritten;
 }
 
 /// @brief Remove a file from the filesystem
@@ -940,13 +952,13 @@ int exFatRemove(ExFatDriverState* driverState, const char* pathname) {
 /// @param whence Reference point for offset (SEEK_SET, SEEK_CUR, SEEK_END)
 ///
 /// @return 0 on success, -1 on failure
-int exFatSeek(ExFatDriverState* driverState, FILE* stream, long offset, 
-              int whence) {
-  if (driverState == NULL || stream == NULL) {
+int exFatSeek(ExFatDriverState* driverState, ExFatFileHandle* fileHandle,
+  long offset, int whence
+) {
+  if ((driverState == NULL) || (fileHandle== NULL)) {
     return -1;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*)stream->file;
   if (!fileHandle->inUse) {
     return -1;
   }
@@ -973,9 +985,10 @@ int exFatSeek(ExFatDriverState* driverState, FILE* stream, long offset,
   }
 
   // Calculate which cluster the new position is in
-  uint32_t targetCluster = (uint32_t)(newPosition / driverState->bytesPerCluster);
-  uint32_t currentClusterIndex = 
-    (uint32_t)(fileHandle->currentPosition / driverState->bytesPerCluster);
+  uint32_t targetCluster
+    = (uint32_t)(newPosition / driverState->bytesPerCluster);
+  uint32_t currentClusterIndex
+    = (uint32_t)(fileHandle->currentPosition / driverState->bytesPerCluster);
 
   // Navigate to the target cluster
   if (targetCluster != currentClusterIndex) {
@@ -1055,7 +1068,7 @@ int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
 }
 
 /// @fn int exFatFilesystemOpenFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_OPEN_FILE command.
 ///
@@ -1066,11 +1079,11 @@ int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemOpenFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
-  ExFatFileHandle *exFatFile = exFatFopen(filesystemState, pathname, mode);
+  ExFatFileHandle *exFatFile = exFatFopen(driverState, pathname, mode);
   NanoOsFile *nanoOsFile = NULL;
   if (exFatFile != NULL) {
     nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
@@ -1085,30 +1098,31 @@ int exFatFilesystemOpenFileCommandHandler(
 }
 
 /// @fn int exFatFilesystemCloseFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
 ///
-/// @param filesystemState A pointer to the FilesystemState object maintained
+/// @param driverState A pointer to the FilesystemState object maintained
 ///   by the filesystem process.
 /// @param processMessage A pointer to the ProcessMessage that was received by
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemCloseFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
-  (void) filesystemState;
+  (void) driverState;
 
   NanoOsFile *nanoOsFile
     = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
   ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
-  free(exFatFile);
+  exFatFclose(driverState, exFatFile);
   free(nanoOsFile);
-  if (filesystemState->numOpenFiles > 0) {
-    filesystemState->numOpenFiles--;
-    if (filesystemState->numOpenFiles == 0) {
-      free(filesystemState->blockBuffer); filesystemState->blockBuffer = NULL;
+  if (driverState->filesystemState->numOpenFiles > 0) {
+    driverState->filesystemState->numOpenFiles--;
+    if (driverState->filesystemState->numOpenFiles == 0) {
+      free(driverState->filesystemState->blockBuffer);
+      driverState->filesystemState->blockBuffer = NULL;
     }
   }
 
@@ -1117,25 +1131,25 @@ int exFatFilesystemCloseFileCommandHandler(
 }
 
 /// @fn int exFatFilesystemReadFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_READ_FILE command.
 ///
-/// @param filesystemState A pointer to the FilesystemState object maintained
+/// @param driverState A pointer to the FilesystemState object maintained
 ///   by the filesystem process.
 /// @param processMessage A pointer to the ProcessMessage that was received by
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemReadFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
-  int returnValue = exFatRead(filesystemState,
-    (ExFatFileHandle*) filesystemIoCommandParameters->file->file,
+  int32_t returnValue = exFatRead(driverState,
     filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length);
+    filesystemIoCommandParameters->length, 
+    (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
   if (returnValue >= 0) {
     // Return value is the number of bytes read.  Set the length variable to it
     // and set it to 0 to indicate good status.
@@ -1153,25 +1167,25 @@ int exFatFilesystemReadFileCommandHandler(
 }
 
 /// @fn int exFatFilesystemWriteFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_WRITE_FILE command.
 ///
-/// @param filesystemState A pointer to the FilesystemState object maintained
+/// @param driverState A pointer to the FilesystemState object maintained
 ///   by the filesystem process.
 /// @param processMessage A pointer to the ProcessMessage that was received by
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemWriteFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
-  int returnValue = exFatWrite(filesystemState,
-    (ExFatFileHandle*) filesystemIoCommandParameters->file->file,
+  int returnValue = exFatWrite(driverState,
     (uint8_t*) filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length);
+    filesystemIoCommandParameters->length,
+    (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
   if (returnValue >= 0) {
     // Return value is the number of bytes written.  Set the length variable to
     // it and set it to 0 to indicate good status.
@@ -1189,21 +1203,21 @@ int exFatFilesystemWriteFileCommandHandler(
 }
 
 /// @fn int exFatFilesystemRemoveFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
 ///
-/// @param filesystemState A pointer to the FilesystemState object maintained
+/// @param driverState A pointer to the FilesystemState object maintained
 ///   by the filesystem process.
 /// @param processMessage A pointer to the ProcessMessage that was received by
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemRemoveFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
-  int returnValue = exFatRemove(filesystemState, pathname);
+  int returnValue = exFatRemove(driverState, pathname);
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
@@ -1213,22 +1227,22 @@ int exFatFilesystemRemoveFileCommandHandler(
 }
 
 /// @fn int exFatFilesystemSeekFileCommandHandler(
-///   FilesystemState *filesystemState, ProcessMessage *processMessage)
+///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_SEEK_FILE command.
 ///
-/// @param filesystemState A pointer to the FilesystemState object maintained
+/// @param driverState A pointer to the FilesystemState object maintained
 ///   by the filesystem process.
 /// @param processMessage A pointer to the ProcessMessage that was received by
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int exFatFilesystemSeekFileCommandHandler(
-  FilesystemState *filesystemState, ProcessMessage *processMessage
+  ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemSeekParameters *filesystemSeekParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
-  int returnValue = exFatSeek(filesystemState,
+  int returnValue = exFatSeek(driverState,
     (ExFatFileHandle*) filesystemSeekParameters->stream->file,
     filesystemSeekParameters->offset,
     filesystemSeekParameters->whence);
@@ -1242,8 +1256,8 @@ int exFatFilesystemSeekFileCommandHandler(
 
 /// @var filesystemCommandHandlers
 ///
-/// @brief Array of FilesystemCommandHandler function pointers.
-const FilesystemCommandHandler filesystemCommandHandlers[] = {
+/// @brief Array of ExFatCommandHandler function pointers.
+const ExFatCommandHandler filesystemCommandHandlers[] = {
   exFatFilesystemOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
   exFatFilesystemCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
   exFatFilesystemReadFileCommandHandler,   // FILESYSTEM_READ_FILE
@@ -1262,13 +1276,13 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
 ///   filesystem process.
 ///
 /// @return This function returns no value.
-static void exFatHandleFilesystemMessages(FilesystemState *fs) {
+static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
   ProcessMessage *msg = processMessageQueuePop();
   while (msg != NULL) {
     FilesystemCommandResponse type = 
       (FilesystemCommandResponse) processMessageType(msg);
     if (type < NUM_FILESYSTEM_COMMANDS) {
-      filesystemCommandHandlers[type](fs, msg);
+      filesystemCommandHandlers[type](driverState, msg);
     }
     msg = processMessageQueuePop();
   }
@@ -1285,12 +1299,14 @@ static void exFatHandleFilesystemMessages(FilesystemState *fs) {
 void* runExFatFilesystem(void *args) {
   FilesystemState fs;
   memset(&fs, 0, sizeof(fs));
+  ExFatDriverState driverState;
+  memset(&driverState, 0, sizeof(driverState));
   fs.blockDevice = (BlockStorageDevice*) args;
   fs.blockSize = 512;
   coroutineYield(NULL);
   
   fs.blockBuffer = (uint8_t*) malloc(fs.blockSize);
-  getPartitionInfo(&fs);
+  exFatInitialize(&driverState, &fs);
   free(fs.blockBuffer); fs.blockBuffer = NULL;
   
   ProcessMessage *msg = NULL;
@@ -1300,10 +1316,10 @@ void* runExFatFilesystem(void *args) {
       FilesystemCommandResponse type = 
         (FilesystemCommandResponse) processMessageType(msg);
       if (type < NUM_FILESYSTEM_COMMANDS) {
-        filesystemCommandHandlers[type](&fs, msg);
+        filesystemCommandHandlers[type](&driverState, msg);
       }
     } else {
-      exFatHandleFilesystemMessages(&fs);
+      exFatHandleFilesystemMessages(&driverState);
     }
   }
   return NULL;
