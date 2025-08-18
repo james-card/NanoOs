@@ -1011,7 +1011,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
 };
 
 
-/// @fn static void handleFilesystemMessages(FilesystemState *fs)
+/// @fn static void fat16HandleFilesystemMessages(FilesystemState *fs)
 ///
 /// @brief Pop and handle all messages in the filesystem process's message
 /// queue until there are no more.
@@ -1020,7 +1020,7 @@ const FilesystemCommandHandler filesystemCommandHandlers[] = {
 ///   filesystem process.
 ///
 /// @return This function returns no value.
-static void handleFilesystemMessages(FilesystemState *fs) {
+static void fat16HandleFilesystemMessages(FilesystemState *fs) {
   ProcessMessage *msg = processMessageQueuePop();
   while (msg != NULL) {
     FilesystemCommandResponse type = 
@@ -1061,7 +1061,7 @@ void* runFat16Filesystem(void *args) {
         filesystemCommandHandlers[type](&fs, msg);
       }
     } else {
-      handleFilesystemMessages(&fs);
+      fat16HandleFilesystemMessages(&fs);
     }
   }
   return NULL;
