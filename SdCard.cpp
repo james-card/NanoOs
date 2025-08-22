@@ -729,6 +729,7 @@ int sdWriteBlocks(void *context, uint32_t startBlock,
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCard(void *args) {
   SdCardState sdCardState;
+  memset(&sdCardState, 0, sizeof(sdCardState));
   sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
   BlockStorageDevice sdDevice = {
     .context = (void*) ((intptr_t) getRunningProcessId()),
