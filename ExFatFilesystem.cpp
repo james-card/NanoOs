@@ -7,6 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "ExFatFilesystem.h"
+
 #include <string.h>
 
 // exFAT constants
@@ -245,8 +246,7 @@ static int readFatEntry(ExFatDriverState* driverState,
     return result;
   }
 
-  *nextCluster = *((uint32_t*)(filesystemState->blockBuffer + 
-                               fatOffsetInSector));
+  readBytes(nextCluster, filesystemState->blockBuffer + fatOffsetInSector);
   return EXFAT_SUCCESS;
 }
 
@@ -275,8 +275,7 @@ static int writeFatEntry(ExFatDriverState* driverState,
     return result;
   }
 
-  *((uint32_t*)(filesystemState->blockBuffer + fatOffsetInSector)) = 
-    nextCluster;
+  writeBytes(filesystemState->blockBuffer + fatOffsetInSector, &nextCluster);
 
   return writeSector(driverState, fatSector, filesystemState->blockBuffer);
 }
@@ -341,7 +340,7 @@ static uint16_t calculateDirectorySetChecksum(uint8_t* entries,
 /// @return Length of converted string
 static int utf8ToUtf16(const char* utf8, uint16_t* utf16, int maxLength) {
   int length = 0;
-  const uint8_t* src = (const uint8_t*)utf8;
+  const uint8_t* src = (const uint8_t*) utf8;
 
   while (*src && length < maxLength - 1) {
     if (*src < 0x80) {
@@ -377,7 +376,7 @@ static int utf16ToUtf8(const uint16_t* utf16, char* utf8, int maxLength) {
   
   while (*utf16 && length < maxLength - 1) {
     if (*utf16 < 0x80) {
-      utf8[length++] = (char)*utf16;
+      utf8[length++] = (char) *utf16;
     } else if (*utf16 < 0x800) {
       if (length + 1 < maxLength) {
         utf8[length++] = 0xC0 | (*utf16 >> 6);
@@ -436,10 +435,12 @@ static int findFileInDirectory(ExFatDriverState* driverState,
       }
 
       if (entry[0] == EXFAT_ENTRY_FILE) {
-        ExFatFileDirectoryEntry* fileEntry = 
-          (ExFatFileDirectoryEntry*)entry;
-        ExFatStreamExtensionEntry* streamEntry;
-        ExFatFileNameEntry* nameEntries;
+        ExFatFileDirectoryEntry fileEntry;
+        ExFatStreamExtensionEntry streamEntry;
+        ExFatFileNameEntry nameEntry;
+        
+        // Read file entry with aligned access
+        readBytes(&fileEntry, entry);
         
         // Read stream extension entry
         offsetInSector += EXFAT_DIRECTORY_ENTRY_SIZE;
@@ -463,14 +464,14 @@ static int findFileInDirectory(ExFatDriverState* driverState,
           }
         }
         
-        streamEntry = (ExFatStreamExtensionEntry*)
-                      (filesystemState->blockBuffer + offsetInSector);
+        // Read stream entry with aligned access
+        readBytes(&streamEntry, filesystemState->blockBuffer + offsetInSector);
 
         // Read file name entries
         uint16_t fullName[EXFAT_MAX_FILENAME_LENGTH + 1] = {0};
         uint8_t nameIndex = 0;
         
-        for (uint8_t ii = 0; ii < fileEntry->secondaryCount - 1; ii++) {
+        for (uint8_t ii = 0; ii < fileEntry.secondaryCount - 1; ii++) {
           offsetInSector += EXFAT_DIRECTORY_ENTRY_SIZE;
           if (offsetInSector >= driverState->bytesPerSector) {
             sectorInCluster++;
@@ -492,15 +493,17 @@ static int findFileInDirectory(ExFatDriverState* driverState,
             }
           }
           
-          nameEntries = (ExFatFileNameEntry*)
-                        (filesystemState->blockBuffer + offsetInSector);
+          // Read name entry with aligned access
+          readBytes(&nameEntry, filesystemState->blockBuffer + offsetInSector);
           
           for (uint8_t jj = 0; jj < 15 && nameIndex < EXFAT_MAX_FILENAME_LENGTH;
                jj++) {
-            if (nameEntries->fileName[jj] == 0) {
+            uint16_t nameChar;
+            readBytes(&nameChar, &nameEntry.fileName[jj]);
+            if (nameChar == 0) {
               break;
             }
-            fullName[nameIndex++] = nameEntries->fileName[jj];
+            fullName[nameIndex++] = nameChar;
           }
         }
 
@@ -511,11 +514,11 @@ static int findFileInDirectory(ExFatDriverState* driverState,
         if (strcmp(utf8Name, fileName) == 0) {
           // Found the file
           fileHandle->inUse = true;
-          fileHandle->firstCluster = streamEntry->firstCluster;
-          fileHandle->currentCluster = streamEntry->firstCluster;
+          fileHandle->firstCluster = streamEntry.firstCluster;
+          fileHandle->currentCluster = streamEntry.firstCluster;
           fileHandle->currentPosition = 0;
-          fileHandle->fileSize = streamEntry->dataLength;
-          fileHandle->attributes = fileEntry->fileAttributes;
+          fileHandle->fileSize = streamEntry.dataLength;
+          fileHandle->attributes = fileEntry.fileAttributes;
           fileHandle->directoryCluster = directoryCluster;
           strncpy(fileHandle->fileName, fileName, EXFAT_MAX_FILENAME_LENGTH);
           fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
@@ -573,7 +576,7 @@ static ExFatFileHandle* getFileHandle(ExFatDriverState* driverState,
     return NULL;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*)stream->file;
+  ExFatFileHandle* fileHandle = (ExFatFileHandle*) stream->file;
   
   // Validate that this is actually one of our file handles
   for (int ii = 0; ii < EXFAT_MAX_OPEN_FILES; ii++) {
@@ -635,7 +638,7 @@ int exFatInitialize(ExFatDriverState* driverState,
 /// @brief Close an open file
 ///
 /// @param driverState Pointer to driver state
-/// @param stream File stream to close
+/// @param fileHandle File handle to close
 ///
 /// @return 0 on success, EOF on failure
 int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
@@ -718,7 +721,7 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
   }
 
   uint32_t bytesRead = 0;
-  uint8_t* buffer = (uint8_t*)ptr;
+  uint8_t* buffer = (uint8_t*) ptr;
 
   while (bytesRead < totalBytes && 
          fileHandle->currentPosition < fileHandle->fileSize) {
@@ -773,10 +776,10 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
 ///
 /// @param driverState Pointer to driver state
 /// @param ptr Buffer containing data to write
-/// @param totalBytes The total number of bytes to read
-/// @param fileHandle A pointer to the ExFatFileHandle to read from
+/// @param totalBytes The total number of bytes to write
+/// @param fileHandle A pointer to the ExFatFileHandle to write to
 ///
-/// @return Number of bytse written on success, -1 on failure.
+/// @return Number of bytes written on success, -1 on failure.
 int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr, 
   uint32_t totalBytes, ExFatFileHandle *fileHandle
 ) {
@@ -791,7 +794,7 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
   }
 
   uint32_t bytesWritten = 0;
-  const uint8_t* buffer = (const uint8_t*)ptr;
+  const uint8_t* buffer = (const uint8_t*) ptr;
 
   while (bytesWritten < totalBytes) {
     uint32_t clusterOffset = fileHandle->currentPosition % 
@@ -947,7 +950,7 @@ int exFatRemove(ExFatDriverState* driverState, const char* pathname) {
 /// @brief Seek to a position in a file
 ///
 /// @param driverState Pointer to driver state
-/// @param stream File stream to seek in
+/// @param fileHandle File handle to seek in
 /// @param offset Offset to seek to
 /// @param whence Reference point for offset (SEEK_SET, SEEK_CUR, SEEK_END)
 ///
@@ -1005,14 +1008,14 @@ int exFatSeek(ExFatDriverState* driverState, ExFatFileHandle* fileHandle,
     }
   }
 
-  fileHandle->currentPosition = (uint32_t)newPosition;
+  fileHandle->currentPosition = (uint32_t) newPosition;
   return 0;
 }
 
 /// @brief Get current position in file
 ///
 /// @param driverState Pointer to driver state
-/// @param stream File stream
+/// @param stream FILE pointer
 ///
 /// @return Current position or -1 on error
 long exFatTell(ExFatDriverState* driverState, FILE* stream) {
@@ -1025,13 +1028,13 @@ long exFatTell(ExFatDriverState* driverState, FILE* stream) {
     return -1;
   }
 
-  return (long)fileHandle->currentPosition;
+  return (long) fileHandle->currentPosition;
 }
 
 /// @brief Check if end of file has been reached
 ///
 /// @param driverState Pointer to driver state
-/// @param stream File stream
+/// @param stream FILE pointer
 ///
 /// @return Non-zero if EOF, 0 otherwise
 int exFatEof(ExFatDriverState* driverState, FILE* stream) {
@@ -1050,7 +1053,7 @@ int exFatEof(ExFatDriverState* driverState, FILE* stream) {
 /// @brief Flush file buffers
 ///
 /// @param driverState Pointer to driver state
-/// @param stream File stream
+/// @param stream FILE pointer
 ///
 /// @return 0 on success, EOF on error
 int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
