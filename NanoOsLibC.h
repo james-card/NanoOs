@@ -172,7 +172,7 @@ int timespec_get(struct timespec* spec, int base);
 #define printDebugStackDepth() \
   { \
     char temp; \
-    startDebugMessage("Stack depth: "); \
+    printString("Stack depth: "); \
     printInt(ABS_DIFF((uintptr_t) &temp, (uintptr_t) getRunningCoroutine())); \
     printString("\n"); \
   } \
