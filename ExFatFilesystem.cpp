@@ -145,6 +145,7 @@ typedef struct ExFatDriverState {
   uint32_t          clusterHeapStartSector; // Cluster heap start sector
   uint32_t          rootDirectoryCluster; // Root directory cluster
   ExFatFileHandle   openFiles[EXFAT_MAX_OPEN_FILES]; // Open file handles
+  bool              driverStateValid; // Whether or not this is a valid state
 } ExFatDriverState;
 
 /// @typedef ExFatCommandHandler
@@ -417,30 +418,37 @@ static int findFileInDirectory(ExFatDriverState* driverState,
   uint32_t sectorInCluster = 0;
   uint32_t offsetInSector = 0;
 
+  int result = EXFAT_SUCCESS;
+  ExFatFileDirectoryEntry *fileEntry
+    = (ExFatFileDirectoryEntry*) malloc(sizeof(ExFatFileDirectoryEntry));
+  ExFatStreamExtensionEntry *streamEntry
+    = (ExFatStreamExtensionEntry*) malloc(sizeof(ExFatStreamExtensionEntry));
+  ExFatFileNameEntry *nameEntry
+    = (ExFatFileNameEntry*) malloc(sizeof(ExFatFileNameEntry));;
+  uint16_t *fullName
+    = (uint16_t*) malloc((EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
+  char *utf8Name = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
+
   while (currentCluster != 0xFFFFFFFF) {
     uint32_t sectorNumber = clusterToSector(driverState, currentCluster) + 
                             sectorInCluster;
-    
-    int result = readSector(driverState, sectorNumber, 
+    result = readSector(driverState, sectorNumber, 
                             filesystemState->blockBuffer);
     if (result != EXFAT_SUCCESS) {
-      return result;
+      goto exit;
     }
 
     while (offsetInSector < driverState->bytesPerSector) {
       uint8_t* entry = filesystemState->blockBuffer + offsetInSector;
       
       if (entry[0] == EXFAT_ENTRY_END_OF_DIR) {
-        return EXFAT_FILE_NOT_FOUND;
+        result = EXFAT_FILE_NOT_FOUND;
+        goto exit;
       }
 
       if (entry[0] == EXFAT_ENTRY_FILE) {
-        ExFatFileDirectoryEntry fileEntry;
-        ExFatStreamExtensionEntry streamEntry;
-        ExFatFileNameEntry nameEntry;
-        
         // Read file entry with aligned access
-        readBytes(&fileEntry, entry);
+        readBytes(fileEntry, entry);
         
         // Read stream extension entry
         offsetInSector += EXFAT_DIRECTORY_ENTRY_SIZE;
@@ -451,7 +459,7 @@ static int findFileInDirectory(ExFatDriverState* driverState,
             result = readFatEntry(driverState, currentCluster, 
                                   &currentCluster);
             if (result != EXFAT_SUCCESS) {
-              return result;
+              goto exit;
             }
             sectorInCluster = 0;
           }
@@ -460,18 +468,18 @@ static int findFileInDirectory(ExFatDriverState* driverState,
           result = readSector(driverState, sectorNumber, 
                               filesystemState->blockBuffer);
           if (result != EXFAT_SUCCESS) {
-            return result;
+            goto exit;
           }
         }
         
         // Read stream entry with aligned access
-        readBytes(&streamEntry, filesystemState->blockBuffer + offsetInSector);
+        readBytes(streamEntry, filesystemState->blockBuffer + offsetInSector);
 
         // Read file name entries
-        uint16_t fullName[EXFAT_MAX_FILENAME_LENGTH + 1] = {0};
+        memset(fullName, 0, (EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
         uint8_t nameIndex = 0;
         
-        for (uint8_t ii = 0; ii < fileEntry.secondaryCount - 1; ii++) {
+        for (uint8_t ii = 0; ii < fileEntry->secondaryCount - 1; ii++) {
           offsetInSector += EXFAT_DIRECTORY_ENTRY_SIZE;
           if (offsetInSector >= driverState->bytesPerSector) {
             sectorInCluster++;
@@ -480,7 +488,7 @@ static int findFileInDirectory(ExFatDriverState* driverState,
               result = readFatEntry(driverState, currentCluster, 
                                     &currentCluster);
               if (result != EXFAT_SUCCESS) {
-                return result;
+                goto exit;
               }
               sectorInCluster = 0;
             }
@@ -489,17 +497,17 @@ static int findFileInDirectory(ExFatDriverState* driverState,
             result = readSector(driverState, sectorNumber, 
                                 filesystemState->blockBuffer);
             if (result != EXFAT_SUCCESS) {
-              return result;
+              goto exit;
             }
           }
           
           // Read name entry with aligned access
-          readBytes(&nameEntry, filesystemState->blockBuffer + offsetInSector);
+          readBytes(nameEntry, filesystemState->blockBuffer + offsetInSector);
           
           for (uint8_t jj = 0; jj < 15 && nameIndex < EXFAT_MAX_FILENAME_LENGTH;
                jj++) {
             uint16_t nameChar;
-            readBytes(&nameChar, &nameEntry.fileName[jj]);
+            readBytes(&nameChar, &nameEntry->fileName[jj]);
             if (nameChar == 0) {
               break;
             }
@@ -508,21 +516,21 @@ static int findFileInDirectory(ExFatDriverState* driverState,
         }
 
         // Convert to UTF-8 and compare
-        char utf8Name[EXFAT_MAX_FILENAME_LENGTH + 1];
         utf16ToUtf8(fullName, utf8Name, sizeof(utf8Name));
         
         if (strcmp(utf8Name, fileName) == 0) {
           // Found the file
           fileHandle->inUse = true;
-          fileHandle->firstCluster = streamEntry.firstCluster;
-          fileHandle->currentCluster = streamEntry.firstCluster;
+          fileHandle->firstCluster = streamEntry->firstCluster;
+          fileHandle->currentCluster = streamEntry->firstCluster;
           fileHandle->currentPosition = 0;
-          fileHandle->fileSize = streamEntry.dataLength;
-          fileHandle->attributes = fileEntry.fileAttributes;
+          fileHandle->fileSize = streamEntry->dataLength;
+          fileHandle->attributes = fileEntry->fileAttributes;
           fileHandle->directoryCluster = directoryCluster;
           strncpy(fileHandle->fileName, fileName, EXFAT_MAX_FILENAME_LENGTH);
           fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
-          return EXFAT_SUCCESS;
+          result = EXFAT_SUCCESS;
+          goto exit;
         }
       }
 
@@ -533,15 +541,23 @@ static int findFileInDirectory(ExFatDriverState* driverState,
     sectorInCluster++;
     offsetInSector = 0;
     if (sectorInCluster >= driverState->sectorsPerCluster) {
-      int result = readFatEntry(driverState, currentCluster, &currentCluster);
+      result = readFatEntry(driverState, currentCluster, &currentCluster);
       if (result != EXFAT_SUCCESS) {
-        return result;
+        goto exit;
       }
       sectorInCluster = 0;
     }
   }
+  result = EXFAT_FILE_NOT_FOUND;
 
-  return EXFAT_FILE_NOT_FOUND;
+exit:
+  free(fileEntry);
+  free(streamEntry);
+  free(nameEntry);
+  free(fullName);
+  free(utf8Name);
+
+  return result;
 }
 
 /// @brief Get free file handle
@@ -598,6 +614,7 @@ int exFatInitialize(ExFatDriverState* driverState,
   FilesystemState* filesystemState
 ) {
   if (driverState == NULL || filesystemState == NULL) {
+    printString("ERROR: Invalid parameter passed to exFatInitialize.\n");
     return EXFAT_INVALID_PARAMETER;
   }
 
@@ -608,6 +625,7 @@ int exFatInitialize(ExFatDriverState* driverState,
   // Read boot sector
   int result = readSector(driverState, 0, filesystemState->blockBuffer);
   if (result != EXFAT_SUCCESS) {
+    printString("ERROR: Could not read boot sector.\n");
     return result;
   }
 
@@ -616,6 +634,7 @@ int exFatInitialize(ExFatDriverState* driverState,
 
   // Validate exFAT signature
   if (memcmp(driverState->bootSector.fileSystemName, "EXFAT   ", 8) != 0) {
+    printString("ERROR: Not an exFAT filesystem.\n");
     return EXFAT_ERROR;
   }
 
@@ -632,6 +651,7 @@ int exFatInitialize(ExFatDriverState* driverState,
   driverState->rootDirectoryCluster = 
     driverState->bootSector.rootDirectoryCluster;
 
+  driverState->driverStateValid = true;
   return EXFAT_SUCCESS;
 }
 
@@ -1084,13 +1104,15 @@ int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
 int exFatFilesystemOpenFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
+  NanoOsFile *nanoOsFile = NULL;
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
-  ExFatFileHandle *exFatFile = exFatFopen(driverState, pathname, mode);
-  NanoOsFile *nanoOsFile = NULL;
-  if (exFatFile != NULL) {
-    nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
-    nanoOsFile->file = exFatFile;
+  if (driverState->driverStateValid) {
+    ExFatFileHandle *exFatFile = exFatFopen(driverState, pathname, mode);
+    if (exFatFile != NULL) {
+      nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
+      nanoOsFile->file = exFatFile;
+    }
   }
 
   NanoOsMessage *nanoOsMessage
@@ -1119,13 +1141,15 @@ int exFatFilesystemCloseFileCommandHandler(
   NanoOsFile *nanoOsFile
     = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
   ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
-  exFatFclose(driverState, exFatFile);
   free(nanoOsFile);
-  if (driverState->filesystemState->numOpenFiles > 0) {
-    driverState->filesystemState->numOpenFiles--;
-    if (driverState->filesystemState->numOpenFiles == 0) {
-      free(driverState->filesystemState->blockBuffer);
-      driverState->filesystemState->blockBuffer = NULL;
+  if (driverState->driverStateValid) {
+    exFatFclose(driverState, exFatFile);
+    if (driverState->filesystemState->numOpenFiles > 0) {
+      driverState->filesystemState->numOpenFiles--;
+      if (driverState->filesystemState->numOpenFiles == 0) {
+        free(driverState->filesystemState->blockBuffer);
+        driverState->filesystemState->blockBuffer = NULL;
+      }
     }
   }
 
@@ -1149,20 +1173,23 @@ int exFatFilesystemReadFileCommandHandler(
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
-  int32_t returnValue = exFatRead(driverState,
-    filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length, 
-    (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
-  if (returnValue >= 0) {
-    // Return value is the number of bytes read.  Set the length variable to it
-    // and set it to 0 to indicate good status.
-    filesystemIoCommandParameters->length = returnValue;
-    returnValue = 0;
-  } else {
-    // Return value is a negative error code.  Negate it.
-    returnValue = -returnValue;
-    // Tell the caller that we read nothing.
-    filesystemIoCommandParameters->length = 0;
+  int32_t returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = exFatRead(driverState,
+      filesystemIoCommandParameters->buffer,
+      filesystemIoCommandParameters->length, 
+      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    if (returnValue >= 0) {
+      // Return value is the number of bytes read.  Set the length variable to
+      // it and set it to 0 to indicate good status.
+      filesystemIoCommandParameters->length = returnValue;
+      returnValue = 0;
+    } else {
+      // Return value is a negative error code.  Negate it.
+      returnValue = -returnValue;
+      // Tell the caller that we read nothing.
+      filesystemIoCommandParameters->length = 0;
+    }
   }
 
   processMessageSetDone(processMessage);
@@ -1185,20 +1212,23 @@ int exFatFilesystemWriteFileCommandHandler(
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
-  int returnValue = exFatWrite(driverState,
-    (uint8_t*) filesystemIoCommandParameters->buffer,
-    filesystemIoCommandParameters->length,
-    (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
-  if (returnValue >= 0) {
-    // Return value is the number of bytes written.  Set the length variable to
-    // it and set it to 0 to indicate good status.
-    filesystemIoCommandParameters->length = returnValue;
-    returnValue = 0;
-  } else {
-    // Return value is a negative error code.  Negate it.
-    returnValue = -returnValue;
-    // Tell the caller that we wrote nothing.
-    filesystemIoCommandParameters->length = 0;
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = exFatWrite(driverState,
+      (uint8_t*) filesystemIoCommandParameters->buffer,
+      filesystemIoCommandParameters->length,
+      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    if (returnValue >= 0) {
+      // Return value is the number of bytes written.  Set the length variable
+      // to it and set it to 0 to indicate good status.
+      filesystemIoCommandParameters->length = returnValue;
+      returnValue = 0;
+    } else {
+      // Return value is a negative error code.  Negate it.
+      returnValue = -returnValue;
+      // Tell the caller that we wrote nothing.
+      filesystemIoCommandParameters->length = 0;
+    }
   }
 
   processMessageSetDone(processMessage);
@@ -1220,7 +1250,10 @@ int exFatFilesystemRemoveFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
-  int returnValue = exFatRemove(driverState, pathname);
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = exFatRemove(driverState, pathname);
+  }
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
@@ -1245,10 +1278,13 @@ int exFatFilesystemSeekFileCommandHandler(
 ) {
   FilesystemSeekParameters *filesystemSeekParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
-  int returnValue = exFatSeek(driverState,
-    (ExFatFileHandle*) filesystemSeekParameters->stream->file,
-    filesystemSeekParameters->offset,
-    filesystemSeekParameters->whence);
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = exFatSeek(driverState,
+      (ExFatFileHandle*) filesystemSeekParameters->stream->file,
+      filesystemSeekParameters->offset,
+      filesystemSeekParameters->whence);
+  }
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
@@ -1300,17 +1336,16 @@ static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runExFatFilesystem(void *args) {
-  FilesystemState fs;
-  memset(&fs, 0, sizeof(fs));
-  ExFatDriverState driverState;
-  memset(&driverState, 0, sizeof(driverState));
-  fs.blockDevice = (BlockStorageDevice*) args;
-  fs.blockSize = 512;
   coroutineYield(NULL);
+  FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
+  ExFatDriverState *driverState
+    = (ExFatDriverState*) calloc(1, sizeof(ExFatDriverState));
+  fs->blockDevice = (BlockStorageDevice*) args;
+  fs->blockSize = 512;
   
-  fs.blockBuffer = (uint8_t*) malloc(fs.blockSize);
-  exFatInitialize(&driverState, &fs);
-  free(fs.blockBuffer); fs.blockBuffer = NULL;
+  fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+  exFatInitialize(driverState, fs);
+  free(fs->blockBuffer); fs->blockBuffer = NULL;
   
   ProcessMessage *msg = NULL;
   while (1) {
@@ -1319,10 +1354,10 @@ void* runExFatFilesystem(void *args) {
       FilesystemCommandResponse type = 
         (FilesystemCommandResponse) processMessageType(msg);
       if (type < NUM_FILESYSTEM_COMMANDS) {
-        filesystemCommandHandlers[type](&driverState, msg);
+        filesystemCommandHandlers[type](driverState, msg);
       }
     } else {
-      exFatHandleFilesystemMessages(&driverState);
+      exFatHandleFilesystemMessages(driverState);
     }
   }
   return NULL;
