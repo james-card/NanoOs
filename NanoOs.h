@@ -168,6 +168,42 @@ extern "C"
   processMessageInit( \
     &variableName, type, &__nanoOsMessage, sizeof(__nanoOsMessage), waiting)
 
+/// @def copyBytes
+///
+/// @brief Copy a specified number of bytes from a source to a destination one
+/// byte at a time.  The source and destination may be at unaligned memory
+/// addresses.
+///
+/// @param dst A pointer to the destination memory.
+/// @param src A pointer to the source memory.
+/// @param len The number of bytes to copy from the source to the destination.
+#define copyBytes(dst, src, len) \
+  do { \
+    unsigned char *dstBytes = (unsigned char*) (dst); \
+    unsigned char *srcBytes = (unsigned char*) (src); \
+    for (int ii = 0; ii < len; ii++) { \
+      dstBytes[ii] = srcBytes[ii]; \
+    } \
+  while (0)
+
+/// @def readBytes
+///
+/// @brief Read a value from a memory address that may be unaligned.
+///
+/// @param dst A pointer to the destination memory.  This is expected to be a
+///   multi-byte type.
+/// @param src A pointer to the source memory.
+#define readBytes(dst, src) copyBytes(dst, src, sizeof(*(dst)))
+
+/// @def writeBytes
+///
+/// @brief Write a value to a memory address that may be unaligned.
+///
+/// @param dst A pointer to the destination memory.
+/// @param src A pointer to the source memory.  This is expected to be a
+///   multi-byte type.
+#define writeBytes(dst, src) copyBytes(dst, src, sizeof(*(src)))
+
 // Support functions
 ProcessId getNumPipes(const char *commandLine);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
