@@ -137,13 +137,13 @@ typedef struct ExFatFileHandle {
 /// @brief Driver state for exFAT filesystem
 typedef struct ExFatDriverState {
   FilesystemState*  filesystemState; // Pointer to filesystem state
-  ExFatBootSector   bootSector;    // Boot sector
   uint32_t          bytesPerSector; // Bytes per sector
   uint32_t          sectorsPerCluster; // Sectors per cluster
   uint32_t          bytesPerCluster; // Bytes per cluster
   uint32_t          fatStartSector; // FAT start sector
   uint32_t          clusterHeapStartSector; // Cluster heap start sector
   uint32_t          rootDirectoryCluster; // Root directory cluster
+  uint32_t          clusterCount;          // Number of clusters
   ExFatFileHandle   openFiles[EXFAT_MAX_OPEN_FILES]; // Open file handles
   bool              driverStateValid; // Whether or not this is a valid state
 } ExFatDriverState;
@@ -293,7 +293,7 @@ static int findFreeCluster(ExFatDriverState* driverState,
     return EXFAT_INVALID_PARAMETER;
   }
 
-  for (uint32_t cluster = 2; cluster < driverState->bootSector.clusterCount + 2;
+  for (uint32_t cluster = 2; cluster < driverState->clusterCount + 2;
        cluster++) {
     uint32_t nextCluster;
     int result = readFatEntry(driverState, cluster, &nextCluster);
@@ -408,8 +408,10 @@ static int findFileInDirectory(ExFatDriverState* driverState,
                                uint32_t directoryCluster, 
                                const char* fileName,
                                ExFatFileHandle* fileHandle) {
+  printDebug("Entering findFileInDirectory.\n");
   if (driverState == NULL || driverState->filesystemState == NULL ||
       fileName == NULL || fileHandle == NULL) {
+    printDebug("One or more NULL parameters.\n");
     return EXFAT_INVALID_PARAMETER;
   }
 
@@ -442,11 +444,13 @@ static int findFileInDirectory(ExFatDriverState* driverState,
       uint8_t* entry = filesystemState->blockBuffer + offsetInSector;
       
       if (entry[0] == EXFAT_ENTRY_END_OF_DIR) {
+        printDebug("entry[0] == EXFAT_ENTRY_END_OF_DIR.\n");
         result = EXFAT_FILE_NOT_FOUND;
         goto exit;
       }
 
       if (entry[0] == EXFAT_ENTRY_FILE) {
+        printDebug("entry[0] == EXFAT_ENTRY_FILE.\n");
         // Read file entry with aligned access
         readBytes(fileEntry, entry);
         
@@ -531,7 +535,16 @@ static int findFileInDirectory(ExFatDriverState* driverState,
           fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
           result = EXFAT_SUCCESS;
           goto exit;
+        } else {
+          printDebug(utf8Name);
+          printDebug(" != ");
+          printDebug(fileName);
+          printDebug("\n");
         }
+      } else {
+        printDebug("entry[0] == ");
+        printDebug(entry[0]);
+        printDebug(".\n");
       }
 
       offsetInSector += EXFAT_DIRECTORY_ENTRY_SIZE;
@@ -557,6 +570,10 @@ exit:
   free(fullName);
   free(utf8Name);
 
+  printDebug("Exiting findFileInDirectory.\n");
+  printDebug("result = ");
+  printDebug(result);
+  printDebug("\n");
   return result;
 }
 
@@ -629,35 +646,40 @@ int exFatInitialize(ExFatDriverState* driverState,
     return result;
   }
 
-  memcpy(&driverState->bootSector, filesystemState->blockBuffer, 
-         sizeof(ExFatBootSector));
+  ExFatBootSector *bootSector = (ExFatBootSector*) filesystemState->blockBuffer;
 
   // Validate exFAT signature
-  if (memcmp(driverState->bootSector.fileSystemName, "EXFAT   ", 8) != 0) {
+  if (memcmp(bootSector->fileSystemName, "EXFAT   ", 8) != 0) {
     printString("ERROR: Not an exFAT filesystem.\n");
-    printDebug("driverState->bootSector.fileSystemName = ");
+    printDebug("bootSector->fileSystemName = '");
     for (int ii = 0; ii < 8; ii++) {
-      printDebug((char) driverState->bootSector.fileSystemName[ii]);
+      printDebug((char) bootSector->fileSystemName[ii]);
     }
-    printDebug("\n");
+    printDebug("'\n");
     printDebug("Boot signature = 0x");
-    printDebug(driverState->bootSector.bootSignature, HEX);
+    printDebug(bootSector->bootSignature, HEX);
     printDebug("\n");
     return EXFAT_ERROR;
+#ifdef NANO_OS_DEBUG
+  } else {
+    printDebug("Filesystem *IS* exFAT.\n");
+#endif // NANO_OS_DEBUG
   }
 
   // Calculate filesystem parameters
   driverState->bytesPerSector = 
-    1 << driverState->bootSector.bytesPerSectorShift;
+    1 << bootSector->bytesPerSectorShift;
   driverState->sectorsPerCluster = 
-    1 << driverState->bootSector.sectorsPerClusterShift;
+    1 << bootSector->sectorsPerClusterShift;
   driverState->bytesPerCluster = 
     driverState->bytesPerSector * driverState->sectorsPerCluster;
-  driverState->fatStartSector = driverState->bootSector.fatOffset;
+  driverState->fatStartSector = bootSector->fatOffset;
   driverState->clusterHeapStartSector = 
-    driverState->bootSector.clusterHeapOffset;
+    bootSector->clusterHeapOffset;
   driverState->rootDirectoryCluster = 
-    driverState->bootSector.rootDirectoryCluster;
+    bootSector->rootDirectoryCluster;
+  driverState->clusterCount = 
+    bootSector->clusterCount;
 
   driverState->driverStateValid = true;
   return EXFAT_SUCCESS;
@@ -716,12 +738,19 @@ ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
                                driverState->rootDirectoryCluster,
                                pathname, fileHandle);
   if (result == EXFAT_SUCCESS) {
+    driverState->filesystemState->numOpenFiles++;
     goto exit;
   }
 
   // If we got here then findFileInDirectory failed.  Close the handle we got.
   exFatFclose(driverState, fileHandle);
   fileHandle = NULL;
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    // We just allocated the buffer above because nothing else is open.  Free
+    // the buffer.
+    free(driverState->filesystemState->blockBuffer);
+    driverState->filesystemState->blockBuffer = NULL;
+  }
 
 exit:
   return fileHandle;
