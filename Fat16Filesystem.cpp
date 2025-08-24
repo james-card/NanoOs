@@ -60,14 +60,6 @@
 #define FAT16_ATTR_ARCHIVE 0x20
 #define FAT16_ATTR_NORMAL_FILE FAT16_ATTR_ARCHIVE
 
-// Partition table constants
-#define FAT16_PARTITION_TABLE_OFFSET 0x1BE
-#define FAT16_PARTITION_ENTRY_SIZE 16
-#define FAT16_PARTITION_TYPE_FAT16_LBA 0x0E
-#define FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED 0x1E
-#define FAT16_PARTITION_LBA_OFFSET 8
-#define FAT16_PARTITION_SECTORS_OFFSET 12
-
 // Boot sector offsets
 #define FAT16_BOOT_BYTES_PER_SECTOR 0x0B
 #define FAT16_BOOT_SECTORS_PER_CLUSTER 0x0D
@@ -121,7 +113,7 @@ static inline int fat16ReadBlock(FilesystemState *fs, uint32_t block,
     uint8_t *buffer
 ) {
   return
-    fs->blockDevice->readBlocks(fs->blockDevice->context, block, 1, 
+    fs->blockDevice->readBlocks(fs->blockDevice->context, block, 1,
       fs->blockSize, buffer);
 }
 
@@ -776,53 +768,6 @@ int fat16Seek(FilesystemState *fs, Fat16File *file, int32_t offset,
   // Final position adjustment within cluster
   file->currentPosition = newPosition;
   return 0;
-}
-
-/// @fn int getPartitionInfo(FilesystemState *fs)
-///
-/// @brief Get information about the partition for the provided filesystem.
-///
-/// @param fs Pointer to the filesystem state structure maintained by the
-///   filesystem process.
-///
-/// @return Returns 0 on success, negative error code on failure.
-int getPartitionInfo(FilesystemState *fs) {
-  if (fs->blockDevice->partitionNumber == 0) {
-    return -1;
-  }
-
-  if (fat16ReadBlock(fs, 0,
-    fs->blockBuffer) != 0
-  ) {
-    return -2;
-  }
-
-  uint8_t *partitionTable
-    = fs->blockBuffer
-    + FAT16_PARTITION_TABLE_OFFSET;
-  uint8_t *entry
-    = partitionTable
-    + ((fs->blockDevice->partitionNumber - 1)
-    * FAT16_PARTITION_ENTRY_SIZE);
-  uint8_t type = entry[4];
-  
-  if ((type == FAT16_PARTITION_TYPE_FAT16_LBA) || 
-      (type == FAT16_PARTITION_TYPE_FAT16_LBA_EXTENDED)
-  ) {
-    uint32_t lbaValue, sectorsValue;
-    
-    // Read LBA offset using readBytes for alignment safety
-    readBytes(&lbaValue, &entry[FAT16_PARTITION_LBA_OFFSET]);
-    fs->startLba = lbaValue;
-      
-    // Read number of sectors using readBytes for alignment safety  
-    readBytes(&sectorsValue, &entry[FAT16_PARTITION_SECTORS_OFFSET]);
-      
-    fs->endLba = fs->startLba + sectorsValue - 1;
-    return 0;
-  }
-  
-  return -3;
 }
 
 /// @fn int fat16FilesystemOpenFileCommandHandler(

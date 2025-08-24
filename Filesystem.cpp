@@ -1,5 +1,60 @@
 #include "Filesystem.h"
 
+// Partition table constants
+#define PARTITION_TABLE_OFFSET 0x1BE
+#define PARTITION_ENTRY_SIZE 16
+#define PARTITION_TYPE_NTFS_EXFAT 0x07
+#define PARTITION_TYPE_FAT16_LBA 0x0E
+#define PARTITION_TYPE_FAT16_LBA_EXTENDED 0x1E
+#define PARTITION_LBA_OFFSET 8
+#define PARTITION_SECTORS_OFFSET 12
+
+/// @fn int getPartitionInfo(FilesystemState *fs)
+///
+/// @brief Get information about the partition for the provided filesystem.
+///
+/// @param fs Pointer to the filesystem state structure maintained by the
+///   filesystem process.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int getPartitionInfo(FilesystemState *fs) {
+  if (fs->blockDevice->partitionNumber == 0) {
+    return -1;
+  }
+
+  if (fs->blockDevice->readBlocks(fs->blockDevice->context, 0, 1, 
+      fs->blockSize, fs->blockBuffer) != 0
+  ) {
+    return -2;
+  }
+
+  uint8_t *partitionTable = fs->blockBuffer + PARTITION_TABLE_OFFSET;
+  uint8_t *entry
+    = partitionTable
+    + ((fs->blockDevice->partitionNumber - 1)
+    * PARTITION_ENTRY_SIZE);
+  uint8_t type = entry[4];
+  
+  if ((type == PARTITION_TYPE_FAT16_LBA)
+    || (type == PARTITION_TYPE_FAT16_LBA_EXTENDED)
+    || (type == PARTITION_TYPE_NTFS_EXFAT)
+  ) {
+    uint32_t lbaValue, sectorsValue;
+    
+    // Read LBA offset using readBytes for alignment safety
+    readBytes(&lbaValue, &entry[PARTITION_LBA_OFFSET]);
+    fs->startLba = lbaValue;
+      
+    // Read number of sectors using readBytes for alignment safety  
+    readBytes(&sectorsValue, &entry[PARTITION_SECTORS_OFFSET]);
+      
+    fs->endLba = fs->startLba + sectorsValue - 1;
+    return 0;
+  }
+  
+  return -3;
+}
+
 /// @fn FILE* filesystemFOpen(const char *pathname, const char *mode)
 ///
 /// @brief Implementation of the standard C fopen call.

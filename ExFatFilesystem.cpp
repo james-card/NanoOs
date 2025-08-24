@@ -635,6 +635,14 @@ int exFatInitialize(ExFatDriverState* driverState,
   // Validate exFAT signature
   if (memcmp(driverState->bootSector.fileSystemName, "EXFAT   ", 8) != 0) {
     printString("ERROR: Not an exFAT filesystem.\n");
+    printDebug("driverState->bootSector.fileSystemName = ");
+    for (int ii = 0; ii < 8; ii++) {
+      printDebug((char) driverState->bootSector.fileSystemName[ii]);
+    }
+    printDebug("\n");
+    printDebug("Boot signature = 0x");
+    printDebug(driverState->bootSector.bootSignature, HEX);
+    printDebug("\n");
     return EXFAT_ERROR;
   }
 
@@ -1344,6 +1352,7 @@ void* runExFatFilesystem(void *args) {
   fs->blockSize = 512;
   
   fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+  getPartitionInfo(fs);
   exFatInitialize(driverState, fs);
   free(fs->blockBuffer); fs->blockBuffer = NULL;
   

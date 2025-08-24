@@ -126,6 +126,8 @@ typedef enum FilesystemCommandResponse {
 } FilesystemCommandResponse;
 
 // Exported functionality
+int getPartitionInfo(FilesystemState *fs);
+
 FILE* filesystemFOpen(const char *pathname, const char *mode);
 #ifdef fopen
 #undef fopen
