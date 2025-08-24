@@ -542,8 +542,8 @@ static int findFileInDirectory(ExFatDriverState* driverState,
           printDebug("\n");
         }
       } else {
-        printDebug("entry[0] == ");
-        printDebug(entry[0]);
+        printDebug("entry[0] == 0x");
+        printDebug(entry[0], HEX);
         printDebug(".\n");
       }
 
