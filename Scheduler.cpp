@@ -32,7 +32,7 @@
 #include "NanoOs.h"
 #include "Scheduler.h"
 #include "SdCard.h"
-#include "Fat16Filesystem.h"
+#include "ExFatFilesystem.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
@@ -2501,7 +2501,7 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runFat16Filesystem, sdDevice)
+  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
     != processSuccess
   ) {
     printString("Could not start filesystem process.\n");
