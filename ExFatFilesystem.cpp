@@ -428,7 +428,7 @@ static int findFileInDirectory(ExFatDriverState* driverState,
   int result = EXFAT_INVALID_PARAMETER;
   FilesystemState* filesystemState = driverState->filesystemState;
   uint32_t currentCluster = directoryCluster;
-  uint8_t *tempBuffer = NULL;
+  uint8_t *blockBuffer = driverState->filesystemState->blockBuffer;
   uint16_t *fullName = NULL;
   char *utf8Name = NULL;
 
@@ -447,11 +447,6 @@ static int findFileInDirectory(ExFatDriverState* driverState,
     goto exit; // return EXFAT_INVALID_PARAMETER;
   }
 
-  tempBuffer = (uint8_t*) malloc(EXFAT_SECTOR_SIZE);
-  if (tempBuffer == NULL) {
-    result = EXFAT_NO_MEMORY;
-    goto exit;
-  }
   fullName = (uint16_t*) malloc(
     (EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
   if (fullName == NULL) {
@@ -551,12 +546,12 @@ static int findFileInDirectory(ExFatDriverState* driverState,
             }
             
             // Use a temporary buffer for the next sector
-            result = readSector(driverState, nextSectorNumber, tempBuffer);
+            result = readSector(driverState, nextSectorNumber, blockBuffer);
             if (result != EXFAT_SUCCESS) {
               continue;
             }
             streamEntryPtr
-              = tempBuffer + (streamEntryOffset - driverState->bytesPerSector);
+              = blockBuffer + (streamEntryOffset - driverState->bytesPerSector);
           }
 
           // Validate and read stream extension entry
@@ -630,7 +625,8 @@ static int findFileInDirectory(ExFatDriverState* driverState,
               strncpy(fileHandle->fileName,
                 fileName, EXFAT_MAX_FILENAME_LENGTH);
               fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
-              return EXFAT_SUCCESS;
+              result = EXFAT_SUCCESS;
+              goto exit;
             } else {
               printDebug("\"");
               printDebug(utf8Name);
@@ -667,7 +663,6 @@ static int findFileInDirectory(ExFatDriverState* driverState,
 exit:
   free(utf8Name);
   free(fullName);
-  free(tempBuffer);
   return result;
 }
 
