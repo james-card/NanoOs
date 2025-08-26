@@ -860,6 +860,8 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   uint32_t streamEntrySector = 0;
   uint32_t streamEntryOffset = 0;
   uint16_t checksum = 0;
+  uint16_t *utf16Name = NULL;
+  char *utf8Name = NULL;
 
   if ((driverState == NULL) || (driverState->filesystemState == NULL) ||
       (fileHandle == NULL)
@@ -867,7 +869,19 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
     return EXFAT_INVALID_PARAMETER;
   }
 
-  // Find the file's directory entry
+  // Convert filename to UTF-16 for comparison
+  utf16Name = (uint16_t*) malloc(
+    (EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
+  if (utf16Name == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+  utf8Name = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
+  if (utf8Name == NULL) {
+    free(utf16Name);
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Find the file's directory entry by filename instead of cluster
   while ((currentCluster != 0xFFFFFFFF) && (currentCluster >= 2) &&
          (currentCluster < driverState->clusterCount + 2) && !entryFound
   ) {
@@ -881,7 +895,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
       result = readSector(driverState, sectorNumber, 
                           filesystemState->blockBuffer);
       if (result != EXFAT_SUCCESS) {
-        return result;
+        goto cleanup;
       }
 
       for (uint32_t entryOffset = 0; 
@@ -895,53 +909,112 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
           ExFatFileDirectoryEntry tempFileEntry;
           readBytes(&tempFileEntry, entryPtr);
           
-          // We need to check if this is our file by examining the 
-          // stream extension entry
+          // Read the stream extension entry
           uint32_t tempStreamOffset = entryOffset + EXFAT_DIRECTORY_ENTRY_SIZE;
           uint8_t* tempStreamPtr = NULL;
+          uint8_t* tempBuffer = NULL;
           
           if (tempStreamOffset < driverState->bytesPerSector) {
             tempStreamPtr = filesystemState->blockBuffer + tempStreamOffset;
           } else {
             // Stream entry is in next sector
             uint32_t nextSector = sectorNumber + 1;
-            uint8_t* tempBuffer = (uint8_t*) malloc(
-              driverState->bytesPerSector);
+            tempBuffer = (uint8_t*) malloc(driverState->bytesPerSector);
             if (tempBuffer == NULL) {
-              return EXFAT_NO_MEMORY;
+              result = EXFAT_NO_MEMORY;
+              goto cleanup;
             }
             
             result = readSector(driverState, nextSector, tempBuffer);
             if (result != EXFAT_SUCCESS) {
               free(tempBuffer);
-              return result;
+              goto cleanup;
             }
-            tempStreamPtr = tempBuffer;
-            free(tempBuffer);
+            tempStreamPtr = tempBuffer + 
+              (tempStreamOffset - driverState->bytesPerSector);
           }
           
           if (tempStreamPtr[0] == EXFAT_ENTRY_STREAM) {
             ExFatStreamExtensionEntry tempStreamEntry;
             readBytes(&tempStreamEntry, tempStreamPtr);
             
-            // Compare first cluster to identify our file
-            if (tempStreamEntry.firstCluster == fileHandle->firstCluster ||
-                (tempStreamEntry.firstCluster == 0 && 
-                 fileHandle->firstCluster == 0)
+            // Extract filename from filename entries to compare
+            memset(utf16Name, 0, 
+              (EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
+            uint8_t nameCharIndex = 0;
+            bool nameComplete = true;
+            
+            // Read filename entries (remaining secondary entries)
+            uint8_t numNameEntries = tempFileEntry.secondaryCount - 1;
+            for (uint8_t nameEntryIdx = 0; 
+                 nameEntryIdx < numNameEntries && nameComplete; 
+                 nameEntryIdx++
             ) {
-              entryFound = true;
-              fileEntrySector = sectorNumber;
-              fileEntryOffset = entryOffset;
-              streamEntrySector = (tempStreamOffset < 
-                                   driverState->bytesPerSector) ? 
-                                 sectorNumber : sectorNumber + 1;
-              streamEntryOffset = (tempStreamOffset < 
-                                   driverState->bytesPerSector) ? 
-                                 tempStreamOffset : 
-                                 tempStreamOffset - driverState->bytesPerSector;
-              readBytes(&fileEntry, entryPtr);
-              readBytes(&streamEntry, tempStreamPtr);
+              ExFatFileNameEntry nameEntry;
+              uint32_t nameEntryOffset = entryOffset + 
+                ((nameEntryIdx + 2) * EXFAT_DIRECTORY_ENTRY_SIZE);
+              
+              // Handle cross-sector name entries (simplified)
+              if (nameEntryOffset >= driverState->bytesPerSector) {
+                nameComplete = false;
+                break;
+              }
+              
+              uint8_t* nameEntryPtr = 
+                filesystemState->blockBuffer + nameEntryOffset;
+              if (nameEntryPtr[0] != EXFAT_ENTRY_FILENAME) {
+                nameComplete = false;
+                break;
+              }
+              
+              readBytes(&nameEntry, nameEntryPtr);
+              
+              // Extract up to 15 characters from this name entry
+              for (uint8_t charIdx = 0; 
+                   charIdx < 15 && nameCharIndex < EXFAT_MAX_FILENAME_LENGTH; 
+                   charIdx++
+              ) {
+                uint16_t nameChar;
+                readBytes(&nameChar, &nameEntry.fileName[charIdx]);
+                if (nameChar == 0) {
+                  nameComplete = true;
+                  break;
+                }
+                utf16Name[nameCharIndex++] = nameChar;
+              }
             }
+
+            if (nameComplete) {
+              // Convert filename to UTF-8 and compare
+              utf16ToUtf8(utf16Name, utf8Name, EXFAT_MAX_FILENAME_LENGTH + 1);
+              
+              if (strcmp(utf8Name, fileHandle->fileName) == 0) {
+                // Found our file entry
+                entryFound = true;
+                fileEntrySector = sectorNumber;
+                fileEntryOffset = entryOffset;
+                streamEntrySector = (tempStreamOffset < 
+                                     driverState->bytesPerSector) ? 
+                                   sectorNumber : sectorNumber + 1;
+                streamEntryOffset = (tempStreamOffset < 
+                                     driverState->bytesPerSector) ? 
+                                   tempStreamOffset : 
+                                   tempStreamOffset - driverState->bytesPerSector;
+                readBytes(&fileEntry, entryPtr);
+                readBytes(&streamEntry, tempStreamPtr);
+              }
+            }
+          }
+          
+          if (tempBuffer != NULL) {
+            free(tempBuffer);
+          }
+
+          // Skip to the end of this entry set if not found
+          if (!entryFound) {
+            entryOffset += 
+              (tempFileEntry.secondaryCount * EXFAT_DIRECTORY_ENTRY_SIZE) - 
+              EXFAT_DIRECTORY_ENTRY_SIZE;
           }
         }
       }
@@ -950,13 +1023,14 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
     if (!entryFound) {
       result = readFatEntry(driverState, currentCluster, &currentCluster);
       if (result != EXFAT_SUCCESS) {
-        return result;
+        goto cleanup;
       }
     }
   }
 
   if (!entryFound) {
-    return EXFAT_FILE_NOT_FOUND;
+    result = EXFAT_FILE_NOT_FOUND;
+    goto cleanup;
   }
 
   // Update stream extension entry with current file information
@@ -973,13 +1047,14 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
     // Stream entry is in a different sector
     uint8_t* tempBuffer = (uint8_t*) malloc(driverState->bytesPerSector);
     if (tempBuffer == NULL) {
-      return EXFAT_NO_MEMORY;
+      result = EXFAT_NO_MEMORY;
+      goto cleanup;
     }
     
     result = readSector(driverState, streamEntrySector, tempBuffer);
     if (result != EXFAT_SUCCESS) {
       free(tempBuffer);
-      return result;
+      goto cleanup;
     }
     
     writeBytes(tempBuffer + streamEntryOffset, &streamEntry);
@@ -987,16 +1062,16 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
     result = writeSector(driverState, streamEntrySector, tempBuffer);
     free(tempBuffer);
     if (result != EXFAT_SUCCESS) {
-      return result;
+      goto cleanup;
     }
   }
 
   // Calculate new checksum for the entire entry set
   uint8_t* entrySetBuffer = (uint8_t*) malloc(
-    fileEntry.secondaryCount * EXFAT_DIRECTORY_ENTRY_SIZE + 
-    EXFAT_DIRECTORY_ENTRY_SIZE);
+    (fileEntry.secondaryCount + 1) * EXFAT_DIRECTORY_ENTRY_SIZE);
   if (entrySetBuffer == NULL) {
-    return EXFAT_NO_MEMORY;
+    result = EXFAT_NO_MEMORY;
+    goto cleanup;
   }
 
   // Read the entire entry set
@@ -1016,7 +1091,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
                           filesystemState->blockBuffer);
       if (result != EXFAT_SUCCESS) {
         free(entrySetBuffer);
-        return result;
+        goto cleanup;
       }
     }
     
@@ -1044,7 +1119,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
                       filesystemState->blockBuffer);
   if (result != EXFAT_SUCCESS) {
     free(entrySetBuffer);
-    return result;
+    goto cleanup;
   }
 
   writeBytes(filesystemState->blockBuffer + fileEntryOffset, entrySetBuffer);
@@ -1053,6 +1128,13 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
                        filesystemState->blockBuffer);
   free(entrySetBuffer);
 
+cleanup:
+  if (utf16Name != NULL) {
+    free(utf16Name);
+  }
+  if (utf8Name != NULL) {
+    free(utf8Name);
+  }
   return result;
 }
 
