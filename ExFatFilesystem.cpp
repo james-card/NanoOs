@@ -1267,6 +1267,11 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   uint16_t *utf16Name = NULL;
   int nameLength = 0;
   uint8_t *entryBuffer = NULL;
+  uint8_t nameEntryIndex = 0;
+  uint32_t currentWriteCluster = 0;
+  uint32_t currentWriteSector = 0;
+  uint32_t currentWriteOffset = 0;
+  uint32_t bufferOffset = 0;
   
   if ((driverState == NULL) || (driverState->filesystemState == NULL) ||
       (fileName == NULL) || (fileHandle == NULL)
@@ -1394,7 +1399,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
          sizeof(streamEntry));
 
   // Create filename entries
-  uint8_t nameEntryIndex = 0;
+  nameEntryIndex = 0;
   for (uint8_t entryIdx = 0; entryIdx < filenameEntriesNeeded; entryIdx++) {
     ExFatFileNameEntry nameEntry;
     memset(&nameEntry, 0, sizeof(nameEntry));
@@ -1420,10 +1425,10 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   memcpy(entryBuffer + 2, &checksum, sizeof(checksum));
 
   // Write all entries to disk
-  uint32_t currentWriteCluster = firstFreeEntryCluster;
-  uint32_t currentWriteSector = firstFreeEntrySector;
-  uint32_t currentWriteOffset = firstFreeEntryOffset;
-  uint32_t bufferOffset = 0;
+  currentWriteCluster = firstFreeEntryCluster;
+  currentWriteSector = firstFreeEntrySector;
+  currentWriteOffset = firstFreeEntryOffset;
+  bufferOffset = 0;
 
   while (bufferOffset < entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) {
     uint32_t sectorNumber = clusterToSector(driverState, currentWriteCluster) +
