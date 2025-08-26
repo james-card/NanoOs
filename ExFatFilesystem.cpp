@@ -1193,6 +1193,9 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
     int result = updateDirectoryEntry(driverState, fileHandle);
     if (result != EXFAT_SUCCESS) {
       printDebug("Warning: Failed to update directory entry after write\n");
+      printDebug("updateDirectoryEntry returned ");
+      printDebug(result);
+      printDebug("\n");
       // Continue anyway - the data was written successfully
     }
   }
@@ -1219,6 +1222,9 @@ int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
   int result = updateDirectoryEntry(driverState, fileHandle);
   if (result != EXFAT_SUCCESS) {
     printDebug("Warning: Failed to update directory entry on close\n");
+      printDebug("updateDirectoryEntry returned ");
+      printDebug(result);
+      printDebug("\n");
     // Continue with close anyway
   }
 
