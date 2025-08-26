@@ -774,25 +774,6 @@ int exFatInitialize(ExFatDriverState* driverState,
   return EXFAT_SUCCESS;
 }
 
-/// @brief Close an open file
-///
-/// @param driverState Pointer to driver state
-/// @param fileHandle File handle to close
-///
-/// @return 0 on success, EOF on failure
-int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
-  if (driverState == NULL || fileHandle == NULL) {
-    return EOF;
-  }
-
-  if (!fileHandle->inUse) {
-    return EOF;
-  }
-
-  fileHandle->inUse = false;
-  return 0;
-}
-
 /// @brief Seek to a position in a file
 ///
 /// @param driverState Pointer to driver state
