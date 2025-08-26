@@ -481,6 +481,9 @@ static int findFileInDirectory(ExFatDriverState* driverState,
         printDebug("Could not read sector ");
         printDebug(sectorNumber);
         printDebug("\n");
+        printDebug("readSector returned status ");
+        printDebug(result);
+        printDebug("\n");
         goto exit; // return result;
       }
 
@@ -862,6 +865,10 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   uint16_t checksum = 0;
   uint16_t *utf16Name = NULL;
   char *utf8Name = NULL;
+  uint8_t* entrySetBuffer = NULL;
+  uint32_t currentEntryOffset = 0;
+  uint32_t currentEntrySector = 0;
+  uint32_t bufferOffset = 0;
 
   if ((driverState == NULL) || (driverState->filesystemState == NULL) ||
       (fileHandle == NULL)
@@ -1067,7 +1074,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   }
 
   // Calculate new checksum for the entire entry set
-  uint8_t* entrySetBuffer = (uint8_t*) malloc(
+  entrySetBuffer = (uint8_t*) malloc(
     (fileEntry.secondaryCount + 1) * EXFAT_DIRECTORY_ENTRY_SIZE);
   if (entrySetBuffer == NULL) {
     result = EXFAT_NO_MEMORY;
@@ -1075,9 +1082,9 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   }
 
   // Read the entire entry set
-  uint32_t currentEntryOffset = fileEntryOffset;
-  uint32_t currentEntrySector = fileEntrySector;
-  uint32_t bufferOffset = 0;
+  currentEntryOffset = fileEntryOffset;
+  currentEntrySector = fileEntrySector;
+  bufferOffset = 0;
   
   for (uint8_t entryIndex = 0; 
        entryIndex <= fileEntry.secondaryCount; 
