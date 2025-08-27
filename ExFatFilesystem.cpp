@@ -882,6 +882,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   ExFatFileDirectoryEntry fileEntry;
   ExFatStreamExtensionEntry streamEntry;
   uint16_t newChecksum = 0;
+  uint8_t *entrySetBuffer = NULL;
 
   printDebug("updateDirectoryEntry: Updating file \"");
   printDebug(fileHandle->fileName);
@@ -1086,7 +1087,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
 
   // Calculate new checksum for the entire entry set
   // We need to read all entries in the set to calculate checksum properly
-  uint8_t* entrySetBuffer = (uint8_t*) malloc(
+  entrySetBuffer = (uint8_t*) malloc(
     (fileEntry.secondaryCount + 1) * EXFAT_DIRECTORY_ENTRY_SIZE);
   if (entrySetBuffer == NULL) {
     printDebug("updateDirectoryEntry: No memory for entry set buffer\n");
