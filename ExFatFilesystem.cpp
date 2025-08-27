@@ -877,7 +877,6 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   char *utf8Name = NULL;
   uint32_t fileEntrySector = 0;
   uint32_t fileEntryOffset = 0;
-  uint32_t streamEntrySector = 0;
   uint32_t streamEntryOffset = 0;
   ExFatFileDirectoryEntry fileEntry;
   ExFatStreamExtensionEntry streamEntry;
@@ -1030,7 +1029,6 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
               entryFound = true;
               fileEntrySector = sectorNumber;
               fileEntryOffset = entryOffset;
-              streamEntrySector = sectorNumber;
               streamEntryOffset = nextEntryOffset;
               
               // Read the entries
