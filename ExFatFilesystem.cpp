@@ -1822,11 +1822,24 @@ int exFatRemove(ExFatDriverState* driverState, const char* pathname) {
     return -1;
   }
 
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    driverState->filesystemState->blockBuffer = (uint8_t*) malloc(
+      driverState->filesystemState->blockSize);
+    if (driverState->filesystemState->blockBuffer == NULL) {
+      return -1;
+    }
+  }
+
   // Find the file in the directory
   ExFatFileHandle tempHandle;
   int result = findFileInDirectory(driverState, 
                                    driverState->rootDirectoryCluster,
                                    pathname, &tempHandle);
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    // We just allocated the buffer for our directory search.  Free it now.
+    free(driverState->filesystemState->blockBuffer);
+    driverState->filesystemState->blockBuffer = NULL;
+  }
   if (result != EXFAT_SUCCESS) {
     return -1;
   }
