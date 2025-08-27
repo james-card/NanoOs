@@ -480,7 +480,9 @@ static int findFileInDirectory(ExFatDriverState* driverState,
       if (result != EXFAT_SUCCESS) {
         printDebug("Could not read sector ");
         printDebug(sectorNumber);
-        printDebug("\n");
+        printDebug(" when searching for \"");
+        printDebug(fileName);
+        printDebug("\" in findFileInDirectory.\n");
         printDebug("readSector returned status ");
         printDebug(result);
         printDebug("\n");
@@ -620,11 +622,26 @@ static int findFileInDirectory(ExFatDriverState* driverState,
               // Found the file - populate file handle
               fileHandle->inUse = true;
               fileHandle->firstCluster = streamEntry.firstCluster;
+              printDebug("fileHandle->firstCluster = ");
+              printDebug(fileHandle->firstCluster);
+              printDebug("\n");
               fileHandle->currentCluster = streamEntry.firstCluster;
+              printDebug("fileHandle->currentCluster = ");
+              printDebug(fileHandle->currentCluster);
+              printDebug("\n");
               fileHandle->currentPosition = 0;
               fileHandle->fileSize = streamEntry.dataLength;
+              printDebug("fileHandle->fileSize = ");
+              printDebug(fileHandle->fileSize);
+              printDebug("\n");
               fileHandle->attributes = fileEntry.fileAttributes;
+              printDebug("fileHandle->attributes = ");
+              printDebug(fileHandle->attributes);
+              printDebug("\n");
               fileHandle->directoryCluster = directoryCluster;
+              printDebug("fileHandle->directoryCluster = ");
+              printDebug(fileHandle->directoryCluster);
+              printDebug("\n");
               strncpy(fileHandle->fileName,
                 fileName, EXFAT_MAX_FILENAME_LENGTH);
               fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
@@ -1636,7 +1653,7 @@ ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
   
   if (result == EXFAT_SUCCESS) {
     // File exists
-    if (strchr(mode, 'w') != NULL) {
+    if (mode[0] == 'w') {
       // "w" mode - truncate file to zero length
       // For simplicity, we'll just reset the file size and position
       fileHandle->fileSize = 0;
@@ -1645,7 +1662,7 @@ ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
       
       // In a full implementation, we would free all clusters here
       // and update the directory entry
-    } else if (strchr(mode, 'a') != NULL) {
+    } else if (mode[0] == 'a') {
       // "a" mode - position at end of file
       // Need to seek to end by following cluster chain
       if (fileHandle->fileSize > 0) {
@@ -1661,6 +1678,10 @@ ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
     
     driverState->filesystemState->numOpenFiles++;
     goto exit;
+  } else {
+    printDebug("Could not find file \"");
+    printDebug(pathname);
+    printDebug("\" in exFatFopen.\n");
   }
   
   // File doesn't exist
@@ -1692,6 +1713,7 @@ ExFatFileHandle* exFatFopen(ExFatDriverState* driverState, const char* pathname,
   if (driverState->filesystemState->numOpenFiles == 0) {
     // We just allocated the buffer above because nothing else is open.
     // Free the buffer.
+    printDebug("Freeing blockBuffer in exFatFopen.\n");
     free(driverState->filesystemState->blockBuffer);
     driverState->filesystemState->blockBuffer = NULL;
   }
@@ -1714,18 +1736,32 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
   if ((driverState == NULL) || (ptr == NULL)
     || (fileHandle == NULL) || (totalBytes == 0)
   ) {
+    printDebug("Invalid parameter in exFatRead.\n");
     return -1;
   }
 
   if (!fileHandle->inUse) {
+    printDebug("fileHandle not in use in exFatRead.\n");
     return -1;
   }
 
   uint32_t bytesRead = 0;
   uint8_t* buffer = (uint8_t*) ptr;
 
+  printDebug("Reading ");
+  printDebug(totalBytes);
+  printDebug(" bytes from \"");
+  printDebug(fileHandle->fileName);
+  printDebug("\".\n");
+  printDebug("fileHandle->currentPosition = ");
+  printDebug(fileHandle->currentPosition);
+  printDebug("\n");
+  printDebug("fileHandle->fileSize = ");
+  printDebug(fileHandle->fileSize);
+  printDebug("\n");
   while (bytesRead < totalBytes && 
-         fileHandle->currentPosition < fileHandle->fileSize) {
+         fileHandle->currentPosition < fileHandle->fileSize
+  ) {
     uint32_t clusterOffset = fileHandle->currentPosition % 
                              driverState->bytesPerCluster;
     uint32_t sectorInCluster = clusterOffset / driverState->bytesPerSector;
@@ -1738,6 +1774,9 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
     int result = readSector(driverState, sectorNumber, 
                             driverState->filesystemState->blockBuffer);
     if (result != EXFAT_SUCCESS) {
+      printDebug("readSector returned ");
+      printDebug(result);
+      printDebug(" in exFatRead.\n");
       break;
     }
 
@@ -1746,8 +1785,20 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
                          totalBytes - bytesRead : bytesInThisSector;
     
     // Don't read beyond file size
+    printDebug("fileHandle->currentPosition = ");
+    printDebug(fileHandle->currentPosition);
+    printDebug("\n");
+    printDebug("bytesToRead = ");
+    printDebug(bytesToRead);
+    printDebug("\n");
+    printDebug("fileHandle->fileSize = ");
+    printDebug(fileHandle->fileSize);
+    printDebug("\n");
     if (fileHandle->currentPosition + bytesToRead > fileHandle->fileSize) {
       bytesToRead = fileHandle->fileSize - fileHandle->currentPosition;
+      printDebug("bytesToRead = ");
+      printDebug(bytesToRead);
+      printDebug("\n");
     }
 
     memcpy(buffer + bytesRead, 
@@ -1759,11 +1810,15 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
 
     // Check if we need to move to next cluster
     if ((fileHandle->currentPosition % driverState->bytesPerCluster) == 0 &&
-        fileHandle->currentPosition < fileHandle->fileSize) {
+        fileHandle->currentPosition < fileHandle->fileSize
+    ) {
       uint32_t nextCluster;
       result = readFatEntry(driverState, fileHandle->currentCluster, 
                             &nextCluster);
       if (result != EXFAT_SUCCESS || nextCluster == 0xFFFFFFFF) {
+        printDebug("readFatEntry returned ");
+        printDebug(result);
+        printDebug(" in exFatRead.\n");
         break;
       }
       fileHandle->currentCluster = nextCluster;
