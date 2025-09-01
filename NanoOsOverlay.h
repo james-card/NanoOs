@@ -99,12 +99,6 @@ typedef struct NanoOsOverlayMap {
   NanoOsOverlayExport exports[1];
 } NanoOsOverlayMap;
 
-/// @var overlayMap
-///
-/// @brief Global variable that will enable access to the Kernel's std C API
-/// implementation.
-extern NanoOsOverlayMap *overlayMap;
-
 #ifdef __cplusplus
 }
 #endif
