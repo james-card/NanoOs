@@ -118,6 +118,12 @@ typedef struct MainArgs {
 /// 6 KB.
 #define overlayMap ((NanoOsOverlayMap*) 0x20001800)
 
+/// @def OVERLAY_SIZE
+///
+/// @brief The size, in bytes, of the overlay buffer.  i.e. The maximum size of
+/// a single overlay that can be read into memory.
+#define OVERLAY_SIZE 0x2000
+
 #ifdef __cplusplus
 }
 #endif
