@@ -111,6 +111,12 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
+/// @def overlayMap
+///
+/// @brief The location in memory where all overlays will reside, cast to a
+/// NanoOsOverlayMap pointer.
+#define overlayMap ((NanoOsOverlayMap*) 0x20001800)
+
 #ifdef __cplusplus
 }
 #endif
