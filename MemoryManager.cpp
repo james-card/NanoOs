@@ -30,6 +30,7 @@
 
 // NanoOs includes
 #include "MemoryManager.h"
+#include "NanoOsOverlay.h"
 
 /****************** Begin Custom Memory Management Functions ******************/
 
@@ -500,8 +501,18 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
 #if defined(__arm__)
+  // RAM addresses start at 0x20000000.  Overlay addresses are based on the
+  // address of overlayMap.  This is intended to leave enough room for whatever
+  // globals and dynamic memory the Arduino libraries use.  Overlays are a
+  // maximum of 8 KB in size, so the lowest address we can use for our own
+  // dynamic memory manager is (overlayMap + 0x2000).
   extern char __bss_end__;
-  mallocBufferStart = &__bss_end__;
+  mallocBufferStart = (char*) (((uintptr_t) overlayMap) + 0x2000);
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) overlayMap)) {
+    printString("ERROR!!! &__bss_end__ > ");
+    printLong((uintptr_t) overlayMap);
+    printString("\nRunning user programs will corrupt system memory!!!\n");
+  }
 #elif defined(__AVR__)
   extern int __heap_start;
   extern char *__brkval;
