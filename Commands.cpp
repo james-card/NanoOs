@@ -30,6 +30,8 @@
 
 #include "Commands.h"
 #include "Scheduler.h"
+#include "NanoOsStdCApi.h"
+#include "NanoOsOverlay.h"
 
 // Defined at the bottom of this file:
 extern const CommandEntry commands[];
@@ -166,6 +168,79 @@ int grepCommandHandler(int argc, char **argv) {
   if ((strlen(buffer) > 0) && (buffer[strlen(buffer) - 1] != '\n')) {
     fputs("\n", stdout);
   }
+
+  return 0;
+}
+
+/// @fn int helloworldCommandHandler(int argc, char **argv);
+///
+/// @brief Run the "helloworld" command from the filesystem.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
+///
+/// @return This function always returns 0.
+int helloworldCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  printf("Opening \"helloworld\" command file from filesystem.\n");
+  FILE *commandFile = fopen("helloworld", "r");
+  if (commandFile == NULL) {
+    fprintf(stderr, "Could not open file \"helloworld\" from the filesystem.\n");
+    return 1;
+  }
+
+  printf("Reading contents of \"helloworld\" command file.\n");
+  if (fread(overlayMap, 1, OVERLAY_SIZE, commandFile) == 0) {
+    fprintf(stderr, "Could not read overlay from \"helloworld\" file.\n");
+    fclose(commandFile); commandFile = NULL;
+    return 1;
+  }
+  printf("Closing \"helloworld\" command file on filesystem.\n");
+  fclose(commandFile); commandFile = NULL;
+
+  printf("Verifying overlayMap header.\n");
+  if (overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+    fprintf(stderr, "Overlay magic was not \"NanoOsOL\".\n");
+    return 1;
+  }
+  if (overlayMap->header.version
+    != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
+  ) {
+    fprintf(stderr, "Overlay version is 0x%08x\n", overlayMap->header.version);
+    return 1;
+  }
+  // Set the standard C API pointer for the overlay.
+  overlayMap->header.stdCApi = &nanoOsStdCApi;
+
+  printf("Searching for \"_start\" function in overlay exports.\n");
+  void* (*_start)(void*) = NULL;
+  for (uint16_t ii = 0; ii < overlayMap->header.numExports; ii++) {
+    if (strcmp(overlayMap->exports[ii].name, "_start") == 0) {
+      _start = overlayMap->exports[ii].fn;
+      break;
+    }
+  }
+  if (_start == NULL) {
+    fprintf(stderr, "Could not find exported _start function in overlay.\n");
+    return 1;
+  }
+
+  MainArgs mainArgs = {
+    .argc = argc,
+    .argv = argv,
+  };
+  printf("Calling _start function.\n");
+  void *returnValue = _start(&mainArgs);
+  printf("Returned from _start function.\n");
+  if (returnValue != NULL) {
+    fprintf(stderr, "Got unexpected return value %p from _start\n", returnValue);
+    return 1;
+  }
+  printf("Return value of _start function was NULL as expected.\n");
 
   return 0;
 }
@@ -390,6 +465,11 @@ const CommandEntry commands[] = {
     .name = "grep",
     .func = grepCommandHandler,
     .help = "Find text in piped output."
+  },
+  {
+    .name = "helloworld",
+    .func = helloworldCommandHandler,
+    .help = "Run the \"helloworld\" command from the filesystem."
   },
   {
     .name = "help",
