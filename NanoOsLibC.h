@@ -120,7 +120,7 @@ int timespec_get(struct timespec* spec, int base);
 ///
 /// @param x The first value to compare.
 /// @param y The second value to compare.
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
 /// @def MAX
 ///
@@ -128,7 +128,7 @@ int timespec_get(struct timespec* spec, int base);
 ///
 /// @param x The first value to compare.
 /// @param y The second value to compare.
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MAX(x, y) (((x) >= (y)) ? (x) : (y))
 
 /// @def ABS
 ///
@@ -170,12 +170,12 @@ int timespec_get(struct timespec* spec, int base);
 ///
 /// @brief Print the depth of the current coroutine stack.
 #define printDebugStackDepth() \
-  { \
+  do { \
     char temp; \
     printString("Stack depth: "); \
     printInt(ABS_DIFF((uintptr_t) &temp, (uintptr_t) getRunningCoroutine())); \
     printString("\n"); \
-  } \
+  } while (0)
 
 #else // NANO_OS_DEBUG
 
