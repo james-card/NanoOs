@@ -34,8 +34,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef NANO_OS_USER_H
-#define NANO_OS_USER_H
+#ifndef STDIO_H
+#define STDIO_H
 
 #include "NanoOsUser.h"
 
@@ -50,29 +50,33 @@
 #define vsscanf(buffer, format, args) \
   overlayMap->header.stdCApi->vsscanf(buffer, format, args)
 #define sscanf(buffer, format, ...) \
-  overlayMap->header.stdCApi->sscanf(buffer, format, ...)
+  overlayMap->header.stdCApi->sscanf(buffer, format, ##__VA_ARGS__)
 #define vfscanf(stream, format, ap) \
   overlayMap->header.stdCApi->vfscanf(stream, format, ap)
 #define fscanf(stream, format, ...) \
-  overlayMap->header.stdCApi->fscanf(stream, format, ...)
-#define scanf(format, ...) overlayMap->header.stdCApi->scanf(format, ...)
+  overlayMap->header.stdCApi->fscanf(stream, format, ##__VA_ARGS__)
+#define scanf(format, ...) \
+  overlayMap->header.stdCApi->scanf(format, ##__VA_ARGS__)
 #define vfprintf(stream, format, args) \
   overlayMap->header.stdCApi->vfprintf(stream, format, args)
 #define fprintf(stream, format, ...) \
-  overlayMap->header.stdCApi->fprintf(stream, format, ...)
-#define printf(format, ...) overlayMap->header.stdCApi->printf(format, ...)
+  overlayMap->header.stdCApi->fprintf(stream, format, ##__VA_ARGS__)
+#define printf(format, ...) \
+  overlayMap->header.stdCApi->printf(format, ##__VA_ARGS__)
 #define vsprintf(str, format, ap) \
   overlayMap->header.stdCApi->vsprintf(str, format, ap)
 #define vsnprintf(str, size, format, ap) \
   overlayMap->header.stdCApi->vsnprintf(str, size, format, ap)
 #define sprintf(str, format, ...) \
-  overlayMap->header.stdCApi->sprintf(str, format, ...)
+  overlayMap->header.stdCApi->sprintf(str, format, ##__VA_ARGS__)
 #define snprintf(str, size, format, ...) \
-  overlayMap->header.stdCApi->snprintf(str, size, format, ...)
+  overlayMap->header.stdCApi->snprintf(str, size, format, ##__VA_ARGS__)
 
 // Character I/O:
 #define fputs(s, stream) overlayMap->header.stdCApi->fputs(s, stream)
 #define puts(s) overlayMap->header.stdCApi->puts(s)
 #define fgets(buffer, size, stream) \
   overlayMap->header.stdCApi->fgets(buffer, size, stream)
+
+#endif // STDIO_H
 
