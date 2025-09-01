@@ -40,8 +40,8 @@
  * debugging the Corutines library from NanoOs.
  */
 
-#ifndef NANO_OS_LIB_C
-#define NANO_OS_LIB_C
+#ifndef NANO_OS_LIB_C_H
+#define NANO_OS_LIB_C_H
 
 // Standard C includes
 #define FILE C_FILE
@@ -300,4 +300,4 @@ int nanoOsScanf(const char *format, ...);
 } // extern "C"
 #endif
 
-#endif // NANO_OS_LIB_C
+#endif // NANO_OS_LIB_C_H
