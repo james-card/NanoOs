@@ -37,7 +37,10 @@
 #ifndef NANO_OS_STD_C_API_H
 #define NANO_OS_STD_C_API_H
 
-#include "NanoOs.h"
+#include <stdarg.h>
+#include <stddef.h>
+typedef struct NanoOsFile NanoOsFile;
+#define FILE NanoOsFile
 
 #ifdef __cplusplus
 extern "C"

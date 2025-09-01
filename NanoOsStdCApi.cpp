@@ -28,6 +28,7 @@
 // Doxygen marker
 /// @file
 
+#include "NanoOs.h"
 #include "NanoOsStdCApi.h"
 
 NanoOsStdCApi nanoOsStdCApi = {
