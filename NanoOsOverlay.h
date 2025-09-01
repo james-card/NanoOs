@@ -99,6 +99,18 @@ typedef struct NanoOsOverlayMap {
   NanoOsOverlayExport exports[1];
 } NanoOsOverlayMap;
 
+/// @struct MainArgs
+///
+/// @brief Structure to hold the standard arc/argv arguments to a C main
+/// function.
+///
+/// @param argc The value of argc to be passed to a main function.
+/// @param argv The value of argv to be passed to a main function.
+typedef struct MainArgs {
+  int argc;
+  char **argv;
+} MainArgs;
+
 #ifdef __cplusplus
 }
 #endif
