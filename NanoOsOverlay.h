@@ -122,7 +122,7 @@ typedef struct MainArgs {
 ///
 /// @brief The size, in bytes, of the overlay buffer.  i.e. The maximum size of
 /// a single overlay that can be read into memory.
-#define OVERLAY_SIZE 0x2000
+#define OVERLAY_SIZE 8192
 
 #ifdef __cplusplus
 }
