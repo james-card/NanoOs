@@ -26,7 +26,7 @@ LDFLAGS = -T ../../NanoOs.ld --gc-sections
 # Source and target files
 TARGET = helloworld
 SOURCE = $(TARGET).c
-BINARY = $(BIN_DIR)/overlay_$(TARGET).bin
+BINARY = $(BIN_DIR)/$(TARGET)
 ELF = $(OBJ_DIR)/$(TARGET).elf
 OBJECT = $(OBJ_DIR)/$(TARGET).o
 
