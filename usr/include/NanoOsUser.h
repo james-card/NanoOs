@@ -49,7 +49,7 @@ extern "C"
 ///
 /// @brief Global variable that will enable access to the Kernel's std C API
 /// implementation.
-extern NanoOsOverlayMap *overlayMap;
+extern NanoOsOverlayMap overlayMap;
 
 #ifdef __cplusplus
 }
