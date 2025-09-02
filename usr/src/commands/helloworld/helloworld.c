@@ -14,22 +14,21 @@ void* _start(void *args) {
   return (void*) ((intptr_t) main(mainArgs->argc, mainArgs->argv));
 }
 
+// These are the overlay functions exported.
+NanoOsOverlayExport exports[] = {
+  {"_start", _start},
+};
+
 // This needs to be the first thing in the overlay.
 __attribute__((section(".overlay_header")))
-struct {
-  NanoOsOverlayHeader header;
-  NanoOsOverlayExport exports[];
-} helloOverlayMap = {
+NanoOsOverlayMap overlayMap = {
   .header = {
     .magic = NANO_OS_OVERLAY_MAGIC,
     .version = (0 << 24) | (0 << 16) | (1 << 8) | (0 << 0),
     .stdCApi = NULL,
     .callOverlayFunction = NULL,
-    .numExports = 1,
+    .numExports = sizeof(exports) / sizeof(exports[0]),
   },
-  .exports = {
-    {"_start", _start},
-  },
+  .exports = exports,
 };
-NanoOsOverlayMap *overlayMap = (NanoOsOverlayMap*) &helloOverlayMap;
 
