@@ -111,19 +111,6 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
-/// @def overlayMap
-///
-/// @brief The location in memory where all overlays will reside, cast to a
-/// NanoOsOverlayMap pointer.  On ARM cores, this is the start of memory plus
-/// 6 KB.
-#define overlayMap ((NanoOsOverlayMap*) 0x20001800)
-
-/// @def OVERLAY_SIZE
-///
-/// @brief The size, in bytes, of the overlay buffer.  i.e. The maximum size of
-/// a single overlay that can be read into memory.
-#define OVERLAY_SIZE 8192
-
 #ifdef __cplusplus
 }
 #endif
