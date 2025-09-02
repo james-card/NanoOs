@@ -1,8 +1,8 @@
 # Makefile for NanoOS Overlays
 # ARM Cortex-M0 target
 
-OBJ_DIR = ../obj
-BIN_DIR = ../bin
+OBJ_DIR = ../../obj
+BIN_DIR = ../../bin
 
 # CLI tools
 MKDIR = mkdir -p
@@ -21,18 +21,18 @@ CFLAGS += -Wall -Wextra -std=c99
 CFLAGS += -ffunction-sections -fdata-sections
 
 # Linker flags
-LDFLAGS = -T NanoOs.ld --gc-sections
+LDFLAGS = -T ../NanoOs.ld --gc-sections
 
 # Source and target files
-TARGET = hello
+TARGET = helloworld
 SOURCE = $(TARGET).c
 BINARY = $(BIN_DIR)/overlay_$(TARGET).bin
 ELF = $(OBJ_DIR)/$(TARGET).elf
 OBJECT = $(OBJ_DIR)/$(TARGET).o
 
 INCLUDES = \
-    -I../.. \
-    -I../include \
+    -I../../.. \
+    -I../../include \
 
 # Default target
 all: $(BINARY)
