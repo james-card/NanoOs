@@ -90,13 +90,11 @@ typedef struct NanoOsOverlayHeader {
 /// @brief The map of exported information from an overlay.
 ///
 /// @param header An embedded NanoOsOverlayHeader structure.
-/// @param exports An embedded array of NanoOsOverlayExport items.  NOTE:  This
-///   should really be a variable length array but C++ doesn't allow that.  In
-///   reality, it will be one or more elements long.  The actual number of
-///   elements in the array will be determined by the value of header.numExports.
+/// @param exports Apointer to an array of NanoOsOverlayExport items exported by
+///   an overlay.
 typedef struct NanoOsOverlayMap {
   NanoOsOverlayHeader header;
-  NanoOsOverlayExport exports[1];
+  NanoOsOverlayExport *exports;
 } NanoOsOverlayMap;
 
 /// @struct MainArgs
