@@ -1,6 +1,3 @@
-# Makefile for NanoOS Overlays
-# ARM Cortex-M0 target
-
 OBJ_DIR = ../../../obj
 BIN_DIR = ../../../bin
 
