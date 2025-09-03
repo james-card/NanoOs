@@ -105,8 +105,3 @@ help:
 # Phony targets
 .PHONY: all clean disasm sections symbols help
 
-# Additional target for different source files
-# Usage: make SOURCE=mycommand.c TARGET=mycommand
-ifneq ($(SOURCE),hello.c)
-$(warning Building $(TARGET) from $(SOURCE))
-endif
