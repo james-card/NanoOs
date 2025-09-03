@@ -25,10 +25,17 @@ LDFLAGS = -T ../../NanoOs.ld --gc-sections
 
 # Source and target files
 TARGET = helloworld
-SOURCE = $(TARGET).c
-BINARY = $(BIN_DIR)/$(TARGET)
 ELF = $(OBJ_DIR)/$(TARGET).elf
-OBJECT = $(OBJ_DIR)/$(TARGET).o
+BINARY = $(BIN_DIR)/$(TARGET)
+
+SOURCES = \
+    ../../start.c \
+    $(TARGET).c \
+
+OBJECTS = \
+    $(OBJ_DIR)/$(TARGET).o \
+    $(OBJ_DIR)/OverlayMap.o \
+    $(OBJ_DIR)/start.o \
 
 INCLUDES = \
     -I../../../.. \
@@ -46,17 +53,26 @@ $(BINARY): $(ELF)
 	@ls -la $@
 
 # Link ELF file
-$(ELF): $(OBJECT)
+$(ELF): $(OBJECTS)
 	@echo "Linking: $@"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(LD) $(LDFLAGS) $< -o $@
+	$(LD) $(LDFLAGS) $(OBJECTS) -o $@
 	$(SIZE) $@
 
 # Compile object file
-$(OBJECT): $(SOURCE)
+$(OBJ_DIR)/start.o: ../../start.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/%.o: %.c
+	@echo "Compiling: $<"
+	$(MKDIR) "$(OBJ_DIR)"
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+OverlayMap.c: $(SOURCES)
+	@echo "Creating OverlayMap.c"
+	../../util/mkOverlayMap.sh $(SOURCES)
 
 # Generate disassembly for debugging
 disasm: $(ELF)
