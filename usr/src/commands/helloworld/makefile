@@ -27,12 +27,12 @@ BINARY = $(BIN_DIR)/$(TARGET)
 
 SOURCES = \
     ../../start.c \
-    $(TARGET).c \
+    main.c \
 
 OBJECTS = \
-    $(OBJ_DIR)/$(TARGET).o \
-    $(OBJ_DIR)/OverlayMap.o \
     $(OBJ_DIR)/start.o \
+    $(OBJ_DIR)/main.o \
+    $(OBJ_DIR)/OverlayMap.o \
 
 INCLUDES = \
     -I../../../.. \
@@ -86,7 +86,7 @@ symbols: $(ELF)
 
 # Clean build artifacts
 clean:
-	$(RM) $(OBJECT) $(ELF) $(BINARY) $(TARGET).dis
+	$(RM) $(OBJECTS) $(ELF) $(BINARY) $(TARGET).dis OverlayMap.c
 
 # Show help
 help:
