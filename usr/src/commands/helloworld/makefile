@@ -92,7 +92,7 @@ clean:
 help:
 	@echo "NanoOS Overlay Build System"
 	@echo "Usage:"
-	@echo "  make          - Build overlay_hello.bin from hello.c"
+	@echo "  make          - Build $(TARGET)"
 	@echo "  make disasm   - Generate disassembly listing"
 	@echo "  make sections - Show ELF section information"  
 	@echo "  make symbols  - Show symbol table"
