@@ -46,6 +46,11 @@ extern "C"
 {
 #endif
 
+// Special exit statuses
+#define COMMAND_CANNOT_EXECUTE 126
+#define COMMAND_NOT_FOUND      127
+#define COMMAND_EXIT_INVALID   128
+
 // Exported support functions
 const CommandEntry* getCommandEntryFromInput(char *consoleInput);
 int handleCommand(int consolePort, char *consoleInput);
