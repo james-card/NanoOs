@@ -10,7 +10,7 @@ echo '' >> OverlayMap.c
 
 # Build the exports.
 echo 'NanoOsOverlayExport exports[] = {' >> OverlayMap.c
-functionNames="$(grep "^void\* [_a-zA-Z]*(void \*args) {" ${@} | sed -e 's/.*:void\* \([_a-zA-Z]*\)(void \*args) {/\1/')"
+functionNames="$(grep "^void\* [_a-zA-Z]*(void \*args) {" ${@} | sed -e 's/.*:void\* \([_a-zA-Z]*\)(void \*args) {/\1/' | sort)"
 for functionName in ${functionNames}; do
 	echo "  {\"${functionName}\", ${functionName}}," >> OverlayMap.c
 done
