@@ -53,6 +53,12 @@ extern "C"
 /// @brief Value used to validate that an overlay header is valid.
 #define NANO_OS_OVERLAY_MAGIC 0x4c4f734f6f6e614e // "NanoOsOL"
 
+/// @type OverlayFunction
+///
+/// @brief Function pointer for a function that can be called in an overlay from
+/// the OS.
+typedef void* (*OverlayFunction)(void*);
+
 /// @struct NanoOsOverlayExport
 ///
 /// @brief Definition for a single function exported from an overlay.
@@ -61,7 +67,7 @@ extern "C"
 /// @param fn A pointer to the function within the overlay.
 typedef struct NanoOsOverlayExport {
   const char name[16];
-  void* (*fn)(void*);
+  OverlayFunction fn;
 } NanoOsOverlayExport;
 
 /// @struct NanoOsOverlayHeader
