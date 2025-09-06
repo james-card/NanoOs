@@ -39,10 +39,21 @@
 
 #include "NanoOsUser.h"
 
+// Standard streams:
+#define stdin \
+  overlayMap.header.stdCApi->stdin
+#define stdout \
+  overlayMap.header.stdCApi->stdout
+#define stderr \
+  overlayMap.header.stdCApi->stderr
+
 // File operations:
-#define fopen(pathname, mode) overlayMap.header.stdCApi->fopen(pathname, mode)
-#define fclose(stream) overlayMap.header.stdCApi->fclose(stream)
-#define remove(pathname) overlayMap.header.stdCApi->remove(pathname)
+#define fopen(pathname, mode) \
+  overlayMap.header.stdCApi->fopen(pathname, mode)
+#define fclose(stream) \
+  overlayMap.header.stdCApi->fclose(stream)
+#define remove(pathname) \
+  overlayMap.header.stdCApi->remove(pathname)
 #define fseek(stream, offset, whence) \
   overlayMap.header.stdCApi->fseek(stream, offset, whence)
 
@@ -73,8 +84,10 @@
   overlayMap.header.stdCApi->snprintf(str, size, format, ##__VA_ARGS__)
 
 // Character I/O:
-#define fputs(s, stream) overlayMap.header.stdCApi->fputs(s, stream)
-#define puts(s) overlayMap.header.stdCApi->puts(s)
+#define fputs(s, stream) \
+  overlayMap.header.stdCApi->fputs(s, stream)
+#define puts(s) \
+  overlayMap.header.stdCApi->puts(s)
 #define fgets(buffer, size, stream) \
   overlayMap.header.stdCApi->fgets(buffer, size, stream)
 
