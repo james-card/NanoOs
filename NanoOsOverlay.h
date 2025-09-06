@@ -115,6 +115,8 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
+int runOverlayCommand(const char *commandPath, int argc, char **argv);
+
 #ifdef __cplusplus
 }
 #endif
