@@ -32,6 +32,11 @@
 #include "NanoOsStdCApi.h"
 
 NanoOsStdCApi nanoOsStdCApi = {
+  // Standard streams:
+  .stdin = stdin,
+  .stdout = stdout,
+  .stderr = stderr,
+  
   // File operations:
   .fopen = filesystemFOpen,
   .fclose = filesystemFClose,

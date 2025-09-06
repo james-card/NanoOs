@@ -48,6 +48,11 @@ extern "C"
 #endif
 
 typedef struct NanoOsStdCApi {
+  // Standard streams:
+  FILE *stdin;
+  FILE *stdout;
+  FILE *stderr;
+  
   // File operations:
   FILE* (*fopen)(const char *pathname, const char *mode);
   int (*fclose)(FILE *stream);
