@@ -196,6 +196,8 @@ int timespec_get(struct timespec* spec, int base);
 #define EINVAL           5      /* Invalid argument */
 #define EIO              6      /* I/O error */
 #define ENOSPC           7      /* No space left on device */
+#define ENOENT           8      /* No such entry found */
+#define EEND             9      /* End of error codes */
 
 typedef void TypeDescriptor;
 
