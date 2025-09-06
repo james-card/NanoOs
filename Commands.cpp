@@ -114,26 +114,72 @@ int killCommandHandler(int argc, char **argv) {
 ///
 /// @return This function always returns 0.
 int echoCommandHandler(int argc, char **argv) {
-  if (argc > 1) {
-    // The usual case.  Print the arguments separated by one (1) space.
-    for (int ii = 1; ii < argc; ii++) {
-      fputs(argv[ii], stdout);
-      if (ii < (argc - 1)) {
-        fputs(" ", stdout);
-      }
+  const char *commandFilename = "echo";
+  FILE *commandFile = fopen(commandFilename, "r");
+  if (commandFile == NULL) {
+    fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
+      commandFilename);
+    return 1;
+  }
+
+  if (fread(overlayMap, 1, OVERLAY_SIZE, commandFile) == 0) {
+    fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
+      commandFilename);
+    fclose(commandFile); commandFile = NULL;
+    return 1;
+  }
+  fclose(commandFile); commandFile = NULL;
+
+  if (overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+    fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
+      commandFilename);
+    return 1;
+  }
+  if (overlayMap->header.version
+    != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
+  ) {
+    fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
+      overlayMap->header.version, commandFilename);
+    return 1;
+  }
+  // Set the standard C API pointer for the overlay.
+  overlayMap->header.stdCApi = &nanoOsStdCApi;
+
+  void* (*_start)(void*) = NULL;
+  uint16_t cur = 0;
+  int comp = 0;
+  const char *functionToFind = "_start";
+  for (uint16_t ii = 0, jj = overlayMap->header.numExports - 1; ii <= jj;) {
+    cur = (ii + jj) >> 1;
+    comp = strcmp(overlayMap->exports[cur].name, functionToFind);
+    if (comp == 0) {
+      _start = overlayMap->exports[cur].fn;
+      break;
+    } else if (comp < 0) { // cur < functionToFind
+      // Move the left bound to one greater than cur.
+      ii = cur + 1;
+    } else { // comp > 0, functionToFind < cur
+      // Move the right bound to one less than cur.
+      jj = cur - 1;
     }
-    fputs("\n", stdout);
-  } else {
-    // Read from stdin and echo the input back to the user until "EOF\n" is
-    // received.
-    char buffer[96];
-    while (fgets(buffer, sizeof(buffer), stdin)) {
-      if (strcmp(buffer, "EOF\n") != 0) {
-        fputs(buffer, stdout);
-      } else {
-        break;
-      }
-    }
+  }
+  if (_start == NULL) {
+    fprintf(stderr,
+      "Could not find exported _start function in \"%s\" overlay.\n",
+      commandFilename);
+    return 1;
+  }
+
+  MainArgs mainArgs = {
+    .argc = argc,
+    .argv = argv,
+  };
+  void *returnValue = _start(&mainArgs);
+  if (returnValue != NULL) {
+    fprintf(stderr,
+      "Got unexpected return value %p from _start in \"%s\"\n",
+      returnValue, commandFilename);
+    return 1;
   }
 
   return 0;
@@ -183,9 +229,6 @@ int grepCommandHandler(int argc, char **argv) {
 ///
 /// @return This function always returns 0.
 int helloworldCommandHandler(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-
   printf("Opening \"helloworld\" command file from filesystem.\n");
   FILE *commandFile = fopen("helloworld", "r");
   if (commandFile == NULL) {
