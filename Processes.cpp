@@ -252,6 +252,14 @@ void* startCommand(void *args) {
   }
 
   schedulerCloseAllFileDescriptors();
+
+  // Gracefully clear out our message queue.
+  msg_t *msg = processMessageQueuePop();
+  while (msg != NULL) {
+    processMessageSetDone(msg);
+    msg = processMessageQueuePop();
+  }
+
   return (void*) ((intptr_t) returnValue);
 }
 
