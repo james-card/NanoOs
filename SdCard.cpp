@@ -735,6 +735,7 @@ void* runSdCard(void *args) {
     .context = (void*) ((intptr_t) getRunningProcessId()),
     .readBlocks = sdReadBlocks,
     .writeBlocks = sdWriteBlocks,
+    .blockSize = 0,
     .partitionNumber = 0,
   };
 
