@@ -1073,7 +1073,6 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
     }
     
     uint32_t offset = 0;
-    uint32_t lastOffset = 0;
     
     while (offset < state->blockSize) {
       Ext4DirEntry entry;
@@ -1114,7 +1113,6 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
         }
       }
       
-      lastOffset = offset;
       offset += currentRecLen;
     }
   }
