@@ -691,7 +691,7 @@ exit:
 /// @param driverState Pointer to driver state
 ///
 /// @return Pointer to free file handle, NULL if none available
-static ExFatFileHandle* getFreeFileHandle(ExFatDriverState* driverState) {
+static ExFatFileHandle* getFreeFileHandle(ExFatDriverState *driverState) {
   if (driverState == NULL) {
     return NULL;
   }
@@ -702,6 +702,18 @@ static ExFatFileHandle* getFreeFileHandle(ExFatDriverState* driverState) {
       return &driverState->openFiles[ii];
     }
   }
+
+  return NULL;
+}
+
+static ExFatFileHandle* releaseFileHandle(
+  ExFatDriverState* driverState, ExFatFileHandle *fileHandle
+) {
+  if ((driverState == NULL) || (fileHandle == NULL)) {
+    return NULL;
+  }
+
+  fileHandle->inUse = false;
 
   return NULL;
 }
@@ -1641,10 +1653,9 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
   char* lastSlash = NULL;
   uint32_t currentCluster = driverState->rootDirectoryCluster;
   int returnValue = EXFAT_SUCCESS;
-  ExFatFileHandle *directoryHandle
-    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  ExFatFileHandle *directoryHandle = getFreeFileHandle(driverState);
   if (directoryHandle == NULL) {
-    return EXFAT_NO_MEMORY;
+    return EXFAT_TOO_MANY_OPEN_FILES;
   }
   
   if ((driverState == NULL) || (path == NULL) || 
@@ -1741,7 +1752,7 @@ exit:
     driverState->filesystemState->blockBuffer = NULL;
   }
   
-  free(directoryHandle);
+  directoryHandle = releaseFileHandle(driverState, directoryHandle);
   return returnValue;
 }
 
@@ -1759,10 +1770,9 @@ static int createDirectory(ExFatDriverState* driverState,
   uint32_t newDirectoryCluster = 0;
   uint8_t* dotEntryBuffer = NULL;
   uint32_t firstSector = 0;
-  ExFatFileHandle *tempHandle
-    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  ExFatFileHandle *tempHandle = getFreeFileHandle(driverState);
   if (tempHandle == NULL) {
-    return EXFAT_NO_MEMORY;
+    return EXFAT_TOO_MANY_OPEN_FILES;
   }
   
   if ((driverState == NULL) || (directoryName == NULL)) {
@@ -1820,7 +1830,7 @@ static int createDirectory(ExFatDriverState* driverState,
   
   free(dotEntryBuffer);
 exit:
-  free(tempHandle);
+  tempHandle = releaseFileHandle(driverState, tempHandle);
   return result;
 }
 
@@ -2214,10 +2224,9 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   uint32_t targetDirectoryCluster = 0;
   char* fileName = NULL;
   uint32_t currentCluster = 0;
-  ExFatFileHandle *tempHandle
-    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  ExFatFileHandle *tempHandle = getFreeFileHandle(driverState);
   if (tempHandle == NULL) {
-    return EXFAT_NO_MEMORY;
+    return EXFAT_TOO_MANY_OPEN_FILES;
   }
   
   if ((driverState == NULL) || (pathname == NULL)) {
@@ -2295,7 +2304,7 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   
   free(fileName);
 exit:
-  free(tempHandle);
+  tempHandle = releaseFileHandle(driverState, tempHandle);
   return (result == EXFAT_SUCCESS) ? 0 : -1;
 }
 
