@@ -114,7 +114,9 @@ int killCommandHandler(int argc, char **argv) {
 ///
 /// @return This function always returns 0.
 int echoCommandHandler(int argc, char **argv) {
-  return runOverlayCommand("echo", argc, argv);
+  char commandPath[26] = "/usr/bin/";
+  strcat(commandPath, "echo");
+  return runOverlayCommand(commandPath, argc, argv);
 }
 
 /// @fn int grepCommandHandler(int argc, char **argv);
@@ -161,7 +163,9 @@ int grepCommandHandler(int argc, char **argv) {
 ///
 /// @return This function always returns 0.
 int helloworldCommandHandler(int argc, char **argv) {
-  return runOverlayCommand("helloworld", argc, argv);
+  char commandPath[26] = "/usr/bin/";
+  strcat(commandPath, "helloworld");
+  return runOverlayCommand(commandPath, argc, argv);
 }
 
 /// @fn int helpCommandHandler(int argc, char **argv);
