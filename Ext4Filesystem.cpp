@@ -911,7 +911,15 @@ int ext4Mount(FilesystemState *fsState, Ext4State **statePtr) {
 
     uint16_t magic;
     readBytes(&magic, &state->superblock.sMagic);
-    if (magic != EXT4_MAGIC) { /* ... cleanup ... */ return -1; }
+    if (magic != EXT4_MAGIC) {
+         if (fsState->numOpenFiles == 0) {
+            free(fsState->blockBuffer);
+            fsState->blockBuffer = NULL;
+        }
+        free(state);
+        *statePtr = NULL;
+        return -1;
+    }
 
     uint32_t featureIncompat;
     readBytes(&featureIncompat, &state->superblock.sFeatureIncompat);
@@ -936,7 +944,15 @@ int ext4Mount(FilesystemState *fsState, Ext4State **statePtr) {
     uint32_t gdtSize = state->numBlockGroups * descSize;
 
     state->groupDescs = (Ext4GroupDesc*)malloc(gdtSize);
-    if (!state->groupDescs) { /* ... cleanup ... */ return -1; }
+    if (!state->groupDescs) {
+         if (fsState->numOpenFiles == 0) {
+            free(fsState->blockBuffer);
+            fsState->blockBuffer = NULL;
+        }
+        free(state);
+        *statePtr = NULL;
+        return -1;
+    }
 
     uint32_t firstDataBlock;
     readBytes(&firstDataBlock, &state->superblock.sFirstDataBlock);
@@ -944,7 +960,15 @@ int ext4Mount(FilesystemState *fsState, Ext4State **statePtr) {
     readBytes(&logBlockSize, &state->superblock.sLogBlockSize);
     uint32_t gdtBlock = (logBlockSize == 0) ? firstDataBlock + 1 : firstDataBlock;
     
-    if (readBlock(state, gdtBlock, state->groupDescs) != 0) { /* ... cleanup ... */ return -1; }
+    if (readBlock(state, gdtBlock, state->groupDescs) != 0) {
+         if (fsState->numOpenFiles == 0) {
+            free(fsState->blockBuffer);
+            fsState->blockBuffer = NULL;
+        }
+        free(state);
+        *statePtr = NULL;
+        return -1;
+    }
 
     return 0;
 }
