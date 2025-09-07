@@ -505,7 +505,7 @@ static int ext4ReadBlock(Ext4State *state, uint32_t blockNum, void *buffer) {
     state->filesystemState->startLba + blockNum,
     1,
     state->blockSize,
-    buffer);
+    (uint8_t*) buffer);
 }
 
 /// @brief Write a block to the filesystem
@@ -526,7 +526,7 @@ static int ext4WriteBlock(Ext4State *state, uint32_t blockNum,
     state->filesystemState->startLba + blockNum,
     1,
     state->blockSize,
-    buffer);
+    (uint8_t*) buffer);
 }
 
 /// @brief Read an inode from the filesystem
