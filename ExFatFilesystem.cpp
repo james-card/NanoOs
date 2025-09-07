@@ -121,7 +121,6 @@ typedef struct __attribute__((packed)) ExFatFileNameEntry {
 ///
 /// @brief File handle for open exFAT files
 typedef struct ExFatFileHandle {
-  bool      inUse;                 // Whether this handle is in use
   uint32_t  firstCluster;          // First cluster of file
   uint32_t  currentCluster;        // Current cluster
   uint32_t  currentPosition;       // Current position in file
@@ -144,7 +143,6 @@ typedef struct ExFatDriverState {
   uint32_t          clusterHeapStartSector; // Cluster heap start sector
   uint32_t          rootDirectoryCluster; // Root directory cluster
   uint32_t          clusterCount;          // Number of clusters
-  ExFatFileHandle   openFiles[EXFAT_MAX_OPEN_FILES]; // Open file handles
   bool              driverStateValid; // Whether or not this is a valid state
 } ExFatDriverState;
 
@@ -620,7 +618,6 @@ static int findFileInDirectory(ExFatDriverState* driverState,
             
             if (strcmp(utf8Name, fileName) == 0) {
               // Found the file - populate file handle
-              fileHandle->inUse = true;
               fileHandle->firstCluster = streamEntry.firstCluster;
               printDebug("fileHandle->firstCluster = ");
               printDebug(fileHandle->firstCluster);
@@ -691,19 +688,11 @@ exit:
 /// @param driverState Pointer to driver state
 ///
 /// @return Pointer to free file handle, NULL if none available
-static ExFatFileHandle* getFreeFileHandle(ExFatDriverState *driverState) {
-  if (driverState == NULL) {
-    return NULL;
-  }
+static ExFatFileHandle* getFreeFileHandle() {
+  ExFatFileHandle *fileHandle
+    = (ExFatFileHandle*) calloc(1, sizeof(ExFatFileHandle));
 
-  for (int ii = 0; ii < EXFAT_MAX_OPEN_FILES; ii++) {
-    if (!driverState->openFiles[ii].inUse) {
-      memset(&driverState->openFiles[ii], 0, sizeof(ExFatFileHandle));
-      return &driverState->openFiles[ii];
-    }
-  }
-
-  return NULL;
+  return fileHandle;
 }
 
 /// @brief Release an ExFatFileHandle back to the pool of available file handles.
@@ -717,7 +706,7 @@ static ExFatFileHandle* releaseFileHandle(ExFatFileHandle *fileHandle) {
     return NULL;
   }
 
-  fileHandle->inUse = false;
+  free(fileHandle);
 
   return NULL;
 }
@@ -728,22 +717,12 @@ static ExFatFileHandle* releaseFileHandle(ExFatFileHandle *fileHandle) {
 /// @param stream FILE pointer
 ///
 /// @return ExFatFileHandle pointer or NULL if invalid
-static ExFatFileHandle* getFileHandle(ExFatDriverState* driverState, 
-                                      FILE* stream) {
-  if (stream == NULL || driverState == NULL) {
+static ExFatFileHandle* getFileHandle(FILE* stream) {
+  if (stream == NULL) {
     return NULL;
   }
 
-  ExFatFileHandle* fileHandle = (ExFatFileHandle*) stream->file;
-  
-  // Validate that this is actually one of our file handles
-  for (int ii = 0; ii < EXFAT_MAX_OPEN_FILES; ii++) {
-    if (&driverState->openFiles[ii] == fileHandle && fileHandle->inUse) {
-      return fileHandle;
-    }
-  }
-
-  return NULL;
+  return (ExFatFileHandle*) stream->file;
 }
 
 /// @brief Initialize exFAT driver
@@ -821,11 +800,7 @@ int exFatInitialize(ExFatDriverState* driverState,
 int exFatSeek(ExFatDriverState* driverState, ExFatFileHandle* fileHandle,
   long offset, int whence
 ) {
-  if ((driverState == NULL) || (fileHandle== NULL)) {
-    return -1;
-  }
-
-  if (!fileHandle->inUse) {
+  if ((driverState == NULL) || (fileHandle == NULL)) {
     return -1;
   }
 
@@ -1179,10 +1154,6 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
     return -1;
   }
 
-  if (!fileHandle->inUse) {
-    return -1;
-  }
-
   uint32_t bytesWritten = 0;
   const uint8_t* buffer = (const uint8_t*) ptr;
   bool needDirectoryUpdate = false;
@@ -1344,11 +1315,7 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
 ///
 /// @return 0 on success, EOF on failure
 int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
-  if (driverState == NULL || fileHandle == NULL) {
-    return EOF;
-  }
-
-  if (!fileHandle->inUse) {
+  if ((driverState == NULL) || (fileHandle == NULL)) {
     return EOF;
   }
 
@@ -1619,7 +1586,6 @@ static int createFileInDirectory(ExFatDriverState* driverState,
 
   // Initialize file handle for new file
   memset(fileHandle, 0, sizeof(ExFatFileHandle));
-  fileHandle->inUse = true;
   fileHandle->firstCluster = 0; // No clusters allocated yet
   fileHandle->currentCluster = 0;
   fileHandle->currentPosition = 0;
@@ -1657,7 +1623,7 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
   char* lastSlash = NULL;
   uint32_t currentCluster = driverState->rootDirectoryCluster;
   int returnValue = EXFAT_SUCCESS;
-  ExFatFileHandle *directoryHandle = getFreeFileHandle(driverState);
+  ExFatFileHandle *directoryHandle = getFreeFileHandle();
   if (directoryHandle == NULL) {
     return EXFAT_TOO_MANY_OPEN_FILES;
   }
@@ -1774,7 +1740,7 @@ static int createDirectory(ExFatDriverState* driverState,
   uint32_t newDirectoryCluster = 0;
   uint8_t* dotEntryBuffer = NULL;
   uint32_t firstSector = 0;
-  ExFatFileHandle *tempHandle = getFreeFileHandle(driverState);
+  ExFatFileHandle *tempHandle = getFreeFileHandle();
   if (tempHandle == NULL) {
     return EXFAT_TOO_MANY_OPEN_FILES;
   }
@@ -1887,7 +1853,7 @@ ExFatFileHandle* exFatFopenWithPath(ExFatDriverState* driverState,
     }
   }
   
-  fileHandle = getFreeFileHandle(driverState);
+  fileHandle = getFreeFileHandle();
   if (fileHandle == NULL) {
     goto exit;
   }
@@ -2227,7 +2193,7 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   uint32_t targetDirectoryCluster = 0;
   char* fileName = NULL;
   uint32_t currentCluster = 0;
-  ExFatFileHandle *tempHandle = getFreeFileHandle(driverState);
+  ExFatFileHandle *tempHandle = getFreeFileHandle();
   if (tempHandle == NULL) {
     return EXFAT_TOO_MANY_OPEN_FILES;
   }
@@ -2329,11 +2295,6 @@ int32_t exFatRead(ExFatDriverState* driverState, void* ptr, uint32_t totalBytes,
     return -1;
   }
 
-  if (!fileHandle->inUse) {
-    printDebug("fileHandle not in use in exFatRead.\n");
-    return -1;
-  }
-
   uint32_t bytesRead = 0;
   uint8_t* buffer = (uint8_t*) ptr;
 
@@ -2428,7 +2389,7 @@ long exFatTell(ExFatDriverState* driverState, FILE* stream) {
     return -1;
   }
 
-  ExFatFileHandle* fileHandle = getFileHandle(driverState, stream);
+  ExFatFileHandle* fileHandle = getFileHandle(stream);
   if (fileHandle == NULL) {
     return -1;
   }
@@ -2447,7 +2408,7 @@ int exFatEof(ExFatDriverState* driverState, FILE* stream) {
     return 1;
   }
 
-  ExFatFileHandle* fileHandle = getFileHandle(driverState, stream);
+  ExFatFileHandle* fileHandle = getFileHandle(stream);
   if (fileHandle == NULL) {
     return 1;
   }
@@ -2467,7 +2428,7 @@ int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
     return EOF;
   }
 
-  ExFatFileHandle* fileHandle = getFileHandle(driverState, stream);
+  ExFatFileHandle* fileHandle = getFileHandle(stream);
   if (fileHandle == NULL) {
     return EOF;
   }
