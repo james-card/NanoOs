@@ -1731,7 +1731,6 @@ static int createDirectory(ExFatDriverState* driverState,
   ExFatFileHandle tempHandle;
   uint32_t newDirectoryCluster = 0;
   uint8_t* dotEntryBuffer = NULL;
-  FilesystemState* filesystemState = driverState->filesystemState;
   
   if ((driverState == NULL) || (directoryName == NULL)) {
     return EXFAT_INVALID_PARAMETER;
@@ -2431,7 +2430,7 @@ int exFatFilesystemOpenFileCommandHandler(
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
   if (driverState->driverStateValid) {
-    ExFatFileHandle *exFatFile = exFatFopen(driverState, pathname, mode);
+    ExFatFileHandle *exFatFile = exFatFopenWithPath(driverState, pathname, mode);
     if (exFatFile != NULL) {
       nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
       nanoOsFile->file = exFatFile;
@@ -2575,7 +2574,7 @@ int exFatFilesystemRemoveFileCommandHandler(
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatRemove(driverState, pathname);
+    returnValue = exFatRemoveWithPath(driverState, pathname);
   }
 
   NanoOsMessage *nanoOsMessage
