@@ -1419,37 +1419,68 @@ int closeProcessFileDescriptors(
 
     uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
     for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
-      ProcessId waitingProcessId = fileDescriptors[ii].outputPipe.processId;
-      if ((waitingProcessId == PROCESS_ID_NOT_SET)
-        || (waitingProcessId == NANO_OS_CONSOLE_PROCESS_ID)
+      ProcessId waitingOutputProcessId
+        = fileDescriptors[ii].outputPipe.processId;
+      if ((waitingOutputProcessId != PROCESS_ID_NOT_SET)
+        && (waitingOutputProcessId != NANO_OS_CONSOLE_PROCESS_ID)
       ) {
-        // Nothing waiting on output from this file descriptor.  Move on.
-        continue;
-      }
-      ProcessDescriptor *waitingProcessDescriptor
-        = &schedulerState->allProcesses[waitingProcessId];
+        ProcessDescriptor *waitingProcessDescriptor
+          = &schedulerState->allProcesses[waitingOutputProcessId];
 
-      // Clear the processId of the waiting process's stdin file descriptor.
-      waitingProcessDescriptor->fileDescriptors[
-        STDIN_FILE_DESCRIPTOR_INDEX].
-        inputPipe.processId = PROCESS_ID_NOT_SET;
+        // Clear the processId of the waiting process's stdin file descriptor.
+        waitingProcessDescriptor->fileDescriptors[
+          STDIN_FILE_DESCRIPTOR_INDEX].
+          inputPipe.processId = PROCESS_ID_NOT_SET;
 
-      // Send an empty message to the waiting process so that it will become
-      // unblocked.
-      processMessageInit(messageToSend,
-          fileDescriptors[ii].outputPipe.messageType,
-          /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-      processMessageQueuePush(
-        waitingProcessDescriptor->processHandle, messageToSend);
-      // Give the process a chance to unblock.
-      coroutineResume(waitingProcessDescriptor->processHandle, NULL);
+        // Send an empty message to the waiting process so that it will become
+        // unblocked.
+        processMessageInit(messageToSend,
+            fileDescriptors[ii].outputPipe.messageType,
+            /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
+        processMessageQueuePush(
+          waitingProcessDescriptor->processHandle, messageToSend);
+        // Give the process a chance to unblock.
+        coroutineResume(waitingProcessDescriptor->processHandle, NULL);
 
-      // The function that was waiting should have released the message we
-      // sent it.  Get another one.
-      messageToSend = getAvailableMessage();
-      while (messageToSend == NULL) {
-        runScheduler(schedulerState);
+        // The function that was waiting should have released the message we
+        // sent it.  Get another one.
         messageToSend = getAvailableMessage();
+        while (messageToSend == NULL) {
+          runScheduler(schedulerState);
+          messageToSend = getAvailableMessage();
+        }
+      }
+
+      ProcessId waitingInputProcessId
+        = fileDescriptors[ii].inputPipe.processId;
+      if ((waitingInputProcessId != PROCESS_ID_NOT_SET)
+        && (waitingInputProcessId != NANO_OS_CONSOLE_PROCESS_ID)
+      ) {
+        ProcessDescriptor *waitingProcessDescriptor
+          = &schedulerState->allProcesses[waitingInputProcessId];
+
+        // Clear the processId of the waiting process's stdin file descriptor.
+        waitingProcessDescriptor->fileDescriptors[
+          STDOUT_FILE_DESCRIPTOR_INDEX].
+          outputPipe.processId = PROCESS_ID_NOT_SET;
+
+        // Send an empty message to the waiting process so that it will become
+        // unblocked.
+        processMessageInit(messageToSend,
+            fileDescriptors[ii].outputPipe.messageType,
+            /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
+        processMessageQueuePush(
+          waitingProcessDescriptor->processHandle, messageToSend);
+        // Give the process a chance to unblock.
+        coroutineResume(waitingProcessDescriptor->processHandle, NULL);
+
+        // The function that was waiting should have released the message we
+        // sent it.  Get another one.
+        messageToSend = getAvailableMessage();
+        while (messageToSend == NULL) {
+          runScheduler(schedulerState);
+          messageToSend = getAvailableMessage();
+        }
       }
     }
 
@@ -1719,11 +1750,15 @@ int schedulerRunProcessCommandHandler(
   }
 
   charAt = strchr(consoleInput, '&');
-  if (charAt != NULL) {
+  while (charAt != NULL) {
     charAt++;
     if (charAt[strspn(charAt, " \t\r\n")] == '\0') {
       backgroundProcess = true;
+      break;
     }
+
+    // This '&' wasn't at the end of the line. Find the next one if there is one.
+    charAt = strchr(charAt, '&');
   }
 
   while (*consoleInput != '\0') {
