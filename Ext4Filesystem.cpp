@@ -35,7 +35,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "ext4.h"
+#include "Ext4Filesystem.h"
 #include "NanoOs.h"
 #include "Filesystem.h"
 
@@ -140,7 +140,7 @@ static int readBlock(Ext4State *state, uint32_t blockNum, void *buffer) {
         state->fsState->startLba + blockNum,
         1,
         state->fsState->blockSize,
-        buffer
+        (uint8_t*) buffer
     );
 }
 
@@ -150,7 +150,7 @@ static int writeBlock(Ext4State *state, uint32_t blockNum, const void *buffer) {
         state->fsState->startLba + blockNum,
         1,
         state->fsState->blockSize,
-        buffer
+        (uint8_t*) buffer
     );
 }
 
@@ -184,6 +184,8 @@ static int readInode(Ext4State *state, uint32_t inodeNum, Ext4Inode *inode) {
 // ... other helper functions like writeInode, findFreeInode, etc. would go here ...
 
 static uint32_t pathToInode(Ext4State *state, const char *pathname) {
+    (void) state;
+
     if (strcmp(pathname, "/") == 0) {
         return EXT4_ROOT_INO;
     }
@@ -419,6 +421,9 @@ int32_t ext4ReadFile(Ext4FileHandle *handle, void *buffer, uint32_t length) {
 }
 
 int32_t ext4WriteFile(Ext4FileHandle *handle, const void *buffer, uint32_t length) {
+    (void) buffer;
+    (void) length;
+
     if (!handle || !(handle->mode & Ext4ModeWrite)) {
         return -1;
     }
@@ -427,6 +432,9 @@ int32_t ext4WriteFile(Ext4FileHandle *handle, const void *buffer, uint32_t lengt
 }
 
 int ext4RemoveFile(Ext4State *state, const char *pathname) {
+    (void) state;
+    (void) pathname;
+
     // File removal logic is complex. This is a stub.
     return -1; // Not implemented
 }
@@ -466,6 +474,9 @@ int ext4SeekFile(Ext4FileHandle *handle, int64_t offset, int whence) {
 }
 
 int ext4CreateDir(Ext4State *state, const char *pathname) {
+    (void) state;
+    (void) pathname;
+
     // Directory creation is complex. This is a stub.
     return -1; // Not implemented
 }
