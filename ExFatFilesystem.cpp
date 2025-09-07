@@ -1674,6 +1674,14 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
     currentCluster = driverState->rootDirectoryCluster;
   }
   
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    driverState->filesystemState->blockBuffer = (uint8_t*) malloc(
+      driverState->filesystemState->blockSize);
+    if (driverState->filesystemState->blockBuffer == NULL) {
+      goto exit;
+    }
+  }
+  
   // Find the last slash to separate directory path from filename
   lastSlash = strrchr(currentToken, '/');
   if (lastSlash != NULL) {
@@ -1725,6 +1733,14 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
   free(pathCopy);
 
 exit:
+  if (driverState->filesystemState->numOpenFiles == 0) {
+    // We just allocated the buffer above because nothing else is open.
+    // Free the buffer.
+    printDebug("Freeing blockBuffer in exFatFopenWithPath.\n");
+    free(driverState->filesystemState->blockBuffer);
+    driverState->filesystemState->blockBuffer = NULL;
+  }
+  
   free(directoryHandle);
   return returnValue;
 }
