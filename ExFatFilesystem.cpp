@@ -2687,7 +2687,7 @@ void* runExFatFilesystem(void *args) {
   ExFatDriverState *driverState
     = (ExFatDriverState*) calloc(1, sizeof(ExFatDriverState));
   fs->blockDevice = (BlockStorageDevice*) args;
-  fs->blockSize = 512;
+  fs->blockSize = fs->blockDevice->blockSize;
   
   fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
   getPartitionInfo(fs);

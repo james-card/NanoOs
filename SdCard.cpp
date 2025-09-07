@@ -737,11 +737,10 @@ void* runSdCard(void *args) {
     .writeBlocks = sdWriteBlocks,
     .partitionNumber = 0,
   };
-  coroutineYield(&sdDevice);
 
   sdCardState.sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
   if (sdCardState.sdCardVersion > 0) {
-    sdCardState.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
+    sdCardState.blockSize = sdDevice.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
     sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
 #ifdef SD_CARD_DEBUG
     printString("Card is ");
@@ -749,7 +748,7 @@ void* runSdCard(void *args) {
     printString("\n");
 
     printString("Card block size = ");
-    printInt(sdCardState.blockSize);
+    printInt(sdDevice.blockSize);
     printString("\n");
     printLong(sdCardState.numBlocks);
     printString(" total blocks (");
@@ -762,6 +761,7 @@ void* runSdCard(void *args) {
     printInt(sdCardState.sdCardVersion);
     printString("\n");
   }
+  coroutineYield(&sdDevice);
 
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
