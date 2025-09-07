@@ -712,10 +712,8 @@ static ExFatFileHandle* getFreeFileHandle(ExFatDriverState *driverState) {
 /// @param fileHandle Pointer to the ExFatFileHandle to release.
 ///
 /// @return This function always returns NULL.
-static ExFatFileHandle* releaseFileHandle(
-  ExFatDriverState* driverState, ExFatFileHandle *fileHandle
-) {
-  if ((driverState == NULL) || (fileHandle == NULL)) {
+static ExFatFileHandle* releaseFileHandle(ExFatFileHandle *fileHandle) {
+  if (fileHandle == NULL) {
     return NULL;
   }
 
@@ -1364,7 +1362,7 @@ int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
     // Continue with close anyway
   }
 
-  fileHandle->inUse = false;
+  fileHandle = releaseFileHandle(fileHandle);
   
   // Decrement open file count
   if (driverState->filesystemState->numOpenFiles > 0) {
@@ -1758,7 +1756,7 @@ exit:
     driverState->filesystemState->blockBuffer = NULL;
   }
   
-  directoryHandle = releaseFileHandle(driverState, directoryHandle);
+  directoryHandle = releaseFileHandle(directoryHandle);
   return returnValue;
 }
 
@@ -1836,7 +1834,7 @@ static int createDirectory(ExFatDriverState* driverState,
   
   free(dotEntryBuffer);
 exit:
-  tempHandle = releaseFileHandle(driverState, tempHandle);
+  tempHandle = releaseFileHandle(tempHandle);
   return result;
 }
 
@@ -1983,9 +1981,8 @@ ExFatFileHandle* exFatFopenWithPath(ExFatDriverState* driverState,
   // If we got here then either findFileInDirectory failed for read mode
   // or createFileInDirectory failed for write mode. Close the handle.
   if (fileHandle != NULL) {
-    fileHandle->inUse = false;
+    fileHandle = releaseFileHandle(fileHandle);
   }
-  fileHandle = NULL;
   
   if (driverState->filesystemState->numOpenFiles == 0) {
     // We just allocated the buffer above because nothing else is open.
@@ -2310,7 +2307,7 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   
   free(fileName);
 exit:
-  tempHandle = releaseFileHandle(driverState, tempHandle);
+  tempHandle = releaseFileHandle(tempHandle);
   return (result == EXFAT_SUCCESS) ? 0 : -1;
 }
 
