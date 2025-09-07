@@ -908,7 +908,7 @@ int ext4SeekFile(Ext4FileHandle *handle, int64_t offset, int whence) {
 
     // Allow seeking past EOF for writing, but clamp for reading.
     if (newPos < 0) return -1;
-    if (!(handle->mode & Ext4ModeWrite) && (newPos > fileSize)) {
+    if (!(handle->mode & Ext4ModeWrite) && (((uint64_t) newPos) > fileSize)) {
         newPos = fileSize;
     }
 
