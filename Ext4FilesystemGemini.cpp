@@ -35,7 +35,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "Ext4Filesystem.h"
+#include "Ext4FilesystemGemini.h"
 #include "NanoOs.h"
 #include "Filesystem.h"
 
