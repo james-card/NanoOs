@@ -181,19 +181,209 @@ static int readInode(Ext4State *state, uint32_t inodeNum, Ext4Inode *inode) {
     return 0;
 }
 
+/**
+ * @brief Translates a logical block number within a file to a physical block
+ * number on the disk.
+ *
+ * @param state A pointer to the Ext4State structure.
+ * @param inode A pointer to the inode of the file.
+ * @param fileBlockNum The logical block number within the file to look up.
+ *
+ * @return The physical block number on the disk, or 0 if the block is not
+ * allocated (a "hole" in the file) or an error occurs.
+ *
+ * @note This function handles direct, single-, double-, and triple-indirect
+ * block pointers.
+ */
+static uint32_t inodeToBlock(Ext4State *state, Ext4Inode *inode, uint32_t fileBlockNum) {
+    uint32_t logBlockSize;
+    readBytes(&logBlockSize, &state->superblock.sLogBlockSize);
+    uint32_t blockSize = 1024 << logBlockSize;
+    uint32_t pointersPerBlock = blockSize / sizeof(uint32_t);
+
+    // Direct blocks
+    if (fileBlockNum < 12) {
+        uint32_t blockNum;
+        readBytes(&blockNum, &inode->iBlock[fileBlockNum]);
+        return blockNum;
+    }
+
+    // Single-indirect block
+    fileBlockNum -= 12;
+    if (fileBlockNum < pointersPerBlock) {
+        uint32_t indirectBlockNum;
+        readBytes(&indirectBlockNum, &inode->iBlock[12]);
+        if (indirectBlockNum == 0) return 0; // Hole
+
+        if (readBlock(state, indirectBlockNum, state->fsState->blockBuffer) != 0) {
+            return 0; // Read error
+        }
+        uint32_t blockNum;
+        readBytes(&blockNum, state->fsState->blockBuffer + (fileBlockNum * sizeof(uint32_t)));
+        return blockNum;
+    }
+
+    // Double-indirect block
+    fileBlockNum -= pointersPerBlock;
+    uint64_t pointersPerBlockSquared = (uint64_t)pointersPerBlock * pointersPerBlock;
+    if (fileBlockNum < pointersPerBlockSquared) {
+        uint32_t doubleIndirectBlockNum;
+        readBytes(&doubleIndirectBlockNum, &inode->iBlock[13]);
+        if (doubleIndirectBlockNum == 0) return 0; // Hole
+
+        if (readBlock(state, doubleIndirectBlockNum, state->fsState->blockBuffer) != 0) {
+            return 0; // Read error
+        }
+        uint32_t indirectBlockNum;
+        uint32_t indirectBlockIndex = fileBlockNum / pointersPerBlock;
+        readBytes(&indirectBlockNum, state->fsState->blockBuffer + (indirectBlockIndex * sizeof(uint32_t)));
+        if (indirectBlockNum == 0) return 0; // Hole
+
+        if (readBlock(state, indirectBlockNum, state->fsState->blockBuffer) != 0) {
+            return 0; // Read error
+        }
+        uint32_t finalBlockIndex = fileBlockNum % pointersPerBlock;
+        uint32_t blockNum;
+        readBytes(&blockNum, state->fsState->blockBuffer + (finalBlockIndex * sizeof(uint32_t)));
+        return blockNum;
+    }
+    
+    // Triple-indirect block (implementation is analogous but omitted for brevity in many drivers;
+    // adding it for completeness)
+    fileBlockNum -= pointersPerBlockSquared;
+    uint32_t tripleIndirectBlockNum;
+    readBytes(&tripleIndirectBlockNum, &inode->iBlock[14]);
+    if (tripleIndirectBlockNum == 0) return 0; // Hole
+
+    if (readBlock(state, tripleIndirectBlockNum, state->fsState->blockBuffer) != 0) {
+        return 0; // Read error
+    }
+    uint32_t doubleIndirectBlockIndex = fileBlockNum / pointersPerBlockSquared;
+    uint32_t doubleIndirectBlockNum;
+    readBytes(&doubleIndirectBlockNum, state->fsState->blockBuffer + (doubleIndirectBlockIndex * sizeof(uint32_t)));
+    if(doubleIndirectBlockNum == 0) return 0; // Hole
+
+    if (readBlock(state, doubleIndirectBlockNum, state->fsState->blockBuffer) != 0) {
+        return 0; // Read error
+    }
+    uint32_t indirectBlockIndex = (fileBlockNum / pointersPerBlock) % pointersPerBlock;
+    uint32_t indirectBlockNum;
+    readBytes(&indirectBlockNum, state->fsState->blockBuffer + (indirectBlockIndex * sizeof(uint32_t)));
+    if(indirectBlockNum == 0) return 0; // Hole
+
+    if (readBlock(state, indirectBlockNum, state->fsState->blockBuffer) != 0) {
+        return 0; // Read error
+    }
+    uint32_t finalBlockIndex = fileBlockNum % pointersPerBlock;
+    uint32_t blockNum;
+    readBytes(&blockNum, state->fsState->blockBuffer + (finalBlockIndex * sizeof(uint32_t)));
+    return blockNum;
+}
+
+/**
+ * @brief Searches for a named entry within a directory's data blocks.
+ *
+ * @param state A pointer to the Ext4State structure.
+ * @param dirInodeNum The inode number of the directory to search.
+ * @param name The name of the file or subdirectory to find.
+ *
+ * @return The inode number of the found entry, or 0 if not found.
+ */
+static uint32_t findEntryInDir(Ext4State *state, uint32_t dirInodeNum, const char *name) {
+    Ext4Inode dirInode;
+    if (readInode(state, dirInodeNum, &dirInode) != 0) {
+        return 0;
+    }
+
+    uint16_t mode;
+    readBytes(&mode, &dirInode.iMode);
+    if ((mode & EXT4_S_IFDIR) == 0) {
+        return 0; // Not a directory
+    }
+
+    uint32_t logBlockSize;
+    readBytes(&logBlockSize, &state->superblock.sLogBlockSize);
+    uint32_t blockSize = 1024 << logBlockSize;
+    
+    uint32_t dirSize;
+    readBytes(&dirSize, &dirInode.iSizeLo);
+
+    uint32_t numBlocks = (dirSize + blockSize - 1) / blockSize;
+
+    for (uint32_t i = 0; i < numBlocks; ++i) {
+        uint32_t blockNum = inodeToBlock(state, &dirInode, i);
+        if (blockNum == 0) continue; // Hole in directory file
+
+        if (readBlock(state, blockNum, state->fsState->blockBuffer) != 0) {
+            return 0; // Read error
+        }
+
+        uint32_t offset = 0;
+        while (offset < blockSize) {
+            Ext4DirEntry *entry = (Ext4DirEntry*)(state->fsState->blockBuffer + offset);
+
+            uint16_t recLen;
+            readBytes(&recLen, &entry->recLen);
+            if (recLen == 0) break; // End of directory entries in this block
+
+            uint32_t entryInodeNum;
+            readBytes(&entryInodeNum, &entry->inode);
+            uint8_t nameLen;
+            readBytes(&nameLen, &entry->nameLen);
+
+            if (entryInodeNum != 0 && nameLen > 0) {
+                if (strncmp(name, entry->name, nameLen) == 0 && name[nameLen] == '\0') {
+                    return entryInodeNum;
+                }
+            }
+            offset += recLen;
+        }
+    }
+
+    return 0; // Not found
+}
+
 // ... other helper functions like writeInode, findFreeInode, etc. would go here ...
 
+/**
+ * @brief Traverses a full path to find the corresponding inode number.
+ *
+ * @param state A pointer to the Ext4State structure.
+ * @param pathname The null-terminated string representing the full path.
+ *
+ * @return The inode number of the final path component, or 0 if the path or
+ * any of its components are not found.
+ */
 static uint32_t pathToInode(Ext4State *state, const char *pathname) {
-    (void) state;
+    if (pathname == NULL || pathname[0] != '/') {
+        return 0; // Invalid path
+    }
 
     if (strcmp(pathname, "/") == 0) {
         return EXT4_ROOT_INO;
     }
-    // This is a simplified implementation. A full implementation would parse the path.
-    // For now, we only support root.
-    return 0; 
-}
 
+    // strtok modifies the string, so we need to work on a copy.
+    char *pathCopy = (char*)malloc(strlen(pathname) + 1);
+    if (!pathCopy) {
+        return 0; // Out of memory
+    }
+    strcpy(pathCopy, pathname);
+
+    uint32_t currentInode = EXT4_ROOT_INO;
+    char *token = strtok(pathCopy + 1, "/"); // Skip leading '/'
+
+    while (token != NULL) {
+        currentInode = findEntryInDir(state, currentInode, token);
+        if (currentInode == 0) {
+            break; // Component not found
+        }
+        token = strtok(NULL, "/");
+    }
+
+    free(pathCopy);
+    return currentInode;
+}
 
 //
 // Public API Functions
