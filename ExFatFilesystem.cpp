@@ -706,6 +706,12 @@ static ExFatFileHandle* getFreeFileHandle(ExFatDriverState *driverState) {
   return NULL;
 }
 
+/// @brief Release an ExFatFileHandle back to the pool of available file handles.
+///
+/// @param driverState Pointer to driver state.
+/// @param fileHandle Pointer to the ExFatFileHandle to release.
+///
+/// @return This function always returns NULL.
 static ExFatFileHandle* releaseFileHandle(
   ExFatDriverState* driverState, ExFatFileHandle *fileHandle
 ) {
