@@ -1639,19 +1639,26 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
   char* currentToken = NULL;
   char* nextToken = NULL;
   char* lastSlash = NULL;
-  ExFatFileHandle directoryHandle;
   uint32_t currentCluster = driverState->rootDirectoryCluster;
+  int returnValue = EXFAT_SUCCESS;
+  ExFatFileHandle *directoryHandle
+    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  if (directoryHandle == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
   
   if ((driverState == NULL) || (path == NULL) || 
       (targetDirectoryCluster == NULL) || (fileName == NULL)
   ) {
-    return EXFAT_INVALID_PARAMETER;
+    returnValue = EXFAT_INVALID_PARAMETER;
+    goto exit;
   }
   
   // Make a copy of the path for manipulation
   pathCopy = (char*) malloc(strlen(path) + 1);
   if (pathCopy == NULL) {
-    return EXFAT_NO_MEMORY;
+    returnValue = EXFAT_NO_MEMORY;
+    goto exit;
   }
   strcpy(pathCopy, path);
   
@@ -1680,29 +1687,31 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
     
     while (nextToken != NULL) {
       // Look for this directory in the current directory
-      memset(&directoryHandle, 0, sizeof(directoryHandle));
+      memset(directoryHandle, 0, sizeof(*directoryHandle));
       result = findFileInDirectory(driverState, currentCluster,
-        nextToken, &directoryHandle);
+        nextToken, directoryHandle);
       
       if (result != EXFAT_SUCCESS) {
         printDebug("Directory not found: ");
         printDebug(nextToken);
         printDebug("\n");
         free(pathCopy);
-        return EXFAT_FILE_NOT_FOUND;
+        returnValue = EXFAT_FILE_NOT_FOUND;
+        goto exit;
       }
       
       // Verify it's actually a directory
-      if (!(directoryHandle.attributes & EXFAT_ATTR_DIRECTORY)) {
+      if (!(directoryHandle->attributes & EXFAT_ATTR_DIRECTORY)) {
         printDebug("Path component is not a directory: ");
         printDebug(nextToken);
         printDebug("\n");
         free(pathCopy);
-        return EXFAT_FILE_NOT_FOUND;
+        returnValue = EXFAT_FILE_NOT_FOUND;
+        goto exit;
       }
       
       // Move to this directory
-      currentCluster = directoryHandle.firstCluster;
+      currentCluster = directoryHandle->firstCluster;
       
       // Get next directory component
       nextToken = strtok_r(NULL, "/", &savePtr);
@@ -1714,7 +1723,10 @@ static int parsePathAndNavigate(ExFatDriverState* driverState,
   
   *targetDirectoryCluster = currentCluster;
   free(pathCopy);
-  return EXFAT_SUCCESS;
+
+exit:
+  free(directoryHandle);
+  return returnValue;
 }
 
 /// @brief Create a directory in the filesystem
@@ -1728,44 +1740,50 @@ static int createDirectory(ExFatDriverState* driverState,
   uint32_t parentCluster, const char* directoryName
 ) {
   int result = EXFAT_SUCCESS;
-  ExFatFileHandle tempHandle;
   uint32_t newDirectoryCluster = 0;
   uint8_t* dotEntryBuffer = NULL;
+  uint32_t firstSector = 0;
+  ExFatFileHandle *tempHandle
+    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  if (tempHandle == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
   
   if ((driverState == NULL) || (directoryName == NULL)) {
-    return EXFAT_INVALID_PARAMETER;
+    result = EXFAT_INVALID_PARAMETER;
+    goto exit;
   }
   
   // First create the directory entry in the parent directory
   // This is similar to createFileInDirectory but with DIRECTORY attribute
   memset(&tempHandle, 0, sizeof(tempHandle));
   result = createFileInDirectory(driverState, parentCluster,
-    directoryName, &tempHandle);
+    directoryName, tempHandle);
   if (result != EXFAT_SUCCESS) {
-    return result;
+    goto exit;
   }
   
   // Allocate a cluster for the new directory
   result = findFreeCluster(driverState, &newDirectoryCluster);
   if (result != EXFAT_SUCCESS) {
-    return result;
+    goto exit;
   }
   
   // Mark cluster as end of chain
   result = writeFatEntry(driverState, newDirectoryCluster, 0xFFFFFFFF);
   if (result != EXFAT_SUCCESS) {
-    return result;
+    goto exit;
   }
   
   // Update the directory entry with the DIRECTORY attribute and cluster
-  tempHandle.attributes |= EXFAT_ATTR_DIRECTORY;
-  tempHandle.firstCluster = newDirectoryCluster;
-  tempHandle.currentCluster = newDirectoryCluster;
+  tempHandle->attributes |= EXFAT_ATTR_DIRECTORY;
+  tempHandle->firstCluster = newDirectoryCluster;
+  tempHandle->currentCluster = newDirectoryCluster;
   
   // Update the directory entry in the parent
-  result = updateDirectoryEntry(driverState, &tempHandle);
+  result = updateDirectoryEntry(driverState, tempHandle);
   if (result != EXFAT_SUCCESS) {
-    return result;
+    goto exit;
   }
   
   // Initialize the new directory with "." and ".." entries
@@ -1773,10 +1791,11 @@ static int createDirectory(ExFatDriverState* driverState,
   // for compatibility. Many exFAT implementations omit them.
   
   // Clear the first sector of the new directory
-  uint32_t firstSector = clusterToSector(driverState, newDirectoryCluster);
+  firstSector = clusterToSector(driverState, newDirectoryCluster);
   dotEntryBuffer = (uint8_t*) malloc(driverState->bytesPerSector);
   if (dotEntryBuffer == NULL) {
-    return EXFAT_NO_MEMORY;
+    result = EXFAT_NO_MEMORY;
+    goto exit;
   }
   memset(dotEntryBuffer, 0, driverState->bytesPerSector);
   
@@ -1784,6 +1803,8 @@ static int createDirectory(ExFatDriverState* driverState,
   result = writeSector(driverState, firstSector, dotEntryBuffer);
   
   free(dotEntryBuffer);
+exit:
+  free(tempHandle);
   return result;
 }
 
@@ -2176,16 +2197,23 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   int result = 0;
   uint32_t targetDirectoryCluster = 0;
   char* fileName = NULL;
-  ExFatFileHandle tempHandle;
+  uint32_t currentCluster = 0;
+  ExFatFileHandle *tempHandle
+    = (ExFatFileHandle*) malloc(sizeof(ExFatFileHandle));;
+  if (tempHandle == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
   
   if ((driverState == NULL) || (pathname == NULL)) {
-    return -1;
+    result = -1;
+    goto exit;
   }
   
   // Allocate buffer for filename
   fileName = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
   if (fileName == NULL) {
-    return -1;
+    result = -1;
+    goto exit;
   }
   
   // Parse the path and navigate to target directory
@@ -2193,7 +2221,8 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
     &targetDirectoryCluster, fileName);
   if (result != EXFAT_SUCCESS) {
     free(fileName);
-    return -1;
+    result = -1;
+    goto exit;
   }
   
   if (driverState->filesystemState->numOpenFiles == 0) {
@@ -2201,13 +2230,14 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
       driverState->filesystemState->blockSize);
     if (driverState->filesystemState->blockBuffer == NULL) {
       free(fileName);
-      return -1;
+      result = -1;
+      goto exit;
     }
   }
   
   // Find the file in the target directory
   result = findFileInDirectory(driverState, targetDirectoryCluster,
-    fileName, &tempHandle);
+    fileName, tempHandle);
   
   if (driverState->filesystemState->numOpenFiles == 0) {
     // We just allocated the buffer for our directory search. Free it now.
@@ -2217,23 +2247,26 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
   
   if (result != EXFAT_SUCCESS) {
     free(fileName);
-    return -1;
+    result = -1;
+    goto exit;
   }
   
   // Free all clusters used by the file
-  uint32_t currentCluster = tempHandle.firstCluster;
+  currentCluster = tempHandle->firstCluster;
   while ((currentCluster != 0xFFFFFFFF) && (currentCluster != 0)) {
     uint32_t nextCluster;
     result = readFatEntry(driverState, currentCluster, &nextCluster);
     if (result != EXFAT_SUCCESS) {
       free(fileName);
-      return -1;
+      result = -1;
+      goto exit;
     }
     
     result = writeFatEntry(driverState, currentCluster, 0);
     if (result != EXFAT_SUCCESS) {
       free(fileName);
-      return -1;
+      result = -1;
+      goto exit;
     }
     
     currentCluster = nextCluster;
@@ -2245,6 +2278,8 @@ int exFatRemoveWithPath(ExFatDriverState* driverState, const char* pathname) {
     fileName);
   
   free(fileName);
+exit:
+  free(tempHandle);
   return (result == EXFAT_SUCCESS) ? 0 : -1;
 }
 
