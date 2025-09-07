@@ -859,7 +859,7 @@ int exFatSeek(ExFatDriverState* driverState, ExFatFileHandle* fileHandle,
   return 0;
 }
 
-/// @brief Update directory entry with current file information (FIXED VERSION)
+/// @brief Fixed updateDirectoryEntry function with proper aligned access
 ///
 /// @param driverState Pointer to driver state
 /// @param fileHandle File handle containing current file information
@@ -950,6 +950,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
         
         if (entryType == EXFAT_ENTRY_FILE) {
           ExFatFileDirectoryEntry tempFileEntry;
+          // FIX: Use aligned access for packed structure
           readBytes(&tempFileEntry, entryPtr);
           
           // Check if next entry is stream extension
@@ -996,6 +997,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
             }
             
             ExFatFileNameEntry nameEntry;
+            // FIX: Use aligned access for packed structure
             readBytes(&nameEntry, nameEntryPtr);
             
             // Extract up to 15 characters from this name entry
@@ -1004,6 +1006,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
                  charIdx++
             ) {
               uint16_t nameChar;
+              // FIX: Use aligned access for UTF-16 characters
               readBytes(&nameChar, &nameEntry.fileName[charIdx]);
               if (nameChar == 0) {
                 nameComplete = true;
@@ -1031,7 +1034,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
               fileEntryOffset = entryOffset;
               streamEntryOffset = nextEntryOffset;
               
-              // Read the entries
+              // Read the entries with aligned access
               readBytes(&fileEntry, entryPtr);
               readBytes(&streamEntry, streamPtr);
               break;
@@ -1080,7 +1083,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   streamEntry.dataLength = fileHandle->fileSize;
   streamEntry.validDataLength = fileHandle->fileSize;
 
-  // Write updated stream entry back to sector buffer
+  // FIX: Use aligned access to write updated stream entry back to sector buffer
   writeBytes(filesystemState->blockBuffer + streamEntryOffset, &streamEntry);
 
   // Calculate new checksum for the entire entry set
@@ -1118,7 +1121,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   printDebug(newChecksum, HEX);
   printDebug("\n");
 
-  // Update file entry with new checksum
+  // FIX: Update file entry with new checksum using aligned access
   writeBytes(entrySetBuffer + 2, &newChecksum);
   writeBytes(filesystemState->blockBuffer + fileEntryOffset, entrySetBuffer);
 
@@ -1143,7 +1146,7 @@ cleanup:
   return result;
 }
 
-/// @brief Enhanced exFAT write function with directory entry updates
+/// @brief Fixed enhanced exFAT write function with proper cluster allocation
 ///
 /// @param driverState Pointer to driver state
 /// @param ptr Buffer containing data to write
@@ -1175,31 +1178,57 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
     uint32_t sectorInCluster = clusterOffset / driverState->bytesPerSector;
     uint32_t offsetInSector = clusterOffset % driverState->bytesPerSector;
     
-    // Check if we need to allocate a new cluster
+    // FIX: Check if we need to allocate a new cluster
+    // This condition was incorrect - we need a cluster when currentCluster is 0
+    // OR when we're at the start of a new cluster boundary and need more space
     if (fileHandle->currentCluster == 0 || 
         (clusterOffset == 0 && fileHandle->currentPosition > 0)) {
-      uint32_t newCluster;
-      int result = findFreeCluster(driverState, &newCluster);
-      if (result != EXFAT_SUCCESS) {
-        break;
-      }
+      
+      // Check if current cluster has a next cluster when we're at boundary
+      if (fileHandle->currentCluster != 0 && clusterOffset == 0) {
+        uint32_t nextCluster;
+        int result = readFatEntry(driverState, fileHandle->currentCluster, 
+                                  &nextCluster);
+        if (result == EXFAT_SUCCESS && nextCluster != 0xFFFFFFFF) {
+          // We have a next cluster, use it
+          fileHandle->currentCluster = nextCluster;
+        } else {
+          // Need to allocate a new cluster and link it
+          uint32_t newCluster;
+          result = findFreeCluster(driverState, &newCluster);
+          if (result != EXFAT_SUCCESS) {
+            break;
+          }
 
-      if (fileHandle->currentCluster == 0) {
-        fileHandle->firstCluster = newCluster;
-        fileHandle->currentCluster = newCluster;
-        needDirectoryUpdate = true;
+          result = writeFatEntry(driverState, fileHandle->currentCluster, 
+                                 newCluster);
+          if (result != EXFAT_SUCCESS) {
+            break;
+          }
+
+          result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
+          if (result != EXFAT_SUCCESS) {
+            break;
+          }
+
+          fileHandle->currentCluster = newCluster;
+        }
       } else {
-        result = writeFatEntry(driverState, fileHandle->currentCluster, 
-                               newCluster);
+        // First cluster allocation
+        uint32_t newCluster;
+        int result = findFreeCluster(driverState, &newCluster);
         if (result != EXFAT_SUCCESS) {
           break;
         }
-        fileHandle->currentCluster = newCluster;
-      }
 
-      result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
-      if (result != EXFAT_SUCCESS) {
-        break;
+        fileHandle->firstCluster = newCluster;
+        fileHandle->currentCluster = newCluster;
+        needDirectoryUpdate = true;
+
+        result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
+        if (result != EXFAT_SUCCESS) {
+          break;
+        }
       }
     }
 
@@ -1239,8 +1268,10 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
       needDirectoryUpdate = true;
     }
 
-    // Check if we need to move to next cluster
-    if ((fileHandle->currentPosition % driverState->bytesPerCluster) == 0) {
+    // FIX: Only check for next cluster when we're exactly at cluster boundary
+    // and have more data to write
+    if ((fileHandle->currentPosition % driverState->bytesPerCluster) == 0 &&
+        bytesWritten < totalBytes) {
       uint32_t nextCluster;
       result = readFatEntry(driverState, fileHandle->currentCluster, 
                             &nextCluster);
@@ -1248,7 +1279,7 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
         break;
       }
       
-      if (nextCluster == 0xFFFFFFFF && bytesWritten < totalBytes) {
+      if (nextCluster == 0xFFFFFFFF) {
         // Need to allocate another cluster
         uint32_t newCluster;
         result = findFreeCluster(driverState, &newCluster);
@@ -1268,7 +1299,7 @@ int32_t exFatWrite(ExFatDriverState* driverState, const void* ptr,
         }
 
         fileHandle->currentCluster = newCluster;
-      } else if (nextCluster != 0xFFFFFFFF) {
+      } else {
         fileHandle->currentCluster = nextCluster;
       }
     }
@@ -1333,7 +1364,7 @@ int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
   return 0;
 }
 
-/// @brief Fixed createFileInDirectory function
+/// @brief Fixed createFileInDirectory function with proper aligned access
 ///
 /// @param driverState Pointer to driver state
 /// @param directoryCluster Directory cluster to create file in
@@ -1498,11 +1529,11 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     memset(&nameEntry, 0, sizeof(nameEntry));
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     
-    // Copy up to 15 characters
+    // FIX: Use aligned access for UTF-16 characters
     for (int charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
          charIdx++
     ) {
-      nameEntry.fileName[charIdx] = utf16Name[nameEntryIndex];
+      writeBytes(&nameEntry.fileName[charIdx], &utf16Name[nameEntryIndex]);
       nameEntryIndex++;
     }
 
@@ -1514,8 +1545,8 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   // Calculate checksum for the entry set
   checksum = calculateDirectorySetChecksum(entryBuffer, entriesNeeded);
   
-  // Set checksum in file entry
-  memcpy(entryBuffer + 2, &checksum, sizeof(checksum));
+  // FIX: Set checksum in file entry using aligned access
+  writeBytes(entryBuffer + 2, &checksum);
 
   // Write all entries to disk
   currentWriteCluster = firstFreeEntryCluster;
