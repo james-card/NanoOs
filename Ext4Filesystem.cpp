@@ -164,7 +164,7 @@ typedef struct __attribute__((packed)) {
     // ... other group descriptor fields ...
 } Ext4GroupDesc;
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed)) Ext4Inode {
     uint16_t iMode;
     uint16_t iUid;
     uint32_t iSizeLo;

@@ -44,35 +44,29 @@ extern "C" {
 #endif
 
 // Forward declarations
-struct Ext4State;
-struct Ext4Inode;
+typedef struct Ext4State Ext4State;
+typedef struct Ext4Inode Ext4Inode;
 
 // Ext4 File Handle Structure
 typedef struct Ext4FileHandle {
     uint32_t inodeNum;
     uint64_t pos;
     uint8_t mode;
-    struct Ext4State *state;
+    Ext4State *state;
     struct Ext4FileHandle *next;
 } Ext4FileHandle;
 
 
 // Driver Functions
-int ext4Mount(FilesystemState *fsState, struct Ext4State **state);
-int ext4Unmount(struct Ext4State *state);
-Ext4FileHandle* ext4OpenFile(struct Ext4State *state, const char *pathname, const char *mode);
+int ext4Mount(FilesystemState *fsState, Ext4State **state);
+int ext4Unmount(Ext4State *state);
+Ext4FileHandle* ext4OpenFile(Ext4State *state, const char *pathname, const char *mode);
 int ext4CloseFile(Ext4FileHandle *handle);
 int32_t ext4ReadFile(Ext4FileHandle *handle, void *buffer, uint32_t length);
 int32_t ext4WriteFile(Ext4FileHandle *handle, const void *buffer, uint32_t length);
-int ext4RemoveFile(struct Ext4State *state, const char *pathname);
+int ext4RemoveFile(Ext4State *state, const char *pathname);
 int ext4SeekFile(Ext4FileHandle *handle, int64_t offset, int whence);
-int ext4CreateDir(struct Ext4State *state, const char *pathname);
-
-// Helper function prototypes (optional to expose, but good for context)
-int writeInode(struct Ext4State *state, uint32_t inodeNum, struct Ext4Inode *inode);
-uint64_t findAndAllocateFreeBlock(struct Ext4State *state, uint32_t preferredGroup);
-uint64_t allocateBlockForInode(Ext4FileHandle *handle, struct Ext4Inode *inode, uint32_t fileBlockNum);
-
+int ext4CreateDir(Ext4State *state, const char *pathname);
 
 #ifdef __cplusplus
 }
