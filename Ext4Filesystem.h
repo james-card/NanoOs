@@ -45,6 +45,7 @@ extern "C" {
 
 // Forward declarations
 struct Ext4State;
+struct Ext4Inode;
 
 // Ext4 File Handle Structure
 typedef struct Ext4FileHandle {
@@ -66,6 +67,11 @@ int32_t ext4WriteFile(Ext4FileHandle *handle, const void *buffer, uint32_t lengt
 int ext4RemoveFile(struct Ext4State *state, const char *pathname);
 int ext4SeekFile(Ext4FileHandle *handle, int64_t offset, int whence);
 int ext4CreateDir(struct Ext4State *state, const char *pathname);
+
+// Helper function prototypes (optional to expose, but good for context)
+int writeInode(struct Ext4State *state, uint32_t inodeNum, struct Ext4Inode *inode);
+uint64_t findAndAllocateFreeBlock(struct Ext4State *state, uint32_t preferredGroup);
+uint64_t allocateBlockForInode(Ext4FileHandle *handle, struct Ext4Inode *inode, uint32_t fileBlockNum);
 
 
 #ifdef __cplusplus
