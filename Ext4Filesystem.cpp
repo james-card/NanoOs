@@ -522,10 +522,11 @@ static uint32_t pathToInode(Ext4State *state, const char *pathname) {
         return EXT4_ROOT_INO;
     }
 
-    char *pathCopy = strdup(pathname);
+    char *pathCopy = (char*) malloc(strlen(pathname) + 1);
     if (!pathCopy) {
         return 0; // Out of memory
     }
+    strcpy(pathCopy, pathname);
 
     uint32_t currentInode = EXT4_ROOT_INO;
     char *token = strtok(pathCopy + 1, "/");
@@ -685,14 +686,20 @@ static int parsePath(const char *pathname, char **parentPath, char **fileName) {
         *parentPath = (char*)malloc(2);
         if (!*parentPath) return -1;
         strcpy(*parentPath, "/");
-        *fileName = strdup(lastSlash + 1);
+        *fileName = (char*) malloc(strlen(lastSlash + 1) + 1);
+        if (*fileName != NULL) {
+            strcpy(*fileName, lastSlash + 1);
+        }
     } else { // Path is in a subdirectory, e.g., "/dir/file.txt"
         size_t parentLen = lastSlash - pathname;
         *parentPath = (char*)malloc(parentLen + 1);
         if (!*parentPath) return -1;
         strncpy(*parentPath, pathname, parentLen);
         (*parentPath)[parentLen] = '\0';
-        *fileName = strdup(lastSlash + 1);
+        *fileName = (char*) malloc(strlen(lastSlash + 1) + 1);
+        if (*fileName != NULL) {
+            strcpy(*fileName, lastSlash + 1);
+        }
     }
 
     if (!*fileName) {
@@ -1303,8 +1310,79 @@ int32_t ext4ReadFile(Ext4FileHandle *handle, void *buffer, uint32_t length) {
 }
 
 int32_t ext4WriteFile(Ext4FileHandle *handle, const void *buffer, uint32_t length) {
-    // Stub, not fully implemented
-    return -1;
+    if (!handle || !(handle->mode & Ext4ModeWrite)) {
+        return -1;
+    }
+    if (length == 0) return 0;
+
+    Ext4State* state = handle->state;
+    Ext4Inode inode;
+    if (readInode(state, handle->inodeNum, &inode) != 0) {
+        return -1;
+    }
+    
+    uint32_t logBlockSize;
+    readBytes(&logBlockSize, &state->superblock.sLogBlockSize);
+    uint32_t blockSize = 1024 << logBlockSize;
+
+    uint32_t bytesWritten = 0;
+    const uint8_t* data = (const uint8_t*)buffer;
+
+    while (bytesWritten < length) {
+        uint32_t fileBlockNum = handle->pos / blockSize;
+        uint32_t offsetInBlock = handle->pos % blockSize;
+
+        uint64_t physBlock = allocateBlockForInode(handle->state,
+            handle->inodeNum, &inode, fileBlockNum);
+        if (physBlock == 0) {
+            // Allocation failed, break and return bytes written so far
+            break; 
+        }
+
+        uint32_t toWrite = blockSize - offsetInBlock;
+        if (bytesWritten + toWrite > length) {
+            toWrite = length - bytesWritten;
+        }
+
+        // If not writing a full block, we need to read the original content
+        // first
+        if (toWrite < blockSize) {
+            if (readBlock(state, physBlock, state->fsState->blockBuffer) != 0) {
+                break; // Read error
+            }
+        }
+
+        // Copy new data into the buffer and write it back
+        memcpy(state->fsState->blockBuffer + offsetInBlock,
+            data + bytesWritten, toWrite);
+        if (writeBlock(state, physBlock, state->fsState->blockBuffer) != 0) {
+            break; // Write error
+        }
+
+        bytesWritten += toWrite;
+        handle->pos += toWrite;
+    }
+
+    // Update inode size if we wrote past the end of the file
+    uint64_t currentSize = getInodeSize(state, &inode);
+    if (handle->pos > currentSize) {
+        setInodeSize(state, &inode, handle->pos);
+    }
+    
+    // Update modification time (simplified)
+    // A real implementation would get the current time from the OS.
+    uint32_t mtime;
+    readBytes(&mtime, &inode.iMtime);
+    mtime++;
+    writeBytes(&inode.iMtime, &mtime);
+
+    // Write the updated inode back to disk
+    if (writeInode(state, handle->inodeNum, &inode) != 0) {
+        // This is a serious error, filesystem might be inconsistent
+        return -1;
+    }
+
+    return bytesWritten;
 }
 
 int ext4RemoveFile(Ext4State *state, const char *pathname) {
