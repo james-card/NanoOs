@@ -253,7 +253,10 @@ void* startCommand(void *args) {
 
   schedulerCloseAllFileDescriptors();
 
-  // Gracefully clear out our message queue.
+  // Gracefully clear out our message queue.  We have to do this after closing
+  // our file descriptors (which is a blocking call) because some other process
+  // may be in the middle of sending us data and if we were to do this first,
+  // it could turn around and send us more data again.
   msg_t *msg = processMessageQueuePop();
   while (msg != NULL) {
     processMessageSetDone(msg);
