@@ -1038,6 +1038,6 @@ long fat16FilesystemFTell(FILE *stream) {
     return -1;
   }
 
-  return (long) ((Fat16File*) stream->file)->fileSize;
+  return (long) ((Fat16File*) stream->file)->currentPosition;
 }
 

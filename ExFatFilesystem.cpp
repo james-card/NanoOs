@@ -2723,6 +2723,6 @@ long exFatFilesystemFTell(FILE *stream) {
     return -1;
   }
 
-  return (long) ((ExFatFileHandle*) stream->file)->fileSize;
+  return (long) ((ExFatFileHandle*) stream->file)->currentPosition;
 }
 
