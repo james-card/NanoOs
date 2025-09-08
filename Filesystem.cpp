@@ -3,9 +3,12 @@
 // Partition table constants
 #define PARTITION_TABLE_OFFSET 0x1BE
 #define PARTITION_ENTRY_SIZE 16
+
 #define PARTITION_TYPE_NTFS_EXFAT 0x07
 #define PARTITION_TYPE_FAT16_LBA 0x0E
 #define PARTITION_TYPE_FAT16_LBA_EXTENDED 0x1E
+#define PARTITION_TYPE_LINUX 0x83
+
 #define PARTITION_LBA_OFFSET 8
 #define PARTITION_SECTORS_OFFSET 12
 
@@ -38,6 +41,7 @@ int getPartitionInfo(FilesystemState *fs) {
   if ((type == PARTITION_TYPE_FAT16_LBA)
     || (type == PARTITION_TYPE_FAT16_LBA_EXTENDED)
     || (type == PARTITION_TYPE_NTFS_EXFAT)
+    || (type == PARTITION_TYPE_LINUX)
   ) {
     uint32_t lbaValue, sectorsValue;
     
