@@ -335,6 +335,7 @@ typedef struct Ext4State {
   uint32_t blocksPerGroup;
   Ext4GroupDesc *groupDescs;
   Ext4FileHandle *openFiles;
+  bool driverStateValid; // Whether or not this is a valid state
 } Ext4State;
 
 // Forward declarations
@@ -458,6 +459,7 @@ int ext4Initialize(Ext4State *state) {
   }
   
   state->openFiles = NULL;
+  state->driverStateValid = true;
   return 0;
 }
 
@@ -1324,8 +1326,10 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
 /// @param pathname The path to the file
 /// @param mode The mode to open the file in
 ///
-/// @return File handle, or NULL on error
-FILE* ext4Open(Ext4State *state, const char *pathname, const char *mode) {
+/// @return A pointer to a Ext4FileHandle on success, or NULL on error
+Ext4FileHandle* ext4Open(Ext4State *state,
+  const char *pathname, const char *mode
+) {
   if (!state || !pathname || !mode) {
     return NULL;
   }
@@ -1344,18 +1348,22 @@ FILE* ext4Open(Ext4State *state, const char *pathname, const char *mode) {
   bool create = false;
   bool truncate = false;
   
-  if (strchr(mode, 'r')) {
+  if (mode[0] == 'r') {
     openMode |= EXT4_MODE_READ;
   }
-  if (strchr(mode, 'w')) {
+  if (mode[0] == 'w') {
     openMode |= EXT4_MODE_WRITE;
     create = true;
     truncate = true;
   }
-  if (strchr(mode, 'a')) {
+  if (mode[0] == 'a') {
     openMode |= EXT4_MODE_WRITE | EXT4_MODE_APPEND;
   }
-  if (strchr(mode, '+')) {
+  if (openMode == 0) {
+    // Invalid mode.
+    return NULL;
+  }
+  if (mode[1] == '+') {
     openMode |= EXT4_MODE_READ | EXT4_MODE_WRITE;
   }
   
@@ -1528,7 +1536,7 @@ FILE* ext4Open(Ext4State *state, const char *pathname, const char *mode) {
   state->filesystemState->numOpenFiles++;
   
   // Return handle cast to FILE*
-  return (FILE*)handle;
+  return handle;
 }
 
 /// @brief Close a file
@@ -1537,12 +1545,10 @@ FILE* ext4Open(Ext4State *state, const char *pathname, const char *mode) {
 /// @param stream The file handle to close
 ///
 /// @return 0 on success, negative on error
-int ext4Close(Ext4State *state, FILE *stream) {
-  if (!state || !stream) {
+int ext4Close(Ext4State *state, Ext4FileHandle *handle) {
+  if (!state || !handle) {
     return -1;
   }
-  
-  Ext4FileHandle *handle = (Ext4FileHandle*)stream;
   
   // Remove from open files list
   Ext4FileHandle **current = &state->openFiles;
@@ -1565,11 +1571,14 @@ int ext4Close(Ext4State *state, FILE *stream) {
   }
   free(handle);
   
-  state->filesystemState->numOpenFiles--;
+  if (state->filesystemState->numOpenFiles > 0) {
+    state->filesystemState->numOpenFiles--;
+  }
   
   // Free block buffer if no more open files
   if (state->filesystemState->numOpenFiles == 0 && 
-      state->filesystemState->blockBuffer) {
+      state->filesystemState->blockBuffer
+  ) {
     free(state->filesystemState->blockBuffer);
     state->filesystemState->blockBuffer = NULL;
   }
@@ -1585,14 +1594,13 @@ int ext4Close(Ext4State *state, FILE *stream) {
 /// @param nmemb Number of elements
 /// @param stream File handle
 ///
-/// @return Number of elements read
-size_t ext4Read(Ext4State *state, void *ptr, size_t size, size_t nmemb,
-    FILE *stream) {
-  if (!state || !ptr || !stream || size == 0 || nmemb == 0) {
+/// @return Number of bytes read
+size_t ext4Read(Ext4State *state,
+  void *ptr, uint32_t totalBytes, Ext4FileHandle *handle
+) {
+  if (!state || !ptr || !handle || totalBytes == 0) {
     return 0;
   }
-  
-  Ext4FileHandle *handle = (Ext4FileHandle*)stream;
   
   if (!(handle->mode & EXT4_MODE_READ)) {
     return 0;
@@ -1603,7 +1611,6 @@ size_t ext4Read(Ext4State *state, void *ptr, size_t size, size_t nmemb,
   readBytes(&sizeHi, &handle->inode->sizeHi);
   uint64_t fileSize = ((uint64_t)sizeHi << 32) | sizeLo;
   
-  size_t totalBytes = size * nmemb;
   if (handle->currentPosition >= fileSize) {
     return 0;
   }
@@ -1646,7 +1653,7 @@ size_t ext4Read(Ext4State *state, void *ptr, size_t size, size_t nmemb,
   }
   
   free(blockBuffer);
-  return bytesRead / size;
+  return bytesRead;
 }
 
 /// @brief Write to a file
@@ -1657,21 +1664,19 @@ size_t ext4Read(Ext4State *state, void *ptr, size_t size, size_t nmemb,
 /// @param nmemb Number of elements
 /// @param stream File handle
 ///
-/// @return Number of elements written
-size_t ext4Write(Ext4State *state, const void *ptr, size_t size, 
-    size_t nmemb, FILE *stream) {
-  if (!state || !ptr || !stream || size == 0 || nmemb == 0) {
+/// @return Number of bytes written
+size_t ext4Write(Ext4State *state,
+  const void *ptr, uint32_t totalBytes, Ext4FileHandle *handle
+) {
+  if (!state || !ptr || !handle || totalBytes == 0) {
     return 0;
   }
-  
-  Ext4FileHandle *handle = (Ext4FileHandle*)stream;
   
   if (!(handle->mode & EXT4_MODE_WRITE)) {
     return 0;
   }
   
   const uint8_t *buffer = (const uint8_t*)ptr;
-  size_t totalBytes = size * nmemb;
   size_t bytesWritten = 0;
   
   uint8_t *blockBuffer = (uint8_t*) malloc(state->blockSize);
@@ -1742,7 +1747,7 @@ size_t ext4Write(Ext4State *state, const void *ptr, size_t size,
   }
   
   free(blockBuffer);
-  return bytesWritten / size;
+  return bytesWritten;
 }
 
 /// @brief Remove a file or directory
@@ -1843,12 +1848,10 @@ int ext4Remove(Ext4State *state, const char *pathname) {
 /// @param whence The seek mode
 ///
 /// @return 0 on success, negative on error
-int ext4Seek(Ext4State *state, FILE *stream, long offset, int whence) {
-  if (!state || !stream) {
+int ext4Seek(Ext4State *state, Ext4FileHandle *handle, long offset, int whence) {
+  if (!state || !handle) {
     return -1;
   }
-  
-  Ext4FileHandle *handle = (Ext4FileHandle*)stream;
   
   uint32_t sizeLo, sizeHi;
   readBytes(&sizeLo, &handle->inode->sizeLo);
@@ -2056,3 +2059,293 @@ int ext4MkDir(Ext4State *state, const char *pathname) {
   free(pathCopy);
   return 0;
 }
+
+/// @typedef Ext4CommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*Ext4CommandHandler)(Ext4State*, ProcessMessage*);
+
+/// @fn int ext4FilesystemOpenFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_OPEN_FILE command.
+///
+/// @param filesystemState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemOpenFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  NanoOsFile *nanoOsFile = NULL;
+  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
+  const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
+  if (driverState->driverStateValid) {
+    Ext4FileHandle *ext4File = ext4Open(driverState, pathname, mode);
+    if (ext4File != NULL) {
+      nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
+      nanoOsFile->file = ext4File;
+    }
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) nanoOsFile;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
+/// @fn int ext4FilesystemCloseFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
+///
+/// @param driverState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemCloseFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  (void) driverState;
+
+  NanoOsFile *nanoOsFile
+    = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
+  Ext4FileHandle *ext4File = (Ext4FileHandle*) nanoOsFile->file;
+  free(nanoOsFile);
+  if (driverState->driverStateValid) {
+    ext4Close(driverState, ext4File);
+  }
+
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
+/// @fn int ext4FilesystemReadFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_READ_FILE command.
+///
+/// @param driverState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemReadFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  FilesystemIoCommandParameters *filesystemIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  int32_t returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = ext4Read(driverState,
+      filesystemIoCommandParameters->buffer,
+      filesystemIoCommandParameters->length, 
+      (Ext4FileHandle*) filesystemIoCommandParameters->file->file);
+    if (returnValue >= 0) {
+      // Return value is the number of bytes read.  Set the length variable to
+      // it and set it to 0 to indicate good status.
+      filesystemIoCommandParameters->length = returnValue;
+      returnValue = 0;
+    } else {
+      // Return value is a negative error code.  Negate it.
+      returnValue = -returnValue;
+      // Tell the caller that we read nothing.
+      filesystemIoCommandParameters->length = 0;
+    }
+  }
+
+  processMessageSetDone(processMessage);
+  return returnValue;
+}
+
+/// @fn int ext4FilesystemWriteFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_WRITE_FILE command.
+///
+/// @param driverState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemWriteFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  FilesystemIoCommandParameters *filesystemIoCommandParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = ext4Write(driverState,
+      (uint8_t*) filesystemIoCommandParameters->buffer,
+      filesystemIoCommandParameters->length,
+      (Ext4FileHandle*) filesystemIoCommandParameters->file->file);
+    if (returnValue >= 0) {
+      // Return value is the number of bytes written.  Set the length variable
+      // to it and set it to 0 to indicate good status.
+      filesystemIoCommandParameters->length = returnValue;
+      returnValue = 0;
+    } else {
+      // Return value is a negative error code.  Negate it.
+      returnValue = -returnValue;
+      // Tell the caller that we wrote nothing.
+      filesystemIoCommandParameters->length = 0;
+    }
+  }
+
+  processMessageSetDone(processMessage);
+  return returnValue;
+}
+
+/// @fn int ext4FilesystemRemoveFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
+///
+/// @param driverState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemRemoveFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = ext4Remove(driverState, pathname);
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
+/// @fn int ext4FilesystemSeekFileCommandHandler(
+///   Ext4State *driverState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for FILESYSTEM_SEEK_FILE command.
+///
+/// @param driverState A pointer to the FilesystemState object maintained
+///   by the filesystem process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the filesystem process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int ext4FilesystemSeekFileCommandHandler(
+  Ext4State *driverState, ProcessMessage *processMessage
+) {
+  FilesystemSeekParameters *filesystemSeekParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
+  int returnValue = 0;
+  if (driverState->driverStateValid) {
+    returnValue = ext4Seek(driverState,
+      (Ext4FileHandle*) filesystemSeekParameters->stream->file,
+      filesystemSeekParameters->offset,
+      filesystemSeekParameters->whence);
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (intptr_t) returnValue;
+  processMessageSetDone(processMessage);
+  return 0;
+}
+
+/// @var filesystemCommandHandlers
+///
+/// @brief Array of Ext4CommandHandler function pointers.
+const Ext4CommandHandler filesystemCommandHandlers[] = {
+  ext4FilesystemOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
+  ext4FilesystemCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
+  ext4FilesystemReadFileCommandHandler,   // FILESYSTEM_READ_FILE
+  ext4FilesystemWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
+  ext4FilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
+  ext4FilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
+};
+
+
+/// @fn static void ext4HandleFilesystemMessages(FilesystemState *fs)
+///
+/// @brief Pop and handle all messages in the filesystem process's message
+/// queue until there are no more.
+///
+/// @param fs A pointer to the FilesystemState object maintained by the
+///   filesystem process.
+///
+/// @return This function returns no value.
+static void ext4HandleFilesystemMessages(Ext4State *driverState) {
+  ProcessMessage *msg = processMessageQueuePop();
+  while (msg != NULL) {
+    FilesystemCommandResponse type = 
+      (FilesystemCommandResponse) processMessageType(msg);
+    if (type < NUM_FILESYSTEM_COMMANDS) {
+      filesystemCommandHandlers[type](driverState, msg);
+    }
+    msg = processMessageQueuePop();
+  }
+}
+
+/// @fn void* runExt4Filesystem(void *args)
+///
+/// @brief Main process entry point for the FAT16 filesystem process.
+///
+/// @param args A pointer to an initialized BlockStorageDevice structure cast
+///   to a void*.
+///
+/// @return This function never returns, but would return NULL if it did.
+void* runExt4Filesystem(void *args) {
+  coroutineYield(NULL);
+  FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
+  fs->blockDevice = (BlockStorageDevice*) args;
+  fs->blockSize = fs->blockDevice->blockSize;
+  Ext4State *driverState
+    = (Ext4State*) calloc(1, sizeof(Ext4State));
+  driverState->filesystemState = fs;
+  
+  fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+  getPartitionInfo(fs);
+  ext4Initialize(driverState);
+  free(fs->blockBuffer); fs->blockBuffer = NULL;
+  
+  ProcessMessage *msg = NULL;
+  while (1) {
+    msg = (ProcessMessage*) coroutineYield(NULL);
+    if (msg) {
+      FilesystemCommandResponse type = 
+        (FilesystemCommandResponse) processMessageType(msg);
+      if (type < NUM_FILESYSTEM_COMMANDS) {
+        filesystemCommandHandlers[type](driverState, msg);
+      }
+    } else {
+      ext4HandleFilesystemMessages(driverState);
+    }
+  }
+  return NULL;
+}
+
+/// @fn long ext4FilesystemFTell(FILE *stream)
+///
+/// @brief Get the current value of the position indicator of a
+/// previously-opened file.
+///
+/// @param stream A pointer to a previously-opened file.
+///
+/// @return Returns the current position of the file on success, -1 on failure.
+long ext4FilesystemFTell(FILE *stream) {
+  if (stream == NULL) {
+    return -1;
+  }
+
+  return (long) ((Ext4FileHandle*) stream->file)->currentPosition;
+}
+
