@@ -30,8 +30,7 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "NanoOs.h"
-#include "Filesystem.h"
+#include "Ext4FilesystemClaude.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -327,7 +326,6 @@ typedef struct Ext4FileHandle {
 typedef struct Ext4State {
   FilesystemState *filesystemState;
   Ext4Superblock *superblock;
-  uint32_t blockSize;
   uint32_t inodeSize;
   uint32_t groupDescSize;
   uint32_t groupsCount;
@@ -398,8 +396,7 @@ int ext4Initialize(Ext4State *state) {
   }
   
   // Copy superblock data
-  copyBytes(state->superblock, tempBuffer + sbOffset, 
-    sizeof(Ext4Superblock));
+  memcpy(state->superblock, tempBuffer + sbOffset, sizeof(Ext4Superblock));
   free(tempBuffer);
   
   // Verify magic number
@@ -413,7 +410,9 @@ int ext4Initialize(Ext4State *state) {
   // Calculate filesystem parameters
   uint32_t logBlockSize;
   readBytes(&logBlockSize, &state->superblock->logBlockSize);
-  state->blockSize = EXT4_MIN_BLOCK_SIZE << logBlockSize;
+  state->filesystemState->blockSize = EXT4_MIN_BLOCK_SIZE << logBlockSize;
+  state->filesystemState->blockBuffer
+    = (uint8_t*) malloc(state->filesystemState->blockSize);
   
   uint16_t inodeSize;
   readBytes(&inodeSize, &state->superblock->inodeSize);
@@ -441,18 +440,23 @@ int ext4Initialize(Ext4State *state) {
   
   // Allocate and read group descriptors
   uint32_t gdtBlocks = (state->groupsCount * state->groupDescSize + 
-    state->blockSize - 1) / state->blockSize;
-  state->groupDescs = (Ext4GroupDesc*) malloc(gdtBlocks * state->blockSize);
+    state->filesystemState->blockSize - 1) / state->filesystemState->blockSize;
+  state->groupDescs = (Ext4GroupDesc*) malloc(
+    gdtBlocks * state->filesystemState->blockSize);
   if (!state->groupDescs) {
+    free(state->filesystemState->blockBuffer);
     free(state->superblock);
     return -1;
   }
   
-  uint32_t gdtBlock = (state->blockSize > 1024) ? 1 : 2;
+  uint32_t gdtBlock = (state->filesystemState->blockSize > 1024) ? 1 : 2;
   for (uint32_t ii = 0; ii < gdtBlocks; ii++) {
     if (ext4ReadBlock(state, gdtBlock + ii, 
-        (uint8_t*)state->groupDescs + ii * state->blockSize) != 0) {
+        (uint8_t*)state->groupDescs + ii * state->filesystemState->blockSize)
+        != 0
+    ) {
       free(state->groupDescs);
+      free(state->filesystemState->blockBuffer);
       free(state->superblock);
       return -1;
     }
@@ -484,9 +488,15 @@ void ext4Cleanup(Ext4State *state) {
   
   if (state->groupDescs) {
     free(state->groupDescs);
+    state->groupDescs = NULL;
   }
   if (state->superblock) {
     free(state->superblock);
+    state->superblock = NULL;
+  }
+  if (state->filesystemState->blockBuffer) {
+    free(state->filesystemState->blockBuffer);
+    state->filesystemState->blockBuffer = NULL;
   }
 }
 
@@ -506,7 +516,7 @@ static int ext4ReadBlock(Ext4State *state, uint32_t blockNum, void *buffer) {
     state->filesystemState->blockDevice->context,
     state->filesystemState->startLba + blockNum,
     1,
-    state->blockSize,
+    state->filesystemState->blockSize,
     (uint8_t*) buffer);
 }
 
@@ -527,7 +537,7 @@ static int ext4WriteBlock(Ext4State *state, uint32_t blockNum,
     state->filesystemState->blockDevice->context,
     state->filesystemState->startLba + blockNum,
     1,
-    state->blockSize,
+    state->filesystemState->blockSize,
     (uint8_t*) buffer);
 }
 
@@ -546,6 +556,7 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   
   uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
   uint32_t index = (inodeNum - 1) % state->inodesPerGroup;
+  uint8_t *buffer = state->filesystemState->blockBuffer;
   
   if (group >= state->groupsCount) {
     return -1;
@@ -557,21 +568,17 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   readBytes(&inodeTableLo, &gd->inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
-    (index * state->inodeSize) / state->blockSize;
-  uint32_t inodeOffset = (index * state->inodeSize) % state->blockSize;
+    ((index * state->inodeSize) / state->filesystemState->blockSize);
+  uint32_t inodeOffset
+    = (index * state->inodeSize) % state->filesystemState->blockSize;
   
-  uint8_t *buffer = (uint8_t*) malloc(state->blockSize);
-  if (!buffer) {
-    return -1;
-  }
-  
-  if (ext4ReadBlock(state, inodeBlock, buffer) != 0) {
-    free(buffer);
+  if (
+    ext4ReadBlock(state, inodeBlock, buffer) != 0
+  ) {
     return -1;
   }
   
   copyBytes(inode, buffer + inodeOffset, sizeof(Ext4Inode));
-  free(buffer);
   
   return 0;
 }
@@ -591,6 +598,7 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
   
   uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
   uint32_t index = (inodeNum - 1) % state->inodesPerGroup;
+  uint8_t *buffer = state->filesystemState->blockBuffer;
   
   if (group >= state->groupsCount) {
     return -1;
@@ -602,23 +610,20 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
   readBytes(&inodeTableLo, &gd->inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
-    (index * state->inodeSize) / state->blockSize;
-  uint32_t inodeOffset = (index * state->inodeSize) % state->blockSize;
+    ((index * state->inodeSize) / state->filesystemState->blockSize);
+  uint32_t inodeOffset
+    = (index * state->inodeSize) % state->filesystemState->blockSize;
   
-  uint8_t *buffer = (uint8_t*) malloc(state->blockSize);
-  if (!buffer) {
+  if (
+    ext4ReadBlock(state, inodeBlock, buffer) != 0
+  ) {
     return -1;
   }
   
-  if (ext4ReadBlock(state, inodeBlock, buffer) != 0) {
-    free(buffer);
-    return -1;
-  }
-  
-  copyBytes(buffer + inodeOffset, inode, sizeof(Ext4Inode));
+  memcpy(state->filesystemState->blockBuffer + inodeOffset, inode,
+    sizeof(Ext4Inode));
   
   int result = ext4WriteBlock(state, inodeBlock, buffer);
-  free(buffer);
   
   return result;
 }
@@ -724,6 +729,7 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
   
   char *token = strtok(pathCopy, "/");
   
+  uint16_t blockSize = state->filesystemState->blockSize;
   while (token != NULL) {
     // Read current directory inode
     Ext4Inode dirInode;
@@ -743,9 +749,9 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
     // Search directory for entry
     uint32_t sizeLo;
     readBytes(&sizeLo, &dirInode.sizeLo);
-    uint32_t blockCount = (sizeLo + state->blockSize - 1) / state->blockSize;
+    uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
     
-    uint8_t *dirBuffer = (uint8_t*) malloc(state->blockSize);
+    uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
     if (!dirBuffer) {
       free(pathCopy);
       return 0;
@@ -763,7 +769,7 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
       }
       
       uint32_t offset = 0;
-      while (offset < state->blockSize) {
+      while (offset < blockSize) {
         Ext4DirEntry entry;
         copyBytes(&entry, dirBuffer + offset, 8);  // Read fixed part
         
@@ -817,7 +823,8 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
     return 0;
   }
   
-  uint8_t *bitmap = (uint8_t*) malloc(state->blockSize);
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return 0;
   }
@@ -839,7 +846,7 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
     }
     
     // Find free bit in bitmap
-    for (uint32_t byte = 0; byte < state->blockSize; byte++) {
+    for (uint32_t byte = 0; byte < blockSize; byte++) {
       if (bitmap[byte] != 0xFF) {
         for (uint32_t bit = 0; bit < 8; bit++) {
           if (!(bitmap[byte] & (1 << bit))) {
@@ -885,7 +892,8 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
     return;
   }
   
-  uint8_t *bitmap = (uint8_t*) malloc(state->blockSize);
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return;
   }
@@ -926,7 +934,8 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
     return 0;
   }
   
-  uint8_t *bitmap = (uint8_t*) malloc(state->blockSize);
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return 0;
   }
@@ -948,7 +957,7 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
     }
     
     // Find free bit in bitmap
-    for (uint32_t byte = 0; byte < state->blockSize; byte++) {
+    for (uint32_t byte = 0; byte < blockSize; byte++) {
       if (bitmap[byte] != 0xFF) {
         for (uint32_t bit = 0; bit < 8; bit++) {
           if (!(bitmap[byte] & (1 << bit))) {
@@ -1000,7 +1009,7 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
     return;
   }
   
-  uint8_t *bitmap = (uint8_t*) malloc(state->blockSize);
+  uint8_t *bitmap = (uint8_t*) malloc(state->filesystemState->blockSize);
   if (!bitmap) {
     return;
   }
@@ -1056,9 +1065,10 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   
   uint32_t sizeLo;
   readBytes(&sizeLo, &dirInode.sizeLo);
-  uint32_t blockCount = (sizeLo + state->blockSize - 1) / state->blockSize;
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
   
-  uint8_t *dirBuffer = (uint8_t*) malloc(state->blockSize);
+  uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
   if (!dirBuffer) {
     return -1;
   }
@@ -1076,7 +1086,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
     
     uint32_t offset = 0;
     
-    while (offset < state->blockSize) {
+    while (offset < blockSize) {
       Ext4DirEntry entry;
       copyBytes(&entry, dirBuffer + offset, 8);
       
@@ -1090,7 +1100,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
       }
       
       // Check if this is the last entry and has extra space
-      if (offset + currentRecLen >= state->blockSize) {
+      if (offset + currentRecLen >= blockSize) {
         uint32_t actualLen = ((8 + currentNameLen + 3) / 4) * 4;
         if (currentRecLen >= actualLen + recLen) {
           // Split this entry
@@ -1129,12 +1139,12 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   // Create entry in new block
   Ext4DirEntry newEntry;
   writeBytes(&newEntry.inode, &inodeNum);
-  uint16_t newRecLen = state->blockSize;
+  uint16_t newRecLen = blockSize;
   writeBytes(&newEntry.recLen, &newRecLen);
   writeBytes(&newEntry.nameLen, &nameLen);
   writeBytes(&newEntry.fileType, &fileType);
   
-  memset(dirBuffer, 0, state->blockSize);
+  memset(dirBuffer, 0, blockSize);
   copyBytes(dirBuffer, &newEntry, 8);
   copyBytes(dirBuffer + 8, name, nameLen);
   
@@ -1145,7 +1155,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   }
   
   // Update directory size
-  sizeLo += state->blockSize;
+  sizeLo += blockSize;
   writeBytes(&dirInode.sizeLo, &sizeLo);
   
   // Add block to extent tree (simplified)
@@ -1247,9 +1257,10 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
   
   uint32_t sizeLo;
   readBytes(&sizeLo, &dirInode.sizeLo);
-  uint32_t blockCount = (sizeLo + state->blockSize - 1) / state->blockSize;
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
   
-  uint8_t *dirBuffer = (uint8_t*) malloc(state->blockSize);
+  uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
   if (!dirBuffer) {
     return -1;
   }
@@ -1268,7 +1279,7 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
     uint32_t prevOffset = 0;
     Ext4DirEntry *prevEntry = NULL;
     
-    while (offset < state->blockSize) {
+    while (offset < blockSize) {
       Ext4DirEntry entry;
       copyBytes(&entry, dirBuffer + offset, 8);
       
@@ -1334,15 +1345,6 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     return NULL;
   }
   
-  // Allocate buffer if needed
-  if (state->filesystemState->numOpenFiles == 0) {
-    state->filesystemState->blockBuffer = 
-      (uint8_t*) malloc(state->filesystemState->blockSize);
-    if (!state->filesystemState->blockBuffer) {
-      return NULL;
-    }
-  }
-  
   // Parse mode
   uint32_t openMode = 0;
   bool create = false;
@@ -1375,10 +1377,6 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     // Find parent directory
     char *pathCopy = (char*) malloc(strlen(pathname) + 1);
     if (!pathCopy) {
-      if (state->filesystemState->numOpenFiles == 0) {
-        free(state->filesystemState->blockBuffer);
-        state->filesystemState->blockBuffer = NULL;
-      }
       return NULL;
     }
     strcpy(pathCopy, pathname);
@@ -1398,10 +1396,6 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     
     if (parentInode == 0) {
       free(pathCopy);
-      if (state->filesystemState->numOpenFiles == 0) {
-        free(state->filesystemState->blockBuffer);
-        state->filesystemState->blockBuffer = NULL;
-      }
       return NULL;
     }
     
@@ -1409,10 +1403,6 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     inodeNum = ext4AllocateInode(state);
     if (inodeNum == 0) {
       free(pathCopy);
-      if (state->filesystemState->numOpenFiles == 0) {
-        free(state->filesystemState->blockBuffer);
-        state->filesystemState->blockBuffer = NULL;
-      }
       return NULL;
     }
     
@@ -1450,10 +1440,6 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     if (ext4WriteInode(state, inodeNum, &newInode) != 0) {
       ext4FreeInode(state, inodeNum);
       free(pathCopy);
-      if (state->filesystemState->numOpenFiles == 0) {
-        free(state->filesystemState->blockBuffer);
-        state->filesystemState->blockBuffer = NULL;
-      }
       return NULL;
     }
     
@@ -1462,29 +1448,17 @@ Ext4FileHandle* ext4Open(Ext4State *state,
         EXT4_FT_REG_FILE) != 0) {
       ext4FreeInode(state, inodeNum);
       free(pathCopy);
-      if (state->filesystemState->numOpenFiles == 0) {
-        free(state->filesystemState->blockBuffer);
-        state->filesystemState->blockBuffer = NULL;
-      }
       return NULL;
     }
     
     free(pathCopy);
   } else if (inodeNum == 0) {
-    if (state->filesystemState->numOpenFiles == 0) {
-      free(state->filesystemState->blockBuffer);
-      state->filesystemState->blockBuffer = NULL;
-    }
     return NULL;
   }
   
   // Allocate file handle
   Ext4FileHandle *handle = (Ext4FileHandle*) malloc(sizeof(Ext4FileHandle));
   if (!handle) {
-    if (state->filesystemState->numOpenFiles == 0) {
-      free(state->filesystemState->blockBuffer);
-      state->filesystemState->blockBuffer = NULL;
-    }
     return NULL;
   }
   
@@ -1496,20 +1470,12 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   handle->inode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (!handle->inode) {
     free(handle);
-    if (state->filesystemState->numOpenFiles == 0) {
-      free(state->filesystemState->blockBuffer);
-      state->filesystemState->blockBuffer = NULL;
-    }
     return NULL;
   }
   
   if (ext4ReadInode(state, inodeNum, handle->inode) != 0) {
     free(handle->inode);
     free(handle);
-    if (state->filesystemState->numOpenFiles == 0) {
-      free(state->filesystemState->blockBuffer);
-      state->filesystemState->blockBuffer = NULL;
-    }
     return NULL;
   }
   
@@ -1575,14 +1541,6 @@ int ext4Close(Ext4State *state, Ext4FileHandle *handle) {
     state->filesystemState->numOpenFiles--;
   }
   
-  // Free block buffer if no more open files
-  if (state->filesystemState->numOpenFiles == 0 && 
-      state->filesystemState->blockBuffer
-  ) {
-    free(state->filesystemState->blockBuffer);
-    state->filesystemState->blockBuffer = NULL;
-  }
-  
   return 0;
 }
 
@@ -1622,15 +1580,13 @@ size_t ext4Read(Ext4State *state,
   uint8_t *buffer = (uint8_t*)ptr;
   size_t bytesRead = 0;
   
-  uint8_t *blockBuffer = (uint8_t*) malloc(state->blockSize);
-  if (!blockBuffer) {
-    return 0;
-  }
+  uint8_t *blockBuffer = state->filesystemState->blockBuffer;
   
+  uint16_t blockSize = state->filesystemState->blockSize;
   while (bytesRead < totalBytes) {
-    uint32_t fileBlock = handle->currentPosition / state->blockSize;
-    uint32_t blockOffset = handle->currentPosition % state->blockSize;
-    uint32_t bytesToRead = state->blockSize - blockOffset;
+    uint32_t fileBlock = handle->currentPosition / blockSize;
+    uint32_t blockOffset = handle->currentPosition % blockSize;
+    uint32_t bytesToRead = blockSize - blockOffset;
     
     if (bytesRead + bytesToRead > totalBytes) {
       bytesToRead = totalBytes - bytesRead;
@@ -1652,7 +1608,6 @@ size_t ext4Read(Ext4State *state,
     handle->currentPosition += bytesToRead;
   }
   
-  free(blockBuffer);
   return bytesRead;
 }
 
@@ -1679,15 +1634,13 @@ size_t ext4Write(Ext4State *state,
   const uint8_t *buffer = (const uint8_t*)ptr;
   size_t bytesWritten = 0;
   
-  uint8_t *blockBuffer = (uint8_t*) malloc(state->blockSize);
-  if (!blockBuffer) {
-    return 0;
-  }
+  uint8_t *blockBuffer = state->filesystemState->blockBuffer;
   
+  uint16_t blockSize = state->filesystemState->blockSize;
   while (bytesWritten < totalBytes) {
-    uint32_t fileBlock = handle->currentPosition / state->blockSize;
-    uint32_t blockOffset = handle->currentPosition % state->blockSize;
-    uint32_t bytesToWrite = state->blockSize - blockOffset;
+    uint32_t fileBlock = handle->currentPosition / blockSize;
+    uint32_t blockOffset = handle->currentPosition % blockSize;
+    uint32_t bytesToWrite = blockSize - blockOffset;
     
     if (bytesWritten + bytesToWrite > totalBytes) {
       bytesToWrite = totalBytes - bytesWritten;
@@ -1711,7 +1664,7 @@ size_t ext4Write(Ext4State *state,
     }
     
     // Read existing block if not writing full block
-    if (blockOffset != 0 || bytesToWrite < state->blockSize) {
+    if (blockOffset != 0 || bytesToWrite < blockSize) {
       if (ext4ReadBlock(state, physBlock, blockBuffer) != 0) {
         break;
       }
@@ -1746,7 +1699,6 @@ size_t ext4Write(Ext4State *state,
     ext4WriteInode(state, handle->inodeNumber, handle->inode);
   }
   
-  free(blockBuffer);
   return bytesWritten;
 }
 
@@ -1778,12 +1730,13 @@ int ext4Remove(Ext4State *state, const char *pathname) {
   readBytes(&mode, &inode.mode);
   bool isDir = ((mode & EXT4_S_IFMT) == EXT4_S_IFDIR);
   
+  uint16_t blockSize = state->filesystemState->blockSize;
   if (isDir) {
     // Check if directory is empty
     uint32_t sizeLo;
     readBytes(&sizeLo, &inode.sizeLo);
     
-    if (sizeLo > state->blockSize) {
+    if (sizeLo > blockSize) {
       // Directory not empty (has more than just . and ..)
       return -1;
     }
@@ -1825,7 +1778,7 @@ int ext4Remove(Ext4State *state, const char *pathname) {
   // Free all blocks used by the file
   uint32_t sizeLo;
   readBytes(&sizeLo, &inode.sizeLo);
-  uint32_t blockCount = (sizeLo + state->blockSize - 1) / state->blockSize;
+  uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
   
   for (uint32_t ii = 0; ii < blockCount; ii++) {
     uint64_t physBlock = ext4GetBlockFromExtent(state, &inode, ii);
@@ -1974,14 +1927,15 @@ int ext4MkDir(Ext4State *state, const char *pathname) {
   }
   
   // Create . and .. entries
-  uint8_t *dirBuffer = (uint8_t*) malloc(state->blockSize);
+  uint16_t blockSize = state->filesystemState->blockSize;
+  uint8_t *dirBuffer = state->filesystemState->blockBuffer;
   if (!dirBuffer) {
     ext4FreeBlock(state, dirBlock);
     ext4FreeInode(state, inodeNum);
     free(pathCopy);
     return -1;
   }
-  memset(dirBuffer, 0, state->blockSize);
+  memset(dirBuffer, 0, blockSize);
   
   // . entry
   Ext4DirEntry dotEntry;
@@ -1999,7 +1953,7 @@ int ext4MkDir(Ext4State *state, const char *pathname) {
   // .. entry
   Ext4DirEntry dotDotEntry;
   writeBytes(&dotDotEntry.inode, &parentInode);
-  uint16_t dotDotRecLen = state->blockSize - 12;
+  uint16_t dotDotRecLen = blockSize - 12;
   writeBytes(&dotDotEntry.recLen, &dotDotRecLen);
   uint8_t dotDotNameLen = 2;
   writeBytes(&dotDotEntry.nameLen, &dotDotNameLen);
@@ -2010,17 +1964,14 @@ int ext4MkDir(Ext4State *state, const char *pathname) {
   dirBuffer[21] = '.';
   
   if (ext4WriteBlock(state, dirBlock, dirBuffer) != 0) {
-    free(dirBuffer);
     ext4FreeBlock(state, dirBlock);
     ext4FreeInode(state, inodeNum);
     free(pathCopy);
     return -1;
   }
   
-  free(dirBuffer);
-  
   // Update inode with block
-  uint32_t dirSize = state->blockSize;
+  uint32_t dirSize = blockSize;
   writeBytes(&newInode.sizeLo, &dirSize);
   
   if (ext4SetBlockInExtent(state, &newInode, 0, dirBlock) != 0) {
@@ -2308,14 +2259,14 @@ void* runExt4Filesystem(void *args) {
   FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
   fs->blockDevice = (BlockStorageDevice*) args;
   fs->blockSize = fs->blockDevice->blockSize;
-  Ext4State *driverState
-    = (Ext4State*) calloc(1, sizeof(Ext4State));
-  driverState->filesystemState = fs;
+  Ext4State driverState;
+  memset(&driverState, 0, sizeof(Ext4State));
+  driverState.filesystemState = fs;
   
-  fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
   getPartitionInfo(fs);
-  ext4Initialize(driverState);
-  free(fs->blockBuffer); fs->blockBuffer = NULL;
+  if (ext4Initialize(&driverState) != 0) {
+    printString("ERROR: ext4Initialize failed.\n");
+  }
   
   ProcessMessage *msg = NULL;
   while (1) {
@@ -2324,10 +2275,10 @@ void* runExt4Filesystem(void *args) {
       FilesystemCommandResponse type = 
         (FilesystemCommandResponse) processMessageType(msg);
       if (type < NUM_FILESYSTEM_COMMANDS) {
-        filesystemCommandHandlers[type](driverState, msg);
+        filesystemCommandHandlers[type](&driverState, msg);
       }
     } else {
-      ext4HandleFilesystemMessages(driverState);
+      ext4HandleFilesystemMessages(&driverState);
     }
   }
   return NULL;
