@@ -2673,7 +2673,7 @@ __attribute__((noinline)) void startScheduler(
   schedulerState.hostname = (char*) kcalloc(1, 30);
   printDebug("Allocated memory for the hostname.\n");
   if (schedulerState.hostname != NULL) {
-    FILE *hostnameFile = kfopen(&schedulerState, "hostname", "r");
+    FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
     if (hostnameFile != NULL) {
       printDebug("Opened hostname file.\n");
       if (kFilesystemFGets(&schedulerState,
