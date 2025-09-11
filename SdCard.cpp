@@ -76,11 +76,13 @@ typedef struct SdCommandParams {
 ///   to the host.
 /// @param numBlocks The total number of blocks available on the SD card.
 /// @param sdCardVersion The version of the card (1 or 2).
+/// @param bsDevice A pointer to the BlockStorageDevice that abstracts this card.
 typedef struct SdCardState {
   uint8_t chipSelect;
   uint16_t blockSize;
   uint32_t numBlocks;
   int sdCardVersion;
+  BlockStorageDevice *bsDevice;
 } SdCardState;
 
 /// @typedef SdCardCommandHandler
@@ -506,21 +508,10 @@ int sdCardGetReadWriteParameters(
   SdCardState *sdCardState, SdCommandParams *sdCommandParams,
   uint32_t *startSdBlock, uint32_t *numSdBlocks
 ) {
-  uint16_t blockSize = sdCommandParams->blockSize;
-  uint16_t remainder
-    = (blockSize > sdCardState->blockSize)
-    ? (blockSize % sdCardState->blockSize)
-    : (sdCardState->blockSize % blockSize);
-  if (remainder != 0) {
-    printString(__func__);
-    printString(": ERROR! Invalid block size\n");
-    return EINVAL;
-  }
-
-  *startSdBlock = (sdCommandParams->startBlock * ((uint32_t) blockSize))
-    / ((uint32_t) sdCardState->blockSize);
-  *numSdBlocks = (sdCommandParams->numBlocks * ((uint32_t) blockSize))
-    / ((uint32_t) sdCardState->blockSize);
+  *startSdBlock = sdCommandParams->startBlock
+    << sdCardState->bsDevice->blockBitShift;
+  *numSdBlocks = sdCommandParams->numBlocks
+    << sdCardState->bsDevice->blockBitShift;
   if ((*startSdBlock + *numSdBlocks) > sdCardState->numBlocks) {
     printString(__func__);
     printString(": ERROR! Invalid R/W range\n");
@@ -736,8 +727,10 @@ void* runSdCard(void *args) {
     .readBlocks = sdReadBlocks,
     .writeBlocks = sdWriteBlocks,
     .blockSize = 0,
+    .blockBitShift = 0,
     .partitionNumber = 0,
   };
+  sdCardState.bsDevice = &sdDevice;
 
   sdCardState.sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
   if (sdCardState.sdCardVersion > 0) {
