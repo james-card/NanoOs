@@ -442,6 +442,9 @@ typedef struct NanoOsMessage {
 ///   of blocks from the storage device.
 /// @param writeBlocks Function pointer for the function to write a given number
 ///   of blocks to the storage device.
+/// @param blockSize The size, in bytes, of the physical blocks on the device.
+/// @param blockBitShift The number of bits to shift to convert filesystem-level
+///   blocks to physical blocks.
 /// @param partitionNumber The one-based partition index that is to be used by
 ///   a filesystem.
 typedef struct BlockStorageDevice {
@@ -451,6 +454,7 @@ typedef struct BlockStorageDevice {
   int (*writeBlocks)(void *context, uint32_t startBlock,
     uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
   uint16_t blockSize;
+  uint8_t blockBitShift;
   uint8_t partitionNumber;
 } BlockStorageDevice;
 
