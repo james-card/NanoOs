@@ -227,6 +227,18 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
   }
   
   // We're allocating new memory.
+  printDebug("memoryManagerState->mallocNext = ");
+  printDebug((uintptr_t) &memoryManagerState->mallocNext);
+  printDebug("\n");
+  printDebug("size = ");
+  printDebug(size);
+  printDebug("\n");
+  printDebug("sizeof(MemNode) = ");
+  printDebug(sizeof(MemNode));
+  printDebug("\n");
+  printDebug("memoryManagerState->mallocEnd = ");
+  printDebug(memoryManagerState->mallocEnd);
+  printDebug("\n");
   if ((((uintptr_t) (
       memoryManagerState->mallocNext - size - sizeof(MemNode))
     ) >= memoryManagerState->mallocEnd)
@@ -362,7 +374,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
   
   ProcessHandle from = processMessageFrom(incoming);
   uintptr_t dynamicMemorySize = (uintptr_t) memoryManagerState->mallocNext
-    - memoryManagerState->mallocEnd + 1;
+    - memoryManagerState->mallocEnd + sizeof(void*);
   
   // We need to mark waiting as true here so that processMessageSetDone signals the
   // client side correctly.
