@@ -164,6 +164,17 @@ int printDouble(double floatingPointValue) {
   return 0;
 }
 
+/// @fn int printHex_(unsigned long long int integer)
+///
+/// @brief C wrapper around Serial.print for a hexadecimal integer.
+///
+/// @return This function always returns 0.
+int printHex_(unsigned long long int integer) {
+  Serial.print(integer, HEX);
+
+  return 0;
+}
+
 /// @fn int printList_(const char *firstString, ...)
 ///
 /// @brief Print a list of values.  Values are in (type, value) pairs until the
