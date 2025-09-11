@@ -324,7 +324,7 @@ typedef struct Ext4FileHandle {
 ///
 /// @brief State structure for the ext4 filesystem
 typedef struct Ext4State {
-  FilesystemState *filesystemState;
+  FilesystemState *fs;
   Ext4Superblock *superblock;
   uint32_t inodeSize;
   uint32_t groupDescSize;
@@ -364,35 +364,41 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
 ///
 /// @return 0 on success, negative on error
 int ext4Initialize(Ext4State *state) {
-  if (!state || !state->filesystemState) {
+  if (!state || !state->fs) {
     return -1;
   }
   
   // Allocate superblock
   state->superblock = (Ext4Superblock*) malloc(sizeof(Ext4Superblock));
   if (!state->superblock) {
-    return -1;
+    return -2;
   }
   
   // Read superblock from block 1 (or block 0 if blocksize > 1024)
-  uint32_t sbBlock = (state->filesystemState->blockSize > 1024) ? 0 : 1;
-  uint32_t sbOffset = 1024 % state->filesystemState->blockSize;
+  uint32_t sbBlock = (state->fs->blockSize > 1024) ? 0 : 1;
+  uint32_t sbOffset = 1024 % state->fs->blockSize;
   
-  uint8_t *tempBuffer = (uint8_t*) malloc(state->filesystemState->blockSize);
+  uint8_t *tempBuffer = (uint8_t*) malloc(state->fs->blockSize);
   if (!tempBuffer) {
     free(state->superblock);
-    return -1;
+    return -3;
   }
   
-  if (state->filesystemState->blockDevice->readBlocks(
-      state->filesystemState->blockDevice->context,
-      state->filesystemState->startLba + sbBlock,
+  printDebug("state->fs->startLba = ");
+  printDebug(state->fs->startLba);
+  printDebug("\n");
+  printDebug("sbBlock = ");
+  printDebug(sbBlock);
+  printDebug("\n");
+  if (state->fs->blockDevice->readBlocks(
+      state->fs->blockDevice->context,
+      state->fs->startLba + sbBlock,
       1,
-      state->filesystemState->blockSize,
+      state->fs->blockSize,
       tempBuffer) != 0) {
     free(tempBuffer);
     free(state->superblock);
-    return -1;
+    return -4;
   }
   
   // Copy superblock data
@@ -403,16 +409,28 @@ int ext4Initialize(Ext4State *state) {
   uint16_t magic;
   readBytes(&magic, &state->superblock->magic);
   if (magic != EXT4_SUPER_MAGIC) {
+    printString("ERROR: Expected ext4 super magic to be 0x");
+    printHex(EXT4_SUPER_MAGIC);
+    printString(", got 0x");
+    printHex(magic);
+    printString("\n");
     free(state->superblock);
-    return -1;
+    return -5;
   }
   
   // Calculate filesystem parameters
   uint32_t logBlockSize;
   readBytes(&logBlockSize, &state->superblock->logBlockSize);
-  state->filesystemState->blockSize = EXT4_MIN_BLOCK_SIZE << logBlockSize;
-  state->filesystemState->blockBuffer
-    = (uint8_t*) malloc(state->filesystemState->blockSize);
+  state->fs->blockSize = EXT4_MIN_BLOCK_SIZE << logBlockSize;
+  state->fs->blockBuffer = (uint8_t*) malloc(state->fs->blockSize);
+  
+  state->fs->blockDevice->blockBitShift = 0;
+  for (uint16_t blockSize = state->fs->blockSize;
+    blockSize != state->fs->blockDevice->blockSize;
+    blockSize >>= 1
+  ) {
+    state->fs->blockDevice->blockBitShift++;
+  }
   
   uint16_t inodeSize;
   readBytes(&inodeSize, &state->superblock->inodeSize);
@@ -440,25 +458,31 @@ int ext4Initialize(Ext4State *state) {
   
   // Allocate and read group descriptors
   uint32_t gdtBlocks = (state->groupsCount * state->groupDescSize + 
-    state->filesystemState->blockSize - 1) / state->filesystemState->blockSize;
+    state->fs->blockSize - 1) / state->fs->blockSize;
+  printString("gdtBlocks = ");
+  printUInt(gdtBlocks);
+  printString("\n");
+  printString("state->fs->blockSize = ");
+  printUInt(state->fs->blockSize);
+  printString("\n");
   state->groupDescs = (Ext4GroupDesc*) malloc(
-    gdtBlocks * state->filesystemState->blockSize);
+    gdtBlocks * state->fs->blockSize);
   if (!state->groupDescs) {
-    free(state->filesystemState->blockBuffer);
+    free(state->fs->blockBuffer);
     free(state->superblock);
-    return -1;
+    return -6;
   }
   
-  uint32_t gdtBlock = (state->filesystemState->blockSize > 1024) ? 1 : 2;
+  uint32_t gdtBlock = (state->fs->blockSize > 1024) ? 1 : 2;
   for (uint32_t ii = 0; ii < gdtBlocks; ii++) {
     if (ext4ReadBlock(state, gdtBlock + ii, 
-        (uint8_t*)state->groupDescs + ii * state->filesystemState->blockSize)
+        (uint8_t*)state->groupDescs + ii * state->fs->blockSize)
         != 0
     ) {
       free(state->groupDescs);
-      free(state->filesystemState->blockBuffer);
+      free(state->fs->blockBuffer);
       free(state->superblock);
-      return -1;
+      return -7;
     }
   }
   
@@ -494,10 +518,11 @@ void ext4Cleanup(Ext4State *state) {
     free(state->superblock);
     state->superblock = NULL;
   }
-  if (state->filesystemState->blockBuffer) {
-    free(state->filesystemState->blockBuffer);
-    state->filesystemState->blockBuffer = NULL;
+  if (state->fs->blockBuffer) {
+    free(state->fs->blockBuffer);
+    state->fs->blockBuffer = NULL;
   }
+  state->driverStateValid = false;
 }
 
 /// @brief Read a block from the filesystem
@@ -508,15 +533,15 @@ void ext4Cleanup(Ext4State *state) {
 ///
 /// @return 0 on success, negative on error
 static int ext4ReadBlock(Ext4State *state, uint32_t blockNum, void *buffer) {
-  if (!state || !state->filesystemState || !buffer) {
+  if (!state || !state->fs || !buffer) {
     return -1;
   }
   
-  return state->filesystemState->blockDevice->readBlocks(
-    state->filesystemState->blockDevice->context,
-    state->filesystemState->startLba + blockNum,
+  return state->fs->blockDevice->readBlocks(
+    state->fs->blockDevice->context,
+    state->fs->startLba + blockNum,
     1,
-    state->filesystemState->blockSize,
+    state->fs->blockSize,
     (uint8_t*) buffer);
 }
 
@@ -529,15 +554,15 @@ static int ext4ReadBlock(Ext4State *state, uint32_t blockNum, void *buffer) {
 /// @return 0 on success, negative on error
 static int ext4WriteBlock(Ext4State *state, uint32_t blockNum, 
     const void *buffer) {
-  if (!state || !state->filesystemState || !buffer) {
+  if (!state || !state->fs || !buffer) {
     return -1;
   }
   
-  return state->filesystemState->blockDevice->writeBlocks(
-    state->filesystemState->blockDevice->context,
-    state->filesystemState->startLba + blockNum,
+  return state->fs->blockDevice->writeBlocks(
+    state->fs->blockDevice->context,
+    state->fs->startLba + blockNum,
     1,
-    state->filesystemState->blockSize,
+    state->fs->blockSize,
     (uint8_t*) buffer);
 }
 
@@ -556,7 +581,7 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   
   uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
   uint32_t index = (inodeNum - 1) % state->inodesPerGroup;
-  uint8_t *buffer = state->filesystemState->blockBuffer;
+  uint8_t *buffer = state->fs->blockBuffer;
   
   if (group >= state->groupsCount) {
     return -1;
@@ -568,9 +593,9 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   readBytes(&inodeTableLo, &gd->inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
-    ((index * state->inodeSize) / state->filesystemState->blockSize);
+    ((index * state->inodeSize) / state->fs->blockSize);
   uint32_t inodeOffset
-    = (index * state->inodeSize) % state->filesystemState->blockSize;
+    = (index * state->inodeSize) % state->fs->blockSize;
   
   if (
     ext4ReadBlock(state, inodeBlock, buffer) != 0
@@ -598,7 +623,7 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
   
   uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
   uint32_t index = (inodeNum - 1) % state->inodesPerGroup;
-  uint8_t *buffer = state->filesystemState->blockBuffer;
+  uint8_t *buffer = state->fs->blockBuffer;
   
   if (group >= state->groupsCount) {
     return -1;
@@ -610,9 +635,9 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
   readBytes(&inodeTableLo, &gd->inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
-    ((index * state->inodeSize) / state->filesystemState->blockSize);
+    ((index * state->inodeSize) / state->fs->blockSize);
   uint32_t inodeOffset
-    = (index * state->inodeSize) % state->filesystemState->blockSize;
+    = (index * state->inodeSize) % state->fs->blockSize;
   
   if (
     ext4ReadBlock(state, inodeBlock, buffer) != 0
@@ -620,7 +645,7 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
     return -1;
   }
   
-  memcpy(state->filesystemState->blockBuffer + inodeOffset, inode,
+  memcpy(state->fs->blockBuffer + inodeOffset, inode,
     sizeof(Ext4Inode));
   
   int result = ext4WriteBlock(state, inodeBlock, buffer);
@@ -729,7 +754,7 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
   
   char *token = strtok(pathCopy, "/");
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   while (token != NULL) {
     // Read current directory inode
     Ext4Inode dirInode;
@@ -823,7 +848,7 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
     return 0;
   }
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return 0;
@@ -892,7 +917,7 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
     return;
   }
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return;
@@ -934,7 +959,7 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
     return 0;
   }
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   uint8_t *bitmap = (uint8_t*) malloc(blockSize);
   if (!bitmap) {
     return 0;
@@ -1009,7 +1034,7 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
     return;
   }
   
-  uint8_t *bitmap = (uint8_t*) malloc(state->filesystemState->blockSize);
+  uint8_t *bitmap = (uint8_t*) malloc(state->fs->blockSize);
   if (!bitmap) {
     return;
   }
@@ -1065,7 +1090,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   
   uint32_t sizeLo;
   readBytes(&sizeLo, &dirInode.sizeLo);
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
   
   uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
@@ -1257,7 +1282,7 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
   
   uint32_t sizeLo;
   readBytes(&sizeLo, &dirInode.sizeLo);
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
   
   uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
@@ -1499,7 +1524,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   handle->next = state->openFiles;
   state->openFiles = handle;
   
-  state->filesystemState->numOpenFiles++;
+  state->fs->numOpenFiles++;
   
   // Return handle cast to FILE*
   return handle;
@@ -1537,8 +1562,8 @@ int ext4Close(Ext4State *state, Ext4FileHandle *handle) {
   }
   free(handle);
   
-  if (state->filesystemState->numOpenFiles > 0) {
-    state->filesystemState->numOpenFiles--;
+  if (state->fs->numOpenFiles > 0) {
+    state->fs->numOpenFiles--;
   }
   
   return 0;
@@ -1580,9 +1605,9 @@ size_t ext4Read(Ext4State *state,
   uint8_t *buffer = (uint8_t*)ptr;
   size_t bytesRead = 0;
   
-  uint8_t *blockBuffer = state->filesystemState->blockBuffer;
+  uint8_t *blockBuffer = state->fs->blockBuffer;
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   while (bytesRead < totalBytes) {
     uint32_t fileBlock = handle->currentPosition / blockSize;
     uint32_t blockOffset = handle->currentPosition % blockSize;
@@ -1634,9 +1659,9 @@ size_t ext4Write(Ext4State *state,
   const uint8_t *buffer = (const uint8_t*)ptr;
   size_t bytesWritten = 0;
   
-  uint8_t *blockBuffer = state->filesystemState->blockBuffer;
+  uint8_t *blockBuffer = state->fs->blockBuffer;
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   while (bytesWritten < totalBytes) {
     uint32_t fileBlock = handle->currentPosition / blockSize;
     uint32_t blockOffset = handle->currentPosition % blockSize;
@@ -1730,7 +1755,7 @@ int ext4Remove(Ext4State *state, const char *pathname) {
   readBytes(&mode, &inode.mode);
   bool isDir = ((mode & EXT4_S_IFMT) == EXT4_S_IFDIR);
   
-  uint16_t blockSize = state->filesystemState->blockSize;
+  uint16_t blockSize = state->fs->blockSize;
   if (isDir) {
     // Check if directory is empty
     uint32_t sizeLo;
@@ -1927,8 +1952,8 @@ int ext4MkDir(Ext4State *state, const char *pathname) {
   }
   
   // Create . and .. entries
-  uint16_t blockSize = state->filesystemState->blockSize;
-  uint8_t *dirBuffer = state->filesystemState->blockBuffer;
+  uint16_t blockSize = state->fs->blockSize;
+  uint8_t *dirBuffer = state->fs->blockBuffer;
   if (!dirBuffer) {
     ext4FreeBlock(state, dirBlock);
     ext4FreeInode(state, inodeNum);
@@ -2261,11 +2286,31 @@ void* runExt4Filesystem(void *args) {
   fs->blockSize = fs->blockDevice->blockSize;
   Ext4State driverState;
   memset(&driverState, 0, sizeof(Ext4State));
-  driverState.filesystemState = fs;
+  driverState.fs = fs;
   
-  getPartitionInfo(fs);
-  if (ext4Initialize(&driverState) != 0) {
-    printString("ERROR: ext4Initialize failed.\n");
+  fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+  int returnValue = getPartitionInfo(fs);
+  free(fs->blockBuffer); fs->blockBuffer = NULL;
+  if (returnValue == 0) {
+    if (fs->blockSize < 1024) {
+      // ext4 expects a minimum block size of 1024, so make sure we satisfy the
+      // minimum.
+      uint64_t startBytes = ((uint64_t) fs->startLba)
+        * ((uint64_t) fs->blockSize);
+      fs->startLba = (uint32_t) (startBytes / ((uint64_t) 1024));
+      fs->blockSize = 1024;
+      fs->blockDevice->blockBitShift = 1;
+    }
+    returnValue = ext4Initialize(&driverState);
+    if (returnValue != 0) {
+      printString("ERROR: ext4Initialize returned status ");
+      printInt(returnValue);
+      printString("\n");
+    }
+  } else {
+    printString("ERROR: getPartitionInfo returned status ");
+    printInt(returnValue);
+    printString("\n");
   }
   
   ProcessMessage *msg = NULL;
