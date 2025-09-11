@@ -32,7 +32,7 @@
 #include "NanoOs.h"
 #include "Scheduler.h"
 #include "SdCard.h"
-#include "ExFatFilesystem.h"
+#include "Ext4FilesystemClaude.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
@@ -2536,7 +2536,7 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+  if (processCreate(&processHandle, runExt4Filesystem, sdDevice)
     != processSuccess
   ) {
     printString("Could not start filesystem process.\n");
