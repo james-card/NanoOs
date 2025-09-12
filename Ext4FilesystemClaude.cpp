@@ -459,20 +459,26 @@ int ext4Initialize(Ext4State *state) {
   // Allocate and read group descriptors
   uint32_t gdtBlocks = (state->groupsCount * state->groupDescSize + 
     state->fs->blockSize - 1) / state->fs->blockSize;
-  printString("gdtBlocks = ");
-  printUInt(gdtBlocks);
-  printString("\n");
-  printString("state->fs->blockSize = ");
-  printUInt(state->fs->blockSize);
-  printString("\n");
+  printDebug("gdtBlocks = ");
+  printDebug(gdtBlocks);
+  printDebug("\n");
+  printDebug("state->fs->blockSize = ");
+  printDebug(state->fs->blockSize);
+  printDebug("\n");
   state->groupDescs = (Ext4GroupDesc*) malloc(
     gdtBlocks * state->fs->blockSize);
   if (!state->groupDescs) {
+    printDebug("ERROR: Allocation of state->groupDesc failed.\n");
+    printDebug("Freeing state->fs->blockBuffer.\n");
     free(state->fs->blockBuffer);
+    printDebug("Freeing state->superblock.\n");
     free(state->superblock);
+    printDebug("Returning -6\n");
     return -6;
   }
+  printDebug("Successfully allocated state->fs->blockBuffer.\n");
   
+  printDebug("Reading GDT blocks.\n");
   uint32_t gdtBlock = (state->fs->blockSize > 1024) ? 1 : 2;
   for (uint32_t ii = 0; ii < gdtBlocks; ii++) {
     if (ext4ReadBlock(state, gdtBlock + ii, 
