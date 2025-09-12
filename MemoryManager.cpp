@@ -227,18 +227,6 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
   }
   
   // We're allocating new memory.
-  printDebug("memoryManagerState->mallocNext = ");
-  printDebug((uintptr_t) &memoryManagerState->mallocNext);
-  printDebug("\n");
-  printDebug("size = ");
-  printDebug(size);
-  printDebug("\n");
-  printDebug("sizeof(MemNode) = ");
-  printDebug(sizeof(MemNode));
-  printDebug("\n");
-  printDebug("memoryManagerState->mallocEnd = ");
-  printDebug(memoryManagerState->mallocEnd);
-  printDebug("\n");
   if ((((uintptr_t) (
       memoryManagerState->mallocNext - size - sizeof(MemNode))
     ) >= memoryManagerState->mallocEnd)
@@ -259,11 +247,6 @@ void* localRealloc(MemoryManagerState *memoryManagerState,
     localFree(memoryManagerState, ptr);
   }
   
-  printDebug("Allocated ");
-  printDebug(size);
-  printDebug(" bytes at ");
-  printDebug((uintptr_t) returnValue, HEX);
-  printDebug("\n");
   return returnValue;
 }
 
@@ -300,7 +283,10 @@ int memoryManagerReallocCommandHandler(
       reallocMessage->ptr, reallocMessage->size,
       processId(processMessageFrom(incoming)));
   reallocMessage->ptr = clientReturnValue;
-  reallocMessage->size = memNode(clientReturnValue)->size;
+  reallocMessage->size = 0;
+  if (clientReturnValue != NULL) {
+    reallocMessage->size = memNode(clientReturnValue)->size;
+  }
   
   ProcessHandle from = processMessageFrom(incoming);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(incoming);
