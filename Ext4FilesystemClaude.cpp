@@ -331,7 +331,10 @@ typedef struct Ext4State {
   uint32_t groupsCount;
   uint32_t inodesPerGroup;
   uint32_t blocksPerGroup;
-  Ext4GroupDesc *groupDescs;
+  uint32_t gdtStartBlock;     // Starting block of the GDT
+  uint32_t gdtBlocks;          // Number of blocks in the GDT
+  Ext4GroupDesc *groupDescCache; // Cache for a single group descriptor
+  uint32_t cachedGroupIndex;  // Which group is currently cached (-1 if none)
   Ext4FileHandle *openFiles;
   bool driverStateValid; // Whether or not this is a valid state
 } Ext4State;
@@ -344,6 +347,10 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   Ext4Inode *inode);
 static int ext4WriteInode(Ext4State *state, uint32_t inodeNum, 
   const Ext4Inode *inode);
+static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
+  Ext4GroupDesc *groupDesc);
+static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
+  const Ext4GroupDesc *groupDesc);
 static uint32_t ext4AllocateBlock(Ext4State *state);
 static void ext4FreeBlock(Ext4State *state, uint32_t blockNum);
 static uint32_t ext4AllocateInode(Ext4State *state);
@@ -456,19 +463,22 @@ int ext4Initialize(Ext4State *state) {
   state->inodesPerGroup = inodesPerGroup;
   state->groupsCount = (blocksCount + blocksPerGroup - 1) / blocksPerGroup;
   
-  // Allocate and read group descriptors
-  uint32_t gdtBlocks = (state->groupsCount * state->groupDescSize + 
+  // Calculate GDT location and size
+  state->gdtStartBlock = (state->fs->blockSize > 1024) ? 1 : 2;
+  state->gdtBlocks = (state->groupsCount * state->groupDescSize + 
     state->fs->blockSize - 1) / state->fs->blockSize;
+  
   printDebug("gdtBlocks = ");
-  printDebug(gdtBlocks);
+  printDebug(state->gdtBlocks);
   printDebug("\n");
   printDebug("state->fs->blockSize = ");
   printDebug(state->fs->blockSize);
   printDebug("\n");
-  state->groupDescs = (Ext4GroupDesc*) malloc(
-    gdtBlocks * state->fs->blockSize);
-  if (!state->groupDescs) {
-    printDebug("ERROR: Allocation of state->groupDesc failed.\n");
+  
+  // Allocate cache for a single group descriptor
+  state->groupDescCache = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+  if (!state->groupDescCache) {
+    printDebug("ERROR: Allocation of state->groupDescCache failed.\n");
     printDebug("Freeing state->fs->blockBuffer.\n");
     free(state->fs->blockBuffer);
     printDebug("Freeing state->superblock.\n");
@@ -476,22 +486,9 @@ int ext4Initialize(Ext4State *state) {
     printDebug("Returning -6\n");
     return -6;
   }
-  printDebug("Successfully allocated state->fs->blockBuffer.\n");
+  printDebug("Successfully allocated group descriptor cache.\n");
   
-  printDebug("Reading GDT blocks.\n");
-  uint32_t gdtBlock = (state->fs->blockSize > 1024) ? 1 : 2;
-  for (uint32_t ii = 0; ii < gdtBlocks; ii++) {
-    if (ext4ReadBlock(state, gdtBlock + ii, 
-        (uint8_t*)state->groupDescs + ii * state->fs->blockSize)
-        != 0
-    ) {
-      free(state->groupDescs);
-      free(state->fs->blockBuffer);
-      free(state->superblock);
-      return -7;
-    }
-  }
-  
+  state->cachedGroupIndex = (uint32_t) -1; // No group cached initially
   state->openFiles = NULL;
   state->driverStateValid = true;
   return 0;
@@ -516,9 +513,9 @@ void ext4Cleanup(Ext4State *state) {
     current = next;
   }
   
-  if (state->groupDescs) {
-    free(state->groupDescs);
-    state->groupDescs = NULL;
+  if (state->groupDescCache) {
+    free(state->groupDescCache);
+    state->groupDescCache = NULL;
   }
   if (state->superblock) {
     free(state->superblock);
@@ -529,6 +526,88 @@ void ext4Cleanup(Ext4State *state) {
     state->fs->blockBuffer = NULL;
   }
   state->driverStateValid = false;
+}
+
+/// @brief Read a group descriptor from the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+/// @param groupIndex The index of the group descriptor to read
+/// @param groupDesc Buffer to read the group descriptor into
+///
+/// @return 0 on success, negative on error
+static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
+    Ext4GroupDesc *groupDesc) {
+  if (!state || !groupDesc || groupIndex >= state->groupsCount) {
+    return -1;
+  }
+  
+  // Check if we have this group cached
+  if (groupIndex == state->cachedGroupIndex) {
+    memcpy(groupDesc, state->groupDescCache, sizeof(Ext4GroupDesc));
+    return 0;
+  }
+  
+  // Calculate which block and offset contains this group descriptor
+  uint32_t gdOffset = groupIndex * state->groupDescSize;
+  uint32_t gdBlock = state->gdtStartBlock + 
+    (gdOffset / state->fs->blockSize);
+  uint32_t gdBlockOffset = gdOffset % state->fs->blockSize;
+  
+  // Read the block containing the group descriptor
+  uint8_t *buffer = state->fs->blockBuffer;
+  if (ext4ReadBlock(state, gdBlock, buffer) != 0) {
+    return -1;
+  }
+  
+  // Copy the group descriptor data
+  copyBytes(groupDesc, buffer + gdBlockOffset, sizeof(Ext4GroupDesc));
+  
+  // Update cache
+  memcpy(state->groupDescCache, groupDesc, sizeof(Ext4GroupDesc));
+  state->cachedGroupIndex = groupIndex;
+  
+  return 0;
+}
+
+/// @brief Write a group descriptor to the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+/// @param groupIndex The index of the group descriptor to write
+/// @param groupDesc The group descriptor data to write
+///
+/// @return 0 on success, negative on error
+static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
+    const Ext4GroupDesc *groupDesc) {
+  if (!state || !groupDesc || groupIndex >= state->groupsCount) {
+    return -1;
+  }
+  
+  // Calculate which block and offset contains this group descriptor
+  uint32_t gdOffset = groupIndex * state->groupDescSize;
+  uint32_t gdBlock = state->gdtStartBlock + 
+    (gdOffset / state->fs->blockSize);
+  uint32_t gdBlockOffset = gdOffset % state->fs->blockSize;
+  
+  // Read the block containing the group descriptor
+  uint8_t *buffer = state->fs->blockBuffer;
+  if (ext4ReadBlock(state, gdBlock, buffer) != 0) {
+    return -1;
+  }
+  
+  // Update the group descriptor data
+  copyBytes(buffer + gdBlockOffset, groupDesc, sizeof(Ext4GroupDesc));
+  
+  // Write the block back
+  if (ext4WriteBlock(state, gdBlock, buffer) != 0) {
+    return -1;
+  }
+  
+  // Update cache if this is the cached group
+  if (groupIndex == state->cachedGroupIndex) {
+    memcpy(state->groupDescCache, groupDesc, sizeof(Ext4GroupDesc));
+  }
+  
+  return 0;
 }
 
 /// @brief Read a block from the filesystem
@@ -593,19 +672,21 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
     return -1;
   }
   
-  // Get inode table location
-  Ext4GroupDesc *gd = &state->groupDescs[group];
+  // Get inode table location from group descriptor
+  Ext4GroupDesc gd;
+  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    return -1;
+  }
+  
   uint32_t inodeTableLo;
-  readBytes(&inodeTableLo, &gd->inodeTableLo);
+  readBytes(&inodeTableLo, &gd.inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
     ((index * state->inodeSize) / state->fs->blockSize);
   uint32_t inodeOffset
     = (index * state->inodeSize) % state->fs->blockSize;
   
-  if (
-    ext4ReadBlock(state, inodeBlock, buffer) != 0
-  ) {
+  if (ext4ReadBlock(state, inodeBlock, buffer) != 0) {
     return -1;
   }
   
@@ -635,19 +716,21 @@ static int ext4WriteInode(Ext4State *state, uint32_t inodeNum,
     return -1;
   }
   
-  // Get inode table location
-  Ext4GroupDesc *gd = &state->groupDescs[group];
+  // Get inode table location from group descriptor
+  Ext4GroupDesc gd;
+  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    return -1;
+  }
+  
   uint32_t inodeTableLo;
-  readBytes(&inodeTableLo, &gd->inodeTableLo);
+  readBytes(&inodeTableLo, &gd.inodeTableLo);
   
   uint32_t inodeBlock = inodeTableLo + 
     ((index * state->inodeSize) / state->fs->blockSize);
   uint32_t inodeOffset
     = (index * state->inodeSize) % state->fs->blockSize;
   
-  if (
-    ext4ReadBlock(state, inodeBlock, buffer) != 0
-  ) {
+  if (ext4ReadBlock(state, inodeBlock, buffer) != 0) {
     return -1;
   }
   
@@ -728,6 +811,255 @@ static uint64_t ext4GetBlockFromExtent(Ext4State *state,
   }
   
   return 0;
+}
+
+/// @brief Allocate a new block from the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+///
+/// @return Block number, or 0 if no blocks available
+static uint32_t ext4AllocateBlock(Ext4State *state) {
+  if (!state) {
+    return 0;
+  }
+  
+  uint16_t blockSize = state->fs->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
+  if (!bitmap) {
+    return 0;
+  }
+  
+  for (uint32_t group = 0; group < state->groupsCount; group++) {
+    Ext4GroupDesc gd;
+    if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+      continue;
+    }
+    
+    uint16_t freeBlocks;
+    readBytes(&freeBlocks, &gd.freeBlocksCountLo);
+    
+    if (freeBlocks == 0) {
+      continue;
+    }
+    
+    uint32_t bitmapBlock;
+    readBytes(&bitmapBlock, &gd.blockBitmapLo);
+    
+    if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+      continue;
+    }
+    
+    // Find free bit in bitmap
+    for (uint32_t byte = 0; byte < blockSize; byte++) {
+      if (bitmap[byte] != 0xFF) {
+        for (uint32_t bit = 0; bit < 8; bit++) {
+          if (!(bitmap[byte] & (1 << bit))) {
+            // Found free block
+            bitmap[byte] |= (1 << bit);
+            
+            // Write updated bitmap
+            if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
+              // Update group descriptor
+              freeBlocks--;
+              writeBytes(&gd.freeBlocksCountLo, &freeBlocks);
+              ext4WriteGroupDesc(state, group, &gd);
+              
+              // Calculate absolute block number
+              uint32_t blockNum = group * state->blocksPerGroup + 
+                byte * 8 + bit;
+              
+              free(bitmap);
+              return blockNum;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  free(bitmap);
+  return 0;
+}
+
+/// @brief Free a block back to the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+/// @param blockNum The block number to free
+static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
+  if (!state || blockNum == 0) {
+    return;
+  }
+  
+  uint32_t group = blockNum / state->blocksPerGroup;
+  uint32_t blockInGroup = blockNum % state->blocksPerGroup;
+  
+  if (group >= state->groupsCount) {
+    return;
+  }
+  
+  uint16_t blockSize = state->fs->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
+  if (!bitmap) {
+    return;
+  }
+  
+  Ext4GroupDesc gd;
+  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    free(bitmap);
+    return;
+  }
+  
+  uint32_t bitmapBlock;
+  readBytes(&bitmapBlock, &gd.blockBitmapLo);
+  
+  if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+    free(bitmap);
+    return;
+  }
+  
+  uint32_t byte = blockInGroup / 8;
+  uint32_t bit = blockInGroup % 8;
+  
+  if (bitmap[byte] & (1 << bit)) {
+    bitmap[byte] &= ~(1 << bit);
+    
+    if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
+      uint16_t freeBlocks;
+      readBytes(&freeBlocks, &gd.freeBlocksCountLo);
+      freeBlocks++;
+      writeBytes(&gd.freeBlocksCountLo, &freeBlocks);
+      ext4WriteGroupDesc(state, group, &gd);
+    }
+  }
+  
+  free(bitmap);
+}
+
+/// @brief Allocate a new inode from the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+///
+/// @return Inode number, or 0 if no inodes available
+static uint32_t ext4AllocateInode(Ext4State *state) {
+  if (!state) {
+    return 0;
+  }
+  
+  uint16_t blockSize = state->fs->blockSize;
+  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
+  if (!bitmap) {
+    return 0;
+  }
+  
+  for (uint32_t group = 0; group < state->groupsCount; group++) {
+    Ext4GroupDesc gd;
+    if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+      continue;
+    }
+    
+    uint16_t freeInodes;
+    readBytes(&freeInodes, &gd.freeInodesCountLo);
+    
+    if (freeInodes == 0) {
+      continue;
+    }
+    
+    uint32_t bitmapBlock;
+    readBytes(&bitmapBlock, &gd.inodeBitmapLo);
+    
+    if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+      continue;
+    }
+    
+    // Find free bit in bitmap
+    for (uint32_t byte = 0; byte < blockSize; byte++) {
+      if (bitmap[byte] != 0xFF) {
+        for (uint32_t bit = 0; bit < 8; bit++) {
+          if (!(bitmap[byte] & (1 << bit))) {
+            // Check if this inode number is valid
+            uint32_t inodeNum = group * state->inodesPerGroup + 
+              byte * 8 + bit + 1;
+            
+            uint32_t firstIno;
+            readBytes(&firstIno, &state->superblock->firstIno);
+            if (inodeNum < firstIno) {
+              continue;
+            }
+            
+            // Found free inode
+            bitmap[byte] |= (1 << bit);
+            
+            // Write updated bitmap
+            if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
+              // Update group descriptor
+              freeInodes--;
+              writeBytes(&gd.freeInodesCountLo, &freeInodes);
+              ext4WriteGroupDesc(state, group, &gd);
+              
+              free(bitmap);
+              return inodeNum;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  free(bitmap);
+  return 0;
+}
+
+/// @brief Free an inode back to the filesystem
+///
+/// @param state Pointer to the ext4 state structure
+/// @param inodeNum The inode number to free
+static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
+  if (!state || inodeNum == 0) {
+    return;
+  }
+  
+  uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
+  uint32_t inodeInGroup = (inodeNum - 1) % state->inodesPerGroup;
+  
+  if (group >= state->groupsCount) {
+    return;
+  }
+  
+  uint8_t *bitmap = (uint8_t*) malloc(state->fs->blockSize);
+  if (!bitmap) {
+    return;
+  }
+  
+  Ext4GroupDesc gd;
+  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    free(bitmap);
+    return;
+  }
+  
+  uint32_t bitmapBlock;
+  readBytes(&bitmapBlock, &gd.inodeBitmapLo);
+  
+  if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+    free(bitmap);
+    return;
+  }
+  
+  uint32_t byte = inodeInGroup / 8;
+  uint32_t bit = inodeInGroup % 8;
+  
+  if (bitmap[byte] & (1 << bit)) {
+    bitmap[byte] &= ~(1 << bit);
+    
+    if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
+      uint16_t freeInodes;
+      readBytes(&freeInodes, &gd.freeInodesCountLo);
+      freeInodes++;
+      writeBytes(&gd.freeInodesCountLo, &freeInodes);
+      ext4WriteGroupDesc(state, group, &gd);
+    }
+  }
+  
+  free(bitmap);
 }
 
 /// @brief Find an inode number by path
@@ -842,233 +1174,6 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
   
   free(pathCopy);
   return currentInode;
-}
-
-/// @brief Allocate a new block from the filesystem
-///
-/// @param state Pointer to the ext4 state structure
-///
-/// @return Block number, or 0 if no blocks available
-static uint32_t ext4AllocateBlock(Ext4State *state) {
-  if (!state) {
-    return 0;
-  }
-  
-  uint16_t blockSize = state->fs->blockSize;
-  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
-  if (!bitmap) {
-    return 0;
-  }
-  
-  for (uint32_t group = 0; group < state->groupsCount; group++) {
-    Ext4GroupDesc *gd = &state->groupDescs[group];
-    uint16_t freeBlocks;
-    readBytes(&freeBlocks, &gd->freeBlocksCountLo);
-    
-    if (freeBlocks == 0) {
-      continue;
-    }
-    
-    uint32_t bitmapBlock;
-    readBytes(&bitmapBlock, &gd->blockBitmapLo);
-    
-    if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
-      continue;
-    }
-    
-    // Find free bit in bitmap
-    for (uint32_t byte = 0; byte < blockSize; byte++) {
-      if (bitmap[byte] != 0xFF) {
-        for (uint32_t bit = 0; bit < 8; bit++) {
-          if (!(bitmap[byte] & (1 << bit))) {
-            // Found free block
-            bitmap[byte] |= (1 << bit);
-            
-            // Write updated bitmap
-            if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-              // Update group descriptor
-              freeBlocks--;
-              writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
-              
-              // Calculate absolute block number
-              uint32_t blockNum = group * state->blocksPerGroup + 
-                byte * 8 + bit;
-              
-              free(bitmap);
-              return blockNum;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  free(bitmap);
-  return 0;
-}
-
-/// @brief Free a block back to the filesystem
-///
-/// @param state Pointer to the ext4 state structure
-/// @param blockNum The block number to free
-static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
-  if (!state || blockNum == 0) {
-    return;
-  }
-  
-  uint32_t group = blockNum / state->blocksPerGroup;
-  uint32_t blockInGroup = blockNum % state->blocksPerGroup;
-  
-  if (group >= state->groupsCount) {
-    return;
-  }
-  
-  uint16_t blockSize = state->fs->blockSize;
-  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
-  if (!bitmap) {
-    return;
-  }
-  
-  Ext4GroupDesc *gd = &state->groupDescs[group];
-  uint32_t bitmapBlock;
-  readBytes(&bitmapBlock, &gd->blockBitmapLo);
-  
-  if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
-    free(bitmap);
-    return;
-  }
-  
-  uint32_t byte = blockInGroup / 8;
-  uint32_t bit = blockInGroup % 8;
-  
-  if (bitmap[byte] & (1 << bit)) {
-    bitmap[byte] &= ~(1 << bit);
-    
-    if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-      uint16_t freeBlocks;
-      readBytes(&freeBlocks, &gd->freeBlocksCountLo);
-      freeBlocks++;
-      writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
-    }
-  }
-  
-  free(bitmap);
-}
-
-/// @brief Allocate a new inode from the filesystem
-///
-/// @param state Pointer to the ext4 state structure
-///
-/// @return Inode number, or 0 if no inodes available
-static uint32_t ext4AllocateInode(Ext4State *state) {
-  if (!state) {
-    return 0;
-  }
-  
-  uint16_t blockSize = state->fs->blockSize;
-  uint8_t *bitmap = (uint8_t*) malloc(blockSize);
-  if (!bitmap) {
-    return 0;
-  }
-  
-  for (uint32_t group = 0; group < state->groupsCount; group++) {
-    Ext4GroupDesc *gd = &state->groupDescs[group];
-    uint16_t freeInodes;
-    readBytes(&freeInodes, &gd->freeInodesCountLo);
-    
-    if (freeInodes == 0) {
-      continue;
-    }
-    
-    uint32_t bitmapBlock;
-    readBytes(&bitmapBlock, &gd->inodeBitmapLo);
-    
-    if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
-      continue;
-    }
-    
-    // Find free bit in bitmap
-    for (uint32_t byte = 0; byte < blockSize; byte++) {
-      if (bitmap[byte] != 0xFF) {
-        for (uint32_t bit = 0; bit < 8; bit++) {
-          if (!(bitmap[byte] & (1 << bit))) {
-            // Check if this inode number is valid
-            uint32_t inodeNum = group * state->inodesPerGroup + 
-              byte * 8 + bit + 1;
-            
-            uint32_t firstIno;
-            readBytes(&firstIno, &state->superblock->firstIno);
-            if (inodeNum < firstIno) {
-              continue;
-            }
-            
-            // Found free inode
-            bitmap[byte] |= (1 << bit);
-            
-            // Write updated bitmap
-            if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-              // Update group descriptor
-              freeInodes--;
-              writeBytes(&gd->freeInodesCountLo, &freeInodes);
-              
-              free(bitmap);
-              return inodeNum;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  free(bitmap);
-  return 0;
-}
-
-/// @brief Free an inode back to the filesystem
-///
-/// @param state Pointer to the ext4 state structure
-/// @param inodeNum The inode number to free
-static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
-  if (!state || inodeNum == 0) {
-    return;
-  }
-  
-  uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
-  uint32_t inodeInGroup = (inodeNum - 1) % state->inodesPerGroup;
-  
-  if (group >= state->groupsCount) {
-    return;
-  }
-  
-  uint8_t *bitmap = (uint8_t*) malloc(state->fs->blockSize);
-  if (!bitmap) {
-    return;
-  }
-  
-  Ext4GroupDesc *gd = &state->groupDescs[group];
-  uint32_t bitmapBlock;
-  readBytes(&bitmapBlock, &gd->inodeBitmapLo);
-  
-  if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
-    free(bitmap);
-    return;
-  }
-  
-  uint32_t byte = inodeInGroup / 8;
-  uint32_t bit = inodeInGroup % 8;
-  
-  if (bitmap[byte] & (1 << bit)) {
-    bitmap[byte] &= ~(1 << bit);
-    
-    if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-      uint16_t freeInodes;
-      readBytes(&freeInodes, &gd->freeInodesCountLo);
-      freeInodes++;
-      writeBytes(&gd->freeInodesCountLo, &freeInodes);
-    }
-  }
-  
-  free(bitmap);
 }
 
 /// @brief Create a directory entry
