@@ -1535,15 +1535,16 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
   int returnValue = -1;
   uint32_t sizeLo = 0;
   uint16_t blockSize = state->fs->blockSize;
-  uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
+  uint32_t blockCount = 0;
   uint8_t *dirBuffer = NULL;
   Ext4DirEntry *entry = NULL;
+  Ext4Inode *dirInode = NULL;
   
   if (!state || !name) {
     return returnValue; // -1
   }
   
-  Ext4Inode *dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
+  dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (dirInode == NULL) {
     return returnValue; // -1
   }
@@ -1552,6 +1553,7 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
   }
   
   readBytes(&sizeLo, &dirInode->sizeLo);
+  blockCount = (sizeLo + blockSize - 1) / blockSize;
   
   dirBuffer = (uint8_t*) malloc(blockSize);
   if (!dirBuffer) {
@@ -1559,6 +1561,10 @@ static int ext4RemoveDirEntry(Ext4State *state, uint32_t parentInode,
   }
   
   entry = (Ext4DirEntry*) malloc(sizeof(Ext4DirEntry));
+  if (entry == NULL) {
+    goto cleanup;
+  }
+  
   for (uint32_t ii = 0; ii < blockCount; ii++) {
     uint64_t blockNum = ext4GetBlockFromExtent(state, dirInode, ii);
     if (blockNum == 0) {
