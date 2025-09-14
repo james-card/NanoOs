@@ -101,6 +101,45 @@
 #define EXT4_MODE_APPEND              0x04
 #define EXT4_MODE_CREATE              0x08
 
+// Checksum values
+#define EXT4_FEATURE_RO_COMPAT_GDT_CSUM      0x0010
+#define EXT4_FEATURE_RO_COMPAT_METADATA_CSUM 0x0400
+
+static const uint16_t crc16Table[256] = {
+  0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
+  0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
+  0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
+  0x0A00, 0xCAC1, 0xCB81, 0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841,
+  0xD801, 0x18C0, 0x1980, 0xD941, 0x1B00, 0xDBC1, 0xDA81, 0x1A40,
+  0x1E00, 0xDEC1, 0xDF81, 0x1F40, 0xDD01, 0x1DC0, 0x1C80, 0xDC41,
+  0x1400, 0xD4C1, 0xD581, 0x1540, 0xD701, 0x17C0, 0x1680, 0xD641,
+  0xD201, 0x12C0, 0x1380, 0xD341, 0x1100, 0xD1C1, 0xD081, 0x1040,
+  0xF001, 0x30C0, 0x3180, 0xF141, 0x3300, 0xF3C1, 0xF281, 0x3240,
+  0x3600, 0xF6C1, 0xF781, 0x3740, 0xF501, 0x35C0, 0x3480, 0xF441,
+  0x3C00, 0xFCC1, 0xFD81, 0x3D40, 0xFF01, 0x3FC0, 0x3E80, 0xFE41,
+  0xFA01, 0x3AC0, 0x3B80, 0xFB41, 0x3900, 0xF9C1, 0xF881, 0x3840,
+  0x2800, 0xE8C1, 0xE981, 0x2940, 0xEB01, 0x2BC0, 0x2A80, 0xEA41,
+  0xEE01, 0x2EC0, 0x2F80, 0xEF41, 0x2D00, 0xEDC1, 0xEC81, 0x2C40,
+  0xE401, 0x24C0, 0x2580, 0xE541, 0x2700, 0xE7C1, 0xE681, 0x2640,
+  0x2200, 0xE2C1, 0xE381, 0x2340, 0xE101, 0x21C0, 0x2080, 0xE041,
+  0xA001, 0x60C0, 0x6180, 0xA141, 0x6300, 0xA3C1, 0xA281, 0x6240,
+  0x6600, 0xA6C1, 0xA781, 0x6740, 0xA501, 0x65C0, 0x6480, 0xA441,
+  0x6C00, 0xACC1, 0xAD81, 0x6D40, 0xAF01, 0x6FC0, 0x6E80, 0xAE41,
+  0xAA01, 0x6AC0, 0x6B80, 0xAB41, 0x6900, 0xA9C1, 0xA881, 0x6840,
+  0x7800, 0xB8C1, 0xB981, 0x7940, 0xBB01, 0x7BC0, 0x7A80, 0xBA41,
+  0xBE01, 0x7EC0, 0x7F80, 0xBF41, 0x7D00, 0xBDC1, 0xBC81, 0x7C40,
+  0xB401, 0x74C0, 0x7580, 0xB541, 0x7700, 0xB7C1, 0xB681, 0x7640,
+  0x7200, 0xB2C1, 0xB381, 0x7340, 0xB101, 0x71C0, 0x7080, 0xB041,
+  0x5000, 0x90C1, 0x9181, 0x5140, 0x9301, 0x53C0, 0x5280, 0x9241,
+  0x9601, 0x56C0, 0x5780, 0x9741, 0x5500, 0x95C1, 0x9481, 0x5440,
+  0x9C01, 0x5CC0, 0x5D80, 0x9D41, 0x5F00, 0x9FC1, 0x9E81, 0x5E40,
+  0x5A00, 0x9AC1, 0x9B81, 0x5B40, 0x9901, 0x59C0, 0x5880, 0x9841,
+  0x8801, 0x48C0, 0x4980, 0x8941, 0x4B00, 0x8BC1, 0x8A81, 0x4A40,
+  0x4E00, 0x8EC1, 0x8F81, 0x4F40, 0x8D01, 0x4DC0, 0x4C80, 0x8C41,
+  0x4400, 0x84C1, 0x8581, 0x4540, 0x8701, 0x47C0, 0x4680, 0x8641,
+  0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
+};
+
 // Structure definitions
 
 /// @struct Ext4Superblock
@@ -531,6 +570,69 @@ void ext4Cleanup(Ext4State *state) {
   state->driverStateValid = false;
 }
 
+/// @brief Calculate CRC16 checksum for a buffer
+///
+/// @param crc Initial CRC value
+/// @param buffer Pointer to the data buffer
+/// @param len Length of the data in bytes
+///
+/// @return Updated CRC16 value
+static uint16_t ext4Crc16(uint16_t crc, const uint8_t *buffer, size_t len) {
+  for (size_t ii = 0; ii < len; ii++) {
+    crc = (crc >> 8) ^ crc16Table[(crc ^ buffer[ii]) & 0xFF];
+  }
+  return crc;
+}
+
+/// @brief Calculate checksum for a group descriptor
+///
+/// @param state Pointer to the ext4 state structure
+/// @param groupIndex The index of the group descriptor
+/// @param groupDesc The group descriptor to checksum
+///
+/// @return The calculated checksum
+static uint16_t ext4CalculateGroupDescChecksum(
+  Ext4State *state, uint32_t groupIndex, const Ext4GroupDesc *groupDesc
+) {
+  uint16_t crc = 0;
+  uint32_t featureRoCompat;
+  
+  readBytes(&featureRoCompat, &state->superblock->featureRoCompat);
+  
+  // Check if checksums are enabled
+  if (!(featureRoCompat & EXT4_FEATURE_RO_COMPAT_GDT_CSUM) &&
+      !(featureRoCompat & EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
+    return 0;
+  }
+  
+  // Create a temporary buffer for checksum calculation
+  uint8_t *tempBuffer = (uint8_t*) malloc(state->groupDescSize);
+  if (!tempBuffer) {
+    return 0;
+  }
+  
+  // Copy the group descriptor to temp buffer
+  copyBytes(tempBuffer, groupDesc, state->groupDescSize);
+  
+  // Zero out the checksum field for calculation
+  if (state->groupDescSize >= 32) {
+    // Standard 32-byte descriptor - checksum at offset 0x1E
+    tempBuffer[0x1E] = 0;
+    tempBuffer[0x1F] = 0;
+  }
+  
+  // Calculate initial CRC with filesystem UUID and group number
+  uint32_t groupIndexLe = groupIndex;
+  crc = ext4Crc16(crc, state->superblock->uuid, 16);
+  crc = ext4Crc16(crc, (uint8_t*) &groupIndexLe, sizeof(groupIndexLe));
+  
+  // Calculate CRC of the group descriptor
+  crc = ext4Crc16(crc, tempBuffer, state->groupDescSize);
+  
+  free(tempBuffer);
+  return crc;
+}
+
 /// @brief Read a group descriptor from the filesystem
 ///
 /// @param state Pointer to the ext4 state structure
@@ -597,7 +699,7 @@ static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
   return 0;
 }
 
-/// @brief Write a group descriptor to the filesystem
+/// @brief Updated function to write a group descriptor with checksum
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param groupIndex The index of the group descriptor to write
@@ -610,6 +712,18 @@ static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
     return -1;
   }
   
+  // Create a copy to modify with checksum
+  Ext4GroupDesc *groupDescCopy = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+  if (!groupDescCopy) {
+    return -1;
+  }
+  copyBytes(groupDescCopy, groupDesc, sizeof(Ext4GroupDesc));
+  
+  // Calculate and set the checksum
+  uint16_t checksum = ext4CalculateGroupDescChecksum(
+    state, groupIndex, groupDescCopy);
+  writeBytes(&groupDescCopy->checksum, &checksum);
+  
   // Calculate which block and offset contains this group descriptor
   uint32_t gdOffset = groupIndex * state->groupDescSize;
   uint32_t gdBlock = state->gdtStartBlock + 
@@ -619,22 +733,25 @@ static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
   // Read the block containing the group descriptor
   uint8_t *buffer = state->fs->blockBuffer;
   if (ext4ReadBlock(state, gdBlock, buffer) != 0) {
+    free(groupDescCopy);
     return -1;
   }
   
-  // Update the group descriptor data
-  copyBytes(buffer + gdBlockOffset, groupDesc, sizeof(Ext4GroupDesc));
+  // Update the group descriptor data with checksum
+  copyBytes(buffer + gdBlockOffset, groupDescCopy, sizeof(Ext4GroupDesc));
   
   // Write the block back
   if (ext4WriteBlock(state, gdBlock, buffer) != 0) {
+    free(groupDescCopy);
     return -1;
   }
   
   // Update cache if this is the cached group
   if (groupIndex == state->cachedGroupIndex) {
-    memcpy(state->groupDescCache, groupDesc, sizeof(Ext4GroupDesc));
+    memcpy(state->groupDescCache, groupDescCopy, sizeof(Ext4GroupDesc));
   }
   
+  free(groupDescCopy);
   return 0;
 }
 
@@ -859,7 +976,7 @@ static uint64_t ext4GetBlockFromExtent(Ext4State *state,
   return 0;
 }
 
-/// @brief Allocate a new block from the filesystem
+/// @brief Updated function to allocate a block with proper checksum handling
 ///
 /// @param state Pointer to the ext4 state structure
 ///
@@ -876,22 +993,30 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
   }
   
   for (uint32_t group = 0; group < state->groupsCount; group++) {
-    Ext4GroupDesc gd;
-    if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    Ext4GroupDesc *gd = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+    if (!gd) {
+      free(bitmap);
+      return 0;
+    }
+    
+    if (ext4ReadGroupDesc(state, group, gd) != 0) {
+      free(gd);
       continue;
     }
     
     uint16_t freeBlocks;
-    readBytes(&freeBlocks, &gd.freeBlocksCountLo);
+    readBytes(&freeBlocks, &gd->freeBlocksCountLo);
     
     if (freeBlocks == 0) {
+      free(gd);
       continue;
     }
     
     uint32_t bitmapBlock;
-    readBytes(&bitmapBlock, &gd.blockBitmapLo);
+    readBytes(&bitmapBlock, &gd->blockBitmapLo);
     
     if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+      free(gd);
       continue;
     }
     
@@ -907,13 +1032,23 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
             if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
               // Update group descriptor
               freeBlocks--;
-              writeBytes(&gd.freeBlocksCountLo, &freeBlocks);
-              ext4WriteGroupDesc(state, group, &gd);
+              writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
+              
+              // Write group descriptor with updated checksum
+              if (ext4WriteGroupDesc(state, group, gd) != 0) {
+                // Rollback bitmap change
+                bitmap[byte] &= ~(1 << bit);
+                ext4WriteBlock(state, bitmapBlock, bitmap);
+                free(gd);
+                free(bitmap);
+                return 0;
+              }
               
               // Calculate absolute block number
               uint32_t blockNum = group * state->blocksPerGroup + 
                 byte * 8 + bit;
               
+              free(gd);
               free(bitmap);
               return blockNum;
             }
@@ -921,13 +1056,14 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
         }
       }
     }
+    free(gd);
   }
   
   free(bitmap);
   return 0;
 }
 
-/// @brief Free a block back to the filesystem
+/// @brief Updated function to free a block with proper checksum handling
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param blockNum The block number to free
@@ -949,16 +1085,23 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
     return;
   }
   
-  Ext4GroupDesc gd;
-  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+  Ext4GroupDesc *gd = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+  if (!gd) {
+    free(bitmap);
+    return;
+  }
+  
+  if (ext4ReadGroupDesc(state, group, gd) != 0) {
+    free(gd);
     free(bitmap);
     return;
   }
   
   uint32_t bitmapBlock;
-  readBytes(&bitmapBlock, &gd.blockBitmapLo);
+  readBytes(&bitmapBlock, &gd->blockBitmapLo);
   
   if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+    free(gd);
     free(bitmap);
     return;
   }
@@ -971,17 +1114,20 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
     
     if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
       uint16_t freeBlocks;
-      readBytes(&freeBlocks, &gd.freeBlocksCountLo);
+      readBytes(&freeBlocks, &gd->freeBlocksCountLo);
       freeBlocks++;
-      writeBytes(&gd.freeBlocksCountLo, &freeBlocks);
-      ext4WriteGroupDesc(state, group, &gd);
+      writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
+      
+      // Write group descriptor with updated checksum
+      ext4WriteGroupDesc(state, group, gd);
     }
   }
   
+  free(gd);
   free(bitmap);
 }
 
-/// @brief Allocate a new inode from the filesystem
+/// @brief Updated function to allocate an inode with proper checksum handling
 ///
 /// @param state Pointer to the ext4 state structure
 ///
@@ -998,22 +1144,30 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
   }
   
   for (uint32_t group = 0; group < state->groupsCount; group++) {
-    Ext4GroupDesc gd;
-    if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    Ext4GroupDesc *gd = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+    if (!gd) {
+      free(bitmap);
+      return 0;
+    }
+    
+    if (ext4ReadGroupDesc(state, group, gd) != 0) {
+      free(gd);
       continue;
     }
     
     uint16_t freeInodes;
-    readBytes(&freeInodes, &gd.freeInodesCountLo);
+    readBytes(&freeInodes, &gd->freeInodesCountLo);
     
     if (freeInodes == 0) {
+      free(gd);
       continue;
     }
     
     uint32_t bitmapBlock;
-    readBytes(&bitmapBlock, &gd.inodeBitmapLo);
+    readBytes(&bitmapBlock, &gd->inodeBitmapLo);
     
     if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+      free(gd);
       continue;
     }
     
@@ -1039,9 +1193,22 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
             if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
               // Update group descriptor
               freeInodes--;
-              writeBytes(&gd.freeInodesCountLo, &freeInodes);
-              ext4WriteGroupDesc(state, group, &gd);
+              writeBytes(&gd->freeInodesCountLo, &freeInodes);
               
+              // Update used directories count if needed
+              // (would need to check if allocating for directory)
+              
+              // Write group descriptor with updated checksum
+              if (ext4WriteGroupDesc(state, group, gd) != 0) {
+                // Rollback bitmap change
+                bitmap[byte] &= ~(1 << bit);
+                ext4WriteBlock(state, bitmapBlock, bitmap);
+                free(gd);
+                free(bitmap);
+                return 0;
+              }
+              
+              free(gd);
               free(bitmap);
               return inodeNum;
             }
@@ -1049,13 +1216,14 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
         }
       }
     }
+    free(gd);
   }
   
   free(bitmap);
   return 0;
 }
 
-/// @brief Free an inode back to the filesystem
+/// @brief Updated function to free an inode with proper checksum handling
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param inodeNum The inode number to free
@@ -1076,16 +1244,23 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
     return;
   }
   
-  Ext4GroupDesc gd;
-  if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+  Ext4GroupDesc *gd = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
+  if (!gd) {
+    free(bitmap);
+    return;
+  }
+  
+  if (ext4ReadGroupDesc(state, group, gd) != 0) {
+    free(gd);
     free(bitmap);
     return;
   }
   
   uint32_t bitmapBlock;
-  readBytes(&bitmapBlock, &gd.inodeBitmapLo);
+  readBytes(&bitmapBlock, &gd->inodeBitmapLo);
   
   if (ext4ReadBlock(state, bitmapBlock, bitmap) != 0) {
+    free(gd);
     free(bitmap);
     return;
   }
@@ -1098,13 +1273,16 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
     
     if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
       uint16_t freeInodes;
-      readBytes(&freeInodes, &gd.freeInodesCountLo);
+      readBytes(&freeInodes, &gd->freeInodesCountLo);
       freeInodes++;
-      writeBytes(&gd.freeInodesCountLo, &freeInodes);
-      ext4WriteGroupDesc(state, group, &gd);
+      writeBytes(&gd->freeInodesCountLo, &freeInodes);
+      
+      // Write group descriptor with updated checksum
+      ext4WriteGroupDesc(state, group, gd);
     }
   }
   
+  free(gd);
   free(bitmap);
 }
 
