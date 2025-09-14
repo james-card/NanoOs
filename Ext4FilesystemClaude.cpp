@@ -1286,6 +1286,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   Ext4DirEntry *entry = NULL;
   Ext4DirEntry *newEntry = NULL;
   Ext4Inode *dirInode = NULL;
+  uint8_t nameLenByte = 0;
   
   if (!state || !name || (strlen(name) > EXT4_NAME_LEN)) {
     return returnValue; // -1
@@ -1391,7 +1392,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   // Create entry in new block
   writeBytes(&newEntry->inode, &inodeNum);
   writeBytes(&newEntry->recLen, &newRecLen);
-  uint8_t nameLenByte = nameLen;
+  nameLenByte = nameLen;
   writeBytes(&newEntry->nameLen, &nameLenByte);
   writeBytes(&newEntry->fileType, &fileType);
   
