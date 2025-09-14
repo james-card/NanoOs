@@ -539,28 +539,53 @@ void ext4Cleanup(Ext4State *state) {
 ///
 /// @return 0 on success, negative on error
 static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
-    Ext4GroupDesc *groupDesc) {
+    Ext4GroupDesc *groupDesc
+) {
   if (!state || !groupDesc || groupIndex >= state->groupsCount) {
     return -1;
   }
   
   // Check if we have this group cached
   if (groupIndex == state->cachedGroupIndex) {
+    printDebug("groupIndex == state->cachedGroupIndex\n");
     memcpy(groupDesc, state->groupDescCache, sizeof(Ext4GroupDesc));
     return 0;
   }
   
   // Calculate which block and offset contains this group descriptor
   uint32_t gdOffset = groupIndex * state->groupDescSize;
+  printDebug("gdOffset = ");
+  printDebug(gdOffset);
+  printDebug("\n");
   uint32_t gdBlock = state->gdtStartBlock + 
     (gdOffset / state->fs->blockSize);
+  printDebug("gdBlock = ");
+  printDebug(gdBlock);
+  printDebug("\n");
   uint32_t gdBlockOffset = gdOffset % state->fs->blockSize;
+  printDebug("gdBlockOffset = ");
+  printDebug(gdBlockOffset);
+  printDebug("\n");
   
   // Read the block containing the group descriptor
   uint8_t *buffer = state->fs->blockBuffer;
   if (ext4ReadBlock(state, gdBlock, buffer) != 0) {
     return -1;
   }
+
+#ifdef NANO_OS_DEBUG
+  uint32_t ii = 0;
+  for (; ii < state->fs->blockSize; ii++) {
+    if (buffer[ii] != '\0') {
+      break;
+    }
+  }
+  if (ii < state->fs->blockSize) {
+    printDebug("Non-zero byte found in buffer.\n");
+  } else {
+    printDebug("WARNING: Block read in was all zero bytes!\n");
+  }
+#endif // NANO_OS_DEBUG
   
   // Copy the group descriptor data
   copyBytes(groupDesc, buffer + gdBlockOffset, sizeof(Ext4GroupDesc));
@@ -666,30 +691,48 @@ static int ext4ReadInode(Ext4State *state, uint32_t inodeNum,
   if (!state || !inode || inodeNum == 0) {
     return -1;
   }
+  printDebug("Reading inode ");
+  printDebug(inodeNum);
+  printDebug("\n");
   
   uint32_t group = (inodeNum - 1) / state->inodesPerGroup;
   uint32_t index = (inodeNum - 1) % state->inodesPerGroup;
   uint8_t *buffer = state->fs->blockBuffer;
   
   if (group >= state->groupsCount) {
+    printDebug("group >= state->groupsCount\n");
     return -1;
   }
+  printDebug("Reading inode group ");
+  printDebug(group);
+  printDebug("\n");
+  printDebug("Reading inode index ");
+  printDebug(index);
+  printDebug("\n");
   
   // Get inode table location from group descriptor
   Ext4GroupDesc gd;
   if (ext4ReadGroupDesc(state, group, &gd) != 0) {
+    printDebug("ext4ReadGroupDesc failed\n");
     return -1;
   }
   
   uint32_t inodeTableLo;
   readBytes(&inodeTableLo, &gd.inodeTableLo);
+  printDebug("gd.inodeTableLo = ");
+  printDebug(inodeTableLo);
+  printDebug("\n");
   
   uint32_t inodeBlock = inodeTableLo + 
     ((index * state->inodeSize) / state->fs->blockSize);
   uint32_t inodeOffset
     = (index * state->inodeSize) % state->fs->blockSize;
   
+  printDebug("Reading inodeBlock ");
+  printDebug(inodeBlock);
+  printDebug("\n");
   if (ext4ReadBlock(state, inodeBlock, buffer) != 0) {
+    printDebug("ext4ReadBlock failed\n");
     return -1;
   }
   
@@ -1083,6 +1126,7 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
   Ext4DirEntry *entry = NULL;
 
   if (!state || !path) {
+    printDebug("NULL state or path provided to ext4FindInodeByPath\n");
     return returnValue; // 0
   }
   
@@ -1099,34 +1143,48 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
     return returnValue; // 0
   }
   strcpy(pathCopy, path);
+  printDebug("Looking for path \"");
+  printDebug(pathCopy);
+  printDebug("\"\n");
   token = strtok(pathCopy, "/");
+  printDebug("First token is \"");
+  printDebug(token);
+  printDebug("\"\n");
   
   dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (dirInode == NULL) {
+    printDebug("Could not allocate dirInode\n");
     goto cleanup;
   }
   
   if (!dirBuffer) {
     // This should be impossible if we initialized the filesystem correctly, but
     // don't chance it.
+    printDebug("dirBuffer is NULL\n");
     goto cleanup;
   }
   
   entry = (Ext4DirEntry*) malloc(sizeof(Ext4DirEntry));
   if (entry == NULL) {
+    printDebug("Could not allocate entry\n");
     goto cleanup;
   }
 
   while (token != NULL) {
     // Read current directory inode
     if (ext4ReadInode(state, currentInode, dirInode) != 0) {
+      printDebug("Could not read dirInode\n");
       goto cleanup;
     }
     
     // Check if it's a directory
-    uint16_t mode;
+    uint16_t mode = 0;
     readBytes(&mode, &dirInode->mode);
+    printDebug("dirInode->mode = 0x");
+    printDebug(mode, HEX);
+    printDebug("\n");
     if ((mode & EXT4_S_IFMT) != EXT4_S_IFDIR) {
+      printDebug("mode does not include EXT4_S_IFDIR\n");
       goto cleanup;
     }
     
@@ -1176,13 +1234,21 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
       }
     }
     
-    free(dirBuffer);
-    
     if (!found) {
+      printDebug("Could not find entry ");
+      printDebug(token);
+      printDebug("\n");
       goto cleanup;
     }
     
     token = strtok(NULL, "/");
+    if (token != NULL) {
+      printDebug("Next token is \"");
+      printDebug(token);
+      printDebug("\"\n");
+    } else {
+      printDebug("No next token.\n");
+    }
   }
   
   returnValue = currentInode;
@@ -1546,6 +1612,11 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   }
   if (openMode == 0) {
     // Invalid mode.
+    printDebug("Invalid open mode \"");
+    printDebug(mode);
+    printDebug("\" for file \"");
+    printDebug(pathname);
+    printDebug("\"\n");
     return NULL;
   }
   if (mode[1] == '+') {
@@ -1556,6 +1627,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   
   Ext4Inode *newInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (newInode == NULL) {
+    printDebug("Could not allocate newInode.\n");
     return NULL;
   }
   Ext4FileHandle *handle = NULL;
@@ -1564,6 +1636,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     // Find parent directory
     char *pathCopy = (char*) malloc(strlen(pathname) + 1);
     if (!pathCopy) {
+      printDebug("Could not allocate pathCopy.\n");
       goto cleanup;
     }
     strcpy(pathCopy, pathname);
@@ -1582,6 +1655,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     }
     
     if (parentInode == 0) {
+      printDebug("parentInode is 0.\n");
       free(pathCopy);
       goto cleanup;
     }
@@ -1589,6 +1663,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     // Allocate new inode
     inodeNum = ext4AllocateInode(state);
     if (inodeNum == 0) {
+      printDebug("inodeNum is 0.\n");
       free(pathCopy);
       goto cleanup;
     }
@@ -1624,6 +1699,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     copyBytes(newInode->block, &header, sizeof(Ext4ExtentHeader));
     
     if (ext4WriteInode(state, inodeNum, newInode) != 0) {
+      printDebug("Could not write inode.\n");
       ext4FreeInode(state, inodeNum);
       free(pathCopy);
       goto cleanup;
@@ -1631,7 +1707,9 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     
     // Add directory entry
     if (ext4CreateDirEntry(state, parentInode, filename, inodeNum, 
-        EXT4_FT_REG_FILE) != 0) {
+        EXT4_FT_REG_FILE) != 0
+    ) {
+      printDebug("Could not create directory entry.\n");
       ext4FreeInode(state, inodeNum);
       free(pathCopy);
       goto cleanup;
@@ -1639,12 +1717,14 @@ Ext4FileHandle* ext4Open(Ext4State *state,
     
     free(pathCopy);
   } else if (inodeNum == 0) {
+    printDebug("inodeNum is 0 and we're not creating.\n");
     goto cleanup;
   }
   
   // Allocate file handle
   handle = (Ext4FileHandle*) malloc(sizeof(Ext4FileHandle));
   if (!handle) {
+    printDebug("Could not allocate handle.\n");
     goto cleanup;
   }
   
@@ -1655,11 +1735,13 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   // Read inode
   handle->inode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (!handle->inode) {
+    printDebug("Could not allocate handle->inode.\n");
     free(handle); handle = NULL;
     goto cleanup;
   }
   
   if (ext4ReadInode(state, inodeNum, handle->inode) != 0) {
+    printDebug("Could not read handle->inode.\n");
     free(handle->inode);
     free(handle); handle = NULL;
     goto cleanup;
