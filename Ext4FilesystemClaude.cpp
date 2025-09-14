@@ -476,6 +476,9 @@ int ext4Initialize(Ext4State *state) {
   printDebug("\n");
   
   // Allocate cache for a single group descriptor
+  printDebug("sizeof(Ext4GroupDesc) = ");
+  printDebug(sizeof(Ext4GroupDesc));
+  printDebug("\n");
   state->groupDescCache = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
   if (!state->groupDescCache) {
     printDebug("ERROR: Allocation of state->groupDescCache failed.\n");
@@ -1069,12 +1072,19 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
 ///
 /// @return Inode number, or 0 if not found
 static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
-  if (!state || !path) {
-    return 0;
-  }
-  
+  int returnValue = 0;
   // Start at root inode
   uint32_t currentInode = EXT4_ROOT_INO;
+  char *pathCopy = NULL;
+  char *token = NULL;
+  uint16_t blockSize = state->fs->blockSize;
+  Ext4Inode *dirInode = NULL;
+  uint8_t *dirBuffer = state->fs->blockBuffer;
+  Ext4DirEntry *entry = NULL;
+
+  if (!state || !path) {
+    return returnValue; // 0
+  }
   
   if (path[0] == '/') {
     path++;
@@ -1084,45 +1094,50 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
     return currentInode;
   }
   
-  char *pathCopy = (char*) malloc(strlen(path) + 1);
+  pathCopy = (char*) malloc(strlen(path) + 1);
   if (!pathCopy) {
-    return 0;
+    return returnValue; // 0
   }
   strcpy(pathCopy, path);
+  token = strtok(pathCopy, "/");
   
-  char *token = strtok(pathCopy, "/");
+  dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
+  if (dirInode == NULL) {
+    goto cleanup;
+  }
   
-  uint16_t blockSize = state->fs->blockSize;
+  if (!dirBuffer) {
+    // This should be impossible if we initialized the filesystem correctly, but
+    // don't chance it.
+    goto cleanup;
+  }
+  
+  entry = (Ext4DirEntry*) malloc(sizeof(Ext4DirEntry));
+  if (entry == NULL) {
+    goto cleanup;
+  }
+
   while (token != NULL) {
     // Read current directory inode
-    Ext4Inode dirInode;
-    if (ext4ReadInode(state, currentInode, &dirInode) != 0) {
-      free(pathCopy);
-      return 0;
+    if (ext4ReadInode(state, currentInode, dirInode) != 0) {
+      goto cleanup;
     }
     
     // Check if it's a directory
     uint16_t mode;
-    readBytes(&mode, &dirInode.mode);
+    readBytes(&mode, &dirInode->mode);
     if ((mode & EXT4_S_IFMT) != EXT4_S_IFDIR) {
-      free(pathCopy);
-      return 0;
+      goto cleanup;
     }
     
     // Search directory for entry
     uint32_t sizeLo;
-    readBytes(&sizeLo, &dirInode.sizeLo);
+    readBytes(&sizeLo, &dirInode->sizeLo);
     uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
-    
-    uint8_t *dirBuffer = (uint8_t*) malloc(blockSize);
-    if (!dirBuffer) {
-      free(pathCopy);
-      return 0;
-    }
     
     bool found = false;
     for (uint32_t ii = 0; ii < blockCount && !found; ii++) {
-      uint64_t blockNum = ext4GetBlockFromExtent(state, &dirInode, ii);
+      uint64_t blockNum = ext4GetBlockFromExtent(state, dirInode, ii);
       if (blockNum == 0) {
         continue;
       }
@@ -1133,25 +1148,24 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
       
       uint32_t offset = 0;
       while (offset < blockSize) {
-        Ext4DirEntry entry;
-        copyBytes(&entry, dirBuffer + offset, 8);  // Read fixed part
+        copyBytes(entry, dirBuffer + offset, 8);  // Read fixed part
         
         uint32_t inodeNum;
         uint16_t recLen;
         uint8_t nameLen;
-        readBytes(&inodeNum, &entry.inode);
-        readBytes(&recLen, &entry.recLen);
-        readBytes(&nameLen, &entry.nameLen);
+        readBytes(&inodeNum, &entry->inode);
+        readBytes(&recLen, &entry->recLen);
+        readBytes(&nameLen, &entry->nameLen);
         
         if (recLen == 0) {
           break;
         }
         
         if (inodeNum != 0 && nameLen == strlen(token)) {
-          copyBytes(entry.name, dirBuffer + offset + 8, nameLen);
-          entry.name[nameLen] = '\0';
+          copyBytes(entry->name, dirBuffer + offset + 8, nameLen);
+          entry->name[nameLen] = '\0';
           
-          if (strcmp(entry.name, token) == 0) {
+          if (strcmp(entry->name, token) == 0) {
             currentInode = inodeNum;
             found = true;
             break;
@@ -1165,15 +1179,20 @@ static uint32_t ext4FindInodeByPath(Ext4State *state, const char *path) {
     free(dirBuffer);
     
     if (!found) {
-      free(pathCopy);
-      return 0;
+      goto cleanup;
     }
     
     token = strtok(NULL, "/");
   }
   
+  returnValue = currentInode;
+
+cleanup:
+  free(entry);
+  free(dirInode);
   free(pathCopy);
-  return currentInode;
+
+  return returnValue;
 }
 
 /// @brief Create a directory entry
@@ -1504,6 +1523,12 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   if (mode[1] == '+') {
     openMode |= EXT4_MODE_READ | EXT4_MODE_WRITE;
   }
+  printDebug("sizeof(Ext4Inode) = ");
+  printDebug(sizeof(Ext4Inode));
+  printDebug("\n");
+  printDebug("sizeof(Ext4ExtentHeader) = ");
+  printDebug(sizeof(Ext4ExtentHeader));
+  printDebug("\n");
   
   // Find or create file
   uint32_t inodeNum = ext4FindInodeByPath(state, pathname);
@@ -1637,7 +1662,7 @@ Ext4FileHandle* ext4Open(Ext4State *state,
   
   state->fs->numOpenFiles++;
   
-  // Return handle cast to FILE*
+  // Return handle
   return handle;
 }
 
