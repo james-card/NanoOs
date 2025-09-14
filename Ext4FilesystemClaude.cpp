@@ -1456,13 +1456,45 @@ static int ext4SetBlockInExtent(Ext4State *state, Ext4Inode *inode,
     return -1;
   }
   
-  // Handle extent tree (simplified - only handles simple cases)
+  // Handle extent tree
   Ext4ExtentHeader header;
   copyBytes(&header, inode->block, sizeof(Ext4ExtentHeader));
   
   uint16_t entries;
   readBytes(&entries, &header.entries);
   
+  // Check if we can merge with existing extent
+  if (entries > 0) {
+    Ext4Extent *extents = (Ext4Extent*)(inode->block + 
+      sizeof(Ext4ExtentHeader));
+    
+    // Check last extent for possible merge
+    Ext4Extent *lastExtent = &extents[entries - 1];
+    uint32_t lastBlock;
+    uint16_t lastLen;
+    uint32_t lastStartLo;
+    uint16_t lastStartHi;
+    
+    readBytes(&lastBlock, &lastExtent->block);
+    readBytes(&lastLen, &lastExtent->len);
+    readBytes(&lastStartLo, &lastExtent->startLo);
+    readBytes(&lastStartHi, &lastExtent->startHi);
+    
+    uint64_t lastPhysBlock = ((uint64_t)lastStartHi << 32) | lastStartLo;
+    
+    // Check if this block extends the last extent
+    if (fileBlock == lastBlock + lastLen && 
+        physBlock == lastPhysBlock + lastLen) {
+      // Extend the last extent
+      lastLen++;
+      writeBytes(&lastExtent->len, &lastLen);
+      copyBytes(inode->block + sizeof(Ext4ExtentHeader) + 
+        (entries - 1) * sizeof(Ext4Extent), lastExtent, sizeof(Ext4Extent));
+      return 0;
+    }
+  }
+  
+  // Add new extent if there's room
   if (entries < 4) {  // Room for new extent in inode
     Ext4Extent *extents = (Ext4Extent*)(inode->block + 
       sizeof(Ext4ExtentHeader));
