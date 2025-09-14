@@ -1937,9 +1937,8 @@ size_t ext4Read(Ext4State *state,
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param ptr Buffer to write from
-/// @param size Size of each element
-/// @param nmemb Number of elements
-/// @param stream File handle
+/// @param totalBytes Number of bytes to write
+/// @param handle File handle
 ///
 /// @return Number of bytes written
 size_t ext4Write(Ext4State *state,
@@ -1975,6 +1974,13 @@ size_t ext4Write(Ext4State *state,
       // Allocate new block
       physBlock = ext4AllocateBlock(state);
       if (physBlock == 0) {
+        break;
+      }
+      
+      // Zero out the new block first
+      memset(blockBuffer, 0, blockSize);
+      if (ext4WriteBlock(state, physBlock, blockBuffer) != 0) {
+        ext4FreeBlock(state, physBlock);
         break;
       }
       
