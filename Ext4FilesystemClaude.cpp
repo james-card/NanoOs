@@ -1275,22 +1275,23 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
 ) {
   int returnValue = -1;
   uint32_t nameLen = strlen(name);
-  uint32_t recLen = ((8 + nameLen + 3) / 4) * 4;  // Align to 4 bytes
+  uint32_t requiredLen = ((8 + nameLen + 3) / 4) * 4;  // Align to 4 bytes
   
   uint32_t sizeLo = 0;
   uint16_t blockSize = state->fs->blockSize;
-  uint32_t blockCount = (sizeLo + blockSize - 1) / blockSize;
+  uint32_t blockCount = 0;
   uint16_t newRecLen = blockSize;
   uint32_t newBlock = 0;
   uint8_t *dirBuffer = NULL;
   Ext4DirEntry *entry = NULL;
   Ext4DirEntry *newEntry = NULL;
+  Ext4Inode *dirInode = NULL;
   
   if (!state || !name || (strlen(name) > EXT4_NAME_LEN)) {
     return returnValue; // -1
   }
   
-  Ext4Inode *dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
+  dirInode = (Ext4Inode*) malloc(sizeof(Ext4Inode));
   if (dirInode == NULL) {
     return returnValue; // -1
   }
@@ -1299,6 +1300,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   }
   
   readBytes(&sizeLo, &dirInode->sizeLo);
+  blockCount = (sizeLo + blockSize - 1) / blockSize;
   
   dirBuffer = (uint8_t*) malloc(blockSize);
   if (!dirBuffer) {
@@ -1314,6 +1316,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   if (newEntry == NULL) {
     goto cleanup;
   }
+  
   for (uint32_t ii = 0; ii < blockCount; ii++) {
     uint64_t blockNum = ext4GetBlockFromExtent(state, dirInode, ii);
     if (blockNum == 0) {
@@ -1325,45 +1328,54 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
     }
     
     uint32_t offset = 0;
+    uint32_t lastOffset = 0;
     
+    // Find the last entry in this block
     while (offset < blockSize) {
       copyBytes(entry, dirBuffer + offset, 8);
       
       uint16_t currentRecLen;
-      uint8_t currentNameLen;
       readBytes(&currentRecLen, &entry->recLen);
-      readBytes(&currentNameLen, &entry->nameLen);
       
       if (currentRecLen == 0) {
         break;
       }
       
-      // Check if this is the last entry and has extra space
-      if (offset + currentRecLen >= blockSize) {
-        uint32_t actualLen = ((8 + currentNameLen + 3) / 4) * 4;
-        if (currentRecLen >= actualLen + recLen) {
-          // Split this entry
-          writeBytes(&entry->recLen, &actualLen);
-          copyBytes(dirBuffer + offset, entry, 8);
-          
-          // Create new entry
-          writeBytes(&newEntry->inode, &inodeNum);
-          uint16_t newRecLen = currentRecLen - actualLen;
-          writeBytes(&newEntry->recLen, &newRecLen);
-          writeBytes(&newEntry->nameLen, &nameLen);
-          writeBytes(&newEntry->fileType, &fileType);
-          
-          copyBytes(dirBuffer + offset + actualLen, newEntry, 8);
-          copyBytes(dirBuffer + offset + actualLen + 8, name, nameLen);
-          
-          if (ext4WriteBlock(state, blockNum, dirBuffer) == 0) {
-            returnValue = 0;
-            goto cleanup;
-          }
-        }
-      }
-      
+      lastOffset = offset;
       offset += currentRecLen;
+    }
+    
+    // Check if the last entry can be split
+    copyBytes(entry, dirBuffer + lastOffset, 8);
+    uint16_t lastRecLen;
+    uint8_t lastNameLen;
+    readBytes(&lastRecLen, &entry->recLen);
+    readBytes(&lastNameLen, &entry->nameLen);
+    
+    uint32_t actualLastLen = ((8 + lastNameLen + 3) / 4) * 4;
+    
+    if (lastOffset + lastRecLen == blockSize && 
+        lastRecLen >= actualLastLen + requiredLen) {
+      // We can split the last entry
+      uint16_t newLastRecLen = actualLastLen;
+      writeBytes(&entry->recLen, &newLastRecLen);
+      copyBytes(dirBuffer + lastOffset, entry, 8);
+      
+      // Create new entry
+      writeBytes(&newEntry->inode, &inodeNum);
+      uint16_t remainingLen = lastRecLen - actualLastLen;
+      writeBytes(&newEntry->recLen, &remainingLen);
+      uint8_t nameLenByte = nameLen;
+      writeBytes(&newEntry->nameLen, &nameLenByte);
+      writeBytes(&newEntry->fileType, &fileType);
+      
+      copyBytes(dirBuffer + lastOffset + actualLastLen, newEntry, 8);
+      copyBytes(dirBuffer + lastOffset + actualLastLen + 8, name, nameLen);
+      
+      if (ext4WriteBlock(state, blockNum, dirBuffer) == 0) {
+        returnValue = 0;
+        goto cleanup;
+      }
     }
   }
   
@@ -1373,13 +1385,16 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
     goto cleanup;
   }
   
+  // Initialize new block with zeros
+  memset(dirBuffer, 0, blockSize);
+  
   // Create entry in new block
   writeBytes(&newEntry->inode, &inodeNum);
   writeBytes(&newEntry->recLen, &newRecLen);
-  writeBytes(&newEntry->nameLen, &nameLen);
+  uint8_t nameLenByte = nameLen;
+  writeBytes(&newEntry->nameLen, &nameLenByte);
   writeBytes(&newEntry->fileType, &fileType);
   
-  memset(dirBuffer, 0, blockSize);
   copyBytes(dirBuffer, newEntry, 8);
   copyBytes(dirBuffer + 8, name, nameLen);
   
@@ -1392,7 +1407,7 @@ static int ext4CreateDirEntry(Ext4State *state, uint32_t parentInode,
   sizeLo += blockSize;
   writeBytes(&dirInode->sizeLo, &sizeLo);
   
-  // Add block to extent tree (simplified)
+  // Add block to extent tree
   if (ext4SetBlockInExtent(state, dirInode, blockCount, newBlock) != 0) {
     ext4FreeBlock(state, newBlock);
     goto cleanup;
