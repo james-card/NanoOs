@@ -1871,9 +1871,8 @@ int ext4Close(Ext4State *state, Ext4FileHandle *handle) {
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param ptr Buffer to read into
-/// @param size Size of each element
-/// @param nmemb Number of elements
-/// @param stream File handle
+/// @param totalBytes Number of bytes to read
+/// @param handle File handle
 ///
 /// @return Number of bytes read
 size_t ext4Read(Ext4State *state,
