@@ -181,7 +181,8 @@ extern "C"
   do { \
     unsigned char *dstBytes = (unsigned char*) (dst); \
     unsigned char *srcBytes = (unsigned char*) (src); \
-    for (size_t ii = 0; ii < len; ii++) { \
+    size_t copyLength = (size_t) (len); \
+    for (size_t ii = 0; ii < copyLength; ii++) { \
       dstBytes[ii] = srcBytes[ii]; \
     } \
   } while (0)
