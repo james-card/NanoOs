@@ -611,12 +611,12 @@ static uint16_t ext4CalculateGroupDescChecksum(
     return 0;
   }
   
-  // Copy the group descriptor to temp buffer
+  // Copy only the amount we're going to checksum
   copyBytes(tempBuffer, groupDesc, state->groupDescSize);
   
   // Zero out the checksum field for calculation
+  // The checksum is always at offset 0x1E regardless of descriptor size
   if (state->groupDescSize >= 32) {
-    // Standard 32-byte descriptor - checksum at offset 0x1E
     tempBuffer[0x1E] = 0;
     tempBuffer[0x1F] = 0;
   }
@@ -650,7 +650,10 @@ static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
   // Check if we have this group cached
   if (groupIndex == state->cachedGroupIndex) {
     printDebug("groupIndex == state->cachedGroupIndex\n");
-    memcpy(groupDesc, state->groupDescCache, sizeof(Ext4GroupDesc));
+    // Copy only the relevant portion
+    copyBytes(groupDesc, state->groupDescCache, 
+      state->groupDescSize <= sizeof(Ext4GroupDesc) ? 
+      state->groupDescSize : sizeof(Ext4GroupDesc));
     return 0;
   }
   
@@ -689,11 +692,18 @@ static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
   }
 #endif // NANO_OS_DEBUG
   
-  // Copy the group descriptor data
-  copyBytes(groupDesc, buffer + gdBlockOffset, sizeof(Ext4GroupDesc));
+  // Clear the destination first
+  memset(groupDesc, 0, sizeof(Ext4GroupDesc));
   
-  // Update cache
-  memcpy(state->groupDescCache, groupDesc, sizeof(Ext4GroupDesc));
+  // Copy only the actual descriptor size from disk
+  uint32_t copySize = state->groupDescSize;
+  if (copySize > sizeof(Ext4GroupDesc)) {
+    copySize = sizeof(Ext4GroupDesc);
+  }
+  copyBytes(groupDesc, buffer + gdBlockOffset, copySize);
+  
+  // Update cache - store only what we read
+  copyBytes(state->groupDescCache, groupDesc, copySize);
   state->cachedGroupIndex = groupIndex;
   
   return 0;
@@ -707,22 +717,36 @@ static int ext4ReadGroupDesc(Ext4State *state, uint32_t groupIndex,
 ///
 /// @return 0 on success, negative on error
 static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
-    const Ext4GroupDesc *groupDesc) {
+    const Ext4GroupDesc *groupDesc
+) {
   if (!state || !groupDesc || groupIndex >= state->groupsCount) {
     return -1;
   }
   
-  // Create a copy to modify with checksum
-  Ext4GroupDesc *groupDescCopy = (Ext4GroupDesc*) malloc(sizeof(Ext4GroupDesc));
-  if (!groupDescCopy) {
+  // Create a temporary buffer for the descriptor we'll write
+  uint8_t *tempDesc = (uint8_t*) malloc(state->groupDescSize);
+  if (!tempDesc) {
     return -1;
   }
-  copyBytes(groupDescCopy, groupDesc, sizeof(Ext4GroupDesc));
+  
+  // Clear it first
+  memset(tempDesc, 0, state->groupDescSize);
+  
+  // Copy the descriptor data (only up to the size we'll write)
+  uint32_t copySize = state->groupDescSize;
+  if (copySize > sizeof(Ext4GroupDesc)) {
+    copySize = sizeof(Ext4GroupDesc);
+  }
+  copyBytes(tempDesc, groupDesc, copySize);
   
   // Calculate and set the checksum
   uint16_t checksum = ext4CalculateGroupDescChecksum(
-    state, groupIndex, groupDescCopy);
-  writeBytes(&groupDescCopy->checksum, &checksum);
+    state, groupIndex, (Ext4GroupDesc*) tempDesc);
+  
+  // Write checksum at the correct offset (always 0x1E for any size)
+  if (state->groupDescSize >= 32) {
+    writeBytes(tempDesc + 0x1E, &checksum);
+  }
   
   // Calculate which block and offset contains this group descriptor
   uint32_t gdOffset = groupIndex * state->groupDescSize;
@@ -733,25 +757,27 @@ static int ext4WriteGroupDesc(Ext4State *state, uint32_t groupIndex,
   // Read the block containing the group descriptor
   uint8_t *buffer = state->fs->blockBuffer;
   if (ext4ReadBlock(state, gdBlock, buffer) != 0) {
-    free(groupDescCopy);
+    free(tempDesc);
     return -1;
   }
   
-  // Update the group descriptor data with checksum
-  copyBytes(buffer + gdBlockOffset, groupDescCopy, sizeof(Ext4GroupDesc));
+  // Update the group descriptor data in the block
+  copyBytes(buffer + gdBlockOffset, tempDesc, state->groupDescSize);
   
   // Write the block back
   if (ext4WriteBlock(state, gdBlock, buffer) != 0) {
-    free(groupDescCopy);
+    free(tempDesc);
     return -1;
   }
   
   // Update cache if this is the cached group
   if (groupIndex == state->cachedGroupIndex) {
-    memcpy(state->groupDescCache, groupDescCopy, sizeof(Ext4GroupDesc));
+    copyBytes(state->groupDescCache, tempDesc, 
+      state->groupDescSize <= sizeof(Ext4GroupDesc) ? 
+      state->groupDescSize : sizeof(Ext4GroupDesc));
   }
   
-  free(groupDescCopy);
+  free(tempDesc);
   return 0;
 }
 
