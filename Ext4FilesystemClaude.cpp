@@ -586,7 +586,7 @@ static uint16_t ext4Crc16(uint16_t crc, const uint8_t *buffer, size_t len) {
 
 /// @brief Calculate checksum for a group descriptor
 ///
-/// @param state Pointer to the ext4 state structure
+/// @param state Pointer to the ext4 state structure  
 /// @param groupIndex The index of the group descriptor
 /// @param groupDesc The group descriptor to checksum
 ///
@@ -611,8 +611,11 @@ static uint16_t ext4CalculateGroupDescChecksum(
     return 0;
   }
   
-  // Copy only the amount we're going to checksum
-  copyBytes(tempBuffer, groupDesc, state->groupDescSize);
+  // Copy the descriptor for checksum calculation
+  memset(tempBuffer, 0, state->groupDescSize);
+  copyBytes(tempBuffer, groupDesc, 
+    state->groupDescSize <= sizeof(Ext4GroupDesc) ? 
+    state->groupDescSize : sizeof(Ext4GroupDesc));
   
   // Zero out the checksum field for calculation
   // The checksum is always at offset 0x1E regardless of descriptor size
@@ -622,9 +625,12 @@ static uint16_t ext4CalculateGroupDescChecksum(
   }
   
   // Calculate initial CRC with filesystem UUID and group number
-  uint32_t groupIndexLe = groupIndex;
+  // Group index must be in little-endian format
+  uint8_t groupIndexBytes[4];
+  writeBytes(groupIndexBytes, &groupIndex);
+  
   crc = ext4Crc16(crc, state->superblock->uuid, 16);
-  crc = ext4Crc16(crc, (uint8_t*) &groupIndexLe, sizeof(groupIndexLe));
+  crc = ext4Crc16(crc, groupIndexBytes, sizeof(groupIndexBytes));
   
   // Calculate CRC of the group descriptor
   crc = ext4Crc16(crc, tempBuffer, state->groupDescSize);
@@ -1002,11 +1008,11 @@ static uint64_t ext4GetBlockFromExtent(Ext4State *state,
   return 0;
 }
 
-/// @brief Updated function to allocate a block with proper checksum handling
+/// @brief Updated function to allocate a block with proper 64-bit support
 ///
 /// @param state Pointer to the ext4 state structure
 ///
-/// @return Block number, or 0 if no blocks available
+/// @return Block number, or 0 if no blocks available  
 static uint32_t ext4AllocateBlock(Ext4State *state) {
   if (!state) {
     return 0;
@@ -1030,8 +1036,14 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
       continue;
     }
     
-    uint16_t freeBlocks;
-    readBytes(&freeBlocks, &gd->freeBlocksCountLo);
+    // Get full 32-bit free blocks count for 64-bit descriptors
+    uint32_t freeBlocks;
+    uint16_t freeBlocksLo, freeBlocksHi = 0;
+    readBytes(&freeBlocksLo, &gd->freeBlocksCountLo);
+    if (state->groupDescSize >= 64) {
+      readBytes(&freeBlocksHi, &gd->freeBlocksCountHi);
+    }
+    freeBlocks = ((uint32_t)freeBlocksHi << 16) | freeBlocksLo;
     
     if (freeBlocks == 0) {
       free(gd);
@@ -1056,9 +1068,14 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
             
             // Write updated bitmap
             if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-              // Update group descriptor
+              // Update group descriptor - handle both lo and hi parts
               freeBlocks--;
-              writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
+              freeBlocksLo = freeBlocks & 0xFFFF;
+              freeBlocksHi = (freeBlocks >> 16) & 0xFFFF;
+              writeBytes(&gd->freeBlocksCountLo, &freeBlocksLo);
+              if (state->groupDescSize >= 64) {
+                writeBytes(&gd->freeBlocksCountHi, &freeBlocksHi);
+              }
               
               // Write group descriptor with updated checksum
               if (ext4WriteGroupDesc(state, group, gd) != 0) {
@@ -1089,7 +1106,7 @@ static uint32_t ext4AllocateBlock(Ext4State *state) {
   return 0;
 }
 
-/// @brief Updated function to free a block with proper checksum handling
+/// @brief Updated function to free a block with proper 64-bit support
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param blockNum The block number to free
@@ -1139,10 +1156,23 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
     bitmap[byte] &= ~(1 << bit);
     
     if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-      uint16_t freeBlocks;
-      readBytes(&freeBlocks, &gd->freeBlocksCountLo);
+      // Get full 32-bit free blocks count for 64-bit descriptors
+      uint32_t freeBlocks;
+      uint16_t freeBlocksLo, freeBlocksHi = 0;
+      readBytes(&freeBlocksLo, &gd->freeBlocksCountLo);
+      if (state->groupDescSize >= 64) {
+        readBytes(&freeBlocksHi, &gd->freeBlocksCountHi);
+      }
+      freeBlocks = ((uint32_t)freeBlocksHi << 16) | freeBlocksLo;
+      
       freeBlocks++;
-      writeBytes(&gd->freeBlocksCountLo, &freeBlocks);
+      
+      freeBlocksLo = freeBlocks & 0xFFFF;
+      freeBlocksHi = (freeBlocks >> 16) & 0xFFFF;
+      writeBytes(&gd->freeBlocksCountLo, &freeBlocksLo);
+      if (state->groupDescSize >= 64) {
+        writeBytes(&gd->freeBlocksCountHi, &freeBlocksHi);
+      }
       
       // Write group descriptor with updated checksum
       ext4WriteGroupDesc(state, group, gd);
@@ -1153,7 +1183,7 @@ static void ext4FreeBlock(Ext4State *state, uint32_t blockNum) {
   free(bitmap);
 }
 
-/// @brief Updated function to allocate an inode with proper checksum handling
+/// @brief Updated function to allocate an inode with proper 64-bit support
 ///
 /// @param state Pointer to the ext4 state structure
 ///
@@ -1181,8 +1211,14 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
       continue;
     }
     
-    uint16_t freeInodes;
-    readBytes(&freeInodes, &gd->freeInodesCountLo);
+    // Get full 32-bit free inodes count for 64-bit descriptors
+    uint32_t freeInodes;
+    uint16_t freeInodesLo, freeInodesHi = 0;
+    readBytes(&freeInodesLo, &gd->freeInodesCountLo);
+    if (state->groupDescSize >= 64) {
+      readBytes(&freeInodesHi, &gd->freeInodesCountHi);
+    }
+    freeInodes = ((uint32_t)freeInodesHi << 16) | freeInodesLo;
     
     if (freeInodes == 0) {
       free(gd);
@@ -1217,12 +1253,14 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
             
             // Write updated bitmap
             if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-              // Update group descriptor
+              // Update group descriptor - handle both lo and hi parts
               freeInodes--;
-              writeBytes(&gd->freeInodesCountLo, &freeInodes);
-              
-              // Update used directories count if needed
-              // (would need to check if allocating for directory)
+              freeInodesLo = freeInodes & 0xFFFF;
+              freeInodesHi = (freeInodes >> 16) & 0xFFFF;
+              writeBytes(&gd->freeInodesCountLo, &freeInodesLo);
+              if (state->groupDescSize >= 64) {
+                writeBytes(&gd->freeInodesCountHi, &freeInodesHi);
+              }
               
               // Write group descriptor with updated checksum
               if (ext4WriteGroupDesc(state, group, gd) != 0) {
@@ -1249,7 +1287,7 @@ static uint32_t ext4AllocateInode(Ext4State *state) {
   return 0;
 }
 
-/// @brief Updated function to free an inode with proper checksum handling
+/// @brief Updated function to free an inode with proper 64-bit support
 ///
 /// @param state Pointer to the ext4 state structure
 /// @param inodeNum The inode number to free
@@ -1298,10 +1336,23 @@ static void ext4FreeInode(Ext4State *state, uint32_t inodeNum) {
     bitmap[byte] &= ~(1 << bit);
     
     if (ext4WriteBlock(state, bitmapBlock, bitmap) == 0) {
-      uint16_t freeInodes;
-      readBytes(&freeInodes, &gd->freeInodesCountLo);
+      // Get full 32-bit free inodes count for 64-bit descriptors
+      uint32_t freeInodes;
+      uint16_t freeInodesLo, freeInodesHi = 0;
+      readBytes(&freeInodesLo, &gd->freeInodesCountLo);
+      if (state->groupDescSize >= 64) {
+        readBytes(&freeInodesHi, &gd->freeInodesCountHi);
+      }
+      freeInodes = ((uint32_t)freeInodesHi << 16) | freeInodesLo;
+      
       freeInodes++;
-      writeBytes(&gd->freeInodesCountLo, &freeInodes);
+      
+      freeInodesLo = freeInodes & 0xFFFF;
+      freeInodesHi = (freeInodes >> 16) & 0xFFFF;
+      writeBytes(&gd->freeInodesCountLo, &freeInodesLo);
+      if (state->groupDescSize >= 64) {
+        writeBytes(&gd->freeInodesCountHi, &freeInodesHi);
+      }
       
       // Write group descriptor with updated checksum
       ext4WriteGroupDesc(state, group, gd);
