@@ -146,11 +146,6 @@ typedef struct ExFatDriverState {
   bool              driverStateValid; // Whether or not this is a valid state
 } ExFatDriverState;
 
-/// @typedef ExFatCommandHandler
-///
-/// @brief Definition of a filesystem command handler function.
-typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
-
 /// @brief Read a sector from the storage device
 ///
 /// @param driverState Pointer to driver state
@@ -2435,6 +2430,11 @@ int exFatFlush(ExFatDriverState* driverState, FILE* stream) {
 
   return 0;
 }
+
+/// @typedef ExFatCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
 
 /// @fn int exFatFilesystemOpenFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
