@@ -868,6 +868,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   ExFatStreamExtensionEntry streamEntry;
   uint16_t newChecksum = 0;
   uint8_t *entrySetBuffer = NULL;
+  uint8_t* fileEntryInBuffer = NULL;
 
   printDebug("updateDirectoryEntry: Updating file \"");
   printDebug(fileHandle->fileName);
@@ -1109,7 +1110,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
 
   // FIX: Only update the checksum field in the file entry in the sector buffer
   // DO NOT write the entire entrySetBuffer back!
-  uint8_t* fileEntryInBuffer = filesystemState->blockBuffer + fileEntryOffset;
+  fileEntryInBuffer = filesystemState->blockBuffer + fileEntryOffset;
   writeBytes(fileEntryInBuffer + 2, &newChecksum);
 
   // Write the updated sector back to disk
