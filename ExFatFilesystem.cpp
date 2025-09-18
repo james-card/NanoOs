@@ -864,10 +864,8 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   char *utf8Name = NULL;
   uint32_t fileEntrySector = 0;
   uint32_t fileEntryOffset = 0;
-  uint32_t fileEntryCluster = 0;
   uint32_t streamEntrySector = 0;
   uint32_t streamEntryOffset = 0;
-  uint32_t streamEntryCluster = 0;
   ExFatFileDirectoryEntry fileEntry;
   ExFatStreamExtensionEntry streamEntry;
   uint16_t newChecksum = 0;
@@ -1060,16 +1058,13 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
               entryFound = true;
               fileEntrySector = sectorNumber;
               fileEntryOffset = entryOffset;
-              fileEntryCluster = currentCluster;
               
               if (usingTempBuffer) {
                 streamEntrySector = nextSectorNumber;
                 streamEntryOffset = 0;
-                streamEntryCluster = nextCluster;
               } else {
                 streamEntrySector = sectorNumber;
                 streamEntryOffset = nextEntryOffset;
-                streamEntryCluster = currentCluster;
               }
               
               // Read the entries with aligned access
