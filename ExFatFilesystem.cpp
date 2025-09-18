@@ -1345,7 +1345,7 @@ int exFatFclose(ExFatDriverState* driverState, ExFatFileHandle* fileHandle) {
   return 0;
 }
 
-/// @brief Fixed createFileInDirectory function with proper aligned access
+/// @brief Create a file in a directory with proper cluster allocation
 ///
 /// @param driverState Pointer to driver state
 /// @param directoryCluster Directory cluster to create file in
@@ -1451,9 +1451,56 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     }
 
     // Move to next cluster
-    result = readFatEntry(driverState, currentCluster, &currentCluster);
+    uint32_t nextCluster;
+    result = readFatEntry(driverState, currentCluster, &nextCluster);
     if (result != EXFAT_SUCCESS) {
       goto cleanup;
+    }
+    
+    // Check if we're at the end of the directory chain
+    if (nextCluster == 0xFFFFFFFF) {
+      // Need to allocate a new cluster for the directory
+      uint32_t newCluster;
+      result = findFreeCluster(driverState, &newCluster);
+      if (result != EXFAT_SUCCESS) {
+        // No free clusters available
+        result = EXFAT_DISK_FULL;
+        goto cleanup;
+      }
+      
+      // Link the new cluster to the directory chain
+      result = writeFatEntry(driverState, currentCluster, newCluster);
+      if (result != EXFAT_SUCCESS) {
+        goto cleanup;
+      }
+      
+      // Mark the new cluster as end of chain
+      result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
+      if (result != EXFAT_SUCCESS) {
+        goto cleanup;
+      }
+      
+      // Clear the new cluster (fill with zeros)
+      uint8_t* zeroBuffer = (uint8_t*) calloc(
+        driverState->bytesPerSector, 1);
+      if (zeroBuffer == NULL) {
+        result = EXFAT_NO_MEMORY;
+        goto cleanup;
+      }
+      
+      for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
+        uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
+        result = writeSector(driverState, sectorNum, zeroBuffer);
+        if (result != EXFAT_SUCCESS) {
+          free(zeroBuffer);
+          goto cleanup;
+        }
+      }
+      free(zeroBuffer);
+      
+      currentCluster = newCluster;
+    } else {
+      currentCluster = nextCluster;
     }
   }
 
@@ -1510,7 +1557,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     memset(&nameEntry, 0, sizeof(nameEntry));
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     
-    // FIX: Use aligned access for UTF-16 characters
+    // Use aligned access for UTF-16 characters
     for (int charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
          charIdx++
     ) {
@@ -1526,7 +1573,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   // Calculate checksum for the entry set
   checksum = calculateDirectorySetChecksum(entryBuffer, entriesNeeded);
   
-  // FIX: Set checksum in file entry using aligned access
+  // Set checksum in file entry using aligned access
   writeBytes(entryBuffer + 2, &checksum);
 
   // Write all entries to disk
@@ -1570,11 +1617,56 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     if (bufferOffset < entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) {
       currentWriteSector++;
       if (currentWriteSector >= driverState->sectorsPerCluster) {
-        // Move to next cluster
+        // Move to next cluster - need to check if it exists
+        uint32_t nextCluster;
         result = readFatEntry(driverState, currentWriteCluster, 
-                              &currentWriteCluster);
+                              &nextCluster);
         if (result != EXFAT_SUCCESS) {
           goto cleanup;
+        }
+        
+        // Check if we need to allocate a new cluster for the directory
+        if (nextCluster == 0xFFFFFFFF || nextCluster == 0) {
+          // Allocate a new cluster for the directory
+          uint32_t newCluster;
+          result = findFreeCluster(driverState, &newCluster);
+          if (result != EXFAT_SUCCESS) {
+            goto cleanup;
+          }
+          
+          // Link the new cluster to the directory chain
+          result = writeFatEntry(driverState, currentWriteCluster, newCluster);
+          if (result != EXFAT_SUCCESS) {
+            goto cleanup;
+          }
+          
+          // Mark the new cluster as end of chain
+          result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
+          if (result != EXFAT_SUCCESS) {
+            goto cleanup;
+          }
+          
+          // Clear the new cluster
+          uint8_t* zeroBuffer = (uint8_t*) calloc(
+            driverState->bytesPerSector, 1);
+          if (zeroBuffer == NULL) {
+            result = EXFAT_NO_MEMORY;
+            goto cleanup;
+          }
+          
+          for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
+            uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
+            result = writeSector(driverState, sectorNum, zeroBuffer);
+            if (result != EXFAT_SUCCESS) {
+              free(zeroBuffer);
+              goto cleanup;
+            }
+          }
+          free(zeroBuffer);
+          
+          currentWriteCluster = newCluster;
+        } else {
+          currentWriteCluster = nextCluster;
         }
         currentWriteSector = 0;
       }
