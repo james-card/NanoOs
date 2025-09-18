@@ -1089,7 +1089,7 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   memcpy(entrySetBuffer + EXFAT_DIRECTORY_ENTRY_SIZE, &streamEntry, 
          sizeof(streamEntry));
 
-  // Copy remaining entries (filename entries)
+  // Copy remaining entries (filename entries) from the sector buffer
   for (uint8_t ii = 2; ii <= fileEntry.secondaryCount; ii++) {
     uint32_t sourceOffset = fileEntryOffset + (ii * EXFAT_DIRECTORY_ENTRY_SIZE);
     if (sourceOffset < driverState->bytesPerSector) {
@@ -1107,9 +1107,10 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
   printDebug(newChecksum, HEX);
   printDebug("\n");
 
-  // FIX: Update file entry with new checksum using aligned access
-  writeBytes(entrySetBuffer + 2, &newChecksum);
-  writeBytes(filesystemState->blockBuffer + fileEntryOffset, entrySetBuffer);
+  // FIX: Only update the checksum field in the file entry in the sector buffer
+  // DO NOT write the entire entrySetBuffer back!
+  uint8_t* fileEntryInBuffer = filesystemState->blockBuffer + fileEntryOffset;
+  writeBytes(fileEntryInBuffer + 2, &newChecksum);
 
   // Write the updated sector back to disk
   result = writeSector(driverState, fileEntrySector, 
@@ -1120,9 +1121,10 @@ static int updateDirectoryEntry(ExFatDriverState* driverState,
     printDebug("updateDirectoryEntry: Successfully updated directory entry\n");
   }
 
-  free(entrySetBuffer);
-
 cleanup:
+  if (entrySetBuffer != NULL) {
+    free(entrySetBuffer);
+  }
   if (utf16Name != NULL) {
     free(utf16Name);
   }
