@@ -1564,8 +1564,8 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   uint32_t bufferOffset = 0;
   uint8_t *zeroBuffer = NULL;
   
-  if ((driverState == NULL) || (driverState->filesystemState == NULL) ||
-      (fileName == NULL) || (fileHandle == NULL)
+  if ((driverState == NULL) || (driverState->filesystemState == NULL)
+    || (fileName == NULL) || (fileHandle == NULL)
   ) {
     return EXFAT_INVALID_PARAMETER;
   }
@@ -1596,8 +1596,8 @@ static int createFileInDirectory(ExFatDriverState* driverState,
          sectorInCluster < driverState->sectorsPerCluster; 
          sectorInCluster++
     ) {
-      uint32_t sectorNumber = clusterToSector(driverState, currentCluster) + 
-                              sectorInCluster;
+      uint32_t sectorNumber
+        = clusterToSector(driverState, currentCluster) + sectorInCluster;
       
       result = readSector(driverState, sectorNumber, 
                           filesystemState->blockBuffer);
@@ -1693,7 +1693,8 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   }
 
   // Allocate buffer for all directory entries
-  entryBuffer = (uint8_t*) calloc(1, entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE);
+  entryBuffer = (uint8_t*) calloc(
+    1, entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE);
   if (entryBuffer == NULL) {
     result = EXFAT_NO_MEMORY;
     goto cleanup;
@@ -1720,10 +1721,9 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   streamEntry.firstCluster = 0; // No clusters allocated initially
   streamEntry.dataLength = 0;
 
-  // Calculate name hash
+  // FIX: Calculate name hash using full 16-bit values
   for (int ii = 0; ii < nameLength; ii++) {
-    nameHash = ((nameHash & 1) ? 0x8000 : 0) + (nameHash >> 1) + 
-               (uint8_t) utf16Name[ii];
+    nameHash = ((nameHash & 1) ? 0x8000 : 0) + (nameHash >> 1) + utf16Name[ii];
   }
   streamEntry.nameHash = nameHash;
 
@@ -1738,7 +1738,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     memset(&nameEntry, 0, sizeof(nameEntry));
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     
-    // FIX: Use direct assignment for local variables instead of writeBytes
+    // Copy up to 15 characters to this name entry
     for (int charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
          charIdx++
     ) {
@@ -1764,8 +1764,8 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   bufferOffset = 0;
 
   while (bufferOffset < entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) {
-    uint32_t sectorNumber = clusterToSector(driverState, currentWriteCluster) +
-                            currentWriteSector;
+    uint32_t sectorNumber
+      = clusterToSector(driverState, currentWriteCluster) + currentWriteSector;
     
     // Read the current sector
     result = readSector(driverState, sectorNumber, 
@@ -1775,10 +1775,10 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     }
 
     // Copy as many entries as fit in this sector
-    uint32_t remainingInSector = driverState->bytesPerSector - 
-                                 currentWriteOffset;
-    uint32_t remainingInBuffer = (entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) -
-                                 bufferOffset;
+    uint32_t remainingInSector
+      = driverState->bytesPerSector - currentWriteOffset;
+    uint32_t remainingInBuffer
+      = (entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) - bufferOffset;
     uint32_t bytesToCopy = (remainingInSector < remainingInBuffer)
                          ? remainingInSector
                          : remainingInBuffer;
