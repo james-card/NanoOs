@@ -1569,7 +1569,14 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   uint8_t entryType = 0;
   uint16_t fileAttributes = 0;
   uint8_t generalSecondaryFlags = 0;
+  uint8_t secondaryCount = 0;
   
+  // Variables for tracking a contiguous streak of free entries
+  uint8_t consecutiveFree = 0;
+  uint32_t streakStartCluster = 0;
+  uint32_t streakStartSector = 0;
+  uint32_t streakStartOffset = 0;
+
   if ((driverState == NULL) || (driverState->filesystemState == NULL)
     || (fileName == NULL) || (fileHandle == NULL)
   ) {
@@ -1594,53 +1601,41 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   filenameEntriesNeeded = (nameLength + 14) / 15; // Round up division
   entriesNeeded += filenameEntriesNeeded;
 
-  // Find free space in directory for all entries
-  while ((currentCluster != 0xFFFFFFFF) && (currentCluster >= 2) &&
-         (currentCluster < driverState->clusterCount + 2)
-  ) {
+  // ******** BUG FIX: Rewritten logic to find free space across sectors ********
+  while (!foundFreeSpace && (currentCluster != 0xFFFFFFFF) && (currentCluster >= 2) &&
+         (currentCluster < driverState->clusterCount + 2)) {
     for (uint32_t sectorInCluster = 0; 
-         sectorInCluster < driverState->sectorsPerCluster; 
-         sectorInCluster++
-    ) {
-      uint32_t sectorNumber
-        = clusterToSector(driverState, currentCluster) + sectorInCluster;
+         sectorInCluster < driverState->sectorsPerCluster && !foundFreeSpace; 
+         sectorInCluster++) {
+      uint32_t sectorNumber = clusterToSector(driverState, currentCluster) + sectorInCluster;
       
-      result = readSector(driverState, sectorNumber, 
-                          filesystemState->blockBuffer);
+      result = readSector(driverState, sectorNumber, filesystemState->blockBuffer);
       if (result != EXFAT_SUCCESS) {
         goto cleanup;
       }
 
-      // Look for consecutive free entries
-      uint8_t consecutiveFree = 0;
       for (uint32_t entryOffset = 0; 
-           entryOffset < driverState->bytesPerSector; 
-           entryOffset += EXFAT_DIRECTORY_ENTRY_SIZE
-      ) {
+           entryOffset < driverState->bytesPerSector && !foundFreeSpace; 
+           entryOffset += EXFAT_DIRECTORY_ENTRY_SIZE) {
         uint8_t* entryPtr = filesystemState->blockBuffer + entryOffset;
         entryType = entryPtr[0];
         
-        if (entryType == EXFAT_ENTRY_UNUSED || 
-            entryType == EXFAT_ENTRY_END_OF_DIR) {
-          if (consecutiveFree == 0) {
-            // Mark the start of free space
-            firstFreeEntryCluster = currentCluster;
-            firstFreeEntrySector = sectorInCluster;
-            firstFreeEntryOffset = entryOffset;
+        if (entryType == EXFAT_ENTRY_UNUSED || entryType == EXFAT_ENTRY_END_OF_DIR) {
+          if (consecutiveFree == 0) { // Start of a new potential streak
+            streakStartCluster = currentCluster;
+            streakStartSector = sectorInCluster;
+            streakStartOffset = entryOffset;
           }
           consecutiveFree++;
-          
           if (consecutiveFree >= entriesNeeded) {
+            firstFreeEntryCluster = streakStartCluster;
+            firstFreeEntrySector = streakStartSector;
+            firstFreeEntryOffset = streakStartOffset;
             foundFreeSpace = true;
-            break;
           }
-        } else {
+        } else { // Streak of free entries is broken
           consecutiveFree = 0;
         }
-      }
-      
-      if (foundFreeSpace) {
-        break;
       }
     }
     
@@ -1648,45 +1643,33 @@ static int createFileInDirectory(ExFatDriverState* driverState,
       break;
     }
 
-    // Move to next cluster
+    // Move to next cluster or extend the directory if no space is found yet
     uint32_t nextCluster;
     result = readFatEntry(driverState, currentCluster, &nextCluster);
     if (result != EXFAT_SUCCESS) {
       goto cleanup;
     }
     
-    // Check if we're at the end of the directory chain
     if (nextCluster == 0xFFFFFFFF) {
-      // Need to allocate a new cluster for the directory
+      // End of directory chain, need to allocate a new cluster
       uint32_t newCluster;
       result = findFreeCluster(driverState, &newCluster);
       if (result != EXFAT_SUCCESS) {
-        // No free clusters available
         result = EXFAT_DISK_FULL;
         goto cleanup;
       }
       
-      // Link the new cluster to the directory chain
       result = writeFatEntry(driverState, currentCluster, newCluster);
-      if (result != EXFAT_SUCCESS) {
-        goto cleanup;
-      }
+      if (result != EXFAT_SUCCESS) { goto cleanup; }
       
-      // Mark the new cluster as end of chain
       result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
-      if (result != EXFAT_SUCCESS) {
-        goto cleanup;
-      }
+      if (result != EXFAT_SUCCESS) { goto cleanup; }
       
-      // Write zeros to all sectors in the cluster
       for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
         uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
         result = writeSector(driverState, sectorNum, zeroBuffer);
-        if (result != EXFAT_SUCCESS) {
-          goto cleanup;
-        }
+        if (result != EXFAT_SUCCESS) { goto cleanup; }
       }
-      
       currentCluster = newCluster;
     } else {
       currentCluster = nextCluster;
@@ -1710,15 +1693,10 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   memset(&fileEntry, 0, sizeof(fileEntry));
   entryType = EXFAT_ENTRY_FILE;
   writeBytes(&fileEntry.entryType, &entryType);
-  entriesNeeded--;
-  writeBytes(&fileEntry.secondaryCount, &entriesNeeded);
-  entriesNeeded++;
+  secondaryCount = entriesNeeded - 1;
+  writeBytes(&fileEntry.secondaryCount, &secondaryCount);
   fileAttributes = EXFAT_ATTR_ARCHIVE;
   writeBytes(&fileEntry.fileAttributes, &fileAttributes);
-  // fileEntry.createTimestamp, fileEntry.lastModifiedTimestamp, and
-  // fileEntry.lastAccessedTimestamp will all be 0.
-
-  // Copy file entry to buffer
   memcpy(entryBuffer, &fileEntry, sizeof(fileEntry));
 
   // Create stream extension entry
@@ -1726,23 +1704,15 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   entryType = EXFAT_ENTRY_STREAM;
   writeBytes(&streamEntry.entryType, &entryType);
   
-  // ******** BUG FIX ********
-  // Set flags: AllocationPossible = 1, NoFatChain = 0.
-  // This is required for a valid file entry.
-  generalSecondaryFlags = 0x01;
+  generalSecondaryFlags = 0x01; // AllocationPossible = 1, NoFatChain = 0
   writeBytes(&streamEntry.generalSecondaryFlags, &generalSecondaryFlags);
-
   writeBytes(&streamEntry.nameLength, &nameLength);
 
-  // Calculate name hash using full 16-bit values
   for (int ii = 0; ii < nameLength; ii++) {
     nameHash = ((nameHash & 1) ? 0x8000 : 0) + (nameHash >> 1) + utf16Name[ii];
   }
   writeBytes(&streamEntry.nameHash, &nameHash);
-
-  // Copy stream entry to buffer
-  memcpy(entryBuffer + EXFAT_DIRECTORY_ENTRY_SIZE, &streamEntry, 
-         sizeof(streamEntry));
+  memcpy(entryBuffer + EXFAT_DIRECTORY_ENTRY_SIZE, &streamEntry, sizeof(streamEntry));
 
   // Create filename entries
   nameEntryIndex = 0;
@@ -1752,118 +1722,57 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     nameEntry.generalSecondaryFlags = 0;
     
-    // Copy up to 15 characters to this name entry
     int charIdx;
-    for (charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
-         charIdx++
-    ) {
+    for (charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; charIdx++) {
       uint16_t charValue = utf16Name[nameEntryIndex];
       writeBytes(&nameEntry.fileName[charIdx], &charValue);
       nameEntryIndex++;
     }
     
-    // Fill remaining characters with 0x0000
     if (charIdx < 15) {
       uint16_t nullChar = 0x0000;
       for (; charIdx < 15; charIdx++) {
         writeBytes(&nameEntry.fileName[charIdx], &nullChar);
       }
     }
-
-    // Copy name entry to buffer
-    memcpy(entryBuffer + ((entryIdx + 2) * EXFAT_DIRECTORY_ENTRY_SIZE),
-           &nameEntry, sizeof(nameEntry));
+    memcpy(entryBuffer + ((entryIdx + 2) * EXFAT_DIRECTORY_ENTRY_SIZE), &nameEntry, sizeof(nameEntry));
   }
 
-  // Calculate checksum for the entry set
+  // Calculate and set checksum for the entire entry set
   checksum = calculateDirectorySetChecksum(entryBuffer, entriesNeeded);
-  
-  // Set checksum in file entry using aligned access
   writeBytes(entryBuffer + 2, &checksum);
 
-  // Write all entries to disk
+  // Write all constructed entries to disk
   currentWriteCluster = firstFreeEntryCluster;
   currentWriteSector = firstFreeEntrySector;
   currentWriteOffset = firstFreeEntryOffset;
   bufferOffset = 0;
 
   while (bufferOffset < entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) {
-    uint32_t sectorNumber
-      = clusterToSector(driverState, currentWriteCluster) + currentWriteSector;
+    uint32_t sectorNumber = clusterToSector(driverState, currentWriteCluster) + currentWriteSector;
     
-    // Read the current sector
-    result = readSector(driverState, sectorNumber, 
-                        filesystemState->blockBuffer);
-    if (result != EXFAT_SUCCESS) {
-      goto cleanup;
-    }
+    result = readSector(driverState, sectorNumber, filesystemState->blockBuffer);
+    if (result != EXFAT_SUCCESS) { goto cleanup; }
 
-    // Copy as many entries as fit in this sector
-    uint32_t remainingInSector
-      = driverState->bytesPerSector - currentWriteOffset;
-    uint32_t remainingInBuffer
-      = (entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) - bufferOffset;
-    uint32_t bytesToCopy = (remainingInSector < remainingInBuffer)
-                         ? remainingInSector
-                         : remainingInBuffer;
+    uint32_t remainingInSector = driverState->bytesPerSector - currentWriteOffset;
+    uint32_t remainingInBuffer = (entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) - bufferOffset;
+    uint32_t bytesToCopy = (remainingInSector < remainingInBuffer) ? remainingInSector : remainingInBuffer;
 
-    memcpy(filesystemState->blockBuffer + currentWriteOffset,
-           entryBuffer + bufferOffset, bytesToCopy);
+    memcpy(filesystemState->blockBuffer + currentWriteOffset, entryBuffer + bufferOffset, bytesToCopy);
 
-    // Write the sector back
-    result = writeSector(driverState, sectorNumber, 
-                         filesystemState->blockBuffer);
-    if (result != EXFAT_SUCCESS) {
-      goto cleanup;
-    }
+    result = writeSector(driverState, sectorNumber, filesystemState->blockBuffer);
+    if (result != EXFAT_SUCCESS) { goto cleanup; }
 
     bufferOffset += bytesToCopy;
 
-    // Move to next sector if needed
     if (bufferOffset < entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) {
       currentWriteSector++;
       if (currentWriteSector >= driverState->sectorsPerCluster) {
-        // Move to next cluster - need to check if it exists
-        uint32_t nextCluster;
-        result = readFatEntry(driverState, currentWriteCluster, 
-                              &nextCluster);
-        if (result != EXFAT_SUCCESS) {
+        result = readFatEntry(driverState, currentWriteCluster, &currentWriteCluster);
+        if (result != EXFAT_SUCCESS || currentWriteCluster == 0xFFFFFFFF) {
+          // Should have been allocated already, this indicates a problem
+          result = EXFAT_ERROR;
           goto cleanup;
-        }
-        
-        // Check if we need to allocate a new cluster for the directory
-        if (nextCluster == 0xFFFFFFFF) {
-          // Allocate a new cluster for the directory
-          uint32_t newCluster;
-          result = findFreeCluster(driverState, &newCluster);
-          if (result != EXFAT_SUCCESS) {
-            goto cleanup;
-          }
-          
-          // Link the new cluster to the directory chain
-          result = writeFatEntry(driverState, currentWriteCluster, newCluster);
-          if (result != EXFAT_SUCCESS) {
-            goto cleanup;
-          }
-          
-          // Mark the new cluster as end of chain
-          result = writeFatEntry(driverState, newCluster, 0xFFFFFFFF);
-          if (result != EXFAT_SUCCESS) {
-            goto cleanup;
-          }
-          
-          // Clear the new cluster
-          for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
-            uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
-            result = writeSector(driverState, sectorNum, zeroBuffer);
-            if (result != EXFAT_SUCCESS) {
-              goto cleanup;
-            }
-          }
-          
-          currentWriteCluster = newCluster;
-        } else {
-          currentWriteCluster = nextCluster;
         }
         currentWriteSector = 0;
       }
@@ -1873,7 +1782,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
 
   // Initialize file handle for new file
   memset(fileHandle, 0, sizeof(*fileHandle));
-  fileHandle->firstCluster = 0; // No clusters allocated yet
+  fileHandle->firstCluster = 0;
   fileHandle->currentCluster = 0;
   fileHandle->currentPosition = 0;
   fileHandle->fileSize = 0;
