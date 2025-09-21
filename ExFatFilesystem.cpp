@@ -20,14 +20,14 @@
 #define EXFAT_MAX_OPEN_FILES         8
 
 // Directory entry types
-#define EXFAT_ENTRY_UNUSED           0x00
-#define EXFAT_ENTRY_END_OF_DIR       0x00
-#define EXFAT_ENTRY_FILE             0x85
-#define EXFAT_ENTRY_STREAM           0xC0
-#define EXFAT_ENTRY_FILENAME         0xC1
+#define EXFAT_ENTRY_UNUSED            0x00
+#define EXFAT_ENTRY_END_OF_DIR        0x00
+#define EXFAT_ENTRY_FILE              0x85
+#define EXFAT_ENTRY_STREAM            0xA0 // Corrected from 0xC0
+#define EXFAT_ENTRY_FILENAME          0xA1 // Corrected from 0xC1
 #define EXFAT_ENTRY_ALLOCATION_BITMAP 0x81
-#define EXFAT_ENTRY_UPCASE_TABLE     0x82
-#define EXFAT_ENTRY_VOLUME_LABEL     0x83
+#define EXFAT_ENTRY_UPCASE_TABLE      0x82
+#define EXFAT_ENTRY_VOLUME_LABEL      0x83
 
 // File attributes
 #define EXFAT_ATTR_READ_ONLY         0x01
