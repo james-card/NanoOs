@@ -332,8 +332,10 @@ static uint16_t calculateDirectorySetChecksum(uint8_t* entries,
   uint32_t totalBytes = numEntries * EXFAT_DIRECTORY_ENTRY_SIZE;
 
   for (uint32_t ii = 0; ii < totalBytes; ii++) {
-    if (ii == 2 || ii == 3) {
-      // Skip checksum field in first entry
+    // ******** BUG FIX ********
+    // Per exFAT spec, the checksum must skip the EntryType (offset 0) and
+    // SetChecksum (offset 2) fields of the primary File entry.
+    if (ii == 0 || ii == 2 || ii == 3) {
       continue;
     }
     checksum = ((checksum & 1) ? 0x8000 : 0) + (checksum >> 1) + entries[ii];
