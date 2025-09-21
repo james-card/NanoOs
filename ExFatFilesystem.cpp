@@ -1568,6 +1568,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   uint8_t *zeroBuffer = NULL;
   uint8_t entryType = 0;
   uint16_t fileAttributes = 0;
+  uint8_t generalSecondaryFlags = 0;
   
   if ((driverState == NULL) || (driverState->filesystemState == NULL)
     || (fileName == NULL) || (fileHandle == NULL)
@@ -1724,6 +1725,13 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   memset(&streamEntry, 0, sizeof(streamEntry));
   entryType = EXFAT_ENTRY_STREAM;
   writeBytes(&streamEntry.entryType, &entryType);
+  
+  // ******** BUG FIX ********
+  // Set flags: AllocationPossible = 1, NoFatChain = 0.
+  // This is required for a valid file entry.
+  generalSecondaryFlags = 0x01;
+  writeBytes(&streamEntry.generalSecondaryFlags, &generalSecondaryFlags);
+
   writeBytes(&streamEntry.nameLength, &nameLength);
 
   // Calculate name hash using full 16-bit values
@@ -1740,8 +1748,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   nameEntryIndex = 0;
   for (uint8_t entryIdx = 0; entryIdx < filenameEntriesNeeded; entryIdx++) {
     ExFatFileNameEntry nameEntry;
-    //// memset(&nameEntry, 0xFF, sizeof(nameEntry)); // FIX: Fill with 0xFF first
-    memset(&nameEntry, 0, sizeof(nameEntry)); // FIX: Fill with 0xFF first
+    memset(&nameEntry, 0, sizeof(nameEntry));
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     nameEntry.generalSecondaryFlags = 0;
     
@@ -1750,15 +1757,13 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     for (charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
          charIdx++
     ) {
-      // FIX: Use writeBytes for proper alignment handling in packed struct
       uint16_t charValue = utf16Name[nameEntryIndex];
       writeBytes(&nameEntry.fileName[charIdx], &charValue);
       nameEntryIndex++;
     }
     
-    // FIX: Fill remaining characters with 0xFFFF (already done by memset above)
-    // Just need to ensure the null terminator is set if we ended early
-    if (charIdx < 15 && nameEntryIndex >= nameLength) {
+    // Fill remaining characters with 0x0000
+    if (charIdx < 15) {
       uint16_t nullChar = 0x0000;
       for (; charIdx < 15; charIdx++) {
         writeBytes(&nameEntry.fileName[charIdx], &nullChar);
@@ -1867,14 +1872,14 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   }
 
   // Initialize file handle for new file
-  memset(fileHandle, 0, sizeof(*fileHandle)); // FIX: Use sizeof(*fileHandle)
+  memset(fileHandle, 0, sizeof(*fileHandle));
   fileHandle->firstCluster = 0; // No clusters allocated yet
   fileHandle->currentCluster = 0;
   fileHandle->currentPosition = 0;
   fileHandle->fileSize = 0;
   fileHandle->attributes = EXFAT_ATTR_ARCHIVE;
   fileHandle->directoryCluster = directoryCluster;
-  fileHandle->directoryOffset = firstFreeEntryOffset; // FIX: Store offset
+  fileHandle->directoryOffset = firstFreeEntryOffset;
   strncpy(fileHandle->fileName, fileName, EXFAT_MAX_FILENAME_LENGTH);
   fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
 
