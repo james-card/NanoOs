@@ -1562,6 +1562,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   uint32_t currentWriteSector = 0;
   uint32_t currentWriteOffset = 0;
   uint32_t bufferOffset = 0;
+  uint8_t *zeroBuffer = NULL;
   
   if ((driverState == NULL) || (driverState->filesystemState == NULL) ||
       (fileName == NULL) || (fileHandle == NULL)
@@ -1569,10 +1570,16 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     return EXFAT_INVALID_PARAMETER;
   }
 
+  zeroBuffer = (uint8_t*) calloc(1, driverState->bytesPerSector);
+  if (zeroBuffer == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+
   // Convert filename to UTF-16 and calculate entries needed
   utf16Name = (uint16_t*) malloc(
     (EXFAT_MAX_FILENAME_LENGTH + 1) * sizeof(uint16_t));
   if (utf16Name == NULL) {
+    free(zeroBuffer);
     return EXFAT_NO_MEMORY;
   }
 
@@ -1665,23 +1672,14 @@ static int createFileInDirectory(ExFatDriverState* driverState,
         goto cleanup;
       }
       
-      // Clear the new cluster (fill with zeros)
-      uint8_t* zeroBuffer = (uint8_t*) calloc(
-        driverState->bytesPerSector, 1);
-      if (zeroBuffer == NULL) {
-        result = EXFAT_NO_MEMORY;
-        goto cleanup;
-      }
-      
+      // Write zeros to all sectors in the cluster
       for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
         uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
         result = writeSector(driverState, sectorNum, zeroBuffer);
         if (result != EXFAT_SUCCESS) {
-          free(zeroBuffer);
           goto cleanup;
         }
       }
-      free(zeroBuffer);
       
       currentCluster = newCluster;
     } else {
@@ -1695,13 +1693,11 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   }
 
   // Allocate buffer for all directory entries
-  entryBuffer = (uint8_t*) malloc(
-    entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE);
+  entryBuffer = (uint8_t*) calloc(1, entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE);
   if (entryBuffer == NULL) {
     result = EXFAT_NO_MEMORY;
     goto cleanup;
   }
-  memset(entryBuffer, 0, entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE);
 
   // Create file directory entry
   memset(&fileEntry, 0, sizeof(fileEntry));
@@ -1742,11 +1738,11 @@ static int createFileInDirectory(ExFatDriverState* driverState,
     memset(&nameEntry, 0, sizeof(nameEntry));
     nameEntry.entryType = EXFAT_ENTRY_FILENAME;
     
-    // Use aligned access for UTF-16 characters
+    // FIX: Use direct assignment for local variables instead of writeBytes
     for (int charIdx = 0; charIdx < 15 && nameEntryIndex < nameLength; 
          charIdx++
     ) {
-      writeBytes(&nameEntry.fileName[charIdx], &utf16Name[nameEntryIndex]);
+      nameEntry.fileName[charIdx] = utf16Name[nameEntryIndex];
       nameEntryIndex++;
     }
 
@@ -1783,8 +1779,9 @@ static int createFileInDirectory(ExFatDriverState* driverState,
                                  currentWriteOffset;
     uint32_t remainingInBuffer = (entriesNeeded * EXFAT_DIRECTORY_ENTRY_SIZE) -
                                  bufferOffset;
-    uint32_t bytesToCopy = (remainingInSector < remainingInBuffer) ? 
-                           remainingInSector : remainingInBuffer;
+    uint32_t bytesToCopy = (remainingInSector < remainingInBuffer)
+                         ? remainingInSector
+                         : remainingInBuffer;
 
     memcpy(filesystemState->blockBuffer + currentWriteOffset,
            entryBuffer + bufferOffset, bytesToCopy);
@@ -1811,7 +1808,7 @@ static int createFileInDirectory(ExFatDriverState* driverState,
         }
         
         // Check if we need to allocate a new cluster for the directory
-        if (nextCluster == 0xFFFFFFFF || nextCluster == 0) {
+        if (nextCluster == 0xFFFFFFFF) {
           // Allocate a new cluster for the directory
           uint32_t newCluster;
           result = findFreeCluster(driverState, &newCluster);
@@ -1832,22 +1829,13 @@ static int createFileInDirectory(ExFatDriverState* driverState,
           }
           
           // Clear the new cluster
-          uint8_t* zeroBuffer = (uint8_t*) calloc(
-            driverState->bytesPerSector, 1);
-          if (zeroBuffer == NULL) {
-            result = EXFAT_NO_MEMORY;
-            goto cleanup;
-          }
-          
           for (uint32_t ii = 0; ii < driverState->sectorsPerCluster; ii++) {
             uint32_t sectorNum = clusterToSector(driverState, newCluster) + ii;
             result = writeSector(driverState, sectorNum, zeroBuffer);
             if (result != EXFAT_SUCCESS) {
-              free(zeroBuffer);
               goto cleanup;
             }
           }
-          free(zeroBuffer);
           
           currentWriteCluster = newCluster;
         } else {
@@ -1871,12 +1859,10 @@ static int createFileInDirectory(ExFatDriverState* driverState,
   fileHandle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
 
 cleanup:
-  if (utf16Name != NULL) {
-    free(utf16Name);
-  }
-  if (entryBuffer != NULL) {
-    free(entryBuffer);
-  }
+  free(entryBuffer);
+  free(utf16Name);
+  free(zeroBuffer);
+
   return result;
 }
 
@@ -1992,7 +1978,7 @@ exit:
   if (driverState->filesystemState->numOpenFiles == 0) {
     // We just allocated the buffer above because nothing else is open.
     // Free the buffer.
-    printDebug("Freeing blockBuffer in exFatFopenWithPath.\n");
+    printDebug("Freeing blockBuffer in parsePathAndNavigate.\n");
     free(driverState->filesystemState->blockBuffer);
     driverState->filesystemState->blockBuffer = NULL;
   }
