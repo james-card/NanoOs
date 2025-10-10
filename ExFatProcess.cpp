@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              ExFatFilesystem.c
+/// @file              ExFatProcess.c
 ///
-/// @brief             exFAT filesystem driver implementation for NanoOs.
+/// @brief             exFAT process implementation for NanoOs.
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "ExFatProcess.h"
 #include "ExFatFilesystem.h"
-#include "ExFat.h"
 
 /// @typedef ExFatCommandHandler
 ///

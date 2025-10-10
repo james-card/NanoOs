@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              ExFat.c
+/// @file              ExFatFilesystem.c
 ///
 /// @brief             Base exFAT driver implementation for NanoOs.
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "ExFat.h"
+#include "ExFatFilesystem.h"
 
 /// @brief Read a sector from the storage device
 ///
