@@ -32,7 +32,7 @@ int exFatFilesystemOpenFileCommandHandler(
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
   if (driverState->driverStateValid) {
-    ExFatFileHandle *exFatFile = exFatFopenWithPath(driverState, pathname, mode);
+    ExFatFileHandle *exFatFile = exFatOpenFile(driverState, pathname, mode);
     if (exFatFile != NULL) {
       nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
       nanoOsFile->file = exFatFile;
