@@ -36,10 +36,6 @@
 #ifndef NANO_OS_H
 #define NANO_OS_H
 
-// Arduino includes
-#include <Arduino.h>
-#include <HardwareSerial.h>
-
 // Local headers
 #include "NanoOsTypes.h"
 #include "Coroutines.h"
@@ -239,7 +235,6 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 #include "Commands.h"
 #include "MemoryManager.h"
 #include "Processes.h"
-#include "Console.h"
 #include "Filesystem.h"
 
 #endif // NANO_OS_H

@@ -6,6 +6,10 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include "ExFatProcess.h"
 #include "ExFatFilesystem.h"
 

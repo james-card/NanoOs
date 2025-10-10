@@ -28,6 +28,10 @@
 // Doxygen marker
 /// @file
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include "Fat16Filesystem.h"
 
 // Directory search result codes

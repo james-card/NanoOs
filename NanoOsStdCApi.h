@@ -37,8 +37,20 @@
 #ifndef NANO_OS_STD_C_API_H
 #define NANO_OS_STD_C_API_H
 
+#ifndef FILE
+
+#define FILE C_FILE
 #include <stdarg.h>
 #include <stddef.h>
+#undef FILE
+
+#else // FILE already defined
+
+#include <stdarg.h>
+#include <stddef.h>
+
+#endif // FILE
+
 typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
 

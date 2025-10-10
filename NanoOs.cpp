@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "NanoOs.h"
+#include "Console.h"
 #include "Scheduler.h"
 
 // Externs

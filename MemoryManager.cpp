@@ -28,7 +28,12 @@
 // Doxygen marker
 /// @file
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 // NanoOs includes
+#include "Console.h"
 #include "MemoryManager.h"
 #include "NanoOsOverlay.h"
 

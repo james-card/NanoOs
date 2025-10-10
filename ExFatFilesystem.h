@@ -13,9 +13,21 @@
 #define EXFAT_FILESYSTEM_H
 
 
+#ifndef FILE
+
+#define FILE C_FILE
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#undef FILE
+
+# else // FILE already defined
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#endif // FILE
 
 #include "Filesystem.h"
 

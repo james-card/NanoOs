@@ -28,6 +28,10 @@
 // Doxygen marker
 /// @file
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include "Console.h"
 #include "Commands.h"
 #include "Scheduler.h"

@@ -28,10 +28,15 @@
 // Doxygen marker
 /// @file
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include "NanoOs.h"
 #include "NanoOsLibC.h"
-#include "Scheduler.h"
+#include "Console.h"
 #include "Filesystem.h"
+#include "Scheduler.h"
 
 /// @var boolNames
 ///

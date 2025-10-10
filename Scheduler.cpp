@@ -2705,6 +2705,9 @@ __attribute__((noinline)) void startScheduler(
       printDebug("ERROR: Could not open hello file for writing!\n");
       break;
     }
+    printDebug("helloFile is non-NULL!\n");
+    break;
+    kfclose(&schedulerState, helloFile);
 
     if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
       printDebug("ERROR: Could not write to hello file!\n");

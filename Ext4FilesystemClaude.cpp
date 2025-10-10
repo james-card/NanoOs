@@ -30,6 +30,10 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include "Ext4FilesystemClaude.h"
 #include <string.h>
 #include <stdlib.h>

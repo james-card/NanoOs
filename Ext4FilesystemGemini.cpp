@@ -33,6 +33,10 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+// Arduino includes
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
 #include <string.h>
 #include <stdlib.h>
 #include "Ext4FilesystemGemini.h"

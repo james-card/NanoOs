@@ -144,7 +144,7 @@ typedef struct NanoOsFile {
 typedef struct IoPipe {
   ProcessId processId;
   uint8_t messageType;
-} Pipe;
+} IoPipe;
 
 /// @struct FileDescriptor
 ///
@@ -331,7 +331,7 @@ typedef struct ConsolePort {
   ProcessId           inputOwner;
   ProcessId           shell;
   bool                waitingForInput;
-  int               (*readByte)(ConsolePort *consolePort);
+  int               (*readByte)(struct ConsolePort *consolePort);
   bool                echo;
   int               (*printString)(const char *string);
 } ConsolePort;
