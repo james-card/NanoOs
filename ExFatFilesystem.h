@@ -13,6 +13,12 @@
 #define EXFAT_FILESYSTEM_H
 
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "Filesystem.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -52,9 +58,6 @@ extern "C"
 #define EXFAT_NO_MEMORY              -4
 #define EXFAT_DISK_FULL              -5
 #define EXFAT_TOO_MANY_OPEN_FILES    -6
-
-// Forward declaration
-typedef struct FilesystemState FilesystemState;
 
 /// @struct ExFatBootSector
 ///
