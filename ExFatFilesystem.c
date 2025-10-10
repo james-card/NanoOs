@@ -7,6 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "ExFatFilesystem.h"
+#include "Filesystem.h"
 
 /// @brief Read a sector from the storage device
 ///
