@@ -1145,10 +1145,40 @@ ExFatFileHandle* exFatOpenFile(
       free(fileName);
       return NULL;
     }
+
+    // ###########################
+    // DEBUG: Verify the file was written
+    printString("File created at cluster ");
+    printULongLong(dirCluster);
+    printString(" offset ");
+    printULongLong(dirOffset);
+    printString("\n");
+    
+    // Dump directory to verify
+    dumpDirectoryEntries(driverState, directoryCluster, 20);
+    
+    // Try to find it again
+    ExFatFileDirectoryEntry verifyEntry;
+    ExFatStreamExtensionEntry verifyStream;
+    int verifyResult = searchDirectory(
+      driverState, directoryCluster, fileName,
+      &verifyEntry, &verifyStream, NULL, NULL
+    );
+    
+    if (verifyResult == EXFAT_SUCCESS) {
+      printString("Verification: File found after creation!\n");
+    } else {
+      printString("Verification FAILED: File not found! Error: ");
+      printLongLong(verifyResult);
+      printString("\n");
+    }
   } else if (result != EXFAT_SUCCESS) {
     free(fileName);
     return NULL;
   }
+  printString("Found file \"");
+  printString(filePath);
+  printString("\"\n");
 
   // Check if file is read-only when trying to write
   uint16_t fileAttributes = 0;
@@ -1173,6 +1203,9 @@ ExFatFileHandle* exFatOpenFile(
   readBytes(&firstCluster, &streamEntry.firstCluster);
   handle->firstCluster = firstCluster;
   handle->currentCluster = firstCluster;
+  printString("Allocated cluster: ");
+  printULongLong(firstCluster);
+  printString("\n");
 
   uint64_t fileSize = 0;
   readBytes(&fileSize, &streamEntry.dataLength);
