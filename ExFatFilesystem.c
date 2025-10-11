@@ -404,7 +404,7 @@ static int compareFilenames(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Create a new file in a directory (with proper alignment handling)
+/// @brief Create a new file in a directory (FIXED VERSION)
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param directoryCluster First cluster of the directory
@@ -550,7 +550,13 @@ static int createFileEntry(
 
   uint16_t nameHash = calculateNameHash(utf16Name, nameLength);
   writeBytes(&entryBuffer[streamOffset + 4], &nameHash);
-  writeBytes(&entryBuffer[streamOffset + 24], &firstCluster);
+  
+  // FIX: firstCluster is at offset 20, not 24
+  writeBytes(&entryBuffer[streamOffset + 20], &firstCluster);
+  
+  // Initialize dataLength to 0 for empty file (already zero from memset)
+  // uint64_t dataLength = 0;
+  // writeBytes(&entryBuffer[streamOffset + 24], &dataLength);
 
   // Filename entries
   uint8_t nameIndex = 0;
