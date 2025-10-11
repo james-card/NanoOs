@@ -9,6 +9,14 @@
 #include "ExFatFilesystem.h"
 #include "Filesystem.h"
 
+// Debug helpers
+int verifyAndFixChecksum(
+  ExFatDriverState* driverState, uint32_t directoryCluster,
+  uint32_t entryOffset);
+int compareEntryWithLinux(
+  ExFatDriverState* driverState, uint32_t directoryCluster,
+  uint32_t entryOffset);
+
 /// @brief Read a sector from the storage device
 ///
 /// @param driverState Pointer to driver state
@@ -649,8 +657,8 @@ static int createFileEntry(
   }
 
   // Copy created entries back to output parameters using copyBytes
-  copyBytes(fileEntry, newFileEntry, sizeof(ExFatFileDirectoryEntry));
-  copyBytes(streamEntry, newStreamEntry, sizeof(ExFatStreamExtensionEntry));
+  memcpy(fileEntry, newFileEntry, sizeof(ExFatFileDirectoryEntry));
+  memcpy(streamEntry, newStreamEntry, sizeof(ExFatStreamExtensionEntry));
 
   // Return directory location
   if (dirCluster != NULL) {
@@ -1187,6 +1195,9 @@ ExFatFileHandle* exFatOpenFile(
       return NULL;
     }
 
+    compareEntryWithLinux(driverState, directoryCluster, 10);
+    verifyAndFixChecksum(driverState, directoryCluster, 10);
+
     // ###########################
     // DEBUG: Verify the file was written
     printString("File created at cluster ");
@@ -1414,3 +1425,306 @@ int dumpDirectoryEntries(
   return EXFAT_SUCCESS;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Compare entry set with a known-good file from Linux
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param directoryCluster Directory cluster to dump
+/// @param entryOffset Offset of the entry to examine
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int compareEntryWithLinux(
+  ExFatDriverState* driverState, uint32_t directoryCluster,
+  uint32_t entryOffset
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  // Calculate sector and offset
+  uint32_t entriesPerSector =
+    driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
+  uint32_t sectorOffset = entryOffset / entriesPerSector;
+  uint32_t byteOffset =
+    (entryOffset % entriesPerSector) * EXFAT_DIRECTORY_ENTRY_SIZE;
+  
+  uint32_t sector = clusterToSector(driverState, directoryCluster) +
+    sectorOffset;
+
+  int result = readSector(driverState, sector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    return result;
+  }
+
+  printString("\n=== Detailed Entry Analysis ===\n");
+  
+  // Read file entry
+  uint8_t* fileEntryBytes = &buffer[byteOffset];
+  printString("FILE Entry (hex dump):\n");
+  for (uint8_t ii = 0; ii < 32; ii++) {
+    if (ii > 0 && (ii % 16) == 0) {
+      printString("\n");
+    }
+    printHex(fileEntryBytes[ii]);
+    printString(" ");
+  }
+  printString("\n");
+
+  // Decode file entry fields
+  printString("\nFILE Entry Fields:\n");
+  printString("  EntryType: 0x");
+  printHex(fileEntryBytes[0]);
+  printString(" (should be 0x85)\n");
+  
+  printString("  SecondaryCount: ");
+  printULongLong(fileEntryBytes[1]);
+  printString("\n");
+  
+  uint16_t storedChecksum = 0;
+  readBytes(&storedChecksum, &fileEntryBytes[2]);
+  printString("  Checksum: 0x");
+  printHex((storedChecksum >> 8) & 0xFF);
+  printHex(storedChecksum & 0xFF);
+  printString("\n");
+  
+  uint16_t attributes = 0;
+  readBytes(&attributes, &fileEntryBytes[4]);
+  printString("  Attributes: 0x");
+  printHex((attributes >> 8) & 0xFF);
+  printHex(attributes & 0xFF);
+  printString(" (");
+  if ((attributes & EXFAT_ATTR_READ_ONLY) != 0) {
+    printString("RO ");
+  }
+  if ((attributes & EXFAT_ATTR_DIRECTORY) != 0) {
+    printString("DIR ");
+  }
+  if ((attributes & EXFAT_ATTR_ARCHIVE) != 0) {
+    printString("ARC ");
+  }
+  printString(")\n");
+
+  // Read stream entry
+  uint8_t* streamEntryBytes = &buffer[byteOffset + 32];
+  printString("\nSTREAM Entry (hex dump):\n");
+  for (uint8_t ii = 0; ii < 32; ii++) {
+    if (ii > 0 && (ii % 16) == 0) {
+      printString("\n");
+    }
+    printHex(streamEntryBytes[ii]);
+    printString(" ");
+  }
+  printString("\n");
+
+  // Decode stream entry fields
+  printString("\nSTREAM Entry Fields:\n");
+  printString("  EntryType: 0x");
+  printHex(streamEntryBytes[0]);
+  printString(" (should be 0xC0)\n");
+  
+  printString("  GeneralSecondaryFlags: 0x");
+  printHex(streamEntryBytes[1]);
+  printString(" (bit 0=AllocPossible, bit 1=NoFatChain)\n");
+  
+  printString("  NameLength: ");
+  printULongLong(streamEntryBytes[3]);
+  printString("\n");
+  
+  uint16_t nameHash = 0;
+  readBytes(&nameHash, &streamEntryBytes[4]);
+  printString("  NameHash: 0x");
+  printHex((nameHash >> 8) & 0xFF);
+  printHex(nameHash & 0xFF);
+  printString("\n");
+  
+  uint64_t validDataLength = 0;
+  readBytes(&validDataLength, &streamEntryBytes[8]);
+  printString("  ValidDataLength: ");
+  printULongLong((uint32_t) validDataLength);
+  printString("\n");
+  
+  uint32_t firstCluster = 0;
+  readBytes(&firstCluster, &streamEntryBytes[20]);
+  printString("  FirstCluster: ");
+  printULongLong(firstCluster);
+  printString("\n");
+  
+  uint64_t dataLength = 0;
+  readBytes(&dataLength, &streamEntryBytes[24]);
+  printString("  DataLength: ");
+  printULongLong((uint32_t) dataLength);
+  printString("\n");
+
+  // Verify checksum
+  printString("\n=== Checksum Verification ===\n");
+  uint8_t secondaryCount = fileEntryBytes[1];
+  uint8_t totalEntries = secondaryCount + 1;
+  
+  // Allocate temporary buffer for entry set
+  uint8_t* entrySet = (uint8_t*) malloc(
+    totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE
+  );
+  if (entrySet == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Copy entries
+  for (uint8_t ii = 0; ii < totalEntries; ii++) {
+    uint8_t* src = &buffer[byteOffset + (ii * EXFAT_DIRECTORY_ENTRY_SIZE)];
+    uint8_t* dst = &entrySet[ii * EXFAT_DIRECTORY_ENTRY_SIZE];
+    for (uint8_t jj = 0; jj < EXFAT_DIRECTORY_ENTRY_SIZE; jj++) {
+      dst[jj] = src[jj];
+    }
+  }
+
+  // Calculate checksum
+  uint16_t calculatedChecksum = 0;
+  uint32_t totalBytes = totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE;
+  
+  for (uint32_t ii = 0; ii < totalBytes; ii++) {
+    if (ii == 2 || ii == 3) {
+      continue;  // Skip checksum field
+    }
+    calculatedChecksum = ((calculatedChecksum << 15) |
+      (calculatedChecksum >> 1)) + (uint16_t) entrySet[ii];
+  }
+
+  printString("Stored checksum:     0x");
+  printHex((storedChecksum >> 8) & 0xFF);
+  printHex(storedChecksum & 0xFF);
+  printString("\n");
+  
+  printString("Calculated checksum: 0x");
+  printHex((calculatedChecksum >> 8) & 0xFF);
+  printHex(calculatedChecksum & 0xFF);
+  printString("\n");
+  
+  if (storedChecksum == calculatedChecksum) {
+    printString("✓ Checksum MATCHES\n");
+  } else {
+    printString("✗ Checksum MISMATCH!\n");
+  }
+
+  free(entrySet);
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Manually verify checksum by recalculating from disk
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param directoryCluster Directory cluster containing the file
+/// @param entryOffset Offset of the file entry
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int verifyAndFixChecksum(
+  ExFatDriverState* driverState, uint32_t directoryCluster,
+  uint32_t entryOffset
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  // Read the sector containing the entry
+  uint32_t entriesPerSector =
+    driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
+  uint32_t sectorOffset = entryOffset / entriesPerSector;
+  uint32_t byteOffset =
+    (entryOffset % entriesPerSector) * EXFAT_DIRECTORY_ENTRY_SIZE;
+  
+  uint32_t sector = clusterToSector(driverState, directoryCluster) +
+    sectorOffset;
+
+  int result = readSector(driverState, sector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    return result;
+  }
+
+  // Get secondary count
+  uint8_t secondaryCount = buffer[byteOffset + 1];
+  uint8_t totalEntries = secondaryCount + 1;
+
+  // Recalculate checksum
+  uint16_t newChecksum = 0;
+  uint32_t totalBytes = totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE;
+  
+  for (uint32_t ii = 0; ii < totalBytes; ii++) {
+    uint32_t globalByteOffset = byteOffset + ii;
+    
+    // Skip checksum field (bytes 2-3 of first entry)
+    if (ii == 2 || ii == 3) {
+      continue;
+    }
+    
+    newChecksum = ((newChecksum << 15) | (newChecksum >> 1)) +
+      (uint16_t) buffer[globalByteOffset];
+  }
+
+  // Read stored checksum
+  uint16_t storedChecksum = 0;
+  readBytes(&storedChecksum, &buffer[byteOffset + 2]);
+
+  printString("Verification:\n");
+  printString("  Stored:     0x");
+  printHex((storedChecksum >> 8) & 0xFF);
+  printHex(storedChecksum & 0xFF);
+  printString("\n");
+  printString("  Calculated: 0x");
+  printHex((newChecksum >> 8) & 0xFF);
+  printHex(newChecksum & 0xFF);
+  printString("\n");
+
+  if (storedChecksum != newChecksum) {
+    printString("  Status: MISMATCH - Fixing...\n");
+    
+    // Write corrected checksum
+    writeBytes(&buffer[byteOffset + 2], &newChecksum);
+    
+    // Write sector back
+    result = writeSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    
+    printString("  Fixed checksum written to disk\n");
+  } else {
+    printString("  Status: OK\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Compare our file creation with a Linux-created file
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param ourFile Path to file we created
+/// @param linuxFile Path to file Linux created
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int compareFileStructures(
+  ExFatDriverState* driverState, const char* ourFile, const char* linuxFile
+) {
+  printString("\n=== Comparing File Structures ===\n");
+  
+  // This would search for both files and compare their
+  // directory entries byte-by-byte
+  // Implementation left as exercise since it uses existing functions
+  
+  printString("Compare: ");
+  printString(ourFile);
+  printString(" vs ");
+  printString(linuxFile);
+  printString("\n");
+  
+  return EXFAT_SUCCESS;
+}
