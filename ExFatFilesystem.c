@@ -790,6 +790,99 @@ static int createFileEntry(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Parse path and navigate through directories
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param filePath Full path to the file
+/// @param finalDirectory Pointer to store the final directory cluster
+/// @param fileNameBuffer Buffer to store the filename (must be at least
+///                       EXFAT_MAX_FILENAME_LENGTH + 1 bytes)
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int navigateToDirectory(
+  ExFatDriverState* driverState, const char* filePath,
+  uint32_t* finalDirectory, char* fileNameBuffer
+) {
+  if (driverState == NULL || filePath == NULL || finalDirectory == NULL ||
+      fileNameBuffer == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  // Start at root directory
+  uint32_t currentDirectory = driverState->rootDirectoryCluster;
+  const char* pathPtr = filePath;
+
+  // Skip leading slash
+  if (*pathPtr == '/') {
+    pathPtr++;
+  }
+
+  // If empty path, return root
+  if (*pathPtr == '\0') {
+    *finalDirectory = currentDirectory;
+    fileNameBuffer[0] = '\0';
+    return EXFAT_SUCCESS;
+  }
+
+  // Parse path component by component
+  char component[EXFAT_MAX_FILENAME_LENGTH + 1];
+  
+  while (*pathPtr != '\0') {
+    // Extract next path component
+    uint8_t componentLength = 0;
+    while (*pathPtr != '\0' && *pathPtr != '/' &&
+           componentLength < EXFAT_MAX_FILENAME_LENGTH) {
+      component[componentLength++] = *pathPtr++;
+    }
+    component[componentLength] = '\0';
+
+    // Skip trailing slash
+    if (*pathPtr == '/') {
+      pathPtr++;
+    }
+
+    // If this is the last component, it's the filename
+    if (*pathPtr == '\0') {
+      *finalDirectory = currentDirectory;
+      
+      // Copy component to caller's buffer
+      for (uint8_t ii = 0; ii <= componentLength; ii++) {
+        fileNameBuffer[ii] = component[ii];
+      }
+      return EXFAT_SUCCESS;
+    }
+
+    // Not the last component, so it should be a directory
+    ExFatFileDirectoryEntry dirEntry;
+    ExFatStreamExtensionEntry streamEntry;
+
+    int result = searchDirectory(
+      driverState, currentDirectory, component, &dirEntry, &streamEntry,
+      NULL, NULL
+    );
+
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+
+    // Verify it's actually a directory
+    uint16_t attributes = 0;
+    readBytes(&attributes, &dirEntry.fileAttributes);
+    if ((attributes & EXFAT_ATTR_DIRECTORY) == 0) {
+      return EXFAT_ERROR;  // Not a directory
+    }
+
+    // Move to this directory
+    readBytes(&currentDirectory, &streamEntry.firstCluster);
+  }
+
+  *finalDirectory = currentDirectory;
+  fileNameBuffer[0] = '\0';
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Open or create an exFAT file
 ///
 /// @param driverState Pointer to the exFAT driver state
@@ -837,13 +930,17 @@ ExFatFileHandle* exFatOpenFile(
     return NULL;
   }
 
-  // Parse file path (for now, assume root directory and simple filename)
-  const char* fileName = filePath;
-  if (*fileName == '/') {
-    fileName++;
+  // Navigate to the directory containing the file
+  uint32_t directoryCluster = 0;
+  char fileName[EXFAT_MAX_FILENAME_LENGTH + 1];
+  
+  int result = navigateToDirectory(
+    driverState, filePath, &directoryCluster, fileName
+  );
+  
+  if (result != EXFAT_SUCCESS) {
+    return NULL;
   }
-
-  uint32_t directoryCluster = driverState->rootDirectoryCluster;
 
   // Search for the file
   ExFatFileDirectoryEntry fileEntry;
@@ -851,7 +948,7 @@ ExFatFileHandle* exFatOpenFile(
   uint32_t dirCluster = 0;
   uint32_t dirOffset = 0;
 
-  int result = searchDirectory(
+  result = searchDirectory(
     driverState, directoryCluster, fileName, &fileEntry, &streamEntry,
     &dirCluster, &dirOffset
   );
@@ -872,6 +969,14 @@ ExFatFileHandle* exFatOpenFile(
     return NULL;
   }
 
+  // Check if file is read-only when trying to write
+  uint16_t fileAttributes = 0;
+  readBytes(&fileAttributes, &fileEntry.fileAttributes);
+  if ((write || append) &&
+      ((fileAttributes & EXFAT_ATTR_READ_ONLY) != 0)) {
+    return NULL;  // Cannot open read-only file for writing
+  }
+
   // Allocate file handle
   ExFatFileHandle* handle = (ExFatFileHandle*) malloc(
     sizeof(ExFatFileHandle)
@@ -887,6 +992,11 @@ ExFatFileHandle* exFatOpenFile(
   readBytes(&handle->attributes, &fileEntry.fileAttributes);
   handle->directoryCluster = dirCluster;
   handle->directoryOffset = dirOffset;
+  
+  // Store open mode flags
+  handle->canRead = read;
+  handle->canWrite = write;
+  handle->appendMode = append;
 
   // Copy filename
   uint8_t nameLength = 0;
@@ -925,7 +1035,8 @@ ExFatFileHandle* exFatOpenFile(
   if (truncate && handle->fileSize > 0) {
     handle->fileSize = 0;
     handle->currentPosition = 0;
-    // Update stream entry (will need to implement this properly)
+    // TODO: Free all clusters and update directory entry
+    // This requires implementing cluster freeing logic
   }
 
   return handle;
