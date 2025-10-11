@@ -31,13 +31,31 @@
 #include "NanoOsStdCApi.h"
 #include "NanoOs.h"
 
-#include <stdio.h>
+#undef stdin
+#undef stdout
+#undef stderr
+#undef fopen
+#undef fclose
+#undef remove
+#undef fseek
+#undef vfscanf
+#undef fscanf
+#undef scanf
+#undef vfprintf
+#undef fprintf
+#undef printf
+#undef fputs
+#undef puts
+#undef fgets
+#undef fread
+#undef fwrite
+#undef strerror
 
 NanoOsStdCApi nanoOsStdCApi = {
   // Standard streams:
-  .stdin = stdin,
-  .stdout = stdout,
-  .stderr = stderr,
+  .stdin = nanoOsStdin,
+  .stdout = nanoOsStdout,
+  .stderr = nanoOsStderr,
   
   // File operations:
   .fopen = filesystemFOpen,

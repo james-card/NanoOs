@@ -64,6 +64,7 @@ extern "C"
 #define EXFAT_NO_MEMORY              -4
 #define EXFAT_DISK_FULL              -5
 #define EXFAT_TOO_MANY_OPEN_FILES    -6
+#define EXFAT_INVALID_FILESYSTEM     -7
 
 /// @struct ExFatBootSector
 ///
@@ -167,6 +168,8 @@ typedef struct ExFatDriverState {
 } ExFatDriverState;
 
 // Function declarations
+int exFatInitialize(
+  ExFatDriverState* driverState, FilesystemState* filesystemState);
 ExFatFileHandle* exFatOpenFile(
   ExFatDriverState* driverState, const char* filePath, const char* mode);
 

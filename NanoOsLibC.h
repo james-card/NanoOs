@@ -47,6 +47,7 @@
 
 // Standard C includes
 #define FILE C_FILE
+#include <stdio.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <stdarg.h>
@@ -65,10 +66,6 @@ extern "C"
 #endif
 
 typedef struct NanoOsFile NanoOsFile;
-#ifdef FILE
-#undef FILE
-#endif // FILE
-#define FILE NanoOsFile
 
 #ifdef stdin
 #undef stdin

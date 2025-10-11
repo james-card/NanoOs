@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "Processes.h"
+#include "Console.h"
 #include "Scheduler.h"
 
 /// @var messages

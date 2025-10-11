@@ -62,6 +62,117 @@ static int writeSector(ExFatDriverState* driverState, uint32_t sectorNumber,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Initialize an exFAT driver state
+///
+/// @param driverState Pointer to allocated and zeroed ExFatDriverState struct
+/// @param filesystemState Pointer to initialized FilesystemState struct
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int exFatInitialize(
+  ExFatDriverState* driverState, FilesystemState* filesystemState
+) {
+  if (driverState == NULL || filesystemState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  if (filesystemState->blockDevice == NULL ||
+      filesystemState->blockBuffer == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  // Allocate buffer for boot sector
+  ExFatBootSector* bootSector = (ExFatBootSector*) malloc(
+    sizeof(ExFatBootSector)
+  );
+  if (bootSector == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Read the boot sector (sector 0)
+  int result = filesystemState->blockDevice->readBlocks(
+    filesystemState->blockDevice->context,
+    filesystemState->startLba,
+    1,
+    filesystemState->blockSize,
+    (uint8_t*) bootSector
+  );
+
+  if (result != 0) {
+    free(bootSector);
+    return EXFAT_ERROR;
+  }
+
+  // Validate boot signature
+  uint16_t bootSignature = 0;
+  readBytes(&bootSignature, &bootSector->bootSignature);
+  if (bootSignature != 0xAA55) {
+    free(bootSector);
+    return EXFAT_INVALID_FILESYSTEM;
+  }
+
+  // Validate filesystem name
+  const char* expectedName = "EXFAT   ";
+  for (uint8_t ii = 0; ii < 8; ii++) {
+    if (bootSector->fileSystemName[ii] != expectedName[ii]) {
+      free(bootSector);
+      return EXFAT_INVALID_FILESYSTEM;
+    }
+  }
+
+  // Extract boot sector values
+  uint8_t bytesPerSectorShift = 0;
+  uint8_t sectorsPerClusterShift = 0;
+  uint32_t fatOffset = 0;
+  uint32_t clusterHeapOffset = 0;
+  uint32_t clusterCount = 0;
+  uint32_t rootDirectoryCluster = 0;
+
+  readBytes(&bytesPerSectorShift, &bootSector->bytesPerSectorShift);
+  readBytes(&sectorsPerClusterShift, &bootSector->sectorsPerClusterShift);
+  readBytes(&fatOffset, &bootSector->fatOffset);
+  readBytes(&clusterHeapOffset, &bootSector->clusterHeapOffset);
+  readBytes(&clusterCount, &bootSector->clusterCount);
+  readBytes(&rootDirectoryCluster, &bootSector->rootDirectoryCluster);
+
+  // Calculate values
+  uint32_t bytesPerSector = 1 << bytesPerSectorShift;
+  uint32_t sectorsPerCluster = 1 << sectorsPerClusterShift;
+  uint32_t bytesPerCluster = bytesPerSector * sectorsPerCluster;
+
+  // Validate values
+  if (bytesPerSector < EXFAT_SECTOR_SIZE) {
+    free(bootSector);
+    return EXFAT_INVALID_FILESYSTEM;
+  }
+
+  if (bytesPerCluster < EXFAT_CLUSTER_SIZE_MIN ||
+      bytesPerCluster > EXFAT_CLUSTER_SIZE_MAX) {
+    free(bootSector);
+    return EXFAT_INVALID_FILESYSTEM;
+  }
+
+  if (rootDirectoryCluster < 2) {
+    free(bootSector);
+    return EXFAT_INVALID_FILESYSTEM;
+  }
+
+  // Initialize driver state
+  driverState->filesystemState = filesystemState;
+  driverState->bytesPerSector = bytesPerSector;
+  driverState->sectorsPerCluster = sectorsPerCluster;
+  driverState->bytesPerCluster = bytesPerCluster;
+  driverState->fatStartSector = fatOffset;
+  driverState->clusterHeapStartSector = clusterHeapOffset;
+  driverState->rootDirectoryCluster = rootDirectoryCluster;
+  driverState->clusterCount = clusterCount;
+  driverState->driverStateValid = true;
+
+  free(bootSector);
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Convert a cluster number to a sector number
 ///
 /// @param driverState Pointer to the exFAT driver state
