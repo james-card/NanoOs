@@ -509,24 +509,44 @@ static int searchDirectory(
     return EXFAT_INVALID_PARAMETER;
   }
 
+  // Allocate cluster buffer
   uint8_t* clusterBuffer = (uint8_t*) malloc(driverState->bytesPerCluster);
   if (clusterBuffer == NULL) {
     return EXFAT_NO_MEMORY;
   }
 
-  uint16_t searchName[EXFAT_MAX_FILENAME_LENGTH];
+  // Allocate search name buffer
+  uint16_t* searchName = (uint16_t*) malloc(
+    EXFAT_MAX_FILENAME_LENGTH * sizeof(uint16_t)
+  );
+  if (searchName == NULL) {
+    free(clusterBuffer);
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Allocate full name buffer
+  uint16_t* fullName = (uint16_t*) malloc(
+    EXFAT_MAX_FILENAME_LENGTH * sizeof(uint16_t)
+  );
+  if (fullName == NULL) {
+    free(searchName);
+    free(clusterBuffer);
+    return EXFAT_NO_MEMORY;
+  }
+
   uint8_t searchNameLength = asciiToUtf16(
     fileName, searchName, EXFAT_MAX_FILENAME_LENGTH
   );
 
   uint32_t currentCluster = directoryCluster;
   uint32_t entryOffset = 0;
+  int returnValue = EXFAT_FILE_NOT_FOUND;
 
   while (currentCluster != 0xFFFFFFFF) {
     int result = readCluster(driverState, currentCluster, clusterBuffer);
     if (result != EXFAT_SUCCESS) {
-      free(clusterBuffer);
-      return result;
+      returnValue = result;
+      goto cleanup;
     }
 
     for (
@@ -537,8 +557,7 @@ static int searchDirectory(
       uint8_t entryType = clusterBuffer[ii];
 
       if (entryType == EXFAT_ENTRY_END_OF_DIR) {
-        free(clusterBuffer);
-        return EXFAT_FILE_NOT_FOUND;
+        goto cleanup;
       }
 
       if (entryType == EXFAT_ENTRY_FILE) {
@@ -570,7 +589,6 @@ static int searchDirectory(
         uint8_t nameLength = 0;
         readBytes(&nameLength, &tempStreamEntry.nameLength);
 
-        uint16_t fullName[EXFAT_MAX_FILENAME_LENGTH];
         uint8_t nameIndex = 0;
 
         for (
@@ -610,8 +628,8 @@ static int searchDirectory(
           if (dirOffset != NULL) {
             *dirOffset = entryOffset + ii;
           }
-          free(clusterBuffer);
-          return EXFAT_SUCCESS;
+          returnValue = EXFAT_SUCCESS;
+          goto cleanup;
         }
       }
       entryOffset++;
@@ -621,14 +639,17 @@ static int searchDirectory(
     uint32_t nextCluster = 0;
     result = readFatEntry(driverState, currentCluster, &nextCluster);
     if (result != EXFAT_SUCCESS) {
-      free(clusterBuffer);
-      return result;
+      returnValue = result;
+      goto cleanup;
     }
     currentCluster = nextCluster;
   }
 
+cleanup:
+  free(fullName);
+  free(searchName);
   free(clusterBuffer);
-  return EXFAT_FILE_NOT_FOUND;
+  return returnValue;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -652,12 +673,31 @@ static int createFileEntry(
     return EXFAT_INVALID_PARAMETER;
   }
 
+  // Allocate cluster buffer
   uint8_t* clusterBuffer = (uint8_t*) malloc(driverState->bytesPerCluster);
   if (clusterBuffer == NULL) {
     return EXFAT_NO_MEMORY;
   }
 
-  uint16_t utf16Name[EXFAT_MAX_FILENAME_LENGTH];
+  // Allocate UTF-16 name buffer
+  uint16_t* utf16Name = (uint16_t*) malloc(
+    EXFAT_MAX_FILENAME_LENGTH * sizeof(uint16_t)
+  );
+  if (utf16Name == NULL) {
+    free(clusterBuffer);
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Allocate entry buffer
+  uint8_t* entryBuffer = (uint8_t*) malloc(
+    EXFAT_DIRECTORY_ENTRY_SIZE * 17
+  );
+  if (entryBuffer == NULL) {
+    free(utf16Name);
+    free(clusterBuffer);
+    return EXFAT_NO_MEMORY;
+  }
+
   uint8_t nameLength = asciiToUtf16(
     fileName, utf16Name, EXFAT_MAX_FILENAME_LENGTH
   );
@@ -669,12 +709,13 @@ static int createFileEntry(
   uint32_t currentCluster = directoryCluster;
   uint32_t targetOffset = 0;
   bool foundSpace = false;
+  int returnValue = EXFAT_SUCCESS;
 
   while (currentCluster != 0xFFFFFFFF && !foundSpace) {
     int result = readCluster(driverState, currentCluster, clusterBuffer);
     if (result != EXFAT_SUCCESS) {
-      free(clusterBuffer);
-      return result;
+      returnValue = result;
+      goto cleanup;
     }
 
     uint8_t consecutiveFree = 0;
@@ -704,29 +745,28 @@ static int createFileEntry(
       uint32_t nextCluster = 0;
       result = readFatEntry(driverState, currentCluster, &nextCluster);
       if (result != EXFAT_SUCCESS) {
-        free(clusterBuffer);
-        return result;
+        returnValue = result;
+        goto cleanup;
       }
       currentCluster = nextCluster;
     }
   }
 
   if (!foundSpace) {
-    free(clusterBuffer);
-    return EXFAT_DISK_FULL;
+    returnValue = EXFAT_DISK_FULL;
+    goto cleanup;
   }
 
   // Allocate first cluster for the file
   uint32_t firstCluster = 0;
   int result = allocateCluster(driverState, &firstCluster);
   if (result != EXFAT_SUCCESS) {
-    free(clusterBuffer);
-    return result;
+    returnValue = result;
+    goto cleanup;
   }
 
   // Create file directory entry
-  uint8_t entryBuffer[EXFAT_DIRECTORY_ENTRY_SIZE * 17];
-  for (uint32_t ii = 0; ii < sizeof(entryBuffer); ii++) {
+  for (uint32_t ii = 0; ii < EXFAT_DIRECTORY_ENTRY_SIZE * 17; ii++) {
     entryBuffer[ii] = 0;
   }
 
@@ -753,7 +793,9 @@ static int createFileEntry(
     entryBuffer[nameOffset + 1] = 0x00;
 
     for (uint8_t jj = 0; jj < 15 && nameIndex < nameLength; jj++) {
-      writeBytes(&entryBuffer[nameOffset + 2 + (jj * 2)], &utf16Name[nameIndex]);
+      writeBytes(
+        &entryBuffer[nameOffset + 2 + (jj * 2)], &utf16Name[nameIndex]
+      );
       nameIndex++;
     }
   }
@@ -765,8 +807,8 @@ static int createFileEntry(
   // Write entries to cluster
   result = readCluster(driverState, currentCluster, clusterBuffer);
   if (result != EXFAT_SUCCESS) {
-    free(clusterBuffer);
-    return result;
+    returnValue = result;
+    goto cleanup;
   }
 
   for (uint8_t ii = 0; ii < totalEntries; ii++) {
@@ -778,15 +820,18 @@ static int createFileEntry(
 
   result = writeCluster(driverState, currentCluster, clusterBuffer);
   if (result != EXFAT_SUCCESS) {
-    free(clusterBuffer);
-    return result;
+    returnValue = result;
+    goto cleanup;
   }
 
   readBytes(fileEntry, entryBuffer);
   readBytes(streamEntry, &entryBuffer[EXFAT_DIRECTORY_ENTRY_SIZE]);
 
+cleanup:
+  free(entryBuffer);
+  free(utf16Name);
   free(clusterBuffer);
-  return EXFAT_SUCCESS;
+  return returnValue;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -809,9 +854,16 @@ static int navigateToDirectory(
     return EXFAT_INVALID_PARAMETER;
   }
 
+  // Allocate component buffer
+  char* component = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
+  if (component == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+
   // Start at root directory
   uint32_t currentDirectory = driverState->rootDirectoryCluster;
   const char* pathPtr = filePath;
+  int returnValue = EXFAT_SUCCESS;
 
   // Skip leading slash
   if (*pathPtr == '/') {
@@ -822,12 +874,10 @@ static int navigateToDirectory(
   if (*pathPtr == '\0') {
     *finalDirectory = currentDirectory;
     fileNameBuffer[0] = '\0';
-    return EXFAT_SUCCESS;
+    goto cleanup;
   }
 
   // Parse path component by component
-  char component[EXFAT_MAX_FILENAME_LENGTH + 1];
-  
   while (*pathPtr != '\0') {
     // Extract next path component
     uint8_t componentLength = 0;
@@ -850,7 +900,7 @@ static int navigateToDirectory(
       for (uint8_t ii = 0; ii <= componentLength; ii++) {
         fileNameBuffer[ii] = component[ii];
       }
-      return EXFAT_SUCCESS;
+      goto cleanup;
     }
 
     // Not the last component, so it should be a directory
@@ -863,14 +913,16 @@ static int navigateToDirectory(
     );
 
     if (result != EXFAT_SUCCESS) {
-      return result;
+      returnValue = result;
+      goto cleanup;
     }
 
     // Verify it's actually a directory
     uint16_t attributes = 0;
     readBytes(&attributes, &dirEntry.fileAttributes);
     if ((attributes & EXFAT_ATTR_DIRECTORY) == 0) {
-      return EXFAT_ERROR;  // Not a directory
+      returnValue = EXFAT_ERROR;  // Not a directory
+      goto cleanup;
     }
 
     // Move to this directory
@@ -879,7 +931,10 @@ static int navigateToDirectory(
 
   *finalDirectory = currentDirectory;
   fileNameBuffer[0] = '\0';
-  return EXFAT_SUCCESS;
+
+cleanup:
+  free(component);
+  return returnValue;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -930,15 +985,21 @@ ExFatFileHandle* exFatOpenFile(
     return NULL;
   }
 
+  // Allocate filename buffer
+  char* fileName = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
+  if (fileName == NULL) {
+    return NULL;
+  }
+
   // Navigate to the directory containing the file
   uint32_t directoryCluster = 0;
-  char fileName[EXFAT_MAX_FILENAME_LENGTH + 1];
   
   int result = navigateToDirectory(
     driverState, filePath, &directoryCluster, fileName
   );
   
   if (result != EXFAT_SUCCESS) {
+    free(fileName);
     return NULL;
   }
 
@@ -955,6 +1016,7 @@ ExFatFileHandle* exFatOpenFile(
 
   if (result == EXFAT_FILE_NOT_FOUND) {
     if (mustExist) {
+      free(fileName);
       return NULL;
     }
 
@@ -963,9 +1025,11 @@ ExFatFileHandle* exFatOpenFile(
       driverState, directoryCluster, fileName, &fileEntry, &streamEntry
     );
     if (result != EXFAT_SUCCESS) {
+      free(fileName);
       return NULL;
     }
   } else if (result != EXFAT_SUCCESS) {
+    free(fileName);
     return NULL;
   }
 
@@ -974,6 +1038,7 @@ ExFatFileHandle* exFatOpenFile(
   readBytes(&fileAttributes, &fileEntry.fileAttributes);
   if ((write || append) &&
       ((fileAttributes & EXFAT_ATTR_READ_ONLY) != 0)) {
+    free(fileName);
     return NULL;  // Cannot open read-only file for writing
   }
 
@@ -982,6 +1047,7 @@ ExFatFileHandle* exFatOpenFile(
     sizeof(ExFatFileHandle)
   );
   if (handle == NULL) {
+    free(fileName);
     return NULL;
   }
 
@@ -1017,6 +1083,7 @@ ExFatFileHandle* exFatOpenFile(
       uint32_t nextCluster = 0;
       if (readFatEntry(driverState, cluster, &nextCluster) !=
           EXFAT_SUCCESS) {
+        free(fileName);
         free(handle);
         return NULL;
       }
@@ -1039,6 +1106,7 @@ ExFatFileHandle* exFatOpenFile(
     // This requires implementing cluster freeing logic
   }
 
+  free(fileName);
   return handle;
 }
 
