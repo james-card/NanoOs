@@ -150,6 +150,9 @@ typedef struct ExFatFileHandle {
   char      fileName[EXFAT_MAX_FILENAME_LENGTH + 1]; // File name
   uint32_t  directoryCluster;      // Directory containing this file
   uint32_t  directoryOffset;       // Offset in directory
+  bool      canRead;               // Whether file is open for reading
+  bool      canWrite;              // Whether file is open for writing
+  bool      appendMode;            // Whether file is in append mode
 } ExFatFileHandle;
 
 /// @struct ExFatDriverState
