@@ -30,9 +30,11 @@
 
 // Custom includes
 #include "NanoOs.h"
+#include "Console.h"
 #include "Scheduler.h"
 #include "SdCard.h"
 #include "ExFatFilesystem.h"
+#include "ExFatProcess.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);

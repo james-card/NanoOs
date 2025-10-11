@@ -71,7 +71,7 @@ int exFatFilesystemCloseFileCommandHandler(
   ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
   free(nanoOsFile);
   if (driverState->driverStateValid) {
-    exFatFclose(driverState, exFatFile);
+    //// exFatFclose(driverState, exFatFile);
     if (driverState->filesystemState->numOpenFiles > 0) {
       driverState->filesystemState->numOpenFiles--;
       if (driverState->filesystemState->numOpenFiles == 0) {
@@ -103,10 +103,10 @@ int exFatFilesystemReadFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
   int32_t returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatRead(driverState,
-      filesystemIoCommandParameters->buffer,
-      filesystemIoCommandParameters->length, 
-      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    //// returnValue = exFatRead(driverState,
+    ////   filesystemIoCommandParameters->buffer,
+    ////   filesystemIoCommandParameters->length, 
+    ////   (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
     if (returnValue >= 0) {
       // Return value is the number of bytes read.  Set the length variable to
       // it and set it to 0 to indicate good status.
@@ -142,10 +142,10 @@ int exFatFilesystemWriteFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatWrite(driverState,
-      (uint8_t*) filesystemIoCommandParameters->buffer,
-      filesystemIoCommandParameters->length,
-      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    //// returnValue = exFatWrite(driverState,
+    ////   (uint8_t*) filesystemIoCommandParameters->buffer,
+    ////   filesystemIoCommandParameters->length,
+    ////   (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
     if (returnValue >= 0) {
       // Return value is the number of bytes written.  Set the length variable
       // to it and set it to 0 to indicate good status.
@@ -180,7 +180,7 @@ int exFatFilesystemRemoveFileCommandHandler(
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatRemoveWithPath(driverState, pathname);
+    //// returnValue = exFatRemoveWithPath(driverState, pathname);
   }
 
   NanoOsMessage *nanoOsMessage
@@ -208,10 +208,10 @@ int exFatFilesystemSeekFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatSeek(driverState,
-      (ExFatFileHandle*) filesystemSeekParameters->stream->file,
-      filesystemSeekParameters->offset,
-      filesystemSeekParameters->whence);
+    //// returnValue = exFatSeek(driverState,
+    ////   (ExFatFileHandle*) filesystemSeekParameters->stream->file,
+    ////   filesystemSeekParameters->offset,
+    ////   filesystemSeekParameters->whence);
   }
 
   NanoOsMessage *nanoOsMessage

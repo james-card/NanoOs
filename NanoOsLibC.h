@@ -43,9 +43,9 @@
 #ifndef NANO_OS_LIB_C_H
 #define NANO_OS_LIB_C_H
 
-// Standard C includes
-#ifndef FILE
+#undef FILE
 
+// Standard C includes
 #define FILE C_FILE
 #include <limits.h>
 #include <setjmp.h>
@@ -57,18 +57,7 @@
 #include <time.h>
 #undef FILE
 
-#else // FILE already defined
-
-#include <limits.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-#endif // FILE
+#define FILE NanoOsFile
 
 #ifdef __cplusplus
 extern "C"
