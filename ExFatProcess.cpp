@@ -274,7 +274,6 @@ void* runExFatFilesystem(void *args) {
   fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
   getPartitionInfo(fs);
   exFatInitialize(driverState, fs);
-  free(fs->blockBuffer); fs->blockBuffer = NULL;
   
   ProcessMessage *msg = NULL;
   while (1) {
