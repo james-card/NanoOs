@@ -434,7 +434,7 @@ static int createFileEntry(
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
-  // Allocate UTF-16 name buffer
+  // Allocate UTF-16 name buffer (only temp allocation needed)
   uint16_t* utf16Name = (uint16_t*) malloc(
     EXFAT_MAX_FILENAME_LENGTH * sizeof(uint16_t)
   );
@@ -528,150 +528,127 @@ static int createFileEntry(
     goto cleanup;
   }
 
-  // Create the file directory entry structure
-  ExFatFileDirectoryEntry *newFileEntry
-    = (ExFatFileDirectoryEntry*) calloc(1, sizeof(ExFatFileDirectoryEntry));
-  if (newFileEntry == NULL) {
-    free(utf16Name);
-    return EXFAT_NO_MEMORY;
+  // Read the target sector into buffer
+  result = readSector(driverState, targetSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    returnValue = result;
+    goto cleanup;
   }
+
+  // Calculate where in the buffer our entries will be
+  uint8_t* entrySetStart = &buffer[targetOffset];
   
-  newFileEntry->entryType = EXFAT_ENTRY_FILE;
-  newFileEntry->secondaryCount = totalEntries - 1;
-  newFileEntry->fileAttributes = EXFAT_ATTR_ARCHIVE;
-  // Leave timestamps as zero (valid for exFAT)
-
-  // Create the stream extension entry structure
-  ExFatStreamExtensionEntry *newStreamEntry
-    = (ExFatStreamExtensionEntry*) calloc(1, sizeof(ExFatStreamExtensionEntry));
-  if (newStreamEntry == NULL) {
-    free(newFileEntry);
-    free(utf16Name);
-    return EXFAT_NO_MEMORY;
+  // Zero out the entry set area (in case it had old data)
+  for (uint32_t ii = 0; ii < totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE; ii++) {
+    if (targetOffset + ii >= driverState->bytesPerSector) {
+      break;  // Can't span sectors yet, will handle below
+    }
+    entrySetStart[ii] = 0;
   }
+
+  // Cast to file directory entry and populate using writeBytes
+  ExFatFileDirectoryEntry* newFileEntry =
+    (ExFatFileDirectoryEntry*) entrySetStart;
   
-  newStreamEntry->entryType = EXFAT_ENTRY_STREAM;
-  newStreamEntry->generalSecondaryFlags = 0x01;  // Name hash valid
-  newStreamEntry->nameLength = nameLength;
-  newStreamEntry->nameHash = calculateNameHash(utf16Name, nameLength);
-  newStreamEntry->validDataLength = 0;  // Empty file
-  newStreamEntry->firstCluster = firstCluster;
-  newStreamEntry->dataLength = 0;  // Empty file
+  uint8_t entryType = EXFAT_ENTRY_FILE;
+  uint8_t secondaryCount = totalEntries - 1;
+  uint16_t attributes = EXFAT_ATTR_ARCHIVE;
+  uint32_t timestamp = 0;
+  uint8_t zeroValue = 0;
+  
+  writeBytes(&newFileEntry->entryType, &entryType);
+  writeBytes(&newFileEntry->secondaryCount, &secondaryCount);
+  // Skip checksum for now
+  writeBytes(&newFileEntry->fileAttributes, &attributes);
+  writeBytes(&newFileEntry->reserved1, &zeroValue);
+  writeBytes(&newFileEntry->createTimestamp, &timestamp);
+  writeBytes(&newFileEntry->lastModifiedTimestamp, &timestamp);
+  writeBytes(&newFileEntry->lastAccessedTimestamp, &timestamp);
+  writeBytes(&newFileEntry->create10msIncrement, &zeroValue);
+  writeBytes(&newFileEntry->lastModified10msIncrement, &zeroValue);
+  writeBytes(&newFileEntry->createUtcOffset, &zeroValue);
+  writeBytes(&newFileEntry->lastModifiedUtcOffset, &zeroValue);
+  writeBytes(&newFileEntry->lastAccessedUtcOffset, &zeroValue);
 
-  // Allocate array for filename entries
-  ExFatFileNameEntry* nameEntries = (ExFatFileNameEntry*) malloc(
-    sizeof(ExFatFileNameEntry) * numNameEntries
-  );
-  if (nameEntries == NULL) {
-    free(newStreamEntry);
-    free(newFileEntry);
-    free(utf16Name);
-    return EXFAT_NO_MEMORY;
-  }
+  // Cast to stream extension entry and populate using writeBytes
+  ExFatStreamExtensionEntry* newStreamEntry =
+    (ExFatStreamExtensionEntry*) (entrySetStart + EXFAT_DIRECTORY_ENTRY_SIZE);
+  
+  uint8_t streamEntryType = EXFAT_ENTRY_STREAM;
+  uint8_t generalFlags = 0x01;  // Allocation possible
+  uint16_t nameHash = calculateNameHash(utf16Name, nameLength);
+  uint64_t validDataLength = 0;
+  uint64_t dataLength = 0;
+  uint32_t reserved = 0;
+  
+  writeBytes(&newStreamEntry->entryType, &streamEntryType);
+  writeBytes(&newStreamEntry->generalSecondaryFlags, &generalFlags);
+  writeBytes(&newStreamEntry->reserved1, &zeroValue);
+  writeBytes(&newStreamEntry->nameLength, &nameLength);
+  writeBytes(&newStreamEntry->nameHash, &nameHash);
+  writeBytes(&newStreamEntry->reserved2, &zeroValue);
+  writeBytes(&newStreamEntry->validDataLength, &validDataLength);
+  writeBytes(&newStreamEntry->reserved3, &reserved);
+  writeBytes(&newStreamEntry->firstCluster, &firstCluster);
+  writeBytes(&newStreamEntry->dataLength, &dataLength);
 
-  // Create filename entry structures
+  // Build filename entries using writeBytes
+  uint8_t nameEntryType = EXFAT_ENTRY_FILENAME;
   uint8_t nameIndex = 0;
+  
   for (uint8_t ii = 0; ii < numNameEntries; ii++) {
-    for (uint32_t jj = 0; jj < sizeof(ExFatFileNameEntry); jj++) {
-      ((uint8_t*) &nameEntries[ii])[jj] = 0;
-    }
+    ExFatFileNameEntry* newNameEntry =
+      (ExFatFileNameEntry*) (entrySetStart + (2 + ii) * EXFAT_DIRECTORY_ENTRY_SIZE);
     
-    nameEntries[ii].entryType = EXFAT_ENTRY_FILENAME;
-    nameEntries[ii].generalSecondaryFlags = 0x00;
-
-    for (uint8_t jj = 0; jj < 15 && nameIndex < nameLength; jj++) {
-      nameEntries[ii].fileName[jj] = utf16Name[nameIndex];
-      nameIndex++;
-    }
-  }
-
-  // Allocate temporary buffer for entry set
-  uint8_t* entrySetBuffer = (uint8_t*) malloc(
-    EXFAT_DIRECTORY_ENTRY_SIZE * totalEntries
-  );
-  if (entrySetBuffer == NULL) {
-    free(newStreamEntry);
-    free(newFileEntry);
-    free(nameEntries);
-    free(utf16Name);
-    return EXFAT_NO_MEMORY;
-  }
-
-  // Copy structures into entry set buffer using memcpy
-  memcpy(
-    &entrySetBuffer[0],
-    newFileEntry,
-    sizeof(ExFatFileDirectoryEntry)
-  );
-  
-  memcpy(
-    &entrySetBuffer[EXFAT_DIRECTORY_ENTRY_SIZE],
-    newStreamEntry,
-    sizeof(ExFatStreamExtensionEntry)
-  );
-  
-  for (uint8_t ii = 0; ii < numNameEntries; ii++) {
-    memcpy(
-      &entrySetBuffer[(2 + ii) * EXFAT_DIRECTORY_ENTRY_SIZE],
-      &nameEntries[ii],
-      sizeof(ExFatFileNameEntry)
-    );
-  }
-
-  // Calculate and write checksum
-  uint16_t checksum = calculateEntrySetChecksum(entrySetBuffer, totalEntries);
-  writeBytes(&entrySetBuffer[2], &checksum);
-
-  // Write entries to directory (handling sector boundaries)
-  uint32_t entriesWritten = 0;
-  uint32_t sectorToWrite = targetSector;
-  uint32_t writeOffset = targetOffset;
-
-  while (entriesWritten < totalEntries) {
-    // Read current sector
-    result = readSector(driverState, sectorToWrite, buffer);
-    if (result != EXFAT_SUCCESS) {
-      returnValue = result;
-      goto cleanup_all;
-    }
-
-    // Write as many entries as fit in this sector
-    while (writeOffset < driverState->bytesPerSector &&
-           entriesWritten < totalEntries) {
-      memcpy(
-        &buffer[writeOffset],
-        &entrySetBuffer[entriesWritten * EXFAT_DIRECTORY_ENTRY_SIZE],
-        EXFAT_DIRECTORY_ENTRY_SIZE
-      );
-      writeOffset += EXFAT_DIRECTORY_ENTRY_SIZE;
-      entriesWritten++;
-    }
-
-    // Write sector back - THIS IS CRITICAL!
-    result = writeSector(driverState, sectorToWrite, buffer);
-    if (result != EXFAT_SUCCESS) {
-      returnValue = result;
-      goto cleanup_all;
-    }
-
-    // Move to next sector if needed
-    if (entriesWritten < totalEntries) {
-      sectorToWrite++;
-      writeOffset = 0;
-      
-      // Verify we're still in the same cluster
-      uint32_t sectorsFromStart = sectorToWrite -
-        clusterToSector(driverState, currentCluster);
-      if (sectorsFromStart >= driverState->sectorsPerCluster) {
-        // ERROR: Entries span cluster boundary - shouldn't happen
-        // with our search logic, but check anyway
-        returnValue = EXFAT_ERROR;
-        goto cleanup_all;
+    writeBytes(&newNameEntry->entryType, &nameEntryType);
+    writeBytes(&newNameEntry->generalSecondaryFlags, &zeroValue);
+    
+    // Write up to 15 UTF-16 characters
+    for (uint8_t jj = 0; jj < 15; jj++) {
+      uint16_t character = 0;
+      if (nameIndex < nameLength) {
+        character = utf16Name[nameIndex];
+        nameIndex++;
       }
+      writeBytes(&newNameEntry->fileName[jj], &character);
     }
   }
 
-  // Copy created entries back to output parameters
+  // Calculate checksum over the entry set
+  uint16_t checksum = calculateEntrySetChecksum(
+    entrySetStart, totalEntries
+  );
+  writeBytes(&newFileEntry->setChecksum, &checksum);
+
+  // DEBUG: Dump the entry set before writing
+  printString("=== Entry Set Dump ===\n");
+  for (uint8_t ii = 0; ii < totalEntries; ii++) {
+    printString("Entry ");
+    printULongLong(ii);
+    printString(": ");
+    for (uint8_t jj = 0; jj < EXFAT_DIRECTORY_ENTRY_SIZE; jj++) {
+      if (jj > 0 && (jj % 16) == 0) {
+        printString("\n         ");
+      }
+      uint8_t* entryBytes = entrySetStart + (ii * EXFAT_DIRECTORY_ENTRY_SIZE);
+      printHex(entryBytes[jj]);
+      printString(" ");
+    }
+    printString("\n");
+  }
+  printString("Checksum: 0x");
+  printHex((checksum >> 8) & 0xFF);
+  printHex(checksum & 0xFF);
+  printString("\n");
+
+  // Write the sector back
+  result = writeSector(driverState, targetSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    returnValue = result;
+    goto cleanup;
+  }
+
+  // Copy created entries back to output parameters using copyBytes
   copyBytes(fileEntry, newFileEntry, sizeof(ExFatFileDirectoryEntry));
   copyBytes(streamEntry, newStreamEntry, sizeof(ExFatStreamExtensionEntry));
 
@@ -689,11 +666,6 @@ static int createFileEntry(
     *dirOffset = entriesBeforeTargetSector + entryOffsetInSector;
   }
 
-cleanup_all:
-  free(newStreamEntry);
-  free(newFileEntry);
-  free(entrySetBuffer);
-  free(nameEntries);
 cleanup:
   free(utf16Name);
   return returnValue;
