@@ -638,7 +638,7 @@ cleanup:
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Search for a file in a directory
+/// @brief Search for a file in a directory (FIXED VERSION)
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param directoryCluster First cluster of the directory
@@ -658,6 +658,12 @@ static int searchDirectory(
 ) {
   if (driverState == NULL || fileName == NULL || fileEntry == NULL ||
       streamEntry == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  // Validate cluster number
+  if (directoryCluster < 2 ||
+      directoryCluster >= driverState->clusterCount + 2) {
     return EXFAT_INVALID_PARAMETER;
   }
 
@@ -689,11 +695,16 @@ static int searchDirectory(
   uint32_t globalEntryOffset = 0;
   int returnValue = EXFAT_FILE_NOT_FOUND;
 
-  // Helper to read a specific directory entry by its index within cluster
   uint32_t entriesPerSector =
     driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
 
   while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    // Validate cluster is in range
+    if (currentCluster >= driverState->clusterCount + 2) {
+      returnValue = EXFAT_ERROR;
+      goto cleanup;
+    }
+
     uint32_t clusterStartSector = clusterToSector(driverState, currentCluster);
     uint32_t entriesPerCluster =
       entriesPerSector * driverState->sectorsPerCluster;
@@ -738,6 +749,8 @@ static int searchDirectory(
         if (streamIndex >= entriesPerCluster) {
           // Stream entry is in next cluster - skip this file
           globalEntryOffset++;
+          // FIX: Skip all secondary entries
+          entryIndex += secondaryCount;
           continue;
         }
 
@@ -762,6 +775,8 @@ static int searchDirectory(
 
         if (streamEntryType != EXFAT_ENTRY_STREAM) {
           globalEntryOffset++;
+          // FIX: Skip all secondary entries
+          entryIndex += secondaryCount;
           continue;
         }
 
@@ -770,6 +785,8 @@ static int searchDirectory(
 
         if (nameLength == 0) {
           globalEntryOffset++;
+          // FIX: Skip all secondary entries
+          entryIndex += secondaryCount;
           continue;
         }
 
@@ -777,6 +794,7 @@ static int searchDirectory(
         uint8_t nameIndex = 0;
         uint8_t numNameEntries = (nameLength + 14) / 15;
         uint32_t lastSectorRead = streamSector;
+        bool nameReadComplete = true;
 
         for (uint8_t jj = 0;
           (jj < numNameEntries) && (nameIndex < nameLength);
@@ -785,6 +803,7 @@ static int searchDirectory(
           uint32_t nameEntryIndex = entryIndex + 2 + jj;
           if (nameEntryIndex >= entriesPerCluster) {
             // Filename entries span beyond cluster - skip this file
+            nameReadComplete = false;
             break;
           }
 
@@ -809,6 +828,7 @@ static int searchDirectory(
           readBytes(&nameEntryType, &nameEntry.entryType);
 
           if (nameEntryType != EXFAT_ENTRY_FILENAME) {
+            nameReadComplete = false;
             break;
           }
 
@@ -822,7 +842,7 @@ static int searchDirectory(
         }
 
         // Compare names if we read all characters
-        if (nameIndex == nameLength &&
+        if (nameReadComplete && nameIndex == nameLength &&
             compareFilenames(
               fullName, nameLength, searchName, searchNameLength
             ) == 0) {
@@ -841,9 +861,13 @@ static int searchDirectory(
           returnValue = EXFAT_SUCCESS;
           goto cleanup;
         }
-      }
 
-      globalEntryOffset++;
+        // FIX: Skip all secondary entries (file + stream + name entries)
+        entryIndex += secondaryCount;
+        globalEntryOffset += (secondaryCount + 1);
+      } else {
+        globalEntryOffset++;
+      }
     }
 
     // Get next cluster in directory chain
