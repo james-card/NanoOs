@@ -16,6 +16,19 @@ int verifyAndFixChecksum(
 int compareEntryWithLinux(
   ExFatDriverState* driverState, uint32_t directoryCluster,
   uint32_t entryOffset);
+int debugClusterAllocation(ExFatDriverState* driverState);
+int checkForClusterConflicts(
+  ExFatDriverState* driverState, uint32_t directoryCluster);
+int verifyFatAllocation(
+  ExFatDriverState* driverState, uint32_t cluster);
+int compareFatCopies(
+  ExFatDriverState* driverState, uint32_t cluster);
+int dumpFatEntries(
+  ExFatDriverState* driverState, uint32_t startCluster, uint32_t numClusters);
+int debugPartitionLayout(
+  ExFatDriverState* driverState, FilesystemState* filesystemState);
+int crossCheckFatAndDirectory(ExFatDriverState* driverState);
+int checkNoFatChainFlag(ExFatDriverState* driverState);
 
 /// @brief Read a sector from the storage device
 ///
@@ -165,6 +178,10 @@ int exFatInitialize(
   driverState->clusterCount = clusterCount;
   driverState->driverStateValid = true;
 
+  checkNoFatChainFlag(driverState);
+  debugPartitionLayout(driverState, filesystemState);
+  crossCheckFatAndDirectory(driverState);
+
   return EXFAT_SUCCESS;
 }
 
@@ -220,7 +237,7 @@ static int readFatEntry(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Write a FAT entry
+/// @brief Write a FAT entry (INSTRUMENTED VERSION)
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param cluster The cluster whose FAT entry to write
@@ -235,27 +252,269 @@ static int writeFatEntry(
     return EXFAT_INVALID_PARAMETER;
   }
 
+  printString("\n=== writeFatEntry DEBUG ===\n");
+  printString("Cluster: ");
+  printULongLong(cluster);
+  printString(", Value: 0x");
+  printHex((value >> 24) & 0xFF);
+  printHex((value >> 16) & 0xFF);
+  printHex((value >> 8) & 0xFF);
+  printHex(value & 0xFF);
+  printString("\n");
+
   uint32_t fatOffset = cluster * 4;
   uint32_t fatSector = driverState->fatStartSector +
     (fatOffset / driverState->bytesPerSector);
   uint32_t entryOffset = fatOffset % driverState->bytesPerSector;
 
+  printString("FAT offset: ");
+  printULongLong(fatOffset);
+  printString(" bytes\n");
+  printString("FAT sector: ");
+  printULongLong(fatSector);
+  printString("\n");
+  printString("Entry offset: ");
+  printULongLong(entryOffset);
+  printString("\n");
+
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
+  // Read current sector
+  printString("Reading FAT sector...\n");
   int result = readSector(driverState, fatSector, buffer);
   if (result != EXFAT_SUCCESS) {
+    printString("ERROR: Failed to read FAT sector!\n");
     return result;
   }
 
+  // Show current value
+  uint32_t oldValue = 0;
+  readBytes(&oldValue, &buffer[entryOffset]);
+  printString("Old value: 0x");
+  printHex((oldValue >> 24) & 0xFF);
+  printHex((oldValue >> 16) & 0xFF);
+  printHex((oldValue >> 8) & 0xFF);
+  printHex(oldValue & 0xFF);
+  printString("\n");
+
+  // Write new value
+  printString("Writing new value to buffer...\n");
   writeBytes(&buffer[entryOffset], &value);
 
+  // Verify buffer write
+  uint32_t verifyBuffer = 0;
+  readBytes(&verifyBuffer, &buffer[entryOffset]);
+  printString("Buffer verify: 0x");
+  printHex((verifyBuffer >> 24) & 0xFF);
+  printHex((verifyBuffer >> 16) & 0xFF);
+  printHex((verifyBuffer >> 8) & 0xFF);
+  printHex(verifyBuffer & 0xFF);
+  if (verifyBuffer == value) {
+    printString(" [OK]\n");
+  } else {
+    printString(" [MISMATCH!]\n");
+  }
+
+  // Write sector to disk
+  printString("Writing FAT sector to disk...\n");
   result = writeSector(driverState, fatSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    printString("ERROR: Failed to write FAT sector!\n");
+    return result;
+  }
+  printString("Write complete.\n");
+
+  // Read back to verify
+  printString("Reading back to verify...\n");
+  result = readSector(driverState, fatSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    printString("ERROR: Failed to read back FAT sector!\n");
+    return result;
+  }
+
+  uint32_t diskValue = 0;
+  readBytes(&diskValue, &buffer[entryOffset]);
+  printString("Disk verify: 0x");
+  printHex((diskValue >> 24) & 0xFF);
+  printHex((diskValue >> 16) & 0xFF);
+  printHex((diskValue >> 8) & 0xFF);
+  printHex(diskValue & 0xFF);
+  
+  if (diskValue == value) {
+    printString(" [OK - Write successful!]\n");
+  } else {
+    printString(" [FAILED - Value not persisted!]\n");
+    printString("Expected: 0x");
+    printHex((value >> 24) & 0xFF);
+    printHex((value >> 16) & 0xFF);
+    printHex((value >> 8) & 0xFF);
+    printHex(value & 0xFF);
+    printString("\n");
+  }
+
+  printString("=== writeFatEntry END ===\n\n");
   return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Find a free cluster
+/// @struct NoFatChainRange
+///
+/// @brief Represents a range of clusters used by a NoFatChain file
+///
+/// @param startCluster First cluster in the range
+/// @param endCluster Last cluster in the range (inclusive)
+typedef struct NoFatChainRange {
+  uint32_t startCluster;
+  uint32_t endCluster;
+} NoFatChainRange;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Check if a cluster is in any NoFatChain range
+///
+/// @param cluster Cluster to check
+/// @param ranges Array of NoFatChain ranges
+/// @param numRanges Number of ranges in the array
+///
+/// @return true if cluster is in a NoFatChain range, false otherwise
+///////////////////////////////////////////////////////////////////////////////
+static bool isClusterInNoFatChainRange(
+  uint32_t cluster, NoFatChainRange* ranges, uint8_t numRanges
+) {
+  for (uint8_t ii = 0; ii < numRanges; ii++) {
+    if (cluster >= ranges[ii].startCluster &&
+        cluster <= ranges[ii].endCluster) {
+      return true;
+    }
+  }
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Collect NoFatChain cluster ranges from directory
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param ranges Pointer to array to store ranges
+/// @param maxRanges Maximum number of ranges that can be stored
+/// @param numRanges Pointer to store actual number of ranges found
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int collectNoFatChainRanges(
+  ExFatDriverState* driverState, NoFatChainRange* ranges,
+  uint8_t maxRanges, uint8_t* numRanges
+) {
+  if (driverState == NULL || ranges == NULL || numRanges == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  *numRanges = 0;
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  printString("  Scanning for NoFatChain files...\n");
+
+  uint32_t currentCluster = driverState->rootDirectoryCluster;
+
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        return result;
+      }
+
+      for (
+        uint32_t ii = 0;
+        ii < driverState->bytesPerSector;
+        ii += EXFAT_DIRECTORY_ENTRY_SIZE
+      ) {
+        uint8_t entryType = buffer[ii];
+
+        if (entryType == EXFAT_ENTRY_END_OF_DIR) {
+          printString("  Found ");
+          printULongLong(*numRanges);
+          printString(" NoFatChain file(s)\n");
+          return EXFAT_SUCCESS;
+        }
+
+        if (entryType == EXFAT_ENTRY_FILE) {
+          if (ii + EXFAT_DIRECTORY_ENTRY_SIZE >=
+              driverState->bytesPerSector) {
+            continue;
+          }
+
+          uint8_t streamType = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE];
+          if (streamType == EXFAT_ENTRY_STREAM) {
+            uint8_t flags = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 1];
+            
+            // Check NoFatChain bit (bit 1)
+            if ((flags & 0x02) != 0) {
+              if (*numRanges >= maxRanges) {
+                printString("  WARNING: Too many NoFatChain files, ");
+                printString("some may not be tracked!\n");
+                return EXFAT_SUCCESS;
+              }
+
+              uint32_t firstCluster = 0;
+              readBytes(
+                &firstCluster,
+                &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 20]
+              );
+
+              uint64_t dataLength = 0;
+              readBytes(
+                &dataLength,
+                &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 24]
+              );
+
+              uint32_t clustersNeeded = 0;
+              if (dataLength > 0) {
+                clustersNeeded = 
+                  ((uint32_t) dataLength + driverState->bytesPerCluster - 1) /
+                  driverState->bytesPerCluster;
+              } else {
+                clustersNeeded = 1;
+              }
+
+              ranges[*numRanges].startCluster = firstCluster;
+              ranges[*numRanges].endCluster = firstCluster + clustersNeeded - 1;
+              
+              printString("    Range ");
+              printULongLong(*numRanges);
+              printString(": clusters ");
+              printULongLong(firstCluster);
+              printString("-");
+              printULongLong(firstCluster + clustersNeeded - 1);
+              printString("\n");
+
+              (*numRanges)++;
+            }
+          }
+        }
+      }
+    }
+
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    currentCluster = nextCluster;
+  }
+
+  printString("  Found ");
+  printULongLong(*numRanges);
+  printString(" NoFatChain file(s)\n");
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Find a free cluster (memory-efficient version)
+///
+/// This version doesn't allocate a large bitmap. Instead, it:
+/// 1. Collects NoFatChain ranges into a small array
+/// 2. Checks each candidate cluster against FAT and ranges
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param freeCluster Pointer to store the free cluster number
@@ -269,19 +528,60 @@ static int findFreeCluster(
     return EXFAT_INVALID_PARAMETER;
   }
 
-  for (uint32_t ii = 2; ii < driverState->clusterCount + 2; ii++) {
+  printString("Finding free cluster...\n");
+
+  // Allocate small array for NoFatChain ranges (max 16 ranges)
+  const uint8_t maxRanges = 16;
+  NoFatChainRange* ranges = (NoFatChainRange*) malloc(
+    maxRanges * sizeof(NoFatChainRange)
+  );
+  if (ranges == NULL) {
+    printString("  ERROR: Cannot allocate range array\n");
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Collect NoFatChain ranges
+  uint8_t numRanges = 0;
+  int result = collectNoFatChainRanges(
+    driverState, ranges, maxRanges, &numRanges
+  );
+  if (result != EXFAT_SUCCESS) {
+    free(ranges);
+    return result;
+  }
+
+  // Search for free cluster
+  printString("  Searching for free cluster...\n");
+  for (uint32_t cluster = 2; cluster < driverState->clusterCount + 2;
+       cluster++) {
+    // Check if in NoFatChain range
+    if (isClusterInNoFatChainRange(cluster, ranges, numRanges)) {
+      continue;  // Skip, in use by NoFatChain file
+    }
+
+    // Check FAT
     uint32_t fatValue = 0;
-    int result = readFatEntry(driverState, ii, &fatValue);
+    result = readFatEntry(driverState, cluster, &fatValue);
     if (result != EXFAT_SUCCESS) {
+      free(ranges);
       return result;
     }
 
     if (fatValue == 0) {
-      *freeCluster = ii;
+      // Found a free cluster!
+      printString("  Found free cluster: ");
+      printULongLong(cluster);
+      printString("\n");
+      
+      *freeCluster = cluster;
+      free(ranges);
       return EXFAT_SUCCESS;
     }
   }
 
+  // No free clusters
+  printString("  ERROR: No free clusters available\n");
+  free(ranges);
   return EXFAT_DISK_FULL;
 }
 
@@ -300,14 +600,28 @@ static int allocateCluster(
     return EXFAT_INVALID_PARAMETER;
   }
 
+  printString("\nAllocating new cluster...\n");
+  
   int result = findFreeCluster(driverState, newCluster);
   if (result != EXFAT_SUCCESS) {
     return result;
   }
 
-  // Mark as end of chain
+  printString("  Marking cluster ");
+  printULongLong(*newCluster);
+  printString(" as allocated in FAT\n");
+
   result = writeFatEntry(driverState, *newCluster, 0xFFFFFFFF);
-  return result;
+  if (result != EXFAT_SUCCESS) {
+    printString("  ERROR: Failed to write FAT entry\n");
+    return result;
+  }
+
+  printString("  Cluster ");
+  printULongLong(*newCluster);
+  printString(" allocated successfully\n");
+
+  return EXFAT_SUCCESS;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -412,14 +726,18 @@ static int compareFilenames(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Create a new file in a directory
+/// @brief Create a new file in a directory (FIXED VERSION)
+///
+/// This version properly handles entry sets that may span sector boundaries
+/// and ensures all entries are written to disk correctly.
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param directoryCluster First cluster of the directory
 /// @param fileName Name of the file to create
 /// @param fileEntry Pointer to store created file directory entry
 /// @param streamEntry Pointer to store created stream extension entry
-/// @param dirCluster Pointer to store directory cluster where file was created
+/// @param dirCluster Pointer to store directory cluster where file was
+///                   created
 /// @param dirOffset Pointer to store offset in directory where file was
 ///                  created
 ///
@@ -442,7 +760,7 @@ static int createFileEntry(
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
-  // Allocate UTF-16 name buffer (only temp allocation needed)
+  // Allocate UTF-16 name buffer
   uint16_t* utf16Name = (uint16_t*) malloc(
     EXFAT_MAX_FILENAME_LENGTH * sizeof(uint16_t)
   );
@@ -468,7 +786,6 @@ static int createFileEntry(
     driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
 
   while (currentCluster != 0xFFFFFFFF && !foundSpace) {
-    // Check each sector in the cluster
     for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
       uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
       int result = readSector(driverState, sector, buffer);
@@ -536,27 +853,50 @@ static int createFileEntry(
     goto cleanup;
   }
 
-  // Read the target sector into buffer
-  result = readSector(driverState, targetSector, buffer);
-  if (result != EXFAT_SUCCESS) {
-    returnValue = result;
+  printString("\n=== Creating File Entries ===\n");
+  printString("Target sector: ");
+  printULongLong(targetSector);
+  printString(", offset: ");
+  printULongLong(targetOffset);
+  printString("\n");
+  printString("Total entries: ");
+  printULongLong(totalEntries);
+  printString(" (");
+  printULongLong(totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE);
+  printString(" bytes)\n");
+  printString("Bytes per sector: ");
+  printULongLong(driverState->bytesPerSector);
+  printString("\n");
+
+  // CRITICAL FIX: Check if entries span multiple sectors
+  uint32_t entrySetEndOffset =
+    targetOffset + (totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE);
+  bool spansMultipleSectors = (entrySetEndOffset > driverState->bytesPerSector);
+  
+  if (spansMultipleSectors) {
+    printString("WARNING: Entry set spans multiple sectors!\n");
+    printString("This case is not yet implemented.\n");
+    returnValue = EXFAT_ERROR;
     goto cleanup;
   }
 
-  // Calculate where in the buffer our entries will be
-  uint8_t* entrySetStart = &buffer[targetOffset];
-  
-  // Zero out the entry set area (in case it had old data)
-  for (uint32_t ii = 0; ii < totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE; ii++) {
-    if (targetOffset + ii >= driverState->bytesPerSector) {
-      break;  // Can't span sectors yet, will handle below
-    }
-    entrySetStart[ii] = 0;
+  // Allocate a temporary buffer for building the entry set
+  uint8_t* entrySetBuffer = (uint8_t*) malloc(
+    totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE
+  );
+  if (entrySetBuffer == NULL) {
+    returnValue = EXFAT_NO_MEMORY;
+    goto cleanup;
   }
 
-  // Cast to file directory entry and populate using writeBytes
+  // Zero out the temporary buffer
+  for (uint32_t ii = 0; ii < totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE; ii++) {
+    entrySetBuffer[ii] = 0;
+  }
+
+  // Build file directory entry
   ExFatFileDirectoryEntry* newFileEntry =
-    (ExFatFileDirectoryEntry*) entrySetStart;
+    (ExFatFileDirectoryEntry*) entrySetBuffer;
   
   uint8_t entryType = EXFAT_ENTRY_FILE;
   uint8_t secondaryCount = totalEntries - 1;
@@ -566,7 +906,6 @@ static int createFileEntry(
   
   writeBytes(&newFileEntry->entryType, &entryType);
   writeBytes(&newFileEntry->secondaryCount, &secondaryCount);
-  // Skip checksum for now
   writeBytes(&newFileEntry->fileAttributes, &attributes);
   writeBytes(&newFileEntry->reserved1, &zeroValue);
   writeBytes(&newFileEntry->createTimestamp, &timestamp);
@@ -578,12 +917,12 @@ static int createFileEntry(
   writeBytes(&newFileEntry->lastModifiedUtcOffset, &zeroValue);
   writeBytes(&newFileEntry->lastAccessedUtcOffset, &zeroValue);
 
-  // Cast to stream extension entry and populate using writeBytes
+  // Build stream extension entry
   ExFatStreamExtensionEntry* newStreamEntry =
-    (ExFatStreamExtensionEntry*) (entrySetStart + EXFAT_DIRECTORY_ENTRY_SIZE);
+    (ExFatStreamExtensionEntry*) (entrySetBuffer + EXFAT_DIRECTORY_ENTRY_SIZE);
   
   uint8_t streamEntryType = EXFAT_ENTRY_STREAM;
-  uint8_t generalFlags = 0x01;  // Allocation possible
+  uint8_t generalFlags = 0x01;
   uint16_t nameHash = calculateNameHash(utf16Name, nameLength);
   uint64_t validDataLength = 0;
   uint64_t dataLength = 0;
@@ -600,18 +939,18 @@ static int createFileEntry(
   writeBytes(&newStreamEntry->firstCluster, &firstCluster);
   writeBytes(&newStreamEntry->dataLength, &dataLength);
 
-  // Build filename entries using writeBytes
+  // Build filename entries
   uint8_t nameEntryType = EXFAT_ENTRY_FILENAME;
   uint8_t nameIndex = 0;
   
   for (uint8_t ii = 0; ii < numNameEntries; ii++) {
     ExFatFileNameEntry* newNameEntry =
-      (ExFatFileNameEntry*) (entrySetStart + (2 + ii) * EXFAT_DIRECTORY_ENTRY_SIZE);
+      (ExFatFileNameEntry*) (entrySetBuffer +
+        (2 + ii) * EXFAT_DIRECTORY_ENTRY_SIZE);
     
     writeBytes(&newNameEntry->entryType, &nameEntryType);
     writeBytes(&newNameEntry->generalSecondaryFlags, &zeroValue);
     
-    // Write up to 15 UTF-16 characters
     for (uint8_t jj = 0; jj < 15; jj++) {
       uint16_t character = 0;
       if (nameIndex < nameLength) {
@@ -624,12 +963,12 @@ static int createFileEntry(
 
   // Calculate checksum over the entry set
   uint16_t checksum = calculateEntrySetChecksum(
-    entrySetStart, totalEntries
+    entrySetBuffer, totalEntries
   );
   writeBytes(&newFileEntry->setChecksum, &checksum);
 
-  // DEBUG: Dump the entry set before writing
-  printString("=== Entry Set Dump ===\n");
+  // Debug: Dump entry set
+  printString("=== Entry Set (in temp buffer) ===\n");
   for (uint8_t ii = 0; ii < totalEntries; ii++) {
     printString("Entry ");
     printULongLong(ii);
@@ -638,34 +977,92 @@ static int createFileEntry(
       if (jj > 0 && (jj % 16) == 0) {
         printString("\n         ");
       }
-      uint8_t* entryBytes = entrySetStart + (ii * EXFAT_DIRECTORY_ENTRY_SIZE);
+      uint8_t* entryBytes =
+        entrySetBuffer + (ii * EXFAT_DIRECTORY_ENTRY_SIZE);
       printHex(entryBytes[jj]);
       printString(" ");
     }
     printString("\n");
   }
-  printString("Checksum: 0x");
-  printHex((checksum >> 8) & 0xFF);
-  printHex(checksum & 0xFF);
-  printString("\n");
 
-  // Write the sector back
+  // Read the target sector
+  result = readSector(driverState, targetSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    free(entrySetBuffer);
+    returnValue = result;
+    goto cleanup;
+  }
+
+  // Copy entry set to the sector buffer at the target offset
+  for (uint32_t ii = 0; ii < totalEntries * EXFAT_DIRECTORY_ENTRY_SIZE; ii++) {
+    buffer[targetOffset + ii] = entrySetBuffer[ii];
+  }
+
+  // Debug: Verify copy in sector buffer
+  printString("=== Entry Set (in sector buffer before write) ===\n");
+  for (uint8_t ii = 0; ii < totalEntries; ii++) {
+    uint8_t entryType = buffer[targetOffset + (ii * EXFAT_DIRECTORY_ENTRY_SIZE)];
+    printString("Entry ");
+    printULongLong(ii);
+    printString(" at byte ");
+    printULongLong(targetOffset + (ii * EXFAT_DIRECTORY_ENTRY_SIZE));
+    printString(": Type=0x");
+    printHex(entryType);
+    printString("\n");
+  }
+
+  // Write the sector back to disk
+  printString("Writing sector ");
+  printULongLong(targetSector);
+  printString(" to disk...\n");
+  
   result = writeSector(driverState, targetSector, buffer);
+  free(entrySetBuffer);
+  
   if (result != EXFAT_SUCCESS) {
     returnValue = result;
     goto cleanup;
   }
 
-  // Copy created entries back to output parameters using copyBytes
-  memcpy(fileEntry, newFileEntry, sizeof(ExFatFileDirectoryEntry));
-  memcpy(streamEntry, newStreamEntry, sizeof(ExFatStreamExtensionEntry));
+  printString("Write complete. Verifying...\n");
+
+  // Verify the write by reading back
+  result = readSector(driverState, targetSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    returnValue = result;
+    goto cleanup;
+  }
+
+  printString("=== Entry Set (read back from disk) ===\n");
+  for (uint8_t ii = 0; ii < totalEntries; ii++) {
+    uint32_t entryByteOffset = targetOffset + (ii * EXFAT_DIRECTORY_ENTRY_SIZE);
+    uint8_t entryType = buffer[entryByteOffset];
+    printString("Entry ");
+    printULongLong(ii);
+    printString(" at byte ");
+    printULongLong(entryByteOffset);
+    printString(": Type=0x");
+    printHex(entryType);
+    printString("\n");
+    
+    if (entryType == 0x00) {
+      printString("  ERROR: Entry is all zeros!\n");
+    }
+  }
+
+  // Copy created entries back to output parameters
+  copyBytes(fileEntry, &buffer[targetOffset], sizeof(ExFatFileDirectoryEntry));
+  copyBytes(
+    streamEntry,
+    &buffer[targetOffset + EXFAT_DIRECTORY_ENTRY_SIZE],
+    sizeof(ExFatStreamExtensionEntry)
+  );
 
   // Return directory location
   if (dirCluster != NULL) {
     *dirCluster = currentCluster;
   }
   if (dirOffset != NULL) {
-    // Calculate the entry offset within the directory
     uint32_t sectorsFromClusterStart =
       (targetSector - clusterToSector(driverState, currentCluster));
     uint32_t entriesBeforeTargetSector =
@@ -1100,6 +1497,16 @@ ExFatFileHandle* exFatOpenFile(
     return NULL;
   }
 
+  if ((strcmp(filePath, "hello") == 0)
+    && (strcmp(mode, "w") == 0)
+  ) {
+    printString("\n========================================\n");
+    printString("BEFORE creating 'hello' file:\n");
+    printString("========================================\n");
+    debugClusterAllocation(driverState);
+    checkForClusterConflicts(driverState, driverState->rootDirectoryCluster);
+  }
+
   // Parse mode
   bool read = false;
   bool write = false;
@@ -1198,7 +1605,6 @@ ExFatFileHandle* exFatOpenFile(
     compareEntryWithLinux(driverState, directoryCluster, 10);
     verifyAndFixChecksum(driverState, directoryCluster, 10);
 
-    // ###########################
     // DEBUG: Verify the file was written
     printString("File created at cluster ");
     printULongLong(dirCluster);
@@ -1331,6 +1737,19 @@ ExFatFileHandle* exFatOpenFile(
     handle->currentPosition = 0;
     // TODO: Free all clusters and update directory entry
     // This requires implementing cluster freeing logic
+  }
+
+  if ((strcmp(filePath, "hello") == 0)
+    && (strcmp(mode, "w") == 0)
+  ) {
+    printString("\n========================================\n");
+    printString("AFTER creating 'hello' file:\n");
+    printString("========================================\n");
+    checkForClusterConflicts(driverState, driverState->rootDirectoryCluster);
+
+    printString("\n=== POST-CREATION FAT CHECK ===\n");
+    dumpFatEntries(driverState, 10, 5);  // Dump clusters 10-14
+    compareFatCopies(driverState, 12);
   }
 
   free(streamEntry);
@@ -1720,6 +2139,7 @@ int compareFileStructures(
   // directory entries byte-by-byte
   // Implementation left as exercise since it uses existing functions
   
+  (void) driverState;
   printString("Compare: ");
   printString(ourFile);
   printString(" vs ");
@@ -1728,3 +2148,922 @@ int compareFileStructures(
   
   return EXFAT_SUCCESS;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Debug FAT entries to find allocation conflicts
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param startCluster First cluster to dump
+/// @param numClusters Number of clusters to dump
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int dumpFatEntries(
+  ExFatDriverState* driverState, uint32_t startCluster, uint32_t numClusters
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  printString("\n=== FAT Entries Dump ===\n");
+  printString("FAT start sector: ");
+  printULongLong(driverState->fatStartSector);
+  printString("\n");
+  printString("Bytes per sector: ");
+  printULongLong(driverState->bytesPerSector);
+  printString("\n\n");
+
+  for (uint32_t cluster = startCluster;
+       cluster < startCluster + numClusters;
+       cluster++) {
+    uint32_t fatValue = 0;
+    int result = readFatEntry(driverState, cluster, &fatValue);
+    if (result != EXFAT_SUCCESS) {
+      printString("Error reading FAT entry for cluster ");
+      printULongLong(cluster);
+      printString("\n");
+      continue;
+    }
+
+    printString("Cluster ");
+    printULongLong(cluster);
+    printString(": 0x");
+    printHex((fatValue >> 24) & 0xFF);
+    printHex((fatValue >> 16) & 0xFF);
+    printHex((fatValue >> 8) & 0xFF);
+    printHex(fatValue & 0xFF);
+    printString(" = ");
+    printULongLong(fatValue);
+
+    if (fatValue == 0) {
+      printString(" [FREE]");
+    } else if (fatValue == 0xFFFFFFFF) {
+      printString(" [END OF CHAIN]");
+    } else if (fatValue >= 2 && fatValue < driverState->clusterCount + 2) {
+      printString(" [NEXT=");
+      printULongLong(fatValue);
+      printString("]");
+    } else {
+      printString(" [INVALID/RESERVED]");
+    }
+    printString("\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Verify FAT entry reading by dumping raw FAT sector
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param cluster Cluster whose FAT sector to dump
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int dumpFatSector(
+  ExFatDriverState* driverState, uint32_t cluster
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  // Calculate FAT sector
+  uint32_t fatOffset = cluster * 4;
+  uint32_t fatSector = driverState->fatStartSector +
+    (fatOffset / driverState->bytesPerSector);
+  uint32_t entryOffset = fatOffset % driverState->bytesPerSector;
+
+  printString("\n=== FAT Sector Dump for Cluster ");
+  printULongLong(cluster);
+  printString(" ===\n");
+  printString("FAT offset: ");
+  printULongLong(fatOffset);
+  printString(" bytes\n");
+  printString("FAT sector: ");
+  printULongLong(fatSector);
+  printString("\n");
+  printString("Entry offset in sector: ");
+  printULongLong(entryOffset);
+  printString("\n\n");
+
+  // Read FAT sector
+  int result = readSector(driverState, fatSector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    return result;
+  }
+
+  // Dump the area around our entry
+  uint32_t dumpStart = (entryOffset >= 16) ? (entryOffset - 16) : 0;
+  uint32_t dumpEnd = entryOffset + 32;
+  if (dumpEnd > driverState->bytesPerSector) {
+    dumpEnd = driverState->bytesPerSector;
+  }
+
+  printString("Raw FAT data (bytes ");
+  printULongLong(dumpStart);
+  printString("-");
+  printULongLong(dumpEnd - 1);
+  printString("):\n");
+
+  for (uint32_t ii = dumpStart; ii < dumpEnd; ii++) {
+    if ((ii % 16) == 0) {
+      printString("\n");
+      printULongLong(ii);
+      printString(": ");
+    }
+    printHex(buffer[ii]);
+    printString(" ");
+    
+    // Mark our target entry
+    if (ii == entryOffset) {
+      printString("<- ");
+    }
+  }
+  printString("\n\n");
+
+  // Decode a few entries around our target
+  uint32_t firstCluster = (entryOffset / 4) - 2;
+  uint32_t lastCluster = firstCluster + 8;
+  
+  printString("Decoded entries:\n");
+  for (uint32_t cl = firstCluster; cl < lastCluster; cl++) {
+    uint32_t clOffset = (cl * 4) % driverState->bytesPerSector;
+    if (clOffset + 4 > driverState->bytesPerSector) {
+      break;
+    }
+    
+    uint32_t value = 0;
+    readBytes(&value, &buffer[clOffset]);
+    
+    printString("  Cluster ");
+    printULongLong(cl);
+    printString(": 0x");
+    printHex((value >> 24) & 0xFF);
+    printHex((value >> 16) & 0xFF);
+    printHex((value >> 8) & 0xFF);
+    printHex(value & 0xFF);
+    
+    if (cl == cluster) {
+      printString(" <-- TARGET");
+    }
+    printString("\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Test and debug cluster allocation
+///
+/// @param driverState Pointer to the exFAT driver state
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int debugClusterAllocation(ExFatDriverState* driverState) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  printString("\n=== Cluster Allocation Debug ===\n");
+
+  // Dump first 20 FAT entries
+  printString("\nCurrent FAT state (clusters 2-21):\n");
+  dumpFatEntries(driverState, 2, 20);
+
+  // Try to find a free cluster
+  printString("\n--- Searching for free cluster ---\n");
+  uint32_t freeCluster = 0;
+  int result = findFreeCluster(driverState, &freeCluster);
+  
+  if (result == EXFAT_SUCCESS) {
+    printString("Found free cluster: ");
+    printULongLong(freeCluster);
+    printString("\n");
+    
+    // Dump the FAT sector containing this cluster
+    dumpFatSector(driverState, freeCluster);
+    
+    // Verify it's actually free by reading again
+    uint32_t verifyValue = 0;
+    result = readFatEntry(driverState, freeCluster, &verifyValue);
+    if (result == EXFAT_SUCCESS) {
+      printString("\nVerification read: 0x");
+      printHex((verifyValue >> 24) & 0xFF);
+      printHex((verifyValue >> 16) & 0xFF);
+      printHex((verifyValue >> 8) & 0xFF);
+      printHex(verifyValue & 0xFF);
+      
+      if (verifyValue == 0) {
+        printString(" [Confirmed FREE]\n");
+      } else {
+        printString(" [ERROR: NOT FREE!]\n");
+      }
+    }
+  } else if (result == EXFAT_DISK_FULL) {
+    printString("No free clusters found (disk full)\n");
+  } else {
+    printString("Error searching for free cluster: ");
+    printLongLong(result);
+    printString("\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Compare directory entries with FAT to find conflicts
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param directoryCluster Directory cluster to check
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int checkForClusterConflicts(
+  ExFatDriverState* driverState, uint32_t directoryCluster
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  printString("\n=== Checking for Cluster Conflicts ===\n");
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+  
+  // Track which clusters we've seen
+  uint8_t* clusterUsage = (uint8_t*) malloc(driverState->clusterCount + 2);
+  if (clusterUsage == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+  
+  // Initialize to 0 (unused)
+  for (uint32_t ii = 0; ii < driverState->clusterCount + 2; ii++) {
+    clusterUsage[ii] = 0;
+  }
+
+  uint32_t currentCluster = directoryCluster;
+  uint32_t fileCount = 0;
+
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        free(clusterUsage);
+        return result;
+      }
+
+      for (
+        uint32_t ii = 0;
+        ii < driverState->bytesPerSector;
+        ii += EXFAT_DIRECTORY_ENTRY_SIZE
+      ) {
+        uint8_t entryType = buffer[ii];
+
+        if (entryType == EXFAT_ENTRY_END_OF_DIR) {
+          goto done_scanning;
+        }
+
+        if (entryType == EXFAT_ENTRY_FILE) {
+          // Next entry should be stream
+          if (ii + EXFAT_DIRECTORY_ENTRY_SIZE >= driverState->bytesPerSector) {
+            continue;
+          }
+
+          uint8_t streamType = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE];
+          if (streamType == EXFAT_ENTRY_STREAM) {
+            uint32_t cluster = 0;
+            readBytes(&cluster, &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 20]);
+            
+            fileCount++;
+            printString("File ");
+            printULongLong(fileCount);
+            printString(" uses cluster ");
+            printULongLong(cluster);
+            
+            if (cluster >= 2 && cluster < driverState->clusterCount + 2) {
+              if (clusterUsage[cluster] != 0) {
+                printString(" [CONFLICT! Already used by file ");
+                printULongLong(clusterUsage[cluster]);
+                printString("]");
+              } else {
+                clusterUsage[cluster] = fileCount;
+                printString(" [OK]");
+              }
+            } else {
+              printString(" [INVALID CLUSTER]");
+            }
+            printString("\n");
+          }
+        }
+      }
+    }
+
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      free(clusterUsage);
+      return result;
+    }
+    currentCluster = nextCluster;
+  }
+
+done_scanning:
+  free(clusterUsage);
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Check FAT state after allocation
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param cluster Cluster that was just allocated
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int verifyFatAllocation(
+  ExFatDriverState* driverState, uint32_t cluster
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  printString("\n=== Verifying FAT Allocation ===\n");
+  printString("Checking cluster: ");
+  printULongLong(cluster);
+  printString("\n");
+
+  // Read the FAT entry
+  uint32_t fatValue = 0;
+  int result = readFatEntry(driverState, cluster, &fatValue);
+  if (result != EXFAT_SUCCESS) {
+    printString("ERROR: Failed to read FAT entry!\n");
+    return result;
+  }
+
+  printString("FAT value: 0x");
+  printHex((fatValue >> 24) & 0xFF);
+  printHex((fatValue >> 16) & 0xFF);
+  printHex((fatValue >> 8) & 0xFF);
+  printHex(fatValue & 0xFF);
+  printString(" = ");
+  printULongLong(fatValue);
+
+  if (fatValue == 0xFFFFFFFF) {
+    printString(" [Correctly marked as END OF CHAIN]\n");
+  } else if (fatValue == 0) {
+    printString(" [ERROR: Still marked as FREE!]\n");
+  } else {
+    printString(" [ERROR: Unexpected value!]\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Dump both FAT copies (if multiple FATs exist)
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param cluster Cluster to check in both FATs
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int compareFatCopies(
+  ExFatDriverState* driverState, uint32_t cluster
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  printString("\n=== Comparing FAT Copies ===\n");
+
+  // Read boot sector to get FAT information
+  int result = readSector(driverState, 0, buffer);
+  if (result != EXFAT_SUCCESS) {
+    return result;
+  }
+
+  uint8_t numberOfFats = buffer[110];
+  uint32_t fatLength = 0;
+  readBytes(&fatLength, &buffer[84]);
+
+  printString("Number of FATs: ");
+  printULongLong(numberOfFats);
+  printString("\n");
+  printString("FAT length: ");
+  printULongLong(fatLength);
+  printString(" sectors\n");
+
+  // Check each FAT
+  uint32_t fatOffset = cluster * 4;
+  uint32_t entryOffsetInSector = fatOffset % driverState->bytesPerSector;
+  uint32_t sectorOffsetInFat = fatOffset / driverState->bytesPerSector;
+
+  for (uint8_t fatNum = 0; fatNum < numberOfFats; fatNum++) {
+    uint32_t fatStartSector = driverState->fatStartSector +
+      (fatNum * fatLength);
+    uint32_t sector = fatStartSector + sectorOffsetInFat;
+
+    printString("\nFAT ");
+    printULongLong(fatNum);
+    printString(" (sector ");
+    printULongLong(sector);
+    printString("):\n");
+
+    result = readSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      printString("  ERROR: Failed to read\n");
+      continue;
+    }
+
+    uint32_t value = 0;
+    readBytes(&value, &buffer[entryOffsetInSector]);
+    printString("  Cluster ");
+    printULongLong(cluster);
+    printString(": 0x");
+    printHex((value >> 24) & 0xFF);
+    printHex((value >> 16) & 0xFF);
+    printHex((value >> 8) & 0xFF);
+    printHex(value & 0xFF);
+    printString("\n");
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Comprehensive partition and offset debugging
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param filesystemState Pointer to filesystem state
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int debugPartitionLayout(
+  ExFatDriverState* driverState, FilesystemState* filesystemState
+) {
+  if (driverState == NULL || filesystemState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  printString("\n=== PARTITION LAYOUT ANALYSIS ===\n\n");
+
+  // 1. Check MBR/Partition Table at sector 0 (absolute)
+  printString("--- Checking MBR at absolute sector 0 ---\n");
+  int result = filesystemState->blockDevice->readBlocks(
+    filesystemState->blockDevice->context,
+    0,  // Absolute sector 0
+    1,
+    filesystemState->blockSize,
+    buffer
+  );
+
+  if (result == 0) {
+    uint16_t mbrSignature = 0;
+    readBytes(&mbrSignature, &buffer[510]);
+    printString("MBR signature: 0x");
+    printHex((mbrSignature >> 8) & 0xFF);
+    printHex(mbrSignature & 0xFF);
+    
+    if (mbrSignature == 0xAA55) {
+      printString(" [Valid MBR]\n");
+      
+      // Check partition table entries
+      for (uint8_t ii = 0; ii < 4; ii++) {
+        uint16_t partOffset = 446 + (ii * 16);
+        uint8_t partType = buffer[partOffset + 4];
+        uint32_t partStart = 0;
+        uint32_t partSize = 0;
+        
+        readBytes(&partStart, &buffer[partOffset + 8]);
+        readBytes(&partSize, &buffer[partOffset + 12]);
+        
+        if (partType != 0) {
+          printString("\nPartition ");
+          printULongLong(ii + 1);
+          printString(":\n");
+          printString("  Type: 0x");
+          printHex(partType);
+          printString(" (");
+          if (partType == 0x07) {
+            printString("exFAT/NTFS");
+          } else if (partType == 0x0C || partType == 0x0E) {
+            printString("FAT32 LBA");
+          } else {
+            printString("Other");
+          }
+          printString(")\n");
+          printString("  Start LBA: ");
+          printULongLong(partStart);
+          printString("\n");
+          printString("  Size: ");
+          printULongLong(partSize);
+          printString(" sectors\n");
+        }
+      }
+    } else {
+      printString(" [Not a valid MBR - might be raw filesystem]\n");
+    }
+  }
+
+  // 2. Show what the driver thinks
+  printString("\n--- Driver Configuration ---\n");
+  printString("Filesystem startLba: ");
+  printULongLong(filesystemState->startLba);
+  printString("\n");
+  printString("Filesystem endLba: ");
+  printULongLong(filesystemState->endLba);
+  printString("\n");
+  printString("Block device partition: ");
+  printULongLong(filesystemState->blockDevice->partitionNumber);
+  printString("\n");
+
+  // 3. Read boot sector at driver's startLba
+  printString("\n--- Boot Sector at driver's startLba (");
+  printULongLong(filesystemState->startLba);
+  printString(") ---\n");
+  
+  result = filesystemState->blockDevice->readBlocks(
+    filesystemState->blockDevice->context,
+    filesystemState->startLba,
+    1,
+    filesystemState->blockSize,
+    buffer
+  );
+
+  if (result == 0) {
+    // Check filesystem name
+    printString("Filesystem name: ");
+    for (uint8_t ii = 0; ii < 8; ii++) {
+      char ch = buffer[3 + ii];
+      if (ch >= 32 && ch < 127) {
+        char str[2] = {ch, '\0'};
+        printString(str);
+      } else {
+        printString("?");
+      }
+    }
+    printString("\n");
+
+    // Check boot signature
+    uint16_t bootSig = 0;
+    readBytes(&bootSig, &buffer[510]);
+    printString("Boot signature: 0x");
+    printHex((bootSig >> 8) & 0xFF);
+    printHex(bootSig & 0xFF);
+    printString("\n");
+
+    // Show key offsets
+    uint32_t fatOffset = 0;
+    uint32_t clusterHeapOffset = 0;
+    uint32_t rootDirCluster = 0;
+    
+    readBytes(&fatOffset, &buffer[80]);
+    readBytes(&clusterHeapOffset, &buffer[88]);
+    readBytes(&rootDirCluster, &buffer[96]);
+
+    printString("FAT offset: ");
+    printULongLong(fatOffset);
+    printString(" sectors\n");
+    printString("Cluster heap offset: ");
+    printULongLong(clusterHeapOffset);
+    printString(" sectors\n");
+    printString("Root dir cluster: ");
+    printULongLong(rootDirCluster);
+    printString("\n");
+
+    // Calculate absolute sectors
+    printString("\n--- Absolute Sector Addresses ---\n");
+    printString("Boot sector: ");
+    printULongLong(filesystemState->startLba);
+    printString("\n");
+    printString("FAT start: ");
+    printULongLong(filesystemState->startLba + fatOffset);
+    printString("\n");
+    printString("Cluster heap start: ");
+    printULongLong(filesystemState->startLba + clusterHeapOffset);
+    printString("\n");
+    
+    uint32_t rootDirSector = filesystemState->startLba + clusterHeapOffset +
+      ((rootDirCluster - 2) * driverState->sectorsPerCluster);
+    printString("Root directory: ");
+    printULongLong(rootDirSector);
+    printString("\n");
+  }
+
+  // 4. Compare Linux's view
+  printString("\n--- Linux Filesystem Check ---\n");
+  printString("On Linux, run these commands:\n");
+  printString("  sudo fdisk -l /dev/sdX\n");
+  printString("  sudo exfatfsck /dev/sdX1 --verbose\n");
+  printString("\nCompare the partition start sector with driver's startLba.\n");
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Verify that file was written to expected location
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param filesystemState Pointer to filesystem state
+/// @param filename Name of file to verify
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int verifyFileLocation(
+  ExFatDriverState* driverState, FilesystemState* filesystemState,
+  const char* filename
+) {
+  if (driverState == NULL || filesystemState == NULL || filename == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  printString("\n=== VERIFY FILE LOCATION ===\n");
+  printString("Searching for file: ");
+  printString(filename);
+  printString("\n");
+
+  // Calculate root directory absolute sector
+  uint32_t rootDirSector = filesystemState->startLba +
+    driverState->clusterHeapStartSector +
+    ((driverState->rootDirectoryCluster - 2) * driverState->sectorsPerCluster);
+
+  printString("Root directory absolute sector: ");
+  printULongLong(rootDirSector);
+  printString("\n");
+
+  printString("\nOn Linux, you can verify this with:\n");
+  printString("  sudo dd if=/dev/sdX bs=512 skip=");
+  printULongLong(rootDirSector);
+  printString(" count=1 | hexdump -C | grep -A5 '85'\n");
+  printString("\nThis should show the directory entries including your file.\n");
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Cross-check FAT and directory entries
+///
+/// @param driverState Pointer to the exFAT driver state
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int crossCheckFatAndDirectory(ExFatDriverState* driverState) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  printString("\n=== CROSS-CHECK: FAT vs DIRECTORY ===\n");
+
+  // Scan directory and check each file's cluster in FAT
+  uint32_t currentCluster = driverState->rootDirectoryCluster;
+  uint32_t fileNum = 0;
+
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        return result;
+      }
+
+      for (
+        uint32_t ii = 0;
+        ii < driverState->bytesPerSector;
+        ii += EXFAT_DIRECTORY_ENTRY_SIZE
+      ) {
+        uint8_t entryType = buffer[ii];
+
+        if (entryType == EXFAT_ENTRY_END_OF_DIR) {
+          printString("\nEnd of directory.\n");
+          return EXFAT_SUCCESS;
+        }
+
+        if (entryType == EXFAT_ENTRY_FILE) {
+          fileNum++;
+          
+          // Get secondary count
+          uint8_t secondaryCount = buffer[ii + 1];
+          
+          // Check for stream entry
+          if (ii + EXFAT_DIRECTORY_ENTRY_SIZE >= 
+              driverState->bytesPerSector) {
+            continue;
+          }
+
+          uint8_t streamType = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE];
+          if (streamType == EXFAT_ENTRY_STREAM) {
+            uint32_t cluster = 0;
+            readBytes(
+              &cluster,
+              &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 20]
+            );
+
+            uint8_t nameLen = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 3];
+
+            printString("\nFile ");
+            printULongLong(fileNum);
+            printString(" (nameLen=");
+            printULongLong(nameLen);
+            printString(", cluster=");
+            printULongLong(cluster);
+            printString("):\n");
+
+            // Check FAT
+            if (cluster >= 2 && cluster < driverState->clusterCount + 2) {
+              uint32_t fatValue = 0;
+              result = readFatEntry(driverState, cluster, &fatValue);
+              if (result == EXFAT_SUCCESS) {
+                printString("  FAT value: 0x");
+                printHex((fatValue >> 24) & 0xFF);
+                printHex((fatValue >> 16) & 0xFF);
+                printHex((fatValue >> 8) & 0xFF);
+                printHex(fatValue & 0xFF);
+
+                if (fatValue == 0) {
+                  printString(" [ERROR: CLUSTER IS FREE!]\n");
+                  printString("  This file's cluster is not allocated in FAT!\n");
+                } else if (fatValue == 0xFFFFFFFF) {
+                  printString(" [OK: END OF CHAIN]\n");
+                } else if (fatValue >= 2) {
+                  printString(" [OK: POINTS TO ");
+                  printULongLong(fatValue);
+                  printString("]\n");
+                } else {
+                  printString(" [INVALID]\n");
+                }
+              }
+            } else {
+              printString("  [INVALID CLUSTER NUMBER]\n");
+            }
+          }
+        }
+      }
+    }
+
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    currentCluster = nextCluster;
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Check if Linux files are using NoFatChain optimization
+///
+/// @param driverState Pointer to the exFAT driver state
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+int checkNoFatChainFlag(ExFatDriverState* driverState) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  printString("\n=== CHECKING NoFatChain FLAG ===\n");
+  printString("exFAT optimization: NoFatChain bit allows contiguous file\n");
+  printString("allocation without FAT entries.\n\n");
+
+  uint32_t currentCluster = driverState->rootDirectoryCluster;
+  uint32_t fileNum = 0;
+
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        return result;
+      }
+
+      for (
+        uint32_t ii = 0;
+        ii < driverState->bytesPerSector;
+        ii += EXFAT_DIRECTORY_ENTRY_SIZE
+      ) {
+        uint8_t entryType = buffer[ii];
+
+        if (entryType == EXFAT_ENTRY_END_OF_DIR) {
+          printString("\nConclusion: ");
+          if (fileNum == 0) {
+            printString("No files checked.\n");
+          }
+          return EXFAT_SUCCESS;
+        }
+
+        if (entryType == EXFAT_ENTRY_FILE) {
+          // Check stream entry
+          if (ii + EXFAT_DIRECTORY_ENTRY_SIZE >=
+              driverState->bytesPerSector) {
+            continue;
+          }
+
+          uint8_t streamType = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE];
+          if (streamType == EXFAT_ENTRY_STREAM) {
+            fileNum++;
+
+            uint8_t flags = buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 1];
+            uint32_t cluster = 0;
+            readBytes(
+              &cluster,
+              &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 20]
+            );
+            uint64_t dataLength = 0;
+            readBytes(
+              &dataLength,
+              &buffer[ii + EXFAT_DIRECTORY_ENTRY_SIZE + 24]
+            );
+
+            printString("\nFile ");
+            printULongLong(fileNum);
+            printString(":\n");
+            printString("  FirstCluster: ");
+            printULongLong(cluster);
+            printString("\n");
+            printString("  DataLength: ");
+            printULongLong((uint32_t) dataLength);
+            printString(" bytes\n");
+            printString("  GeneralSecondaryFlags: 0x");
+            printHex(flags);
+            printString("\n    Bit 0 (AllocPossible): ");
+            printString((flags & 0x01) ? "YES" : "NO");
+            printString("\n    Bit 1 (NoFatChain): ");
+            printString((flags & 0x02) ? "YES" : "NO");
+            printString("\n");
+
+            if ((flags & 0x02) != 0) {
+              printString("  ** Uses NoFatChain: Data is contiguous, ");
+              printString("no FAT entries needed **\n");
+              
+              // Calculate number of clusters needed
+              uint32_t clustersNeeded = 
+                ((uint32_t) dataLength + driverState->bytesPerCluster - 1) /
+                driverState->bytesPerCluster;
+              
+              if (clustersNeeded == 0) {
+                clustersNeeded = 1;  // At least one cluster allocated
+              }
+
+              printString("  Clusters used: ");
+              printULongLong(cluster);
+              printString(" through ");
+              printULongLong(cluster + clustersNeeded - 1);
+              printString(" (");
+              printULongLong(clustersNeeded);
+              printString(" total)\n");
+            } else {
+              // Should have FAT entries
+              printString("  ** Requires FAT chain **\n");
+              
+              if (cluster >= 2 && cluster < driverState->clusterCount + 2) {
+                uint32_t fatValue = 0;
+                result = readFatEntry(driverState, cluster, &fatValue);
+                if (result == EXFAT_SUCCESS) {
+                  printString("  FAT entry: 0x");
+                  printHex((fatValue >> 24) & 0xFF);
+                  printHex((fatValue >> 16) & 0xFF);
+                  printHex((fatValue >> 8) & 0xFF);
+                  printHex(fatValue & 0xFF);
+                  
+                  if (fatValue == 0) {
+                    printString(" [ERROR: Not allocated!]");
+                  } else if (fatValue == 0xFFFFFFFF) {
+                    printString(" [OK: End of chain]");
+                  }
+                  printString("\n");
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    currentCluster = nextCluster;
+  }
+
+  return EXFAT_SUCCESS;
+}
+
