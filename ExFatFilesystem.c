@@ -237,7 +237,7 @@ static int readFatEntry(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Write a FAT entry (INSTRUMENTED VERSION)
+/// @brief Write a FAT entry
 ///
 /// @param driverState Pointer to the exFAT driver state
 /// @param cluster The cluster whose FAT entry to write
@@ -252,108 +252,31 @@ static int writeFatEntry(
     return EXFAT_INVALID_PARAMETER;
   }
 
-  printString("\n=== writeFatEntry DEBUG ===\n");
-  printString("Cluster: ");
-  printULongLong(cluster);
-  printString(", Value: 0x");
-  printHex((value >> 24) & 0xFF);
-  printHex((value >> 16) & 0xFF);
-  printHex((value >> 8) & 0xFF);
-  printHex(value & 0xFF);
-  printString("\n");
-
   uint32_t fatOffset = cluster * 4;
   uint32_t fatSector = driverState->fatStartSector +
     (fatOffset / driverState->bytesPerSector);
   uint32_t entryOffset = fatOffset % driverState->bytesPerSector;
 
-  printString("FAT offset: ");
-  printULongLong(fatOffset);
-  printString(" bytes\n");
-  printString("FAT sector: ");
-  printULongLong(fatSector);
-  printString("\n");
-  printString("Entry offset: ");
-  printULongLong(entryOffset);
-  printString("\n");
-
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
   // Read current sector
-  printString("Reading FAT sector...\n");
   int result = readSector(driverState, fatSector, buffer);
   if (result != EXFAT_SUCCESS) {
     printString("ERROR: Failed to read FAT sector!\n");
     return result;
   }
 
-  // Show current value
-  uint32_t oldValue = 0;
-  readBytes(&oldValue, &buffer[entryOffset]);
-  printString("Old value: 0x");
-  printHex((oldValue >> 24) & 0xFF);
-  printHex((oldValue >> 16) & 0xFF);
-  printHex((oldValue >> 8) & 0xFF);
-  printHex(oldValue & 0xFF);
-  printString("\n");
-
   // Write new value
-  printString("Writing new value to buffer...\n");
   writeBytes(&buffer[entryOffset], &value);
 
-  // Verify buffer write
-  uint32_t verifyBuffer = 0;
-  readBytes(&verifyBuffer, &buffer[entryOffset]);
-  printString("Buffer verify: 0x");
-  printHex((verifyBuffer >> 24) & 0xFF);
-  printHex((verifyBuffer >> 16) & 0xFF);
-  printHex((verifyBuffer >> 8) & 0xFF);
-  printHex(verifyBuffer & 0xFF);
-  if (verifyBuffer == value) {
-    printString(" [OK]\n");
-  } else {
-    printString(" [MISMATCH!]\n");
-  }
-
   // Write sector to disk
-  printString("Writing FAT sector to disk...\n");
   result = writeSector(driverState, fatSector, buffer);
   if (result != EXFAT_SUCCESS) {
     printString("ERROR: Failed to write FAT sector!\n");
     return result;
   }
-  printString("Write complete.\n");
 
-  // Read back to verify
-  printString("Reading back to verify...\n");
-  result = readSector(driverState, fatSector, buffer);
-  if (result != EXFAT_SUCCESS) {
-    printString("ERROR: Failed to read back FAT sector!\n");
-    return result;
-  }
-
-  uint32_t diskValue = 0;
-  readBytes(&diskValue, &buffer[entryOffset]);
-  printString("Disk verify: 0x");
-  printHex((diskValue >> 24) & 0xFF);
-  printHex((diskValue >> 16) & 0xFF);
-  printHex((diskValue >> 8) & 0xFF);
-  printHex(diskValue & 0xFF);
-  
-  if (diskValue == value) {
-    printString(" [OK - Write successful!]\n");
-  } else {
-    printString(" [FAILED - Value not persisted!]\n");
-    printString("Expected: 0x");
-    printHex((value >> 24) & 0xFF);
-    printHex((value >> 16) & 0xFF);
-    printHex((value >> 8) & 0xFF);
-    printHex(value & 0xFF);
-    printString("\n");
-  }
-
-  printString("=== writeFatEntry END ===\n\n");
   return result;
 }
 
@@ -412,8 +335,6 @@ static int collectNoFatChainRanges(
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
-  printString("  Scanning for NoFatChain files...\n");
-
   uint32_t currentCluster = driverState->rootDirectoryCluster;
 
   while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
@@ -432,9 +353,6 @@ static int collectNoFatChainRanges(
         uint8_t entryType = buffer[ii];
 
         if (entryType == EXFAT_ENTRY_END_OF_DIR) {
-          printString("  Found ");
-          printULongLong(*numRanges);
-          printString(" NoFatChain file(s)\n");
           return EXFAT_SUCCESS;
         }
 
@@ -480,14 +398,6 @@ static int collectNoFatChainRanges(
               ranges[*numRanges].startCluster = firstCluster;
               ranges[*numRanges].endCluster = firstCluster + clustersNeeded - 1;
               
-              printString("    Range ");
-              printULongLong(*numRanges);
-              printString(": clusters ");
-              printULongLong(firstCluster);
-              printString("-");
-              printULongLong(firstCluster + clustersNeeded - 1);
-              printString("\n");
-
               (*numRanges)++;
             }
           }
@@ -503,9 +413,6 @@ static int collectNoFatChainRanges(
     currentCluster = nextCluster;
   }
 
-  printString("  Found ");
-  printULongLong(*numRanges);
-  printString(" NoFatChain file(s)\n");
   return EXFAT_SUCCESS;
 }
 
@@ -583,8 +490,6 @@ static int findAllocationBitmap(
   FilesystemState* filesystemState = driverState->filesystemState;
   uint8_t* buffer = filesystemState->blockBuffer;
 
-  printString("Finding allocation bitmap...\n");
-
   // Scan root directory for bitmap entry (0x81)
   uint32_t currentCluster = driverState->rootDirectoryCluster;
 
@@ -611,10 +516,6 @@ static int findAllocationBitmap(
         if (entryType == EXFAT_ENTRY_ALLOCATION_BITMAP) {
           // Found it! Read the first cluster
           readBytes(bitmapCluster, &buffer[ii + 20]);
-          
-          printString("  Found bitmap at cluster ");
-          printULongLong(*bitmapCluster);
-          printString("\n");
           
           return EXFAT_SUCCESS;
         }
@@ -647,8 +548,6 @@ static int findFreeCluster(
     return EXFAT_INVALID_PARAMETER;
   }
 
-  printString("Finding free cluster...\n");
-
   // Find bitmap location
   uint32_t bitmapCluster = 0;
   int result = findAllocationBitmap(driverState, &bitmapCluster);
@@ -674,12 +573,10 @@ static int findFreeCluster(
     return result;
   }
 
-  // Search for free cluster
-  printString("  Searching for free cluster (checking bitmap, FAT, and ");
-  printString("NoFatChain)...\n");
-  
-  for (uint32_t cluster = 2; cluster < driverState->clusterCount + 2;
-       cluster++) {
+  for (uint32_t cluster = 2;
+    cluster < driverState->clusterCount + 2;
+    cluster++
+  ) {
     // Check 1: NoFatChain ranges
     if (isClusterInNoFatChainRange(cluster, ranges, numRanges)) {
       continue;
@@ -709,10 +606,6 @@ static int findFreeCluster(
 
     if (fatValue == 0) {
       // Found a truly free cluster!
-      printString("  Found free cluster: ");
-      printULongLong(cluster);
-      printString(" (free in bitmap, FAT, and not in NoFatChain)\n");
-      
       *freeCluster = cluster;
       free(ranges);
       return EXFAT_SUCCESS;
@@ -775,21 +668,6 @@ static int updateAllocationBitmap(
   uint32_t bitmapSector = clusterToSector(driverState, bitmapCluster) +
     sectorInCluster;
 
-  printString("  Updating bitmap: cluster ");
-  printULongLong(cluster);
-  printString(", bit ");
-  printULongLong(bitPosition);
-  printString(", byte ");
-  printULongLong(byteOffset);
-  printString("\n");
-  printString("  Bitmap sector: ");
-  printULongLong(bitmapSector);
-  printString(", byte in sector: ");
-  printULongLong(byteInSector);
-  printString(", bit: ");
-  printULongLong(bitOffset);
-  printString("\n");
-
   // Read bitmap sector
   result = readSector(driverState, bitmapSector, buffer);
   if (result != EXFAT_SUCCESS) {
@@ -798,19 +676,11 @@ static int updateAllocationBitmap(
   }
 
   // Update the bit
-  uint8_t oldValue = buffer[byteInSector];
   if (allocated) {
     buffer[byteInSector] |= (1 << bitOffset);
   } else {
     buffer[byteInSector] &= ~(1 << bitOffset);
   }
-  uint8_t newValue = buffer[byteInSector];
-
-  printString("  Byte value: 0x");
-  printHex(oldValue);
-  printString(" -> 0x");
-  printHex(newValue);
-  printString("\n");
 
   // Write bitmap sector back
   result = writeSector(driverState, bitmapSector, buffer);
@@ -819,7 +689,6 @@ static int updateAllocationBitmap(
     return result;
   }
 
-  printString("  Bitmap updated successfully\n");
   return EXFAT_SUCCESS;
 }
 
