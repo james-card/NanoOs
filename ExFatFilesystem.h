@@ -175,11 +175,9 @@ int exFatInitialize(
   ExFatDriverState* driverState, FilesystemState* filesystemState);
 ExFatFileHandle* exFatOpenFile(
   ExFatDriverState* driverState, const char* filePath, const char* mode);
-
-// Debug functions
-int dumpDirectoryEntries(
-  ExFatDriverState* driverState, uint32_t directoryCluster,
-  uint32_t maxEntries);
+int32_t exFatRead(
+  ExFatDriverState* driverState, void* ptr, uint32_t length,
+  ExFatFileHandle* file);
 
 #ifdef __cplusplus
 } // extern "C"
