@@ -1116,8 +1116,8 @@ static int createFileEntry(
   }
 
   // Copy created entries back to output parameters
-  copyBytes(fileEntry, &buffer[targetOffset], sizeof(ExFatFileDirectoryEntry));
-  copyBytes(
+  memcpy(fileEntry, &buffer[targetOffset], sizeof(ExFatFileDirectoryEntry));
+  memcpy(
     streamEntry,
     &buffer[targetOffset + EXFAT_DIRECTORY_ENTRY_SIZE],
     sizeof(ExFatStreamExtensionEntry)
@@ -1378,10 +1378,10 @@ static int searchDirectory(
               fullName, nameLength, searchName, searchNameLength
             ) == 0) {
           // Found a match - copy to output parameters
-          copyBytes(
+          memcpy(
             fileEntry, tempFileEntry, sizeof(ExFatFileDirectoryEntry)
           );
-          copyBytes(
+          memcpy(
             streamEntry, tempStreamEntry, sizeof(ExFatStreamExtensionEntry)
           );
 
@@ -1755,5 +1755,131 @@ ExFatFileHandle* exFatOpenFile(
   free(fileEntry);
   free(fileName);
   return handle;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Read data from an exFAT file
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param ptr Pointer to buffer to store read data
+/// @param length Maximum number of bytes to read
+/// @param file Pointer to the file handle
+///
+/// @return Number of bytes read on success, negative errno on failure
+///////////////////////////////////////////////////////////////////////////////
+int32_t exFatRead(
+  ExFatDriverState* driverState, void* ptr, uint32_t length,
+  ExFatFileHandle* file
+) {
+  if (driverState == NULL || ptr == NULL || file == NULL) {
+    return -EINVAL;
+  }
+
+  if (!driverState->driverStateValid) {
+    return -EINVAL;
+  }
+
+  if (!file->canRead) {
+    return -EACCES; // Permission denied
+  }
+
+  // Calculate remaining bytes in file
+  uint64_t remainingBytes = 0;
+  if (file->currentPosition < file->fileSize) {
+    remainingBytes = file->fileSize - file->currentPosition;
+  } else {
+    return 0; // Already at EOF
+  }
+
+  // Adjust length if it exceeds remaining bytes
+  if (length > remainingBytes) {
+    length = (uint32_t) remainingBytes;
+  }
+
+  if (length == 0) {
+    return 0; // Nothing to read
+  }
+
+  // Check if file has valid cluster
+  if (file->currentCluster < 2) {
+    return -EIO; // File has no data clusters
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+  uint8_t* destPtr = (uint8_t*) ptr;
+  uint32_t bytesRead = 0;
+
+  while (bytesRead < length) {
+    // Calculate position within current cluster
+    uint32_t positionInCluster = file->currentPosition %
+      driverState->bytesPerCluster;
+    
+    // Calculate which sector within the cluster
+    uint32_t sectorInCluster = positionInCluster /
+      driverState->bytesPerSector;
+    
+    // Calculate offset within the sector
+    uint32_t offsetInSector = positionInCluster %
+      driverState->bytesPerSector;
+    
+    // Calculate how many bytes we can read from this sector
+    uint32_t bytesInSector = driverState->bytesPerSector - offsetInSector;
+    uint32_t bytesToRead = length - bytesRead;
+    if (bytesToRead > bytesInSector) {
+      bytesToRead = bytesInSector;
+    }
+
+    // Calculate the actual sector number
+    uint32_t sector = clusterToSector(driverState, file->currentCluster) +
+      sectorInCluster;
+
+    // Read the sector
+    int result = readSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      if (bytesRead > 0) {
+        return bytesRead; // Return what we've read so far
+      }
+      return -EIO;
+    }
+
+    // Copy bytes from buffer to destination
+    for (uint32_t ii = 0; ii < bytesToRead; ii++) {
+      destPtr[bytesRead + ii] = buffer[offsetInSector + ii];
+    }
+
+    bytesRead += bytesToRead;
+    file->currentPosition += bytesToRead;
+
+    // Check if we've finished reading
+    if (bytesRead >= length) {
+      break;
+    }
+
+    // Check if we need to move to next cluster
+    uint32_t newPositionInCluster = file->currentPosition %
+      driverState->bytesPerCluster;
+    
+    if (newPositionInCluster == 0) {
+      // We've exhausted the current cluster, get next cluster from FAT
+      uint32_t nextCluster = 0;
+      result = readFatEntry(driverState, file->currentCluster, &nextCluster);
+      if (result != EXFAT_SUCCESS) {
+        if (bytesRead > 0) {
+          return bytesRead; // Return what we've read so far
+        }
+        return -EIO;
+      }
+
+      if (nextCluster == 0xFFFFFFFF) {
+        // End of file chain - shouldn't happen if fileSize is correct
+        break;
+      }
+
+      file->currentCluster = nextCluster;
+    }
+  }
+
+  return (int32_t) bytesRead;
 }
 
