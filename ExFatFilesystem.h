@@ -178,6 +178,9 @@ ExFatFileHandle* exFatOpenFile(
 int32_t exFatRead(
   ExFatDriverState* driverState, void* ptr, uint32_t length,
   ExFatFileHandle* file);
+int32_t exFatWrite(
+  ExFatDriverState* driverState, void* ptr, uint32_t length,
+  ExFatFileHandle* file);
 
 #ifdef __cplusplus
 } // extern "C"

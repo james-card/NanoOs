@@ -1883,3 +1883,294 @@ int32_t exFatRead(
   return (int32_t) bytesRead;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Update directory entry after file modification
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param file Pointer to the file handle with updated metadata
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int updateDirectoryEntry(
+  ExFatDriverState* driverState, ExFatFileHandle* file
+) {
+  if (driverState == NULL || file == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+
+  uint32_t entriesPerSector =
+    driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
+
+  // Calculate which sector contains the file entry
+  uint32_t entryIndex = file->directoryOffset;
+  uint32_t sectorOffset = entryIndex / entriesPerSector;
+  uint32_t entryOffsetInSector =
+    (entryIndex % entriesPerSector) * EXFAT_DIRECTORY_ENTRY_SIZE;
+
+  uint32_t sector = clusterToSector(driverState, file->directoryCluster) +
+    sectorOffset;
+
+  // Read the sector containing the file entry
+  int result = readSector(driverState, sector, buffer);
+  if (result != EXFAT_SUCCESS) {
+    printString("  ERROR: Failed to read directory sector\n");
+    return result;
+  }
+
+  // Allocate temporary file entry
+  ExFatFileDirectoryEntry* fileEntry =
+    (ExFatFileDirectoryEntry*) malloc(sizeof(ExFatFileDirectoryEntry));
+  if (fileEntry == NULL) {
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Read file entry from buffer
+  readBytes(fileEntry, &buffer[entryOffsetInSector]);
+
+  uint8_t secondaryCount = 0;
+  readBytes(&secondaryCount, &fileEntry->secondaryCount);
+
+  if (secondaryCount < 2) {
+    free(fileEntry);
+    printString("  ERROR: Invalid secondary count\n");
+    return EXFAT_ERROR;
+  }
+
+  // Update file entry timestamps
+  uint32_t timestamp = createValidTimestamp();
+  writeBytes(&fileEntry->lastModifiedTimestamp, &timestamp);
+
+  // Write updated file entry back to buffer
+  writeBytes(&buffer[entryOffsetInSector], fileEntry);
+
+  // Calculate stream entry location
+  uint32_t streamEntryIndex = entryIndex + 1;
+  uint32_t streamSectorOffset = streamEntryIndex / entriesPerSector;
+  uint32_t streamEntryOffsetInSector =
+    (streamEntryIndex % entriesPerSector) * EXFAT_DIRECTORY_ENTRY_SIZE;
+  uint32_t streamSector =
+    clusterToSector(driverState, file->directoryCluster) + streamSectorOffset;
+
+  // Check if stream entry is in a different sector
+  if (streamSector != sector) {
+    // Write file entry sector first
+    result = writeSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      free(fileEntry);
+      printString("  ERROR: Failed to write file entry sector\n");
+      return result;
+    }
+
+    // Read stream entry sector
+    result = readSector(driverState, streamSector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      free(fileEntry);
+      printString("  ERROR: Failed to read stream entry sector\n");
+      return result;
+    }
+  }
+
+  // Allocate temporary stream entry
+  ExFatStreamExtensionEntry* streamEntry =
+    (ExFatStreamExtensionEntry*) malloc(sizeof(ExFatStreamExtensionEntry));
+  if (streamEntry == NULL) {
+    free(fileEntry);
+    return EXFAT_NO_MEMORY;
+  }
+
+  // Read stream entry from buffer
+  readBytes(streamEntry, &buffer[streamEntryOffsetInSector]);
+
+  // Update stream entry with new size and cluster info
+  writeBytes(&streamEntry->dataLength, &file->fileSize);
+  writeBytes(&streamEntry->validDataLength, &file->fileSize);
+  writeBytes(&streamEntry->firstCluster, &file->firstCluster);
+
+  // Write updated stream entry back to buffer
+  writeBytes(&buffer[streamEntryOffsetInSector], streamEntry);
+
+  // Write the sector back to disk
+  result = writeSector(driverState, streamSector, buffer);
+
+  free(streamEntry);
+  free(fileEntry);
+
+  if (result != EXFAT_SUCCESS) {
+    printString("  ERROR: Failed to write stream entry sector\n");
+    return result;
+  }
+
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Write data to an exFAT file
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param ptr Pointer to buffer containing data to write
+/// @param length Number of bytes to write
+/// @param file Pointer to the file handle
+///
+/// @return Number of bytes written on success, negative errno on failure
+///////////////////////////////////////////////////////////////////////////////
+int32_t exFatWrite(
+  ExFatDriverState* driverState, void* ptr, uint32_t length,
+  ExFatFileHandle* file
+) {
+  if (driverState == NULL || ptr == NULL || file == NULL) {
+    return -EINVAL;
+  }
+
+  if (!driverState->driverStateValid) {
+    return -EINVAL;
+  }
+
+  if (!file->canWrite) {
+    return -EACCES;
+  }
+
+  if (length == 0) {
+    return 0;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+  uint8_t* srcPtr = (uint8_t*) ptr;
+  uint32_t bytesWritten = 0;
+
+  // If file has no clusters yet, allocate the first one
+  if (file->firstCluster == 0 || file->firstCluster < 2) {
+    uint32_t newCluster = 0;
+    int result = allocateCluster(driverState, &newCluster);
+    if (result != EXFAT_SUCCESS) {
+      printString("  ERROR: Failed to allocate first cluster\n");
+      return -ENOSPC;
+    }
+    file->firstCluster = newCluster;
+    file->currentCluster = newCluster;
+  }
+
+  // Main write loop
+  while (bytesWritten < length) {
+    // Calculate position within current cluster
+    uint32_t positionInCluster = file->currentPosition %
+      driverState->bytesPerCluster;
+
+    // Check if we need to move to or allocate a new cluster
+    if (positionInCluster == 0 && file->currentPosition > 0) {
+      // Try to get next cluster from FAT
+      uint32_t nextCluster = 0;
+      int result = readFatEntry(
+        driverState, file->currentCluster, &nextCluster
+      );
+      if (result != EXFAT_SUCCESS) {
+        if (bytesWritten > 0) {
+          break;
+        }
+        printString("  ERROR: Failed to read FAT entry\n");
+        return -EIO;
+      }
+
+      if (nextCluster == 0xFFFFFFFF) {
+        // At end of chain, need to allocate new cluster
+        uint32_t allocatedCluster = 0;
+        result = allocateCluster(driverState, &allocatedCluster);
+        if (result != EXFAT_SUCCESS) {
+          // Out of space - return what we've written so far
+          if (bytesWritten > 0) {
+            break;
+          }
+          printString("  ERROR: Failed to allocate new cluster\n");
+          return -ENOSPC;
+        }
+
+        // Link new cluster to chain
+        result = writeFatEntry(
+          driverState, file->currentCluster, allocatedCluster
+        );
+        if (result != EXFAT_SUCCESS) {
+          if (bytesWritten > 0) {
+            break;
+          }
+          printString("  ERROR: Failed to update FAT chain\n");
+          return -EIO;
+        }
+
+        nextCluster = allocatedCluster;
+      }
+
+      file->currentCluster = nextCluster;
+      positionInCluster = 0;
+    }
+
+    // Calculate sector and offset within sector
+    uint32_t sectorInCluster = positionInCluster /
+      driverState->bytesPerSector;
+    uint32_t offsetInSector = positionInCluster %
+      driverState->bytesPerSector;
+
+    // Calculate how many bytes we can write in this sector
+    uint32_t bytesInSector = driverState->bytesPerSector - offsetInSector;
+    uint32_t bytesToWrite = length - bytesWritten;
+    if (bytesToWrite > bytesInSector) {
+      bytesToWrite = bytesInSector;
+    }
+
+    // Calculate the actual sector number
+    uint32_t sector = clusterToSector(driverState, file->currentCluster) +
+      sectorInCluster;
+
+    // If we're not writing a full sector or not starting at offset 0,
+    // we need to read-modify-write
+    if (offsetInSector != 0 ||
+        bytesToWrite < driverState->bytesPerSector) {
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        if (bytesWritten > 0) {
+          break;
+        }
+        printString("  ERROR: Failed to read sector for RMW\n");
+        return -EIO;
+      }
+    }
+
+    // Copy data from source to buffer
+    for (uint32_t ii = 0; ii < bytesToWrite; ii++) {
+      buffer[offsetInSector + ii] = srcPtr[bytesWritten + ii];
+    }
+
+    // Write the sector back to disk
+    int result = writeSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      if (bytesWritten > 0) {
+        break;
+      }
+      printString("  ERROR: Failed to write sector\n");
+      return -EIO;
+    }
+
+    // Update counters and position
+    bytesWritten += bytesToWrite;
+    file->currentPosition += bytesToWrite;
+
+    // Update file size if we've grown the file
+    if (file->currentPosition > file->fileSize) {
+      file->fileSize = file->currentPosition;
+    }
+  }
+
+  // Update directory entry with new file size and timestamps
+  if (bytesWritten > 0) {
+    int result = updateDirectoryEntry(driverState, file);
+    if (result != EXFAT_SUCCESS) {
+      printString("  WARNING: Failed to update directory entry\n");
+      // Don't fail the write, just log the warning
+    }
+  }
+
+  return (int32_t) bytesWritten;
+}
+
