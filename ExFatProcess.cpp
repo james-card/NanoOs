@@ -103,10 +103,10 @@ int exFatFilesystemReadFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
   int32_t returnValue = 0;
   if (driverState->driverStateValid) {
-    //// returnValue = exFatRead(driverState,
-    ////   filesystemIoCommandParameters->buffer,
-    ////   filesystemIoCommandParameters->length, 
-    ////   (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    returnValue = exFatRead(driverState,
+      filesystemIoCommandParameters->buffer,
+      filesystemIoCommandParameters->length, 
+      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
     if (returnValue >= 0) {
       // Return value is the number of bytes read.  Set the length variable to
       // it and set it to 0 to indicate good status.
