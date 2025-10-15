@@ -18,7 +18,7 @@
 /// @brief Definition of a filesystem command handler function.
 typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
 
-/// @fn int exFatFilesystemOpenFileCommandHandler(
+/// @fn int exFatProcessOpenFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_OPEN_FILE command.
@@ -29,7 +29,7 @@ typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemOpenFileCommandHandler(
+int exFatProcessOpenFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   NanoOsFile *nanoOsFile = NULL;
@@ -50,7 +50,7 @@ int exFatFilesystemOpenFileCommandHandler(
   return 0;
 }
 
-/// @fn int exFatFilesystemCloseFileCommandHandler(
+/// @fn int exFatProcessCloseFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
@@ -61,7 +61,7 @@ int exFatFilesystemOpenFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemCloseFileCommandHandler(
+int exFatProcessCloseFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   (void) driverState;
@@ -85,7 +85,7 @@ int exFatFilesystemCloseFileCommandHandler(
   return 0;
 }
 
-/// @fn int exFatFilesystemReadFileCommandHandler(
+/// @fn int exFatProcessReadFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_READ_FILE command.
@@ -96,7 +96,7 @@ int exFatFilesystemCloseFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemReadFileCommandHandler(
+int exFatProcessReadFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
@@ -129,7 +129,7 @@ int exFatFilesystemReadFileCommandHandler(
   return returnValue;
 }
 
-/// @fn int exFatFilesystemWriteFileCommandHandler(
+/// @fn int exFatProcessWriteFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_WRITE_FILE command.
@@ -140,7 +140,7 @@ int exFatFilesystemReadFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemWriteFileCommandHandler(
+int exFatProcessWriteFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
@@ -173,7 +173,7 @@ int exFatFilesystemWriteFileCommandHandler(
   return returnValue;
 }
 
-/// @fn int exFatFilesystemRemoveFileCommandHandler(
+/// @fn int exFatProcessRemoveFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
@@ -184,7 +184,7 @@ int exFatFilesystemWriteFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemRemoveFileCommandHandler(
+int exFatProcessRemoveFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
@@ -200,7 +200,7 @@ int exFatFilesystemRemoveFileCommandHandler(
   return 0;
 }
 
-/// @fn int exFatFilesystemSeekFileCommandHandler(
+/// @fn int exFatProcessSeekFileCommandHandler(
 ///   ExFatDriverState *driverState, ProcessMessage *processMessage)
 ///
 /// @brief Command handler for FILESYSTEM_SEEK_FILE command.
@@ -211,7 +211,7 @@ int exFatFilesystemRemoveFileCommandHandler(
 ///   the filesystem process.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatFilesystemSeekFileCommandHandler(
+int exFatProcessSeekFileCommandHandler(
   ExFatDriverState *driverState, ProcessMessage *processMessage
 ) {
   FilesystemSeekParameters *filesystemSeekParameters
@@ -235,12 +235,12 @@ int exFatFilesystemSeekFileCommandHandler(
 ///
 /// @brief Array of ExFatCommandHandler function pointers.
 const ExFatCommandHandler filesystemCommandHandlers[] = {
-  exFatFilesystemOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
-  exFatFilesystemCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
-  exFatFilesystemReadFileCommandHandler,   // FILESYSTEM_READ_FILE
-  exFatFilesystemWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
-  exFatFilesystemRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
-  exFatFilesystemSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
+  exFatProcessOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
+  exFatProcessCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
+  exFatProcessReadFileCommandHandler,   // FILESYSTEM_READ_FILE
+  exFatProcessWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
+  exFatProcessRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
+  exFatProcessSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
 };
 
 
@@ -301,7 +301,7 @@ void* runExFatFilesystem(void *args) {
   return NULL;
 }
 
-/// @fn long exFatFilesystemFTell(FILE *stream)
+/// @fn long exFatProcessFTell(FILE *stream)
 ///
 /// @brief Get the current value of the position indicator of a
 /// previously-opened file.
@@ -309,7 +309,7 @@ void* runExFatFilesystem(void *args) {
 /// @param stream A pointer to a previously-opened file.
 ///
 /// @return Returns the current position of the file on success, -1 on failure.
-long exFatFilesystemFTell(FILE *stream) {
+long exFatProcessFTell(FILE *stream) {
   if (stream == NULL) {
     return -1;
   }

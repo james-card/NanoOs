@@ -21,11 +21,11 @@ extern "C"
 #endif
 
 // Function declarations
-long exFatFilesystemFTell(FILE *stream);
+long exFatProcessFTell(FILE *stream);
 #ifdef ftell
 #undef ftell
 #endif // ftell
-#define ftell exFatFilesystemFTell
+#define ftell exFatProcessFTell
 
 void* runExFatFilesystem(void *args);
 
