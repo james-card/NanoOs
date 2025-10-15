@@ -103,9 +103,14 @@ int exFatFilesystemReadFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
   int32_t returnValue = 0;
   if (driverState->driverStateValid) {
+    uint32_t length = filesystemIoCommandParameters->length;
+    if (length > 0x7fffffff) {
+      // Make sure we don't overflow the maximum value of a signed 32-bit int.
+      length = 0x7fffffff;
+    }
     returnValue = exFatRead(driverState,
       filesystemIoCommandParameters->buffer,
-      filesystemIoCommandParameters->length, 
+      length, 
       (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
     if (returnValue >= 0) {
       // Return value is the number of bytes read.  Set the length variable to
@@ -140,12 +145,17 @@ int exFatFilesystemWriteFileCommandHandler(
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
     = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
-  int returnValue = 0;
+  int32_t returnValue = 0;
   if (driverState->driverStateValid) {
-    //// returnValue = exFatWrite(driverState,
-    ////   (uint8_t*) filesystemIoCommandParameters->buffer,
-    ////   filesystemIoCommandParameters->length,
-    ////   (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+    uint32_t length = filesystemIoCommandParameters->length;
+    if (length > 0x7fffffff) {
+      // Make sure we don't overflow the maximum value of a signed 32-bit int.
+      length = 0x7fffffff;
+    }
+    returnValue = exFatWrite(driverState,
+      filesystemIoCommandParameters->buffer,
+      length,
+      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
     if (returnValue >= 0) {
       // Return value is the number of bytes written.  Set the length variable
       // to it and set it to 0 to indicate good status.
