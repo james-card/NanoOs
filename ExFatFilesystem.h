@@ -183,6 +183,7 @@ int32_t exFatWrite(
   ExFatFileHandle* file);
 int exFatFclose(
   ExFatDriverState* driverState, ExFatFileHandle* exFatFile);
+int exFatRemove(ExFatDriverState* driverState, const char* pathname);
 
 #ifdef __cplusplus
 } // extern "C"

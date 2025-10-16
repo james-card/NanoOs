@@ -2227,3 +2227,360 @@ int exFatFclose(
   return returnValue;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Mark directory entries as unused (deleted)
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param directoryCluster Cluster containing the directory entries
+/// @param dirOffset Offset of first entry in directory (in entries)
+/// @param numEntries Number of entries to mark as unused
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int markEntriesAsUnused(
+  ExFatDriverState* driverState, uint32_t directoryCluster,
+  uint32_t dirOffset, uint8_t numEntries
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+  
+  uint32_t entriesPerSector =
+    driverState->bytesPerSector / EXFAT_DIRECTORY_ENTRY_SIZE;
+  uint32_t entriesPerCluster =
+    entriesPerSector * driverState->sectorsPerCluster;
+  
+  uint32_t currentCluster = directoryCluster;
+  uint32_t clusterOffset = dirOffset / entriesPerCluster;
+  
+  // Navigate to the correct cluster if needed
+  for (uint32_t ii = 0; ii < clusterOffset; ii++) {
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    if (nextCluster == 0xFFFFFFFF) {
+      return EXFAT_ERROR;
+    }
+    currentCluster = nextCluster;
+  }
+  
+  uint32_t entryIndexInCluster = dirOffset % entriesPerCluster;
+  
+  for (uint8_t ii = 0; ii < numEntries; ii++) {
+    uint32_t currentEntryIndex = entryIndexInCluster + ii;
+    
+    // Check if we need to move to next cluster
+    if (currentEntryIndex >= entriesPerCluster) {
+      uint32_t nextCluster = 0;
+      int result = readFatEntry(driverState, currentCluster, &nextCluster);
+      if (result != EXFAT_SUCCESS) {
+        return result;
+      }
+      if (nextCluster == 0xFFFFFFFF) {
+        return EXFAT_ERROR;
+      }
+      currentCluster = nextCluster;
+      currentEntryIndex = 0;
+      entryIndexInCluster = 0;
+    }
+    
+    // Calculate sector and offset
+    uint32_t sectorOffset = currentEntryIndex / entriesPerSector;
+    uint32_t entryOffsetInSector =
+      (currentEntryIndex % entriesPerSector) * EXFAT_DIRECTORY_ENTRY_SIZE;
+    uint32_t sector = clusterToSector(driverState, currentCluster) +
+      sectorOffset;
+    
+    // Read the sector
+    int result = readSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    
+    // Mark entry as unused (0x00 = unused/deleted)
+    uint8_t unusedMarker = EXFAT_ENTRY_UNUSED;
+    writeBytes(&buffer[entryOffsetInSector], &unusedMarker);
+    
+    // Write the sector back
+    result = writeSector(driverState, sector, buffer);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+  }
+  
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Free a cluster chain starting from the given cluster
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param firstCluster First cluster in the chain to free
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int freeClusterChain(
+  ExFatDriverState* driverState, uint32_t firstCluster
+) {
+  if (driverState == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+  
+  if (firstCluster < 2 || firstCluster == 0xFFFFFFFF) {
+    // No clusters to free
+    return EXFAT_SUCCESS;
+  }
+  
+  uint32_t currentCluster = firstCluster;
+  
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    // Get next cluster before clearing FAT entry
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    
+    // Clear FAT entry (mark as free)
+    uint32_t freeMarker = 0;
+    result = writeFatEntry(driverState, currentCluster, freeMarker);
+    if (result != EXFAT_SUCCESS) {
+      printString("  ERROR: Failed to clear FAT entry for cluster ");
+      printULong(currentCluster);
+      printString("\n");
+      return result;
+    }
+    
+    // Update allocation bitmap (mark as free)
+    result = updateAllocationBitmap(driverState, currentCluster, false);
+    if (result != EXFAT_SUCCESS) {
+      printString("  ERROR: Failed to update bitmap for cluster ");
+      printULong(currentCluster);
+      printString("\n");
+      return result;
+    }
+    
+    currentCluster = nextCluster;
+  }
+  
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Check if a directory is empty
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param directoryCluster First cluster of the directory to check
+/// @param isEmpty Pointer to store result (true if empty)
+///
+/// @return EXFAT_SUCCESS on success, error code on failure
+///////////////////////////////////////////////////////////////////////////////
+static int isDirectoryEmpty(
+  ExFatDriverState* driverState, uint32_t directoryCluster, bool* isEmpty
+) {
+  if (driverState == NULL || isEmpty == NULL) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+  
+  if (directoryCluster < 2) {
+    return EXFAT_INVALID_PARAMETER;
+  }
+  
+  FilesystemState* filesystemState = driverState->filesystemState;
+  uint8_t* buffer = filesystemState->blockBuffer;
+  
+  uint32_t currentCluster = directoryCluster;
+  *isEmpty = true;
+  
+  while (currentCluster != 0xFFFFFFFF && currentCluster >= 2) {
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, currentCluster) + ss;
+      int result = readSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        return result;
+      }
+      
+      for (
+        uint32_t ii = 0;
+        ii < driverState->bytesPerSector;
+        ii += EXFAT_DIRECTORY_ENTRY_SIZE
+      ) {
+        uint8_t entryType = buffer[ii];
+        
+        if (entryType == EXFAT_ENTRY_END_OF_DIR) {
+          return EXFAT_SUCCESS;
+        }
+        
+        // Check if this is an active file or directory entry
+        if (entryType == EXFAT_ENTRY_FILE) {
+          *isEmpty = false;
+          return EXFAT_SUCCESS;
+        }
+      }
+    }
+    
+    // Get next cluster in directory chain
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(driverState, currentCluster, &nextCluster);
+    if (result != EXFAT_SUCCESS) {
+      return result;
+    }
+    currentCluster = nextCluster;
+  }
+  
+  return EXFAT_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Remove a file or empty directory from the exFAT filesystem
+///
+/// Removes the specified file or empty directory from the filesystem. For
+/// files, all allocated clusters are freed. For directories, the operation
+/// fails if the directory is not empty. The function navigates through the
+/// directory hierarchy to find the target and updates all relevant metadata
+/// including directory entries, FAT, and allocation bitmap.
+///
+/// @param driverState Pointer to the initialized exFAT driver state
+/// @param pathname Path to the file or directory to remove
+///
+/// @return 0 on success, negative errno on failure (-ENOENT if not found,
+///         -ENOTEMPTY if directory not empty, -EINVAL for invalid parameters,
+///         -EIO for I/O errors)
+///////////////////////////////////////////////////////////////////////////////
+int exFatRemove(ExFatDriverState* driverState, const char* pathname) {
+  if (driverState == NULL || pathname == NULL || *pathname == '\0') {
+    return -EINVAL;
+  }
+  
+  if (!driverState->driverStateValid) {
+    return -EINVAL;
+  }
+  
+  // Don't allow removing root directory
+  if (pathname[0] == '/' && pathname[1] == '\0') {
+    return -EBUSY;
+  }
+  
+  // Allocate filename buffer
+  char* fileName = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
+  if (fileName == NULL) {
+    return -ENOMEM;
+  }
+  
+  // Allocate file entry
+  ExFatFileDirectoryEntry* fileEntry =
+    (ExFatFileDirectoryEntry*) malloc(sizeof(ExFatFileDirectoryEntry));
+  if (fileEntry == NULL) {
+    free(fileName);
+    return -ENOMEM;
+  }
+  
+  // Allocate stream entry
+  ExFatStreamExtensionEntry* streamEntry =
+    (ExFatStreamExtensionEntry*) malloc(sizeof(ExFatStreamExtensionEntry));
+  if (streamEntry == NULL) {
+    free(fileEntry);
+    free(fileName);
+    return -ENOMEM;
+  }
+  
+  // Navigate to the directory containing the target
+  uint32_t directoryCluster = 0;
+  int result = navigateToDirectory(
+    driverState, pathname, &directoryCluster, fileName
+  );
+  
+  if (result != EXFAT_SUCCESS) {
+    free(streamEntry);
+    free(fileEntry);
+    free(fileName);
+    if (result == EXFAT_FILE_NOT_FOUND) {
+      return -ENOENT;
+    }
+    return -EIO;
+  }
+  
+  // Search for the file/directory to remove
+  uint32_t dirCluster = 0;
+  uint32_t dirOffset = 0;
+  
+  result = searchDirectory(
+    driverState, directoryCluster, fileName, fileEntry, streamEntry,
+    &dirCluster, &dirOffset
+  );
+  
+  if (result != EXFAT_SUCCESS) {
+    free(streamEntry);
+    free(fileEntry);
+    free(fileName);
+    if (result == EXFAT_FILE_NOT_FOUND) {
+      return -ENOENT;
+    }
+    return -EIO;
+  }
+  
+  // Check if it's a directory
+  uint16_t attributes = 0;
+  readBytes(&attributes, &fileEntry->fileAttributes);
+  bool isDirectory = (attributes & EXFAT_ATTR_DIRECTORY) != 0;
+  
+  // Get the first cluster and secondary count
+  uint32_t firstCluster = 0;
+  readBytes(&firstCluster, &streamEntry->firstCluster);
+  
+  uint8_t secondaryCount = 0;
+  readBytes(&secondaryCount, &fileEntry->secondaryCount);
+  uint8_t totalEntries = secondaryCount + 1;
+  
+  // If it's a directory, check if it's empty
+  if (isDirectory) {
+    bool isEmpty = false;
+    result = isDirectoryEmpty(driverState, firstCluster, &isEmpty);
+    if (result != EXFAT_SUCCESS) {
+      free(streamEntry);
+      free(fileEntry);
+      free(fileName);
+      return -EIO;
+    }
+    
+    if (!isEmpty) {
+      free(streamEntry);
+      free(fileEntry);
+      free(fileName);
+      return -ENOTEMPTY;
+    }
+  }
+  
+  // Free the cluster chain
+  if (firstCluster >= 2) {
+    result = freeClusterChain(driverState, firstCluster);
+    if (result != EXFAT_SUCCESS) {
+      printString("WARNING: Failed to free cluster chain\n");
+      // Continue anyway to at least mark directory entries as unused
+    }
+  }
+  
+  // Mark directory entries as unused
+  result = markEntriesAsUnused(
+    driverState, dirCluster, dirOffset, totalEntries
+  );
+  
+  if (result != EXFAT_SUCCESS) {
+    free(streamEntry);
+    free(fileEntry);
+    free(fileName);
+    return -EIO;
+  }
+  
+  free(streamEntry);
+  free(fileEntry);
+  free(fileName);
+  
+  return 0;
+}
+
