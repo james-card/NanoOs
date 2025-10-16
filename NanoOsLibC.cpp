@@ -807,17 +807,17 @@ int sscanf(const char *buffer, const char *format, ...) {
 ///
 /// @brief Array of error messages arranged by error code.
 const char *errorStrings[] = {
-  "Success",
-  "Unknown error",
-  "Device or resource busy",
-  "Out of memory",
-  "Permission denied",
-  "Invalid argument",
-  "I/O error",
-  "No space left on device",
-  "No such entry found",
-  "Directory not empty",
-  "Overflow detected",
+  "Success",                 // ENOERR
+  "Unknown error",           // EUNKNOWN
+  "Device or resource busy", // EBUSY
+  "Out of memory",           // ENOMEM
+  "Permission denied",       // EACCES
+  "Invalid argument",        // EINVAL
+  "I/O error",               // EIO
+  "No space left on device", // ENOSPC
+  "No such entry found",     // ENOENT
+  "Directory not empty",     // ENOTEMPTY
+  "Overflow detected",       // EOVERFLOW
 };
 
 /// @var NUM_ERRORS
