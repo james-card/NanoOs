@@ -133,7 +133,7 @@ int filesystemFClose(FILE *stream) {
 ///   can only open files in the root directory.  Subdirectories are NOT
 ///   supported.
 ///
-/// @return Returns 0 on success, -1 on failure.
+/// @return Returns 0 on success, -1 and sets the value of errno on failure.
 int filesystemRemove(const char *pathname) {
   int returnValue = 0;
   if ((pathname != NULL) && (*pathname != '\0')) {
@@ -142,6 +142,12 @@ int filesystemRemove(const char *pathname) {
       /* func= */ 0, (intptr_t) pathname, true);
     processMessageWaitForDone(msg, NULL);
     returnValue = nanoOsMessageDataValue(msg, int);
+    if (returnValue != 0) {
+      // returnValue holds a negative errno.  Set errno for the current process
+      // and return -1 like we're supposed to.
+      errno = -returnValue;
+      returnValue = -1;
+    }
     processMessageRelease(msg);
   }
   return returnValue;

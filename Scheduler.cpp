@@ -1591,7 +1591,7 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
 /// @param pathname A pointer to the C string with the full path to the file to
 ///   remove.
 ///
-/// @return Returns 0 on success, -1 on failure.
+/// @return Returns 0 on success, -1 and sets the value of errno on failure.
 int kremove(SchedulerState *schedulerState, const char *pathname) {
   int returnValue = 0;
   ProcessMessage *processMessage = getAvailableMessage();
@@ -1610,6 +1610,14 @@ int kremove(SchedulerState *schedulerState, const char *pathname) {
 
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
+  }
+
+  returnValue = nanoOsMessageDataValue(processMessage, int);
+  if (returnValue != 0) {
+    // returnValue holds a negative errno.  Set errno for the current process
+    // and return -1 like we're supposed to.
+    errno = -returnValue;
+    returnValue = -1;
   }
 
   processMessageRelease(processMessage);
