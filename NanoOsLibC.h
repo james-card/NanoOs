@@ -147,7 +147,7 @@ int timespec_get(struct timespec* spec, int base);
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
 
 
-#define NANO_OS_DEBUG
+//// #define NANO_OS_DEBUG
 #ifdef NANO_OS_DEBUG
 
 /// @def startDebugMessage
@@ -199,7 +199,8 @@ int timespec_get(struct timespec* spec, int base);
 #define ENOSPC           7      /* No space left on device */
 #define ENOENT           8      /* No such entry found */
 #define ENOTEMPTY        9      /* Directory not empty */
-#define EEND            10      /* End of error codes */
+#define EOVERFLOW       10      /* Overflow detected */
+#define EEND            11      /* End of error codes */
 
 extern int errno;
 
