@@ -198,7 +198,8 @@ int timespec_get(struct timespec* spec, int base);
 #define EIO              6      /* I/O error */
 #define ENOSPC           7      /* No space left on device */
 #define ENOENT           8      /* No such entry found */
-#define EEND             9      /* End of error codes */
+#define ENOTEMPTY        9      /* Directory not empty */
+#define EEND            10      /* End of error codes */
 
 extern int errno;
 
