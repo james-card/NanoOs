@@ -200,6 +200,10 @@ int timespec_get(struct timespec* spec, int base);
 #define ENOENT           8      /* No such entry found */
 #define EEND             9      /* End of error codes */
 
+extern int errno;
+
+#define EOF (-1)
+
 typedef void TypeDescriptor;
 
 #define typeString ((TypeDescriptor*) ((intptr_t)  1))

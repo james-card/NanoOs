@@ -61,6 +61,11 @@ FILE *nanoOsStdout = (FILE*) ((intptr_t) 0x2);
 /// @brief Implementation of nanoOsStderr which is the define value for stderr.
 FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
 
+/// @var errno
+///
+/// @brief Global errno value.
+int errno = 0;
+
 /// @fn int timespec_get(struct timespec* spec, int base)
 ///
 /// @brief Get the current time in the form of a struct timespec.
