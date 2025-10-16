@@ -186,7 +186,7 @@ int exFatProcessRemoveFileCommandHandler(
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    //// returnValue = exFatRemoveWithPath(driverState, pathname);
+    returnValue = exFatRemove(driverState, pathname);
   }
 
   NanoOsMessage *nanoOsMessage
