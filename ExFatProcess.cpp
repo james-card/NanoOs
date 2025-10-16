@@ -66,18 +66,14 @@ int exFatProcessCloseFileCommandHandler(
 ) {
   (void) driverState;
 
-  NanoOsFile *nanoOsFile
-    = nanoOsMessageDataPointer(processMessage, NanoOsFile*);
-  ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
-  free(nanoOsFile);
+  FilesystemFcloseParameters *fcloseParameters
+    = nanoOsMessageDataPointer(processMessage, FilesystemFcloseParameters*);
+  ExFatFileHandle *exFatFile = (ExFatFileHandle*) fcloseParameters->stream->file;
+  free(fcloseParameters->stream);
   if (driverState->driverStateValid) {
-    //// exFatFclose(driverState, exFatFile);
+    fcloseParameters->returnValue = exFatFclose(driverState, exFatFile);
     if (driverState->filesystemState->numOpenFiles > 0) {
       driverState->filesystemState->numOpenFiles--;
-      if (driverState->filesystemState->numOpenFiles == 0) {
-        free(driverState->filesystemState->blockBuffer);
-        driverState->filesystemState->blockBuffer = NULL;
-      }
     }
   }
 

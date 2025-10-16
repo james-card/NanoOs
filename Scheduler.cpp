@@ -1559,7 +1559,10 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
   }
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
-  nanoOsMessage->data = (intptr_t) stream;
+  FilesystemFcloseParameters fcloseParameters;
+  fcloseParameters.stream = stream;
+  fcloseParameters.returnValue = 0;
+  nanoOsMessage->data = (intptr_t) &fcloseParameters;
   processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   coroutineResume(
@@ -1568,6 +1571,11 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
 
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
+  }
+
+  if (fcloseParameters.returnValue != 0) {
+    errno = -fcloseParameters.returnValue;
+    returnValue = EOF;
   }
 
   processMessageRelease(processMessage);
@@ -2712,8 +2720,6 @@ __attribute__((noinline)) void startScheduler(
       break;
     }
     printDebug("helloFile is non-NULL!\n");
-    break;
-    kfclose(&schedulerState, helloFile);
 
     if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
       printDebug("ERROR: Could not write to hello file!\n");

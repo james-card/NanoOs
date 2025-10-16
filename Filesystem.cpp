@@ -102,14 +102,27 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
 ///
 /// @return This function always succeeds and always returns 0.
 int filesystemFClose(FILE *stream) {
+  int returnValue = 0;
+
   if (stream != NULL) {
+    FilesystemFcloseParameters fcloseParameters;
+    fcloseParameters.stream = stream;
+    fcloseParameters.returnValue = 0;
+
     ProcessMessage *msg = sendNanoOsMessageToPid(
       NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
-      0, (intptr_t) stream, true);
+      0, (intptr_t) &fcloseParameters, true);
     processMessageWaitForDone(msg, NULL);
+
+    if (fcloseParameters.returnValue != 0) {
+      errno = -fcloseParameters.returnValue;
+      returnValue = EOF;
+    }
+
     processMessageRelease(msg);
   }
-  return 0;
+
+  return returnValue;
 }
 
 /// @fn int filesystemRemove(const char *pathname)
