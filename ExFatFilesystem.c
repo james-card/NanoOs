@@ -2584,3 +2584,246 @@ int exFatRemove(ExFatDriverState* driverState, const char* pathname) {
   return 0;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Seek to a position in an exFAT file
+///
+/// Repositions the file position indicator for the specified file. The new
+/// position is calculated based on the whence parameter: SEEK_SET positions
+/// relative to the beginning of the file, SEEK_CUR positions relative to the
+/// current position, and SEEK_END positions relative to the end of the file.
+/// The function traverses the FAT chain as needed to find the correct cluster
+/// for the new position. When seeking beyond allocated clusters in write mode,
+/// it allocates and links all necessary clusters to reach the target position.
+///
+/// @param driverState Pointer to the initialized exFAT driver state
+/// @param file Pointer to the file handle to seek within
+/// @param offset Number of bytes to offset from the position specified by whence
+/// @param whence Position from which offset is applied (SEEK_SET, SEEK_CUR, 
+///               or SEEK_END)
+///
+/// @return 0 on success, negative errno on failure (-EINVAL for invalid
+///         parameters, -EIO for I/O errors, -EOVERFLOW for position overflow,
+///         -ENOSPC if out of disk space)
+///////////////////////////////////////////////////////////////////////////////
+int exFatSeek(
+  ExFatDriverState* driverState, ExFatFileHandle* file, long offset,
+  int whence
+) {
+  if (driverState == NULL || file == NULL) {
+    return -EINVAL;
+  }
+
+  if (!driverState->driverStateValid) {
+    return -EINVAL;
+  }
+
+  // Calculate the target position based on whence
+  int64_t targetPosition = 0;
+  
+  if (whence == SEEK_SET) {
+    targetPosition = offset;
+  } else if (whence == SEEK_CUR) {
+    targetPosition = (int64_t) file->currentPosition + offset;
+  } else if (whence == SEEK_END) {
+    targetPosition = (int64_t) file->fileSize + offset;
+  } else {
+    // Invalid whence value
+    return -EINVAL;
+  }
+
+  // Validate the target position
+  if (targetPosition < 0) {
+    // Cannot seek before the beginning of file
+    return -EINVAL;
+  }
+
+  // Check for position overflow
+  if (targetPosition > UINT32_MAX) {
+    return -EOVERFLOW;
+  }
+
+  uint32_t newPosition = (uint32_t) targetPosition;
+
+  // If seeking beyond EOF and file is not open for writing, this is an error
+  if (newPosition > file->fileSize && !file->canWrite) {
+    return -EINVAL;
+  }
+
+  // If the new position is the same as current, nothing to do
+  if (newPosition == file->currentPosition) {
+    return 0;
+  }
+
+  // Handle special case of seeking to position 0
+  if (newPosition == 0) {
+    file->currentPosition = 0;
+    file->currentCluster = file->firstCluster;
+    if (file->currentCluster == 0 && file->canWrite && file->fileSize == 0) {
+      // Empty file opened for writing, cluster will be allocated on write
+      return 0;
+    }
+    return 0;
+  }
+
+  // If file has no clusters yet and we're seeking beyond 0
+  if ((file->firstCluster == 0 || file->firstCluster < 2) && 
+      file->canWrite) {
+    // Allocate the first cluster
+    uint32_t firstCluster = 0;
+    int result = allocateCluster(driverState, &firstCluster);
+    if (result != EXFAT_SUCCESS) {
+      printString("ERROR: Failed to allocate first cluster\n");
+      return -ENOSPC;
+    }
+    file->firstCluster = firstCluster;
+    file->currentCluster = firstCluster;
+    
+    // Clear the first cluster (write zeros)
+    FilesystemState* filesystemState = driverState->filesystemState;
+    uint8_t* buffer = filesystemState->blockBuffer;
+    
+    // Zero out the buffer
+    for (uint32_t ii = 0; ii < driverState->bytesPerSector; ii++) {
+      buffer[ii] = 0;
+    }
+    
+    // Write zeros to all sectors in the first cluster
+    for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+      uint32_t sector = clusterToSector(driverState, firstCluster) + ss;
+      result = writeSector(driverState, sector, buffer);
+      if (result != EXFAT_SUCCESS) {
+        printString("ERROR: Failed to clear first cluster\n");
+        return -EIO;
+      }
+    }
+  } else if (file->firstCluster == 0 || file->firstCluster < 2) {
+    // Empty file not opened for writing
+    return -EINVAL;
+  }
+
+  // Calculate cluster indices
+  uint32_t targetClusterIndex = newPosition / driverState->bytesPerCluster;
+  
+  // Find the current allocated extent by traversing from the beginning
+  uint32_t lastAllocatedCluster = file->firstCluster;
+  uint32_t lastAllocatedIndex = 0;
+  uint32_t traversalCluster = file->firstCluster;
+  
+  // First, find the last allocated cluster
+  while (true) {
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(
+      driverState, traversalCluster, &nextCluster
+    );
+    
+    if (result != EXFAT_SUCCESS) {
+      printString("ERROR: Failed to read FAT entry\n");
+      return -EIO;
+    }
+    
+    if (nextCluster == 0xFFFFFFFF) {
+      // End of chain
+      lastAllocatedCluster = traversalCluster;
+      break;
+    }
+    
+    if (nextCluster < 2 || nextCluster >= driverState->clusterCount + 2) {
+      printString("ERROR: Invalid cluster in FAT chain\n");
+      return -EIO;
+    }
+    
+    traversalCluster = nextCluster;
+    lastAllocatedIndex++;
+    
+    if (lastAllocatedIndex >= targetClusterIndex) {
+      // We have enough clusters already
+      break;
+    }
+  }
+  
+  // If we need more clusters and file is open for writing, allocate them
+  if (lastAllocatedIndex < targetClusterIndex && file->canWrite) {
+    FilesystemState* filesystemState = driverState->filesystemState;
+    uint8_t* buffer = filesystemState->blockBuffer;
+    
+    // Zero out the buffer for clearing new clusters
+    for (uint32_t ii = 0; ii < driverState->bytesPerSector; ii++) {
+      buffer[ii] = 0;
+    }
+    
+    uint32_t currentChainEnd = lastAllocatedCluster;
+    
+    // Allocate and link clusters to reach the target
+    for (uint32_t ii = lastAllocatedIndex; ii < targetClusterIndex; ii++) {
+      uint32_t newCluster = 0;
+      int result = allocateCluster(driverState, &newCluster);
+      if (result != EXFAT_SUCCESS) {
+        printString("ERROR: Failed to allocate cluster ");
+        printULong(ii);
+        printString("\n");
+        return -ENOSPC;
+      }
+      
+      // Link the new cluster to the chain
+      result = writeFatEntry(driverState, currentChainEnd, newCluster);
+      if (result != EXFAT_SUCCESS) {
+        printString("ERROR: Failed to link cluster to chain\n");
+        return -EIO;
+      }
+      
+      // Clear the new cluster (write zeros to all sectors)
+      for (uint32_t ss = 0; ss < driverState->sectorsPerCluster; ss++) {
+        uint32_t sector = clusterToSector(driverState, newCluster) + ss;
+        result = writeSector(driverState, sector, buffer);
+        if (result != EXFAT_SUCCESS) {
+          printString("ERROR: Failed to clear cluster\n");
+          return -EIO;
+        }
+      }
+      
+      currentChainEnd = newCluster;
+    }
+  } else if (lastAllocatedIndex < targetClusterIndex) {
+    // Need more clusters but file is not open for writing
+    printString("ERROR: Cannot seek beyond allocated clusters in read mode\n");
+    return -EINVAL;
+  }
+  
+  // Now traverse to the target cluster
+  traversalCluster = file->firstCluster;
+  uint32_t traversalIndex = 0;
+  
+  while (traversalIndex < targetClusterIndex) {
+    uint32_t nextCluster = 0;
+    int result = readFatEntry(
+      driverState, traversalCluster, &nextCluster
+    );
+    
+    if (result != EXFAT_SUCCESS) {
+      printString("ERROR: Failed to read FAT during final traversal\n");
+      return -EIO;
+    }
+    
+    if (nextCluster == 0xFFFFFFFF) {
+      // This shouldn't happen after allocation
+      printString("ERROR: Unexpected end of chain after allocation\n");
+      return -EIO;
+    }
+    
+    traversalCluster = nextCluster;
+    traversalIndex++;
+  }
+  
+  // Update the file handle with the new position
+  file->currentPosition = newPosition;
+  file->currentCluster = traversalCluster;
+  
+  // Update file size if we've extended it
+  if (newPosition > file->fileSize) {
+    file->fileSize = newPosition;
+    // Note: Directory entry will be updated on close or flush
+  }
+  
+  return 0;
+}
+
