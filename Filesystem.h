@@ -104,6 +104,18 @@ typedef struct FilesystemSeekParameters {
   int whence;
 } FilesystemSeekParameters;
 
+/// @struct FilesystemFcloseParameters
+///
+/// @brief Function parameters and return value for an fclose call.
+///
+/// @param stream A pointer to the FILE to close.
+/// @param returnValue The return value of the operation that will be passed
+///   back to the handler.  This value will be set to the process's errno value.
+typedef struct FilesystemFcloseParameters {
+  FILE *stream;
+  int returnValue;
+} FilesystemFcloseParameters;
+
 /// @typedef FilesystemCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
