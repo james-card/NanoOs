@@ -214,10 +214,10 @@ int exFatProcessSeekFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    //// returnValue = exFatSeek(driverState,
-    ////   (ExFatFileHandle*) filesystemSeekParameters->stream->file,
-    ////   filesystemSeekParameters->offset,
-    ////   filesystemSeekParameters->whence);
+    returnValue = exFatSeek(driverState,
+      (ExFatFileHandle*) filesystemSeekParameters->stream->file,
+      filesystemSeekParameters->offset,
+      filesystemSeekParameters->whence);
   }
 
   NanoOsMessage *nanoOsMessage
