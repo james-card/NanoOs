@@ -181,6 +181,8 @@ int32_t exFatRead(
 int32_t exFatWrite(
   ExFatDriverState* driverState, void* ptr, uint32_t length,
   ExFatFileHandle* file);
+int exFatFclose(
+  ExFatDriverState* driverState, ExFatFileHandle* exFatFile);
 
 #ifdef __cplusplus
 } // extern "C"

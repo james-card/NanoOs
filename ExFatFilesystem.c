@@ -2174,3 +2174,56 @@ int32_t exFatWrite(
   return (int32_t) bytesWritten;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Close an exFAT file and release resources
+///
+/// Flushes any pending metadata updates to the directory entry and frees
+/// the file handle structure. If the file was opened for writing, the
+/// directory entry is updated with the final file size and timestamps.
+///
+/// @param driverState Pointer to the exFAT driver state
+/// @param exFatFile Pointer to the file handle to close
+///
+/// @return 0 on success, negative errno on failure
+///////////////////////////////////////////////////////////////////////////////
+int exFatFclose(
+  ExFatDriverState* driverState, ExFatFileHandle* exFatFile
+) {
+  if ((driverState == NULL) || (exFatFile == NULL)) {
+    return -EINVAL;
+  }
+
+  if (!driverState->driverStateValid) {
+    return -EINVAL;
+  }
+
+  int returnValue = 0;
+
+  // If file was opened for writing, flush metadata to directory entry
+  // This ensures file size, timestamps, and cluster information are updated
+  if (exFatFile->canWrite) {
+    int result = updateDirectoryEntry(driverState, exFatFile);
+    if (result != EXFAT_SUCCESS) {
+      // Convert exFAT error codes to errno values
+      if (result == EXFAT_NO_MEMORY) {
+        returnValue = -ENOMEM;
+      } else if (result == EXFAT_INVALID_PARAMETER) {
+        returnValue = -EINVAL;
+      } else {
+        returnValue = -EIO;
+      }
+      
+      // Log warning but continue with close to avoid resource leak
+      printString("WARNING: Failed to flush file metadata on close\n");
+      printString("  File: ");
+      printString(exFatFile->fileName);
+      printString("\n");
+    }
+  }
+
+  // Free the file handle structure
+  free(exFatFile);
+
+  return returnValue;
+}
+
