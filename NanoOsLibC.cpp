@@ -814,6 +814,10 @@ const char *errorStrings[] = {
   "Permission denied",
   "Invalid argument",
   "I/O error",
+  "No space left on device",
+  "No such entry found",
+  "Directory not empty",
+  "Overflow detected",
 };
 
 /// @var NUM_ERRORS
