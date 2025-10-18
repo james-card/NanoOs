@@ -129,9 +129,11 @@ typedef unsigned long long int NanoOsMessageData;
 ///
 /// @brief Definition of the FILE structure used internally to NanoOs.
 ///
-/// @param file TODO Placeholder for file data.
+/// @param file Pointer to the real file metadata.
+/// @param currentPosition The current position within the file.
 typedef struct NanoOsFile {
   void *file;
+  uint32_t  currentPosition;
 } NanoOsFile;
 
 /// @struct IoPipe
