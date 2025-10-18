@@ -50,6 +50,9 @@
 
 #endif // OS-specific imports
 
+// Include our own header.
+#include "Link.h"
+
 // Header offsets and sizes
 #define HEADER_SIZE 0x0000004C
 #define OFFSET_HEADER_SIZE 0
