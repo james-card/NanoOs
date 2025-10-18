@@ -79,6 +79,12 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  if (strcmp(argv[2], ".") == 0) {
+    // Tell the function to just create a file of the same name in the current
+    // directory.
+    argv[2] = NULL;
+  }
+
   if (makeLink(argv[1], argv[2]) != 0) {
     fprintf(stderr, "Link creation failed.\n");
     return 1;
