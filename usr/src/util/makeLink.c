@@ -48,13 +48,13 @@ void usage(const char *argv0) {
     programName = lastSlashAt + 1;
   }
 
-  fprintf(stderr, "Usage: %s <source> <destination>\n", programName);
+  fprintf(stderr, "Usage: %s <target> <link file>\n", programName);
   fprintf(stderr, "\n");
   fprintf(stderr, "Create a link to the source at the destination.\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "Arguments:\n");
-  fprintf(stderr, "- source: The path the the file to link to.\n");
-  fprintf(stderr, "- destination: the path to the file to link from.\n");
+  fprintf(stderr, "- target: The path the the file to link to.\n");
+  fprintf(stderr, "- link file: the path to the file to link from.\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "If the destination ends in a '/' then a link with the\n");
   fprintf(stderr, "same filename as the source will be created in the\n");
