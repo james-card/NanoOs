@@ -28,7 +28,7 @@ WARNINGS := \
     -Wextra \
     -Werror \
 
-all: $(EXE_DIR)/makeLink
+all: $(EXE_DIR)/makeLink $(EXE_DIR)/getTarget
 
 $(EXE_DIR)/%: $(COMMON_FILES) %.c
 	@$(MKDIR) $(EXE_DIR)
