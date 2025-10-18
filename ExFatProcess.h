@@ -20,13 +20,6 @@ extern "C"
 {
 #endif
 
-// Function declarations
-long exFatProcessFTell(FILE *stream);
-#ifdef ftell
-#undef ftell
-#endif // ftell
-#define ftell exFatProcessFTell
-
 void* runExFatFilesystem(void *args);
 
 #ifdef __cplusplus
