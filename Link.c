@@ -33,6 +33,23 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#if defined(__linux__) || defined(__linux) || defined(_WIN32)
+
+// We're on a "real" OS.
+#include <stdio.h>
+#include <stdlib.h>
+
+#else
+
+// We're compiling from within NanoOs.
+#include "Filesystem.h"
+
+#endif // OS-specific imports
+
 // Header offsets and sizes
 #define HEADER_SIZE 0x0000004C
 #define OFFSET_HEADER_SIZE 0
