@@ -186,6 +186,14 @@ size_t filesystemFWrite(
 #define rewind(stream) \
   (void) fseek(stream, 0L, SEEK_SET)
 
+/// @def ftell
+///
+/// @brief Function macro to get the current position of a file stream.
+///
+/// @param stream A pointer to a previously-opened FILE object.
+#define ftell(stream) \
+  (long) stream->currentPosition
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
