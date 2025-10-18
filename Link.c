@@ -112,7 +112,7 @@ static const uint8_t SHELL_LINK_CLSID[LINK_CLSID_SIZE] = {
 };
 
 // Helper functions for writing little-endian values to buffer
-static void writeUint32ToLeBuffer(uint8_t *buffer, size_t offset, uint32_t val) {
+void writeUint32ToLeBuffer(uint8_t *buffer, size_t offset, uint32_t val) {
   buffer[offset] = val & 0xFF;
   buffer[offset + 1] = (val >> 8) & 0xFF;
   buffer[offset + 2] = (val >> 16) & 0xFF;
@@ -120,11 +120,11 @@ static void writeUint32ToLeBuffer(uint8_t *buffer, size_t offset, uint32_t val) 
 }
 
 // Helper functions for reading little-endian values from buffer
-static uint16_t readLeUint16FromBuffer(const uint8_t *buffer, size_t offset) {
+uint16_t readLeUint16FromBuffer(const uint8_t *buffer, size_t offset) {
   return buffer[offset] | (buffer[offset + 1] << 8);
 }
 
-static uint32_t readLeUint32FromBuffer(const uint8_t *buffer, size_t offset) {
+uint32_t readLeUint32FromBuffer(const uint8_t *buffer, size_t offset) {
   return buffer[offset]
     | (buffer[offset + 1] << 8)
     | (buffer[offset + 2] << 16)
@@ -138,7 +138,7 @@ static uint32_t readLeUint32FromBuffer(const uint8_t *buffer, size_t offset) {
 /// @param path Full path to a file.
 ///
 /// @return Returns just the filename portion of the path.
-static const char* getFilename(const char *path) {
+const char* getFilename(const char *path) {
   const char *lastSlash = strrchr(path, '/');
   const char *lastBackslash = strrchr(path, '\\');
   const char *filename = path;
@@ -159,7 +159,7 @@ static const char* getFilename(const char *path) {
 /// @param buffer A pointer to a buffer of bytes to write the header into.
 ///
 /// @return This function returns no value.
-static void writeHeaderToBuffer(uint8_t *buffer) {
+void writeHeaderToBuffer(uint8_t *buffer) {
   // Header size
   writeUint32ToLeBuffer(buffer, OFFSET_HEADER_SIZE, HEADER_SIZE);
   
@@ -214,7 +214,7 @@ static void writeHeaderToBuffer(uint8_t *buffer) {
 /// @param path The path to the file to link to.
 ///
 /// @return This function returns no value.
-static void writeLinkInfoToBuffer(
+void writeLinkInfoToBuffer(
   uint8_t *buffer, size_t offset, const char *path
 ) {
   size_t pathLen = strlen(path) + 1;  // Include null terminator
