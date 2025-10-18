@@ -40,6 +40,7 @@ int exFatProcessOpenFileCommandHandler(
     if (exFatFile != NULL) {
       nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
       nanoOsFile->file = exFatFile;
+      nanoOsFile->currentPosition = exFatFile->currentPosition;
     }
   }
 
@@ -104,10 +105,11 @@ int exFatProcessReadFileCommandHandler(
       // Make sure we don't overflow the maximum value of a signed 32-bit int.
       length = 0x7fffffff;
     }
+    NanoOsFile *nanoOsFile = filesystemIoCommandParameters->file;
+    ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
     returnValue = exFatRead(driverState,
-      filesystemIoCommandParameters->buffer,
-      length, 
-      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+      filesystemIoCommandParameters->buffer, length, exFatFile);
+    nanoOsFile->currentPosition = exFatFile->currentPosition;
     if (returnValue >= 0) {
       // Return value is the number of bytes read.  Set the length variable to
       // it and set it to 0 to indicate good status.
@@ -148,10 +150,12 @@ int exFatProcessWriteFileCommandHandler(
       // Make sure we don't overflow the maximum value of a signed 32-bit int.
       length = 0x7fffffff;
     }
+    NanoOsFile *nanoOsFile = filesystemIoCommandParameters->file;
+    ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
     returnValue = exFatWrite(driverState,
       filesystemIoCommandParameters->buffer,
-      length,
-      (ExFatFileHandle*) filesystemIoCommandParameters->file->file);
+      length, exFatFile);
+    nanoOsFile->currentPosition = exFatFile->currentPosition;
     if (returnValue >= 0) {
       // Return value is the number of bytes written.  Set the length variable
       // to it and set it to 0 to indicate good status.
@@ -214,10 +218,12 @@ int exFatProcessSeekFileCommandHandler(
     = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
-    returnValue = exFatSeek(driverState,
-      (ExFatFileHandle*) filesystemSeekParameters->stream->file,
+    NanoOsFile *nanoOsFile = filesystemSeekParameters->stream;
+    ExFatFileHandle *exFatFile = (ExFatFileHandle*) nanoOsFile->file;
+    returnValue = exFatSeek(driverState, exFatFile,
       filesystemSeekParameters->offset,
       filesystemSeekParameters->whence);
+    nanoOsFile->currentPosition = exFatFile->currentPosition;
   }
 
   NanoOsMessage *nanoOsMessage
@@ -295,21 +301,5 @@ void* runExFatFilesystem(void *args) {
     }
   }
   return NULL;
-}
-
-/// @fn long exFatProcessFTell(FILE *stream)
-///
-/// @brief Get the current value of the position indicator of a
-/// previously-opened file.
-///
-/// @param stream A pointer to a previously-opened file.
-///
-/// @return Returns the current position of the file on success, -1 on failure.
-long exFatProcessFTell(FILE *stream) {
-  if (stream == NULL) {
-    return -1;
-  }
-
-  return (long) ((ExFatFileHandle*) stream->file)->currentPosition;
 }
 
