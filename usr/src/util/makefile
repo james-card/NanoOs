@@ -1,4 +1,5 @@
-CC       := g++ -std=gnu++17
+#CC       := g++ -std=gnu++17
+CC       := gcc -std=gnu17
 MAKEFILE := makefile
 OBJ_DIR := ../../obj
 EXE_DIR := ../../exe
