@@ -142,30 +142,30 @@ const char* getFilename(const char *path) {
   return filename;
 }
 
-/// @fn int makeLink(const char *src, const char *dst)
+/// @fn int makeLink(const char *target, const char *linkFile)
 ///
 /// @brief Make a link to a source file on the filesystem from a specified
 /// location.
 ///
-/// @param src The target of the link.
-/// @param dst The path to the new link on the filesystem.
+/// @param target The target of the link.
+/// @param linkFile The path to the new link on the filesystem.
 ///
 /// @return Returns 0 on success, -1 on error.
-int makeLink(const char *src, const char *dst) {
-  if (src == NULL) {
+int makeLink(const char *target, const char *linkFile) {
+  if (target == NULL) {
     return -1;
   }
   
   // Determine output filename
   char *outputPath = NULL;
-  size_t dstLength = 0;
-  if (dst != NULL) {
-    dstLength = strlen(dst);
+  size_t linkFileLength = 0;
+  if (linkFile != NULL) {
+    linkFileLength = strlen(linkFile);
   }
   
-  if (dstLength == 0) {
-    // Place in current directory with src filename + .lnk
-    const char *filename = getFilename(src);
+  if (linkFileLength == 0) {
+    // Place in current directory with target filename + .lnk
+    const char *filename = getFilename(target);
     if (filename == NULL) {
       return -1;
     }
@@ -176,31 +176,31 @@ int makeLink(const char *src, const char *dst) {
     }
     strcpy(outputPath, filename);
     strcat(outputPath, ".lnk");
-  } else if (dst[dstLength - 1] == '/') {
-    // Place in specified directory with src filename + .lnk
-    const char *filename = getFilename(src);
+  } else if (linkFile[linkFileLength - 1] == '/') {
+    // Place in specified directory with target filename + .lnk
+    const char *filename = getFilename(target);
     if (filename == NULL) {
       return -1;
     }
     
-    outputPath = (char*) malloc(strlen(dst) + strlen(filename) + 5);
+    outputPath = (char*) malloc(strlen(linkFile) + strlen(filename) + 5);
     if (outputPath == NULL) {
       return -1;
     }
-    strcpy(outputPath, dst);
+    strcpy(outputPath, linkFile);
     strcat(outputPath, filename);
     strcat(outputPath, ".lnk");
   } else {
-    // Use dst as-is
-    outputPath = (char*) malloc(strlen(dst) + 1);
+    // Use linkFile as-is
+    outputPath = (char*) malloc(strlen(linkFile) + 1);
     if (outputPath == NULL) {
       return -1;
     }
-    strcpy(outputPath, dst);
+    strcpy(outputPath, linkFile);
   }
   
   // Calculate total buffer size needed
-  size_t pathLen = strlen(src) + 1;
+  size_t pathLen = strlen(target) + 1;
   if (pathLen > 255) {
     // Path too long.  We can't store this in version 1.
     free(outputPath);
@@ -242,12 +242,12 @@ int makeLink(const char *src, const char *dst) {
     = pathLen + LINK_CHECKSUM_SIZE;
 
   // Path contents.
-  memcpy(&buffer[LINK_VERSION1_PATH_INDEX], src, pathLen);
+  memcpy(&buffer[LINK_VERSION1_PATH_INDEX], target, pathLen);
   
   // Checksum.
   uint16_t checksum = 0;
   for (size_t ii = 0; ii < pathLen; ii++) {
-    checksum += (uint16_t) src[ii];
+    checksum += (uint16_t) target[ii];
   }
   memcpy(&buffer[LINK_VERSION1_PATH_INDEX + pathLen],
     &checksum, sizeof(checksum));
@@ -270,7 +270,7 @@ int makeLink(const char *src, const char *dst) {
   return (written == totalSize) ? 0 : -1;
 }
 
-/// @fn char* getLink(const char *initialLink)
+/// @fn char* getTarget(const char *initialLink)
 ///
 /// @brief Extract the linked file path from a link file.
 ///
@@ -278,7 +278,7 @@ int makeLink(const char *src, const char *dst) {
 ///
 /// @return Returns a dynamically-allocated C string with the link target path
 /// on success, NULL on failure.
-char* getLink(const char *initialLink) {
+char* getTarget(const char *initialLink) {
   if (initialLink == NULL) {
     return NULL;
   }

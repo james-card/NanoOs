@@ -39,8 +39,8 @@ extern "C"
 {
 #endif
 
-int makeLink(const char *src, const char *dst);
-char* getLink(const char *linkFile);
+int makeLink(const char *target, const char *linkFile);
+char* getTarget(const char *linkFile);
 
 #ifdef __cplusplus
 } // extern "C"
