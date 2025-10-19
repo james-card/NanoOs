@@ -91,5 +91,11 @@
 #define fgets(buffer, size, stream) \
   overlayMap.header.stdCApi->fgets(buffer, size, stream)
 
+// Direct I/O:
+#define fread(ptr, size, nmemb, stream) \
+  overlayMap.header.stdCApi->fread(ptr, size, nmemb, stream)
+#define fwrite(ptr, size, nmemb, stream) \
+  overlayMap.header.stdCApi->fwrite(ptr, size, nmemb, stream)
+
 #endif // STDIO_H
 
