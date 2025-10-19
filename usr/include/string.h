@@ -41,33 +41,33 @@
 
 // Copying functions:
 #define memcpy(dest, src, n) \
-  overlayMap.header.stdCApi->memcpy(dest, src, n)
+  overlayMap.header.unixApi->memcpy(dest, src, n)
 #define memmove(dest, src, n) \
-  overlayMap.header.stdCApi->memmove(dest, src, n)
+  overlayMap.header.unixApi->memmove(dest, src, n)
 #define strcpy(dest, src) \
-  overlayMap.header.stdCApi->strcpy(dest, src)
+  overlayMap.header.unixApi->strcpy(dest, src)
 #define strncpy(dest, src, dsize) \
-  overlayMap.header.stdCApi->strncpy(dest, src, dsize)
+  overlayMap.header.unixApi->strncpy(dest, src, dsize)
 #define strcat(dest, src) \
-  overlayMap.header.stdCApi->strcat(dest, src)
+  overlayMap.header.unixApi->strcat(dest, src)
 #define strncat(dest, src, ssize) \
-  overlayMap.header.stdCApi->strncat(dest, src, ssize)
+  overlayMap.header.unixApi->strncat(dest, src, ssize)
 
 // Comparison functions:
 #define memcmp(dest, src, n) \
-  overlayMap.header.stdCApi->memcmp(dest, src, n)
+  overlayMap.header.unixApi->memcmp(dest, src, n)
 #define strcmp(dest, src) \
-  overlayMap.header.stdCApi->strcmp(dest, src)
+  overlayMap.header.unixApi->strcmp(dest, src)
 #define strncmp(dest, src, n) \
-  overlayMap.header.stdCApi->strncmp(dest, src, n)
+  overlayMap.header.unixApi->strncmp(dest, src, n)
 
 // Miscellaaneous string functions:
 #define memset(s, c, n) \
-  overlayMap.header.stdCApi->memset(s, c, n)
+  overlayMap.header.unixApi->memset(s, c, n)
 #define strerror(errnum) \
-  overlayMap.header.stdCApi->strerror(errnum)
+  overlayMap.header.unixApi->strerror(errnum)
 #define strlen(s) \
-  overlayMap.header.stdCApi->strlen(s)
+  overlayMap.header.unixApi->strlen(s)
 
 #endif // STRING_H
 

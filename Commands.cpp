@@ -35,7 +35,7 @@
 #include "Commands.h"
 #include "Console.h"
 #include "Scheduler.h"
-#include "NanoOsStdCApi.h"
+#include "NanoOsUnixApi.h"
 #include "NanoOsOverlay.h"
 
 // Defined at the bottom of this file:

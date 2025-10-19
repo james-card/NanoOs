@@ -29,7 +29,7 @@
 /// @file
 
 #include "Commands.h"
-#include "NanoOsStdCApi.h"
+#include "NanoOsUnixApi.h"
 #include "NanoOsOverlay.h"
 
 /// @fn int loadOverlay(const char *overlayPath)
@@ -68,7 +68,7 @@ int loadOverlay(const char *overlayPath) {
     return -(EEND + 2);
   }
   // Set the standard C API pointer for the overlay.
-  overlayMap->header.stdCApi = &nanoOsStdCApi;
+  overlayMap->header.unixApi = &nanoOsUnixApi;
   
   return 0;
 }

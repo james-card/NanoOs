@@ -28,7 +28,7 @@
 // Doxygen marker
 /// @file
 
-#include "NanoOsStdCApi.h"
+#include "NanoOsUnixApi.h"
 #include "NanoOs.h"
 
 #undef stdin
@@ -51,7 +51,7 @@
 #undef fwrite
 #undef strerror
 
-NanoOsStdCApi nanoOsStdCApi = {
+NanoOsUnixApi nanoOsUnixApi = {
   // Standard streams:
   .stdin = nanoOsStdin,
   .stdout = nanoOsStdout,

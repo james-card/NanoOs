@@ -3,10 +3,10 @@
 /// @author            James Card
 /// @date              09.01.2025
 ///
-/// @file              NanoOsStdCApi.h
+/// @file              NanoOsUnixApi.h
 ///
-/// @brief             Functionality from the standard C API that is to be
-///                    exported to user programs.
+/// @brief             Functionality from Single Unix Specification API that is
+///                    to be exported to user programs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -34,8 +34,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef NANO_OS_STD_C_API_H
-#define NANO_OS_STD_C_API_H
+#ifndef NANO_OS_UNIX_API_H
+#define NANO_OS_UNIX_API_H
 
 #undef FILE
 
@@ -54,7 +54,7 @@ extern "C"
 {
 #endif
 
-typedef struct NanoOsStdCApi {
+typedef struct NanoOsUnixApi {
   // Standard streams:
   FILE *stdin;
   FILE *stdout;
@@ -112,13 +112,13 @@ typedef struct NanoOsStdCApi {
   void* (*memset)(void *s, int c, size_t n);
   char* (*strerror)(int errnum);
   size_t (*strlen)(const char *s);
-} NanoOsStdCApi;
+} NanoOsUnixApi;
 
-extern NanoOsStdCApi nanoOsStdCApi;
+extern NanoOsUnixApi nanoOsUnixApi;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // NANO_OS_STD_C_API_H
+#endif // NANO_OS_UNIX_API_H
 
