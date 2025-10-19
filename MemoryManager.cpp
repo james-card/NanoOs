@@ -81,6 +81,59 @@ extern "C"
 {
 #endif
 
+/// @fn void localFree(MemoryManagerState *memoryManagerState, void *ptr)
+///
+/// @brief Free a previously-allocated block of memory.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param ptr A pointer to the block of memory to free.
+///
+/// @return This function always succeeds and returns no value.
+void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
+  char *charPointer = (char*) ptr;
+  
+  if (isDynamicPointer(ptr)) {
+    // This is memory that was previously allocated from one of our allocators.
+    
+    // Check the size of the memory in case someone tries to free the same
+    // pointer more than once.
+    if (sizeOfMemory(ptr) > 0) {
+      // Give our space to the block of memory before us.
+      for (MemNode *cur = memNode(ptr)->prev;
+        // If cur->prev is NULL then we're at the head node.  We can't add our
+        // size to that because that has the total size for all of dynamic
+        // memory in it.
+        cur->prev != NULL;
+        cur = cur->prev
+      ) {
+        if (cur->owner != PROCESS_ID_NOT_SET) {
+          cur->size += memNode(charPointer)->size;
+          break;
+        }
+      }
+      
+      // Clear out the size and owner.
+      memNode(charPointer)->size = 0;
+      memNode(charPointer)->owner = PROCESS_ID_NOT_SET;
+      
+      if (charPointer == memoryManagerState->mallocNext) {
+        // Special case.  The value being freed is the last one that was
+        // allocated.  Do memory compaction.
+        for (MemNode *cur = memNode(ptr);
+          (cur != NULL) && (cur->size == 0);
+          cur = cur->prev
+        ) {
+          memoryManagerState->mallocNext = (char*) &cur->prev[1];
+        }
+      }
+    }
+  } // else this is not something we can free.  Ignore it.
+  
+  return;
+}
+
 /// @fn void localFreeProcessMemory(
 ///   MemoryManagerState *memoryManagerState, ProcessId pid)
 ///
@@ -101,8 +154,7 @@ void localFreeProcessMemory(
   // allocated by the process to zero and the pid to PROCESS_ID_NOT_SET.
   for (MemNode *cur = memNode(ptr); cur != NULL; cur = cur->prev) {
     if (cur->owner == pid) {
-      cur->size = 0;
-      cur->owner = PROCESS_ID_NOT_SET;
+      localFree(memoryManagerState, &cur[1]);
     }
   }
   
@@ -114,45 +166,6 @@ void localFreeProcessMemory(
     }
     memoryManagerState->mallocNext = (char*) &cur->prev[1];
   }
-  
-  return;
-}
-
-/// @fn void localFree(MemoryManagerState *memoryManagerState, void *ptr)
-///
-/// @brief Free a previously-allocated block of memory.
-///
-/// @param memoryManagerState A pointer to the MemoryManagerState
-///   structure that holds the values used for memory allocation and
-///   deallocation.
-/// @param ptr A pointer to the block of memory to free.
-///
-/// @return This function always succeeds and returns no value.
-void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
-  char *charPointer = (char*) ptr;
-  
-  if (isDynamicPointer(ptr)) {
-    // This is memory that was previously allocated from one of our allocators.
-    
-    // Check the size of the memory in case someone tries to free the same
-    // pointer more than once.
-    if (sizeOfMemory(ptr) > 0) {
-      // Clear out the size.
-      memNode(charPointer)->size = 0;
-      memNode(charPointer)->owner = PROCESS_ID_NOT_SET;
-      
-      if (charPointer == memoryManagerState->mallocNext) {
-        // Special case.  The value being freed is the last one that was
-        // allocated.  Do memory compaction.
-        for (MemNode *cur = memNode(ptr);
-          (cur != NULL) && (cur->size == 0);
-          cur = cur->prev
-        ) {
-          memoryManagerState->mallocNext = (char*) &cur->prev[1];
-        }
-      }
-    }
-  } // else this is not something we can free.  Ignore it.
   
   return;
 }
