@@ -76,7 +76,7 @@
  * running coroutine calling coroutineYield to yield control back to its caller
  * and a calling function calling coroutineResume to resume execution in the
  * called coroutine from the point at which the coroutine made its last
- * coroutineYield call (or from the beginning of the function if the funcion has
+ * coroutineYield call (or from the beginning of the function if the function has
  * not yet begun execution).
  *
  * coroutineInit, coroutineMain, coroutineResume, and coroutineYield make use
@@ -110,7 +110,7 @@
  * means that the memory in those stacks will be touched during this process.
  * Effectively, the first time that coroutineInit is called, a little over 2X
  * the stack size provided to coroutineConfig is touched.  This can result in
- * a nasty surprise (i.e. a crash) in severly memory-constrained environments.
+ * a nasty surprise (i.e. a crash) in severely memory-constrained environments.
  *
  * One requirement of this system is that all the stacks must be the same size.
  * The stack size provided to coroutineConfig cannot be changed once the first
@@ -152,7 +152,7 @@ int comessageQueueDestroy(Coroutine *coroutine);
 #define ZEROINIT(x) x = {0}
 #endif // __cplusplus
 
-// Use statically-allocated global variables for use wihtout threading.
+// Use statically-allocated global variables for use without threading.
 
 /// @var static Coroutine *_globalFirst
 ///
@@ -318,7 +318,7 @@ static once_flag _threadMetadataSetup = ONCE_FLAG_INIT;
 
 /// @fn void coroutineSetupThreadMetadata(void)
 ///
-/// @brief Setup the global thread-specefic storage needed for this library.
+/// @brief Setup the global thread-specific storage needed for this library.
 ///
 /// @return This function returns no value.
 void coroutineSetupThreadMetadata(void) {
@@ -552,7 +552,7 @@ CoroutineFuncData coroutinePass(Coroutine *currentCoroutine, CoroutineFuncData a
 ///   passed as the coroutine's parameter on the first call to coroutineResume
 ///   for the coroutine.
 ///
-/// @return If the coroutine is resuamable, returns the value provided to the
+/// @return If the coroutine is resumable, returns the value provided to the
 ///   yield call from within the coroutine or the coroutine's return value if it
 ///   has run to completion.  If the coroutine is not resumable, returns the
 ///   special value COROUTINE_NOT_RESUMABLE.
@@ -794,12 +794,12 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
   // We need to run coroutineResume() and pass in the function pointer we were
   // provided as the argument to the coroutine, however coroutineResume() takes
   // a void* as its argument, not a function pointer.  coroutinePass() takes
-  // the union of a data pointer and a funciton pointer, so it's legal to pass
+  // the union of a data pointer and a function pointer, so it's legal to pass
   // a function pointer to that.  So, the logic below is the logic of
   // coroutineResume() with the appropriate variable substitution done so that
-  // we can legally pass a funciton pointer and retrieve the Coroutine pointer.
+  // we can legally pass a function pointer and retrieve the Coroutine pointer.
   // We don't need to do the thread setup logic at the start of the function
-  // since that's done above and we know that coroutine is resuamble, so we
+  // since that's done above and we know that coroutine is resumable, so we
   // can skip that check.
   Coroutine *currentCoroutine = _globalRunning;
 #ifdef THREAD_SAFE_COROUTINES
@@ -834,7 +834,7 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
 /// @brief Coroutine constructor.  This either creates and initializes a new
 /// coroutine or pulls one off the idle list and initializes it.
 /// After the coroutine is initialized with the provided function,
-/// coroutineResume is called with the provided argument to pass the arugment
+/// coroutineResume is called with the provided argument to pass the argument
 /// into the coroutine.
 ///
 /// @note This is mostly for compatibility with thrd_create in the C threads
@@ -1134,7 +1134,7 @@ void coroutineAllocateStack(int stackSize) {
 
 /// @fn int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes)
 ///
-/// @brief Kill a coroutine that's currently in progresss.
+/// @brief Kill a coroutine that's currently in progress.
 ///
 /// @param targetCoroutine A pointer to the Coroutine to kill.
 /// @param mutextes A one-dimensional, NULL-terminated array of mutexes to check
@@ -1370,7 +1370,7 @@ bool coroutineThreadingSupportEnabled() {
 /// @param comutexUnlockCallback The callback that is to be used whenever a
 ///   comutex is unlocked.  This parameter may be NULL.
 /// @param coconditionSignalCallback The callback that is to be used whenever
-///   a coconditon is signalled.  This parameter may be NULL.
+///   a cocondition is signalled.  This parameter may be NULL.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on error.
 int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
@@ -1406,7 +1406,7 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
 #ifdef THREAD_SAFE_COROUTINES
   if (_coroutineThreadingSupportEnabled) {
     if (tss_get(_tssFirst) != NULL) {
-      // coroutineConfig weas already called once.  Everything has already been
+      // coroutineConfig was already called once.  Everything has already been
       // configured, so we just need to reset _tssFirst and _tssRunning.
       if (first != NULL) {
         int status = tss_set(_tssFirst, first);
@@ -1584,7 +1584,7 @@ int comutexLock(Comutex *mtx) {
 ///
 /// @brief Unlock a previously-locked coroutine mutex.
 ///
-/// @param mtx A pointer to the he coroutine mutex to unlock.
+/// @param mtx A pointer to the coroutine mutex to unlock.
 ///
 /// @return Returns coroutineSuccess if the currently-running coroutine has the
 /// lock, coroutineError otherwise.  If the currently-running coroutine has the
@@ -1645,7 +1645,7 @@ int comutexUnlock(Comutex *mtx) {
 ///
 /// @brief Destroy a previously-initialized coroutine mutex.
 ///
-/// @param mtx A pointer to the mutex to destory.
+/// @param mtx A pointer to the mutex to destroy.
 ///
 /// @return This function returns no value.
 void comutexDestroy(Comutex *mtx) {
@@ -1664,7 +1664,7 @@ void comutexDestroy(Comutex *mtx) {
 /// @brief Attempt to lock a coroutine mutex until the lock is acquired or a
 /// specified time is reached, whichever comes first.
 ///
-/// @param mtx A pointer to the mutex to destory.
+/// @param mtx A pointer to the mutex to destroy.
 /// @param ts A pointer to a struct timespec instance that specifies the future
 ///   deadline for abandoning attempts to lock the mutex.
 ///
@@ -1754,7 +1754,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
 ///
 /// @return Returns coroutineSuccess if the mutex is unlocked or if the current
 /// coroutine has the lock and the mutex is recursive, coroutineBusy if the
-/// mutex is locked by antoher coroutine, and coroutineError under any other
+/// mutex is locked by another coroutine, and coroutineError under any other
 /// conditions.
 int comutexTryLock(Comutex *mtx) {
   if (mtx == NULL) {
@@ -1901,7 +1901,7 @@ int coconditionInit(Cocondition* cond) {
 
 /// @fn int coconditionSignal(Cocondition *cond)
 ///
-/// @brief Signal a single coroutiune blocked on a condition.
+/// @brief Signal a single coroutine blocked on a condition.
 ///
 /// @param cond A pointer to the coroutine condition to signal.
 ///
@@ -1943,7 +1943,7 @@ int coconditionSignal(Cocondition *cond) {
 
 /// @fn int coconditionTimedWait(Cocondition* cond, Comutex* mtx, const struct timespec* ts)
 ///
-/// @brief WaitFor for a condition to be signalled or until a specified time,
+/// @brief Wait for a condition to be signalled or until a specified time,
 /// whichever comes first.
 ///
 /// @param cond A pointer to the condition to wait on.
@@ -2058,7 +2058,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
 
 /// @fn int coconditionWait(Cocondition* cond, Comutex* mtx)
 ///
-/// @brief WaitFor for the specified condition to be signalled.
+/// @brief Wait for the specified condition to be signalled.
 ///
 /// @param cond A pointer to the condition to wait on.
 /// @param mtx A mutex for the condition that must be locked before this call
@@ -2140,7 +2140,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
 ///
 /// @brief Retrieve the last value yielded to a condition wait call.
 ///
-/// @returns The last value yielded on the conditon on success, NULL if the
+/// @returns The last value yielded on the condition on success, NULL if the
 /// provided condition pointer is NULL.
 void* coconditionLastYieldValue(Cocondition* cond) {
   void *returnValue = NULL;
@@ -2156,7 +2156,7 @@ void* coconditionLastYieldValue(Cocondition* cond) {
 ///
 /// @brief Initialize the message queue for the specified coroutine.
 ///
-/// @param coroutine A pointer to the coroutien to initialize the queue of.
+/// @param coroutine A pointer to the coroutine to initialize the queue of.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
 int comessageQueueCreate(Coroutine *coroutine) {
@@ -2269,7 +2269,7 @@ msg_t* msg_q_wait_for_type_(msg_q_t *queue, int64_t *type,
 ///
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
-/// within that time period or if an error occurrs.
+/// within that time period or if an error occurs.
 msg_t* comessageQueueWait(const struct timespec *ts) {
   msg_t *returnValue = NULL;
 
@@ -2293,7 +2293,7 @@ msg_t* comessageQueueWait(const struct timespec *ts) {
 ///
 /// @return Returns the first message of the provided type if one is available
 /// before the specified time.  Returns NULL if no such message is available
-/// within that time period or if an error occurrs.
+/// within that time period or if an error occurs.
 msg_t* comessageQueueWaitForType(int64_t type, const struct timespec *ts) {
   msg_t *returnValue = NULL;
 
