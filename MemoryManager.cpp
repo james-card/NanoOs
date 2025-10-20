@@ -100,20 +100,6 @@ void localFree(MemoryManagerState *memoryManagerState, void *ptr) {
     // Check the size of the memory in case someone tries to free the same
     // pointer more than once.
     if (sizeOfMemory(ptr) > 0) {
-      // Give our space to the block of memory before us.
-      for (MemNode *cur = memNode(ptr)->prev;
-        // If cur->prev is NULL then we're at the head node.  We can't add our
-        // size to that because that has the total size for all of dynamic
-        // memory in it.
-        cur->prev != NULL;
-        cur = cur->prev
-      ) {
-        if (cur->owner != PROCESS_ID_NOT_SET) {
-          cur->size += memNode(charPointer)->size;
-          break;
-        }
-      }
-      
       // Clear out the size and owner.
       memNode(charPointer)->size = 0;
       memNode(charPointer)->owner = PROCESS_ID_NOT_SET;
