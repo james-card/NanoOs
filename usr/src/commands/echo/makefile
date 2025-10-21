@@ -19,6 +19,8 @@ CFLAGS += -ffunction-sections -fdata-sections
 
 # Linker flags
 LDFLAGS = -T ../../NanoOs.ld --gc-sections
+LINKS := \
+    $(COMMAND_LINE_LINKS)
 
 # Source and target files
 TARGET = echo
@@ -53,7 +55,7 @@ $(BINARY): $(ELF)
 $(ELF): $(OBJECTS)
 	@echo "Linking: $@"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(LD) $(LDFLAGS) $(OBJECTS) -o $@
+	$(LD) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
 	$(SIZE) $@
 
 # Compile object file
