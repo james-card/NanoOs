@@ -83,12 +83,15 @@ typedef struct NanoOsOverlayExport {
 /// @param callOverlayFunction A pointer to the function that allows a function
 ///   in a different overlay to be called.
 /// @param numExports The number of functions exported by the overlay.
+/// @param env The array of NULL-terminated environment variables for the
+///   running program.
 typedef struct NanoOsOverlayHeader {
   uint64_t magic;         // Must be NANO_OS_OVERLAY_MAGIC
   uint32_t version;
   NanoOsUnixApi *unixApi;
   void* (*callOverlayFunction)(void*);
   uint16_t numExports;
+  char **env;
 } NanoOsOverlayHeader;
 
 /// @struct NanoOsOverlayMap
