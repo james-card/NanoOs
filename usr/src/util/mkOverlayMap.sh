@@ -26,6 +26,7 @@ echo '    .version = (0 << 24) | (0 << 16) | (1 << 8) | (0 << 0),' >> OverlayMap
 echo '    .unixApi = NULL,' >> OverlayMap.c
 echo '    .callOverlayFunction = NULL,' >> OverlayMap.c
 echo '    .numExports = sizeof(exports) / sizeof(exports[0]),' >> OverlayMap.c
+echo '    .env = NULL,' >> OverlayMap.c
 echo '  },' >> OverlayMap.c
 echo '  .exports = exports,' >> OverlayMap.c
 echo '};' >> OverlayMap.c
