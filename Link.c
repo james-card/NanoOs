@@ -376,6 +376,11 @@ char* getTarget(const char *initialLink) {
       }
     }
     
+    if (strcmp(targetPath, finalTarget) == 0) {
+       // We're in an infinite loop.  The finalTarget is already correct.
+       break;
+     }
+    
     check = realloc(finalTarget, strlen(targetPath) + 1);
     if (check == NULL) {
       // Out of memory.  Cannot continue.
