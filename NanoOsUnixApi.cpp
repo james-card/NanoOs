@@ -109,5 +109,8 @@ NanoOsUnixApi nanoOsUnixApi = {
   .memset = memset,
   .strerror = nanoOsStrError,
   .strlen = strlen,
+  
+  // Other stdlib functions:
+  .getenv = nanoOsGetenv,
 };
 

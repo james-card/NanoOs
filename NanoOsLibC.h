@@ -34,6 +34,9 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+//// #define NANO_OS_DEBUG
+#include "NanoOsStdio.h"
+
 /*
  * This file is included by Coroutines.h to provide functionality missing from
  * the Arduino C implementation and to provide some debugging tools when
@@ -43,11 +46,7 @@
 #ifndef NANO_OS_LIB_C_H
 #define NANO_OS_LIB_C_H
 
-#undef FILE
-
 // Standard C includes
-#define FILE C_FILE
-#include <stdio.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <stdarg.h>
@@ -56,31 +55,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#undef FILE
-
-#define FILE NanoOsFile
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-typedef struct NanoOsFile NanoOsFile;
-
-#ifdef stdin
-#undef stdin
-#endif // stdin
-#define stdin nanoOsStdin
-
-#ifdef stdout
-#undef stdout
-#endif // stdout
-#define stdout nanoOsStdout
-
-#ifdef stderr
-#undef stderr
-#endif // stderr
-#define stderr nanoOsStderr
 
 /// @def SINGLE_CORE_COROUTINES
 ///
@@ -147,45 +126,6 @@ int timespec_get(struct timespec* spec, int base);
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
 
 
-//// #define NANO_OS_DEBUG
-#ifdef NANO_OS_DEBUG
-
-/// @def startDebugMessage
-///
-/// @brief Print a non-newline-terminated debug message.
-#define startDebugMessage(message) \
-  printString("["); \
-  printULong(getElapsedMilliseconds(0)); \
-  printString(" Process "); \
-  printUInt(coroutineId(getRunningCoroutine())); \
-  printString(" "); \
-  printString((strrchr(__FILE__, '/') + 1)); \
-  printString(":"); \
-  printString(__func__); \
-  printString("."); \
-  printULong(__LINE__); \
-  printString("] "); \
-  printString(message);
-
-/// @def printDebugStackDepth()
-///
-/// @brief Print the depth of the current coroutine stack.
-#define printDebugStackDepth() \
-  do { \
-    char temp; \
-    printString("Stack depth: "); \
-    printInt(ABS_DIFF((uintptr_t) &temp, (uintptr_t) getRunningCoroutine())); \
-    printString("\n"); \
-  } while (0)
-
-#else // NANO_OS_DEBUG
-
-#define startDebugMessage(message) {}
-#define printDebugStackDepth() {}
-
-#endif // NANO_OS_DEBUG
-
-
 // The errors defined by the compiler's version of errno.h are not helpful
 // because most things are defined to be ENOERR.  So, we need to define some of
 // our own.
@@ -200,11 +140,11 @@ int timespec_get(struct timespec* spec, int base);
 #define ENOENT           8      /* No such entry found */
 #define ENOTEMPTY        9      /* Directory not empty */
 #define EOVERFLOW       10      /* Overflow detected */
-#define EEND            11      /* End of error codes */
+#define EFAULT          11      /* Invalid address */
+#define ENAMETOOLONG    12      /* Name too long */
+#define EEND            13      /* End of error codes */
 
 extern int errno;
-
-#define EOF (-1)
 
 typedef void TypeDescriptor;
 
@@ -214,36 +154,8 @@ typedef void TypeDescriptor;
 #define STOP       ((void*) ((intptr_t) -1))
 
 extern const char *boolNames[];
-extern FILE *nanoOsStdin;
-extern FILE *nanoOsStdout;
-extern FILE *nanoOsStderr;
-
-// Debug functions
-int printString_(const char *string);
-#define printString printString_
-int printInt_(int integer);
-#define printInt printInt_
-int printUInt_(unsigned int integer);
-#define printUInt printUInt_
-int printLong_(long int integer);
-#define printLong printLong_
-int printULong_(unsigned long int integer);
-#define printULong printULong_
-int printLongLong_(long long int integer);
-#define printLongLong printLongLong_
-int printULongLong_(unsigned long long int integer);
-#define printULongLong printULongLong_
-int printDouble(double floatingPointValue);
-int printHex_(unsigned long long int integer);
-#define printHex(integer) printHex_((unsigned long long int) integer)
-int printList_(const char *firstString, ...);
-#define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 unsigned long getElapsedMilliseconds(unsigned long startTime);
 void msleep(unsigned int durationMs);
-
-// C-like functions
-int vsscanf(const char *buffer, const char *format, va_list args);
-int sscanf(const char *buffer, const char *format, ...);
 
 char* nanoOsStrError(int errnum);
 #ifdef strerror
@@ -251,61 +163,11 @@ char* nanoOsStrError(int errnum);
 #endif
 #define strerror nanoOsStrError
 
-// Exported IO functions
-
-int nanoOsFPuts(const char *s, FILE *stream);
-#ifdef fputs
-#undef fputs
+char* nanoOsGetenv(const char *name);
+#ifdef getenv
+#undef getenv
 #endif
-#define fputs nanoOsFPuts
-
-int nanoOsPuts(const char *s);
-#ifdef puts
-#undef puts
-#endif
-#define puts nanoOsPuts
-
-int nanoOsVFPrintf(FILE *stream, const char *format, va_list args);
-#ifdef vfprintf
-#undef vfprintf
-#endif
-#define vfprintf nanoOsVFPrintf
-
-int nanoOsFPrintf(FILE *stream, const char *format, ...);
-#ifdef fprintf
-#undef fprintf
-#endif
-#define fprintf nanoOsFPrintf
-
-int nanoOsPrintf(const char *format, ...);
-#ifdef printf
-#undef printf
-#endif
-#define printf nanoOsPrintf
-
-char *nanoOsFGets(char *buffer, int size, FILE *stream);
-#ifdef fgets
-#undef fgets
-#endif
-#define fgets nanoOsFGets
-
-int nanoOsVFScanf(FILE *stream, const char *format, va_list ap);
-#ifdef vfscanf
-#undef vfscanf
-#endif
-#define vfscanf nanoOsVFScanf
-
-int nanoOsFScanf(FILE *stream, const char *format, ...);
-#ifdef fscanf
-#undef fscanf
-#endif
-#define fscanf nanoOsFScanf
-
-int nanoOsScanf(const char *format, ...);
-#ifdef scanf
-#undef scanf
-#endif
-#define scanf nanoOsScanf
+#define getenv(name) nanoOsGetenv(name)
 
 #ifdef __cplusplus
 } // extern "C"

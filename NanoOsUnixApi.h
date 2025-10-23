@@ -43,8 +43,9 @@
 #include <stdarg.h>
 #include <stddef.h>
 #undef FILE
-
-#define FILE NanoOsFile
+#undef stdin
+#undef stdout
+#undef stderr
 
 typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
@@ -112,6 +113,9 @@ typedef struct NanoOsUnixApi {
   void* (*memset)(void *s, int c, size_t n);
   char* (*strerror)(int errnum);
   size_t (*strlen)(const char *s);
+  
+  // Other stdlib functions:
+  char* (*getenv)(const char *name);
 } NanoOsUnixApi;
 
 extern NanoOsUnixApi nanoOsUnixApi;

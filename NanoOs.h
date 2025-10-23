@@ -37,6 +37,7 @@
 #define NANO_OS_H
 
 // Local headers
+#include "NanoOsOverlay.h"
 #include "NanoOsTypes.h"
 #include "Coroutines.h"
 
