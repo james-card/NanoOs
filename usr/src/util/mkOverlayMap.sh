@@ -1,33 +1,35 @@
 #!/bin/bash
 
+outputFile="${1}"
+
 # Include the root header.
-echo '#include "NanoOsUser.h"' > OverlayMap.c
-echo '' >> OverlayMap.c
+echo '#include "NanoOsUser.h"' > "${outputFile}"
+echo '' >> "${outputFile}"
 
 # Grab all the function prototypes.
-grep "^void\* [_a-zA-Z]*(void \*args) {" ${@} | sed -e 's/.*:\(.*\) *{$/\1;/' >> OverlayMap.c
-echo '' >> OverlayMap.c
+grep "^void\* [_a-zA-Z]*(void \*args) {" ${@} | sed -e 's/.*:\(.*\) *{$/\1;/' >> "${outputFile}"
+echo '' >> "${outputFile}"
 
 # Build the exports.
-echo 'NanoOsOverlayExport exports[] = {' >> OverlayMap.c
+echo 'NanoOsOverlayExport exports[] = {' >> "${outputFile}"
 functionNames="$(grep "^void\* [_a-zA-Z]*(void \*args) {" ${@} | sed -e 's/.*:void\* \([_a-zA-Z]*\)(void \*args) {/\1/' | sort)"
 for functionName in ${functionNames}; do
-	echo "  {\"${functionName}\", ${functionName}}," >> OverlayMap.c
+	echo "  {\"${functionName}\", ${functionName}}," >> "${outputFile}"
 done
-echo '};' >> OverlayMap.c
-echo '' >> OverlayMap.c
+echo '};' >> "${outputFile}"
+echo '' >> "${outputFile}"
 
 # Build the map.
-echo '__attribute__((section(".overlay_header")))' >> OverlayMap.c
-echo 'NanoOsOverlayMap overlayMap = {' >> OverlayMap.c
-echo '  .header = {' >> OverlayMap.c
-echo '    .magic = NANO_OS_OVERLAY_MAGIC,' >> OverlayMap.c
-echo '    .version = (0 << 24) | (0 << 16) | (1 << 8) | (0 << 0),' >> OverlayMap.c
-echo '    .unixApi = NULL,' >> OverlayMap.c
-echo '    .callOverlayFunction = NULL,' >> OverlayMap.c
-echo '    .numExports = sizeof(exports) / sizeof(exports[0]),' >> OverlayMap.c
-echo '    .env = NULL,' >> OverlayMap.c
-echo '  },' >> OverlayMap.c
-echo '  .exports = exports,' >> OverlayMap.c
-echo '};' >> OverlayMap.c
+echo '__attribute__((section(".overlay_header")))' >> "${outputFile}"
+echo 'NanoOsOverlayMap overlayMap = {' >> "${outputFile}"
+echo '  .header = {' >> "${outputFile}"
+echo '    .magic = NANO_OS_OVERLAY_MAGIC,' >> "${outputFile}"
+echo '    .version = (0 << 24) | (0 << 16) | (1 << 8) | (0 << 0),' >> "${outputFile}"
+echo '    .unixApi = NULL,' >> "${outputFile}"
+echo '    .callOverlayFunction = NULL,' >> "${outputFile}"
+echo '    .numExports = sizeof(exports) / sizeof(exports[0]),' >> "${outputFile}"
+echo '    .env = NULL,' >> "${outputFile}"
+echo '  },' >> "${outputFile}"
+echo '  .exports = exports,' >> "${outputFile}"
+echo '};' >> "${outputFile}"
 

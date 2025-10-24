@@ -34,7 +34,7 @@ SOURCES = \
 OBJECTS = \
     $(OBJ_DIR)/start.o \
     $(OBJ_DIR)/main.o \
-    $(OBJ_DIR)/OverlayMap.o \
+    $(OBJ_DIR)/$(TARGET)OverlayMap.o \
 
 INCLUDES = \
     -I../../../.. \
@@ -69,9 +69,9 @@ $(OBJ_DIR)/%.o: %.c
 	$(MKDIR) "$(OBJ_DIR)"
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-OverlayMap.c: $(SOURCES)
-	@echo "Creating OverlayMap.c"
-	../../util/mkOverlayMap.sh $(SOURCES)
+$(TARGET)OverlayMap.c: $(SOURCES)
+	@echo "Creating $(TARGET)OverlayMap.c"
+	../../util/mkOverlayMap.sh $(TARGET)OverlayMap.c $(SOURCES)
 
 # Generate disassembly for debugging
 disasm: $(ELF)
@@ -88,7 +88,7 @@ symbols: $(ELF)
 
 # Clean build artifacts
 clean:
-	$(RM) $(OBJECTS) $(ELF) $(BINARY) $(TARGET).dis OverlayMap.c
+	$(RM) $(OBJECTS) $(ELF) $(BINARY) $(TARGET).dis $(TARGET)OverlayMap.c
 
 # Show help
 help:
