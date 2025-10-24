@@ -43,6 +43,7 @@ extern "C"
 #endif
 
 int gethostname(char *name, size_t len);
+int sethostname(const char *name, size_t len);
 
 #define _POSIX_HOST_NAME_MAX 255
 

@@ -42,6 +42,11 @@
 /// @return Returns 0 on success, -1 on failure.  On failure, the value of
 /// errno is also set.
 int gethostname(char *name, size_t len) {
+  if (name == NULL) {
+    errno = EFAULT;
+    return -1;
+  }
+  
   char *hostname = (char*) malloc(HOST_NAME_MAX + 1);
   if (hostname == NULL) {
     printString("ERROR! Could not allocate memory for hostname.\n");
@@ -82,5 +87,41 @@ int gethostname(char *name, size_t len) {
   
   free(hostname);
   return returnValue;
+}
+
+/// @fn int sethostname(const char *name, size_t len)
+///
+/// @brief Implementation of the standard Unix sethostname system call.
+///
+/// @param name Pointer to a character buffer that contains the desired
+///   hostname.
+/// @param len The number of bytes allocated to name.
+///
+/// @return Returns 0 on success, -1 on failure.  On failure, the value of
+/// errno is also set.
+int sethostname(const char *name, size_t len) {
+  if (name == NULL) {
+    errno = EFAULT;
+    return -1;
+  } else if (len > HOST_NAME_MAX) {
+    errno = EINVAL;
+    return -1;
+  }
+  
+  FILE *hostnameFile = fopen("/etc/hostname", "r");
+  if (hostnameFile == NULL) {
+    printString("ERROR! fopen of hostname returned NULL!\n");
+    return -1;
+  }
+  
+  size_t bytesWritten = fwrite(name, 1, len, hostnameFile);
+  if (bytesWritten != len) {
+    printString("ERROR! Could not write hostname file.\n");
+    fclose(hostnameFile);
+    return -1;
+  }
+  
+  fclose(hostnameFile);
+  return 0;
 }
 
