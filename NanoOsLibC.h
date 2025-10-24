@@ -35,6 +35,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 //// #define NANO_OS_DEBUG
+#include "NanoOsErrno.h"
 #include "NanoOsStdio.h"
 
 /*
@@ -124,28 +125,6 @@ int timespec_get(struct timespec* spec, int base);
 /// @param x The first value to evaluate in the difference.
 /// @param y The second value to evaluate in the difference.
 #define ABS_DIFF(x, y) (((x) >= (y)) ? (x) - (y) : (y) - (x))
-
-
-// The errors defined by the compiler's version of errno.h are not helpful
-// because most things are defined to be ENOERR.  So, we need to define some of
-// our own.
-#define ENOERR           0      /* Success */
-#define EUNKNOWN         1      /* Unknown error */
-#define EBUSY            2      /* Device or resource busy */
-#define ENOMEM           3      /* Out of memory */
-#define EACCES           4      /* Permission denied */
-#define EINVAL           5      /* Invalid argument */
-#define EIO              6      /* I/O error */
-#define ENOSPC           7      /* No space left on device */
-#define ENOENT           8      /* No such entry found */
-#define ENOTEMPTY        9      /* Directory not empty */
-#define EOVERFLOW       10      /* Overflow detected */
-#define EFAULT          11      /* Invalid address */
-#define ENAMETOOLONG    12      /* Name too long */
-#define EEND            13      /* End of error codes */
-
-int* errno_(void);
-#define errno (*errno_())
 
 typedef void TypeDescriptor;
 
