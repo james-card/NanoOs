@@ -144,7 +144,8 @@ int timespec_get(struct timespec* spec, int base);
 #define ENAMETOOLONG    12      /* Name too long */
 #define EEND            13      /* End of error codes */
 
-extern int errno;
+int* errno_(void);
+#define errno (*errno_())
 
 typedef void TypeDescriptor;
 
