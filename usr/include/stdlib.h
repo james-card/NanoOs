@@ -38,7 +38,8 @@
 
 #include "NanoOsUser.h"
 
-char* getenv(const char *name);
+#define getenv(s) \
+  overlayMap.header.unixApi->getenv(s)
 
 #endif // STDLIB_H
 
