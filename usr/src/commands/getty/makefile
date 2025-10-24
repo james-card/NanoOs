@@ -33,7 +33,7 @@ SOURCES = \
 
 OBJECTS = \
     $(OBJ_DIR)/start.o \
-    $(OBJ_DIR)/main.o \
+    $(OBJ_DIR)/$(TARGET)main.o \
     $(OBJ_DIR)/$(TARGET)OverlayMap.o \
 
 INCLUDES = \
@@ -58,7 +58,12 @@ $(ELF): $(OBJECTS)
 	$(LD) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
 	$(SIZE) $@
 
-# Compile object file
+# Compile object files
+$(OBJ_DIR)/$(TARGET)main.o: main.c
+	@echo "Compiling: $<"
+	$(MKDIR) "$(OBJ_DIR)"
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(OBJ_DIR)/start.o: ../../start.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
