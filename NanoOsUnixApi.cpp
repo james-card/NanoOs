@@ -117,5 +117,8 @@ NanoOsUnixApi nanoOsUnixApi = {
   // unistd functions:
   .gethostname = gethostname,
   .sethostname = sethostname,
+  
+  // errno functions:
+  .errno_ = errno_,
 };
 

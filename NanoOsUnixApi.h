@@ -120,6 +120,9 @@ typedef struct NanoOsUnixApi {
   // unistd functions:
   int (*gethostname)(char *name, size_t len);
   int (*sethostname)(const char *name, size_t len);
+  
+  // errno functions:
+  int* (*errno_)(void);
 } NanoOsUnixApi;
 
 extern NanoOsUnixApi nanoOsUnixApi;
