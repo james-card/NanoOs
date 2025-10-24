@@ -8,7 +8,7 @@ COMMANDS := $(shell ls | grep -v makefile)
 all: $(COMMANDS)
 
 $(COMMANDS): ./%:
-	$(MAKE) -C $@ COMMAND_LINE_LINKS=$(OBJ_DIR)/libc.a
+	$(MAKE) -C $@ COMMAND_LINE_LINKS=
 
 clean:
 	for command in $(COMMANDS); do $(MAKE) -C $${command} clean; done
