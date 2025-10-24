@@ -28,8 +28,9 @@
 // Doxygen marker
 /// @file
 
-#include "NanoOsUnixApi.h"
 #include "NanoOs.h"
+#include "NanoOsUnistd.h"
+#include "NanoOsUnixApi.h"
 
 #undef stdin
 #undef stdout
@@ -112,5 +113,9 @@ NanoOsUnixApi nanoOsUnixApi = {
   
   // Other stdlib functions:
   .getenv = nanoOsGetenv,
+  
+  // unistd functions:
+  .gethostname = gethostname,
+  .sethostname = sethostname,
 };
 
