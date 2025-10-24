@@ -40,8 +40,9 @@
 // Standard includes.
 #include <stdint.h>
 
-// Header from kernel space.
+// Headers from kernel space.
 #include "NanoOsUnixApi.h"
+#include "NanoOsUnistd.h"
 
 #ifdef __cplusplus
 extern "C"
