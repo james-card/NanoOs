@@ -16,6 +16,7 @@ SIZE = arm-none-eabi-size
 CFLAGS = -mcpu=cortex-m0 -Os -nostdlib -ffreestanding
 CFLAGS += -Wall -Wextra -std=c17
 CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -fno-jump-tables
 
 # Linker flags
 LDFLAGS = -T ../../NanoOs.ld --gc-sections
