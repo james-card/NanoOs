@@ -58,7 +58,7 @@ int gethostname(char *name, size_t len) {
   FILE *hostnameFile = fopen("/etc/hostname", "r");
   if (hostnameFile != NULL) {
     printDebug("Opened hostname file.\n");
-    if (fgets(hostname, HOST_NAME_MAX, hostnameFile) != name) {
+    if (fgets(hostname, HOST_NAME_MAX, hostnameFile) != hostname) {
       printString("ERROR! fgets did not read hostname!\n");
     }
     fclose(hostnameFile);
