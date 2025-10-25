@@ -115,6 +115,7 @@ void* runConsole(void *args);
 } // extern "C"
 #endif
 
+#ifdef __cplusplus
 int printConsole(char message);
 int printConsole(unsigned char message);
 int printConsole(int message);
@@ -124,5 +125,6 @@ int printConsole(long unsigned int message);
 int printConsole(float message);
 int printConsole(double message);
 int printConsole(const char *message);
+#endif // __cplusplus
 
 #endif // CONSOLE_H
