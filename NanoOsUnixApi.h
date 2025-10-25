@@ -104,10 +104,15 @@ typedef struct NanoOsUnixApi {
   char* (*strcat)(char *dst, const char *src);
   char* (*strncat)(char *dst, const char *src, size_t ssize);
   
-  // Comparison functions:
+  // Search functions:
   int (*memcmp)(const void *s1, const void *s2, size_t n);
   int (*strcmp)(const char *s1, const char *s2);
   int (*strncmp)(const char *s1, const char *s2, size_t n);
+  char* (*strstr)(const char *haystack, const char *needle);
+  char* (*strchr)(const char *s, int c);
+  char* (*strrchr)(const char *s, int c);
+  size_t (*strspn)(const char *s, const char *accept);
+  size_t (*strcspn)(const char *s, const char *reject);
   
   // Miscellaaneous string functions:
   void* (*memset)(void *s, int c, size_t n);

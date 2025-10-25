@@ -101,10 +101,15 @@ NanoOsUnixApi nanoOsUnixApi = {
   .strcat = strcat,
   .strncat = strncat,
   
-  // Comparison functions:
+  // Search functions:
   .memcmp = memcmp,
   .strcmp = strcmp,
   .strncmp = strncmp,
+  .strstr = strstr,
+  .strchr = strchr,
+  .strrchr = strrchr,
+  .strspn = strspn,
+  .strcspn = strcspn,
   
   // Miscellaaneous string functions:
   .memset = memset,
