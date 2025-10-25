@@ -53,13 +53,23 @@
 #define strncat(dest, src, ssize) \
   overlayMap.header.unixApi->strncat(dest, src, ssize)
 
-// Comparison functions:
+// Search functions:
 #define memcmp(dest, src, n) \
   overlayMap.header.unixApi->memcmp(dest, src, n)
 #define strcmp(dest, src) \
   overlayMap.header.unixApi->strcmp(dest, src)
 #define strncmp(dest, src, n) \
   overlayMap.header.unixApi->strncmp(dest, src, n)
+#define strstr(haystack, needle) \
+  overlayMap.header.unixApi->strstr(haystack, needle)
+#define strchr(s, c) \
+  overlayMap.header.unixApi->strchr(s, c)
+#define strrchr(s, c) \
+  overlayMap.header.unixApi->strrchr(s, c)
+#define strspn(s, accept) \
+  overlayMap.header.unixApi->strspn(s, accept)
+#define strcspn(s, reject) \
+  overlayMap.header.unixApi->strcspn(s, reject)
 
 // Miscellaaneous string functions:
 #define memset(s, c, n) \
