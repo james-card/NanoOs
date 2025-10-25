@@ -131,9 +131,11 @@ typedef unsigned long long int NanoOsMessageData;
 ///
 /// @param file Pointer to the real file metadata.
 /// @param currentPosition The current position within the file.
+/// @param fd The numeric file descriptor for the file.
 typedef struct NanoOsFile {
-  void *file;
+  void     *file;
   uint32_t  currentPosition;
+  int       fd;
 } NanoOsFile;
 
 /// @struct IoPipe
