@@ -51,6 +51,7 @@
 #undef fread
 #undef fwrite
 #undef strerror
+#undef fileno
 
 NanoOsUnixApi nanoOsUnixApi = {
   // Standard streams:
@@ -63,6 +64,7 @@ NanoOsUnixApi nanoOsUnixApi = {
   .fclose = filesystemFClose,
   .remove = filesystemRemove,
   .fseek = filesystemFSeek,
+  .fileno = nanoOsFileno,
   
   // Formatted I/O:
   .vsscanf = vsscanf,
@@ -122,6 +124,7 @@ NanoOsUnixApi nanoOsUnixApi = {
   // unistd functions:
   .gethostname = gethostname,
   .sethostname = sethostname,
+  .ttyname_r = ttyname_r,
   
   // errno functions:
   .errno_ = errno_,

@@ -66,6 +66,7 @@ typedef struct NanoOsUnixApi {
   int (*fclose)(FILE *stream);
   int (*remove)(const char *pathname);
   int (*fseek)(FILE *stream, long offset, int whence);
+  int (*fileno)(FILE *stream);
   
   // Formatted I/O:
   int (*vsscanf)(const char *buffer, const char *format, va_list args);
@@ -125,6 +126,7 @@ typedef struct NanoOsUnixApi {
   // unistd functions:
   int (*gethostname)(char *name, size_t len);
   int (*sethostname)(const char *name, size_t len);
+  int (*ttyname_r)(int fd, char *buf, size_t buflen);
   
   // errno functions:
   int* (*errno_)(void);
