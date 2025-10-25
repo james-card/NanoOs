@@ -180,15 +180,15 @@ typedef struct ExFatFileHandle {
 ///
 /// @brief Driver state for exFAT filesystem
 typedef struct ExFatDriverState {
-  FilesystemState*  filesystemState; // Pointer to filesystem state
-  uint32_t          bytesPerSector; // Bytes per sector
-  uint32_t          sectorsPerCluster; // Sectors per cluster
-  uint32_t          bytesPerCluster; // Bytes per cluster
-  uint32_t          fatStartSector; // FAT start sector
+  FilesystemState*  filesystemState;        // Pointer to filesystem state
+  uint32_t          bytesPerSector;         // Bytes per sector
+  uint32_t          sectorsPerCluster;      // Sectors per cluster
+  uint32_t          bytesPerCluster;        // Bytes per cluster
+  uint32_t          fatStartSector;         // FAT start sector
   uint32_t          clusterHeapStartSector; // Cluster heap start sector
-  uint32_t          rootDirectoryCluster; // Root directory cluster
-  uint32_t          clusterCount;          // Number of clusters
-  bool              driverStateValid; // Whether or not this is a valid state
+  uint32_t          rootDirectoryCluster;   // Root directory cluster
+  uint32_t          clusterCount;           // Number of clusters
+  bool              driverStateValid;       // Whether or not state is valid
 } ExFatDriverState;
 
 // Function declarations
