@@ -58,7 +58,11 @@ extern "C"
 #define EOVERFLOW       10      /* Overflow detected */
 #define EFAULT          11      /* Invalid address */
 #define ENAMETOOLONG    12      /* Name too long */
-#define EEND            13      /* End of error codes */
+#define EBADF           13      /* Bad file descriptor */
+#define ENODEV          14      /* No such device */
+#define ENOTTY          15      /* No such terminal device */
+#define ERANGE          16      /* Parameter or result out of range */
+#define EEND            17      /* End of error codes */
 
 int* errno_(void);
 #define errno (*errno_())

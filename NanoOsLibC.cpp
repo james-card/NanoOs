@@ -61,19 +61,23 @@ int timespec_get(struct timespec* spec, int base) {
 ///
 /// @brief Array of error messages arranged by error code.
 const char *errorStrings[] = {
-  "Success",                 // ENOERR
-  "Unknown error",           // EUNKNOWN
-  "Device or resource busy", // EBUSY
-  "Out of memory",           // ENOMEM
-  "Permission denied",       // EACCES
-  "Invalid argument",        // EINVAL
-  "I/O error",               // EIO
-  "No space left on device", // ENOSPC
-  "No such entry found",     // ENOENT
-  "Directory not empty",     // ENOTEMPTY
-  "Overflow detected",       // EOVERFLOW
-  "Invalid address",         // EFAULT          
-  "Name too long",           // ENAMETOOLONG    
+  "Success",                          // ENOERR
+  "Unknown error",                    // EUNKNOWN
+  "Device or resource busy",          // EBUSY
+  "Out of memory",                    // ENOMEM
+  "Permission denied",                // EACCES
+  "Invalid argument",                 // EINVAL
+  "I/O error",                        // EIO
+  "No space left on device",          // ENOSPC
+  "No such entry found",              // ENOENT
+  "Directory not empty",              // ENOTEMPTY
+  "Overflow detected",                // EOVERFLOW
+  "Invalid address",                  // EFAULT
+  "Name too long",                    // ENAMETOOLONG
+  "Bad file descriptor",              // EBADF
+  "No such device",                   // ENODEV
+  "No such terminal device",          // ENOTTY
+  "Parameter or result out of range", // ERANGE
 };
 
 /// @var NUM_ERRORS
