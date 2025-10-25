@@ -191,6 +191,12 @@ int nanoOsScanf(const char *format, ...);
 #endif
 #define scanf nanoOsScanf
 
+int nanoOsFileno(FILE *stream);
+#ifdef fileno
+#undef fileno
+#endif
+#define fileno nanoOsFileno
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

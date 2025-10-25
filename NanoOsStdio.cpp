@@ -1262,3 +1262,28 @@ int nanoOsPrintf(const char *format, ...) {
   return returnValue;
 }
 
+/// @fn int nanoOsFileno(FILE *stream)
+///
+/// @brief Get the numeric ID of the underlying file descriptor of a FILE
+/// stream.
+///
+/// @param stream A pointer to the FILE stream to examine.
+///
+/// @return Returns the file descriptor value of the underlying file on success,
+/// -1 on failure.  On failure, the value of errno is also set to indicate the
+/// reason for the failure.
+int nanoOsFileno(FILE *stream) {
+  if (stream == NULL) {
+    errno = EBADF;
+    return -1;
+  } else if (stream == nanoOsStdin) {
+    return 0;
+  } else if (stream == nanoOsStdout) {
+    return 1;
+  } else if (stream == nanoOsStderr) {
+    return 2;
+  }
+  
+  return stream->fd;
+}
+
