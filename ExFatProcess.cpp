@@ -68,6 +68,8 @@ int exFatProcessOpenFileCommandHandler(
       nanoOsFile = (NanoOsFile*) malloc(sizeof(NanoOsFile));
       nanoOsFile->file = exFatFile;
       nanoOsFile->currentPosition = exFatFile->currentPosition;
+      nanoOsFile->fd = driverState->filesystemState->numOpenFiles + 3;
+      driverState->filesystemState->numOpenFiles++;
     }
   }
 
