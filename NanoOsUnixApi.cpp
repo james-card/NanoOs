@@ -128,5 +128,8 @@ NanoOsUnixApi nanoOsUnixApi = {
   
   // errno functions:
   .errno_ = errno_,
+  
+  // sys/*.h functions:
+  .uname = uname,
 };
 

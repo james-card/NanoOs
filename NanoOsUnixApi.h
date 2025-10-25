@@ -50,6 +50,8 @@
 typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
 
+#include "NanoOsSys.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -130,6 +132,9 @@ typedef struct NanoOsUnixApi {
   
   // errno functions:
   int* (*errno_)(void);
+  
+  // sys/*.h functions:
+  int (*uname)(struct utsname *buf);
 } NanoOsUnixApi;
 
 extern NanoOsUnixApi nanoOsUnixApi;
