@@ -56,6 +56,8 @@
   overlayMap.header.unixApi->remove(pathname)
 #define fseek(stream, offset, whence) \
   overlayMap.header.unixApi->fseek(stream, offset, whence)
+#define fileno(stream) \
+  overlayMap.header.unixApi->fileno(stream)
 
 // Formatted I/O:
 #define vsscanf(buffer, format, args) \
