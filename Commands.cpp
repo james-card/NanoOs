@@ -124,6 +124,22 @@ int echoCommandHandler(int argc, char **argv) {
   return runOverlayCommand(commandPath, argc, argv);
 }
 
+/// @fn int gettyCommandHandler(int argc, char **argv);
+///
+/// @brief Run the getty application from the filesystem.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.
+///
+/// @return Returns 0 on success, 1 on failure.
+int gettyCommandHandler(int argc, char **argv) {
+  char commandPath[26] = "/usr/bin/";
+  strcat(commandPath, "getty");
+  return runOverlayCommand(commandPath, argc, argv);
+}
+
 /// @fn int grepCommandHandler(int argc, char **argv);
 ///
 /// @brief Echo a line of text from standard input to the console output if it
@@ -388,6 +404,11 @@ const CommandEntry commands[] = {
     .name = "exit",
     .func = logoutCommandHandler,
     .help = "Exit the current shell."
+  },
+  {
+    .name = "getty",
+    .func = gettyCommandHandler,
+    .help = "Run the getty application."
   },
   {
     .name = "grep",
