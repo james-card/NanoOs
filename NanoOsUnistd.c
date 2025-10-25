@@ -56,14 +56,12 @@ int gethostname(char *name, size_t len) {
   
   int returnValue = 0;
   FILE *hostnameFile = fopen("/etc/hostname", "r");
+  size_t hostnameLen = 0;
   if (hostnameFile != NULL) {
     printDebug("Opened hostname file.\n");
-    if (fgets(hostname, HOST_NAME_MAX, hostnameFile) != hostname) {
-      printString("ERROR! fgets did not read hostname!\n");
-    }
+    hostnameLen = fread(hostname, 1, HOST_NAME_MAX, hostnameFile);
     fclose(hostnameFile);
-    
-    hostname[HOST_NAME_MAX] = '\0';
+    hostname[hostnameLen] = '\0';
     
     if (strchr(hostname, '\r')) {
       *strchr(hostname, '\r') = '\0';
@@ -77,7 +75,6 @@ int gethostname(char *name, size_t len) {
     printString("ERROR! fopen of hostname returned NULL!\n");
     strcpy(hostname, "localhost");
   }
-  size_t hostnameLen = strlen(hostname);
   
   if (len < hostnameLen) {
     returnValue = -1;
