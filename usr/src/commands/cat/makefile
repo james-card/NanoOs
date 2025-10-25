@@ -14,7 +14,7 @@ SIZE = arm-none-eabi-size
 
 # Compiler flags
 CFLAGS = -mcpu=cortex-m0 -Os -nostdlib -ffreestanding
-CFLAGS += -Wall -Wextra -std=c99
+CFLAGS += -Wall -Wextra -std=c17
 CFLAGS += -ffunction-sections -fdata-sections
 
 # Linker flags
@@ -40,6 +40,12 @@ INCLUDES = \
     -I../../../.. \
     -I../../../include \
 
+WARNINGS = \
+    -Wall \
+    -Wextra \
+    -pedantic \
+    -Werror \
+
 # Default target
 all: $(BINARY)
 
@@ -62,17 +68,17 @@ $(ELF): $(OBJECTS)
 $(OBJ_DIR)/$(TARGET)main.o: main.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/start.o: ../../start.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/%.o: %.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(TARGET)OverlayMap.c: $(SOURCES)
 	@echo "Creating $(TARGET)OverlayMap.c"
