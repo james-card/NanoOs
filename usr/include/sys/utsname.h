@@ -39,7 +39,7 @@
 #include "NanoOsUser.h"
 
 #define uname(buf) \
-  (*overlayMap.header.unixApi->uname(buf))
+  overlayMap.header.unixApi->uname(buf)
 
 #endif // SYS_UTSNAME_H
 
