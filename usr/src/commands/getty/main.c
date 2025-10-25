@@ -36,7 +36,7 @@
 
 /// @fn int printHostname(void)
 ///
-/// @brief Make the gethostname and return the hostname captured.
+/// @brief Make the gethostname call and display it.
 ///
 /// @return Returns 0 on success, -1 on failure.
 int printHostname(void) {
@@ -60,6 +60,26 @@ int printHostname(void) {
   return 0;
 }
 
+/// @fn int printTty(void)
+///
+/// @brief Get the current tty in use and display it.
+///
+/// @return Returns 0 on success, -1 on failure.
+int printTty(void) {
+  // terminalPath of size 11 supports paths up to "/dev/ttyXX".
+  char terminalPath[11];
+  int rv = ttyname_r(fileno(stdin), terminalPath, sizeof(terminalPath));
+  if (rv != 0) {
+    fprintf(stderr, "ERROR! ttyname_r returned error: \"%s\"\n", strerror(rv));
+    return -1;
+  }
+  
+  // terminalPath will start with "/dev/", so start from index 5.
+  fputs(&terminalPath[5], stdout);
+  
+  return 0;
+}
+
 /// @fn int printEscape(char escapeChar)
 ///
 /// @brief Translate a getty escape character into the corresponding
@@ -70,8 +90,13 @@ int printHostname(void) {
 /// @return Returns 0 on success, -1 on failure.
 int printEscape(char escapeChar) {
   switch (escapeChar) {
-    case 'h': {
+    case 'n': {
       printHostname();
+      break;
+    }
+    
+    case 'l': {
+      printTty();
       break;
     }
     
