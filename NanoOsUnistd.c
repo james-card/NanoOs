@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include "NanoOsUnistd.h"
+#include "Console.h"
 #include "NanoOs.h"
 
 /// @fn int gethostname(char *name, size_t len)
@@ -119,6 +120,35 @@ int sethostname(const char *name, size_t len) {
   }
   
   fclose(hostnameFile);
+  return 0;
+}
+
+/// @fd int ttyname_r(int fd, char *buf, size_t buflen)
+///
+/// @brief Get the current tty name for a specified file descriptor in a
+/// thread-safe way.
+///
+/// @param fd The integer file descriptor of the tty to get.
+/// @param buf The character buffer to write the tty name into.
+/// @param buflen The number of bytes available at the buf pointer.
+///
+/// @return Returns 0 on success, an error number on failure.
+int ttyname_r(int fd, char *buf, size_t buflen) {
+  if (fd < 0) {
+    return EBADF;
+  } else if (fd > 2) {
+    return ENOTTY;
+  } else if (buflen < 10) {
+    return ERANGE;
+  }
+  
+  int consolePort = getOwnedConsolePort();
+  if (consolePort < 0) {
+    return ENOTTY;
+  }
+  
+  snprintf(buf, buflen, "/dev/tty%d", consolePort);
+  
   return 0;
 }
 
