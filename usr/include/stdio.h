@@ -60,28 +60,28 @@
 // Formatted I/O:
 #define vsscanf(buffer, format, args) \
   overlayMap.header.unixApi->vsscanf(buffer, format, args)
-#define sscanf(buffer, format, ...) \
-  overlayMap.header.unixApi->sscanf(buffer, format, ##__VA_ARGS__)
+#define sscanf(buffer, ...) \
+  overlayMap.header.unixApi->sscanf(buffer, __VA_ARGS__)
 #define vfscanf(stream, format, ap) \
   overlayMap.header.unixApi->vfscanf(stream, format, ap)
-#define fscanf(stream, format, ...) \
-  overlayMap.header.unixApi->fscanf(stream, format, ##__VA_ARGS__)
-#define scanf(format, ...) \
-  overlayMap.header.unixApi->scanf(format, ##__VA_ARGS__)
+#define fscanf(stream, ...) \
+  overlayMap.header.unixApi->fscanf(stream, __VA_ARGS__)
+#define scanf(...) \
+  overlayMap.header.unixApi->scanf(__VA_ARGS__)
 #define vfprintf(stream, format, args) \
   overlayMap.header.unixApi->vfprintf(stream, format, args)
-#define fprintf(stream, format, ...) \
-  overlayMap.header.unixApi->fprintf(stream, format, ##__VA_ARGS__)
-#define printf(format, ...) \
-  overlayMap.header.unixApi->printf(format, ##__VA_ARGS__)
+#define fprintf(stream, ...) \
+  overlayMap.header.unixApi->fprintf(stream, __VA_ARGS__)
+#define printf(...) \
+  overlayMap.header.unixApi->printf(__VA_ARGS__)
 #define vsprintf(str, format, ap) \
   overlayMap.header.unixApi->vsprintf(str, format, ap)
 #define vsnprintf(str, size, format, ap) \
   overlayMap.header.unixApi->vsnprintf(str, size, format, ap)
-#define sprintf(str, format, ...) \
-  overlayMap.header.unixApi->sprintf(str, format, ##__VA_ARGS__)
-#define snprintf(str, size, format, ...) \
-  overlayMap.header.unixApi->snprintf(str, size, format, ##__VA_ARGS__)
+#define sprintf(str, ...) \
+  overlayMap.header.unixApi->sprintf(str, __VA_ARGS__)
+#define snprintf(str, size, ...) \
+  overlayMap.header.unixApi->snprintf(str, size, __VA_ARGS__)
 
 // Character I/O:
 #define fputs(s, stream) \
