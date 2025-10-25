@@ -33,6 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/utsname.h>
 
 /// @fn int printHostname(void)
 ///
@@ -80,7 +81,7 @@ int printTty(void) {
   return 0;
 }
 
-/// @fn int printEscape(char escapeChar)
+/// @fn int printEscape(char escapeChar, struct utsname *utsname)
 ///
 /// @brief Translate a getty escape character into the corresponding
 /// information and display it.
@@ -88,15 +89,39 @@ int printTty(void) {
 /// @param escapeChar The getty escape character.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int printEscape(char escapeChar) {
+int printEscape(char escapeChar, struct utsname *utsname) {
   switch (escapeChar) {
+    case 'l': {
+      printTty();
+      break;
+    }
+    
+    case 'm': {
+      // Machine architecture
+      fputs(utsname->machine, stdout);
+      break;
+    }
+    
     case 'n': {
       printHostname();
       break;
     }
     
-    case 'l': {
-      printTty();
+    case 'r': {
+      // OS release number
+      fputs(utsname->release, stdout);
+      break;
+    }
+    
+    case 's': {
+      // OS name
+      fputs(utsname->sysname, stdout);
+      break;
+    }
+    
+    case 'v': {
+      // OS version
+      fputs(utsname->version, stdout);
       break;
     }
     
@@ -131,6 +156,9 @@ int showIssue(void) {
   }
   fclose(issueFile);
   
+  struct utsname *utsname = (struct utsname*) malloc(sizeof(struct utsname));
+  uname(utsname);
+  
   char *nextPart = buffer;
   char *backslashAt = strchr(nextPart, '\\');
   while (backslashAt != NULL) {
@@ -139,7 +167,7 @@ int showIssue(void) {
     
     // Get to the escape character after the backslash.
     nextPart = backslashAt + 1;
-    printEscape(*nextPart);
+    printEscape(*nextPart, utsname);
     
     // Skip over whatever the escape sequence was.
     nextPart = &nextPart[strcspn(nextPart, " \t\n")];
@@ -147,6 +175,7 @@ int showIssue(void) {
   }
   fputs(nextPart, stdout);
   
+  free(utsname);
   free(buffer);
   return 0;
 }
