@@ -8,17 +8,24 @@ if [ "${targetDevice}" = "" ]; then
 	exit 1
 fi
 
+echo "Building applications..."
 make -C usr/src
 
-tempDir="$(mktemp -d)"
-trap "rm -rf \"${tempDir}\"" ERR EXIT
+# Make a temporary mountpoint
+mountDir="$(mktemp -d)"
+trap "rm -rf \"${mountDir}\"" ERR EXIT
+
+echo ""
+echo "Build complete."
+printf "Desired hostname: "
+read hostname
 
 sudo mkfs.exfat "${targetDevice}" -L NanoOs
-sudo mount "${targetDevice}" "${tempDir}"
-sudo mkdir -p "${tempDir}/etc"
-sudo mkdir -p "${tempDir}/usr/bin"
-sudo cp ${HOME}/Arduino/NanoOs/usr/bin/* "${tempDir}/usr/bin"
-sudo bash -c "printf 'brian-nano33iot-1' >\"${tempDir}/etc/hostname\""
-sudo bash -c "printf '\\s \\\r \\\n \\l\n\n' >\"${tempDir}/etc/issue\""
-sudo umount "${tempDir}"
+sudo mount "${targetDevice}" "${mountDir}"
+sudo mkdir -p "${mountDir}/etc"
+sudo mkdir -p "${mountDir}/usr/bin"
+sudo cp ${HOME}/Arduino/NanoOs/usr/bin/* "${mountDir}/usr/bin"
+sudo bash -c "printf \"${hostname}\" >\"${mountDir}/etc/hostname\""
+sudo bash -c "printf '\\s \\\r \\\n \\l\n\n' >\"${mountDir}/etc/issue\""
+sudo umount "${mountDir}"
 
