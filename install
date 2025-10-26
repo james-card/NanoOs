@@ -24,7 +24,7 @@ sudo mkfs.exfat "${targetDevice}" -L NanoOs
 sudo mount "${targetDevice}" "${mountDir}"
 sudo mkdir -p "${mountDir}/etc"
 sudo mkdir -p "${mountDir}/usr/bin"
-sudo cp ${HOME}/Arduino/NanoOs/usr/bin/* "${mountDir}/usr/bin"
+sudo cp usr/bin/* "${mountDir}/usr/bin"
 sudo bash -c "printf \"${hostname}\" >\"${mountDir}/etc/hostname\""
 sudo bash -c "printf '\\s \\\r \\\n \\l\n\n' >\"${mountDir}/etc/issue\""
 sudo umount "${mountDir}"
