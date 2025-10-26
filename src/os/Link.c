@@ -415,6 +415,7 @@ char* getTarget(const char *initialLink) {
         if (strcmp(slowPointer, fastPointer) == 0) {
           // We're in an infinite loop.  Bail.
           free(slowPointer); slowPointer = NULL;
+          errno = ELOOP;
         }
       }
     }
