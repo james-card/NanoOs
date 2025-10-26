@@ -1,6 +1,3 @@
-# OBJ_DIR is relative to the command directories
-OBJ_DIR       := ../../../obj
-
 COMMANDS := $(shell ls | grep -v makefile)
 
 .PHONY: all clean $(COMMANDS)
@@ -8,7 +5,7 @@ COMMANDS := $(shell ls | grep -v makefile)
 all: $(COMMANDS)
 
 $(COMMANDS): ./%:
-	$(MAKE) -C $@ COMMAND_LINE_LINKS=
+	$(MAKE) -C $@ TARGET="$@"
 
 clean:
 	for command in $(COMMANDS); do $(MAKE) -C $${command} clean; done
