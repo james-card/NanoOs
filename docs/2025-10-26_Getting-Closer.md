@@ -83,7 +83,7 @@ There were several OS things that had to be developed here.  I was already readi
 
 Still lots more to do here.  I now need to write a formal `exec` implementation and figure out a way to transfer the username read in from the getty application to the login application.  And, login will have to do something intelligent with /etc/passwd.  Still a way to go before I get to a shell.
 
-One of the things I did recently was to write a formal install script.  The user applications are build with makefiles but the full thing needs to format the SD card with exFAT, build the directory tree, copy the commands, and populate the config files.  Having the installer greatly streamlined all that.
+One of the things I did recently was to write a formal install script.  The user applications are built with makefiles but the full thing needs to format the SD card with exFAT, build the directory tree, copy the commands, and populate the config files.  Having the installer greatly streamlined all that.
 
 I am worried about the shell, though.  That could pretty easily exceed the current 8 KB limit.  That may be the first point at which I'll have to break a single application into multiple overlays.  We'll see.
 
