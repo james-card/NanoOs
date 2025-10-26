@@ -16,10 +16,10 @@ REMOVE       := rm -f
 FLAGS := -g $(EXTRA_FLAGS) $(COMMAND_LINE_FLAGS)
 
 COMMON_FILES := \
-    ../../../Link.c \
+    ../../../src/os/Link.c
 
 INCLUDES := \
-    -I../../.. \
+    -I../../../src/os \
 
 LINKS := \
 
