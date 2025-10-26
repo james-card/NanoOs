@@ -270,6 +270,107 @@ int makeLink(const char *target, const char *linkFile) {
   return (written == totalSize) ? 0 : -1;
 }
 
+/// @fn char* getNextTarget(const char *linkFile)
+///
+/// @brief Get the next target from the provided link file.
+///
+/// @param linkFile The path to the link file on the filesystem.
+///
+/// @return Returns the target extracted from the link file on success, NULL
+/// on failure.
+char* getNextTarget(const char *linkFile) {
+  // Open file and get size
+  FILE *fp = fopen(linkFile, "rb");
+  if (fp == NULL) {
+    return NULL;
+  }
+  
+  // Get file size
+  fseek(fp, 0, SEEK_END);
+  long fileSize = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  
+  if (fileSize < LINK_VERSION1_HEADER_SIZE) {
+    fclose(fp);
+    return NULL;
+  }
+  
+  // Allocate buffer and read entire file
+  uint8_t *buffer = (uint8_t*) malloc(fileSize);
+  if (buffer == NULL) {
+    fclose(fp);
+    return NULL;
+  }
+  
+  size_t bytesRead = fread(buffer, 1, fileSize, fp);
+  fclose(fp); fp = NULL;
+  
+  if (bytesRead != (size_t) fileSize) {
+    free(buffer);
+    return NULL;
+  }
+  
+  if (*((uint64_t*) &buffer[LINK_MAGIC_INDEX]) != *LINK_MAGIC) {
+    // Not our link.
+    free(buffer);
+    return NULL;
+  }
+  
+  uint16_t linkHeaderSize = *((uint16_t*) &buffer[LINK_HEADER_SIZE_INDEX]);
+  // We only understand version 1, so there's really no point in reading the
+  // link version.
+  // uint16_t linkVersion = *((uint16_t*) buffer[LINK_VERSION_INDEX]);
+  
+  const char *targetPath = NULL;
+  uint16_t valueType = 0;
+  uint16_t valueLength = 0;
+  uint16_t ii = 0;
+  // Search through the payload until we find the link path, which is the only
+  // thing we understand in this version.  At this point, we can no longer
+  // directly access elements in the buffer because we have no idea what the
+  // alignment is now.
+  for (ii = linkHeaderSize; (ii < bytesRead) && (targetPath == NULL);) {
+    memcpy(&valueType, &buffer[ii], sizeof(valueType));
+    ii += sizeof(valueType);
+    memcpy(&valueLength, &buffer[ii], sizeof(valueLength));
+    ii += sizeof(valueLength);
+    if (valueType == LINK_VALUE_TYPE_PATH) {
+      targetPath = (const char*) &buffer[ii];
+    }
+    
+    ii += valueLength;
+  }
+  
+  if (targetPath != NULL) {
+    // The checksum is stored at the end of the value, so two bytes before our
+    // current index.
+    uint16_t storedChecksum = 0;
+    memcpy(&storedChecksum, &buffer[ii - sizeof(uint16_t)], sizeof(uint16_t));
+    
+    uint16_t computedChecksum = 0;
+    for (size_t jj = 0; targetPath[jj] != '\0'; jj++) {
+      computedChecksum += (uint16_t) targetPath[jj];
+    }
+    
+    if (computedChecksum != storedChecksum) {
+      // Link corrupted.  No good.
+      free(buffer);
+      return NULL;
+    }
+  }
+  
+  char *nextTarget = (char*) malloc(strlen(targetPath) + 1);
+  if (nextTarget == NULL) {
+    // Out of memory.  Cannot continue.
+    free(buffer);
+    return NULL;
+  }
+  strcpy(nextTarget, targetPath);
+  
+  free(buffer);
+  return nextTarget;
+}
+
 /// @fn char* getTarget(const char *initialLink)
 ///
 /// @brief Extract the linked file path from a link file.
@@ -283,117 +384,43 @@ char* getTarget(const char *initialLink) {
     return NULL;
   }
   
-  char *finalTarget = (char*) malloc(strlen(initialLink) + 1);
-  strcpy(finalTarget, initialLink);
-  const char *extension = strrchr(finalTarget, '.');
-  uint8_t *buffer = NULL;
+  char *slowPointer = (char*) malloc(strlen(initialLink) + 1);
+  if (slowPointer == NULL) {
+    // Nothing we can do.
+    return NULL;
+  }
+  strcpy(slowPointer, initialLink);
+  char *fastPointer = (char*) malloc(strlen(initialLink) + 1);
+  if (fastPointer == NULL) {
+    // Nothing we can do.
+    free(slowPointer);
+    return NULL;
+  }
+  strcpy(fastPointer, initialLink);
   
-  while ((extension != NULL) && (strcmp(extension, ".lnk") == 0)) {
-    // Open file and get size
-    FILE *fp = fopen(finalTarget, "rb");
-    if (fp == NULL) {
-      free(finalTarget);
-      return NULL;
+  while ((slowPointer != NULL) && (fastPointer != NULL)) {
+    // slowPointer traverses one link at a time.
+    char *nextSlowPointer = getNextTarget(slowPointer);
+    if (nextSlowPointer != NULL) {
+      free(slowPointer); slowPointer = nextSlowPointer;
     }
     
-    // Get file size
-    fseek(fp, 0, SEEK_END);
-    long fileSize = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    
-    if (fileSize < LINK_VERSION1_HEADER_SIZE) {
-      fclose(fp);
-      free(finalTarget);
-      return NULL;
-    }
-    
-    // Allocate buffer and read entire file
-    void *check = realloc(buffer, fileSize);
-    if (check == NULL) {
-      fclose(fp);
-      free(finalTarget);
-      return NULL;
-    }
-    buffer = (uint8_t*) check;
-    
-    size_t bytesRead = fread(buffer, 1, fileSize, fp);
-    fclose(fp); fp = NULL;
-    
-    if (bytesRead != (size_t)fileSize) {
-      free(buffer);
-      free(finalTarget);
-      return NULL;
-    }
-    
-    if (*((uint64_t*) &buffer[LINK_MAGIC_INDEX]) != *LINK_MAGIC) {
-      // Not our link.
-      free(buffer);
-      free(finalTarget);
-      return NULL;
-    }
-    
-    uint16_t linkHeaderSize = *((uint16_t*) &buffer[LINK_HEADER_SIZE_INDEX]);
-    // We only understand version 1, so there's really no point in reading the
-    // link version.
-    // uint16_t linkVersion = *((uint16_t*) buffer[LINK_VERSION_INDEX]);
-    
-    const char *targetPath = NULL;
-    uint16_t valueType = 0;
-    uint16_t valueLength = 0;
-    uint16_t ii = 0;
-    // Search through the payload until we find the link path, which is the only
-    // thing we understand in this version.  At this point, we can no longer
-    // directly access elements in the buffer because we have no idea what the
-    // alignment is now.
-    for (ii = linkHeaderSize; (ii < bytesRead) && (targetPath == NULL);) {
-      memcpy(&valueType, &buffer[ii], sizeof(valueType));
-      ii += sizeof(valueType);
-      memcpy(&valueLength, &buffer[ii], sizeof(valueLength));
-      ii += sizeof(valueLength);
-      if (valueType == LINK_VALUE_TYPE_PATH) {
-        targetPath = (const char*) &buffer[ii];
-      }
-      
-      ii += valueLength;
-    }
-    
-    if (targetPath != NULL) {
-      // The checksum is stored at the end of the value, so two bytes before our
-      // current index.
-      uint16_t storedChecksum = 0;
-      memcpy(&storedChecksum, &buffer[ii - sizeof(uint16_t)], sizeof(uint16_t));
-
-      uint16_t computedChecksum = 0;
-      for (size_t jj = 0; targetPath[jj] != '\0'; jj++) {
-        computedChecksum += (uint16_t) targetPath[jj];
-      }
-      
-      if (computedChecksum != storedChecksum) {
-        // Link corrupted.  No good.
-        free(buffer);
-        free(finalTarget);
-        return NULL;
+    // fastPointer traverses two links at a time.
+    char *nextFastPointer = getNextTarget(fastPointer);
+    free(fastPointer); fastPointer = nextFastPointer;
+    if (fastPointer != NULL) {
+      nextFastPointer = getNextTarget(fastPointer);
+      free(fastPointer); fastPointer = nextFastPointer;
+      if (fastPointer != NULL) {
+        if (strcmp(slowPointer, fastPointer) == 0) {
+          // We're in an infinite loop.  Bail.
+          free(slowPointer); slowPointer = NULL;
+        }
       }
     }
-    
-    if (strcmp(targetPath, finalTarget) == 0) {
-       // We're in an infinite loop.  The finalTarget is already correct.
-       break;
-     }
-    
-    check = realloc(finalTarget, strlen(targetPath) + 1);
-    if (check == NULL) {
-      // Out of memory.  Cannot continue.
-      free(buffer);
-      free(finalTarget);
-      return NULL;
-    }
-    finalTarget = (char*) check;
-    strcpy(finalTarget, targetPath);
-    extension = strrchr(finalTarget, '.');
   }
   
-  free(buffer);
-  return finalTarget;
+  free(fastPointer);
+  return slowPointer;
 }
 
