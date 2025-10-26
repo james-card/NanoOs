@@ -62,7 +62,8 @@ extern "C"
 #define ENODEV          14      /* No such device */
 #define ENOTTY          15      /* No such terminal device */
 #define ERANGE          16      /* Parameter or result out of range */
-#define EEND            17      /* End of error codes */
+#define ELOOP           17      /* Infinite loop detected */
+#define EEND            18      /* End of error codes */
 
 int* errno_(void);
 #define errno (*errno_())

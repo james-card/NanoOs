@@ -78,6 +78,7 @@ const char *errorStrings[] = {
   "No such device",                   // ENODEV
   "No such terminal device",          // ENOTTY
   "Parameter or result out of range", // ERANGE
+  "Infinite loop detected",           // ELOOP
 };
 
 /// @var NUM_ERRORS
