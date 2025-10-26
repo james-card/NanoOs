@@ -32,6 +32,7 @@
 #include "NanoOsUnistd.h"
 #include "Console.h"
 #include "NanoOs.h"
+#include "Scheduler.h"
 
 /// @fn int gethostname(char *name, size_t len)
 ///
@@ -48,42 +49,19 @@ int gethostname(char *name, size_t len) {
     return -1;
   }
   
-  char *hostname = (char*) malloc(HOST_NAME_MAX + 1);
+  const char *hostname = schedulerGetHostname();
   if (hostname == NULL) {
-    printString("ERROR! Could not allocate memory for hostname.\n");
-    errno = ENOMEM;
-    return -1;
+    hostname = "localhost";
   }
+  size_t hostnameLen = strlen(hostname);
   
   int returnValue = 0;
-  FILE *hostnameFile = fopen("/etc/hostname", "r");
-  size_t hostnameLen = 0;
-  if (hostnameFile != NULL) {
-    printDebug("Opened hostname file.\n");
-    hostnameLen = fread(hostname, 1, HOST_NAME_MAX, hostnameFile);
-    fclose(hostnameFile);
-    hostname[hostnameLen] = '\0';
-    
-    if (strchr(hostname, '\r')) {
-      *strchr(hostname, '\r') = '\0';
-    } else if (strchr(hostname, '\n')) {
-      *strchr(hostname, '\n') = '\0';
-    } else if (*hostname == '\0') {
-      strcpy(hostname, "localhost");
-    }
-    printDebug("Closed hostname file.\n");
-  } else {
-    printString("ERROR! fopen of hostname returned NULL!\n");
-    strcpy(hostname, "localhost");
-  }
-  
   if (len < hostnameLen) {
     returnValue = -1;
     errno = ENAMETOOLONG;
   }
   strncpy(name, hostname, len);
   
-  free(hostname);
   return returnValue;
 }
 
