@@ -28,31 +28,108 @@
 // Doxygen marker
 /// @file
 
-#include <string.h>
-#include "NanoOsSys.h"
-#include "NanoOs.h"
+#include "../os/NanoOs.h"
 #include "NanoOsUnistd.h"
+#include "NanoOsUnixApi.h"
 
-/// @fn int uname(struct utsname *buf)
-///
-/// @brief Get information about the system.
-///
-/// @param buf A pointer to a struct utsname to be populated.
-///
-/// @return Returns 0 on success, -1 on failure.  On failure, the value of
-/// errno is also set.
-int uname(struct utsname *buf) {
-  if (buf == NULL) {
-    errno = EFAULT;
-    return -1;
-  }
+#undef stdin
+#undef stdout
+#undef stderr
+#undef fopen
+#undef fclose
+#undef remove
+#undef fseek
+#undef vfscanf
+#undef fscanf
+#undef scanf
+#undef vfprintf
+#undef fprintf
+#undef printf
+#undef fputs
+#undef puts
+#undef fgets
+#undef fread
+#undef fwrite
+#undef strerror
+#undef fileno
+
+NanoOsUnixApi nanoOsUnixApi = {
+  // Standard streams:
+  .stdin = nanoOsStdin,
+  .stdout = nanoOsStdout,
+  .stderr = nanoOsStderr,
   
-  strncpy(buf->sysname, "NanoOs", sizeof(buf->sysname));
-  gethostname(buf->nodename, sizeof(buf->nodename));
-  strncpy(buf->release, "0.2.0", sizeof(buf->release));
-  strncpy(buf->version, "", sizeof(buf->version));
-  strncpy(buf->machine, "arm", sizeof(buf->machine));
+  // File operations:
+  .fopen = filesystemFOpen,
+  .fclose = filesystemFClose,
+  .remove = filesystemRemove,
+  .fseek = filesystemFSeek,
+  .fileno = nanoOsFileno,
   
-  return 0;
-}
+  // Formatted I/O:
+  .vsscanf = vsscanf,
+  .sscanf = sscanf,
+  .vfscanf = nanoOsVFScanf,
+  .fscanf = nanoOsFScanf,
+  .scanf = nanoOsScanf,
+  .vfprintf = nanoOsVFPrintf,
+  .fprintf = nanoOsFPrintf,
+  .printf = nanoOsPrintf,
+  .vsprintf = vsprintf,
+  .vsnprintf = vsnprintf,
+  .sprintf = sprintf,
+  .snprintf = snprintf,
+  
+  // Character I/O:
+  .fputs = nanoOsFPuts,
+  .puts = nanoOsPuts,
+  .fgets = nanoOsFGets,
+  
+  // Direct I/O:
+  .fread = filesystemFRead,
+  .fwrite = filesystemFWrite,
+  
+  // Memory management:
+  .free = memoryManagerFree,
+  .realloc = memoryManagerRealloc,
+  .malloc = memoryManagerMalloc,
+  .calloc = memoryManagerCalloc,
+  
+  // Copying functions:
+  .memcpy = memcpy,
+  .memmove = memmove,
+  .strcpy = strcpy,
+  .strncpy = strncpy,
+  .strcat = strcat,
+  .strncat = strncat,
+  
+  // Search functions:
+  .memcmp = memcmp,
+  .strcmp = strcmp,
+  .strncmp = strncmp,
+  .strstr = strstr,
+  .strchr = strchr,
+  .strrchr = strrchr,
+  .strspn = strspn,
+  .strcspn = strcspn,
+  
+  // Miscellaaneous string functions:
+  .memset = memset,
+  .strerror = nanoOsStrError,
+  .strlen = strlen,
+  
+  // Other stdlib functions:
+  .getenv = nanoOsGetenv,
+  
+  // unistd functions:
+  .gethostname = gethostname,
+  .sethostname = sethostname,
+  .ttyname_r = ttyname_r,
+  
+  // errno functions:
+  .errno_ = errno_,
+  
+  // sys/*.h functions:
+  .uname = uname,
+};
 

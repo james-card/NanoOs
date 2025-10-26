@@ -28,33 +28,31 @@
 // Doxygen marker
 /// @file
 
-#include "NanoOsErrno.h"
-#include "NanoOsTypes.h"
-#include "Processes.h"
+#include <string.h>
+#include "NanoOsSys.h"
+#include "../os/NanoOs.h"
+#include "NanoOsUnistd.h"
 
-/// @var processErrorNumbers
+/// @fn int uname(struct utsname *buf)
 ///
-/// @brief Process-specific storage for each process's errno value.
-static int processErrorNumbers[NANO_OS_NUM_PROCESSES + 1];
-
-/// @fn in* errno_(void)
+/// @brief Get information about the system.
 ///
-/// @brief Get a pointer to the element of the internal processErrorNumbers
-/// array that corresponds to the current process.
+/// @param buf A pointer to a struct utsname to be populated.
 ///
-/// @return This function always succeeds and always returns a valid pointer.
-/// HOWEVER, if there is a system problem that prevents accurate retrieval of
-/// the current process ID, a pointer to a default "scratch" storage space will
-/// be returned instead of the pointer to the current process's storage.
-int* errno_(void) {
-  ProcessId currentProcessId = getRunningProcessId();
-  if (currentProcessId > NANO_OS_NUM_PROCESSES) {
-    // This isn't valid.  This shouldn't happen but that doesn't mean it won't.
-    // Use the last index of the array as scratch storage.  This will prevent
-    // a segfault as would happen if we returned NULL.
-    currentProcessId = NANO_OS_NUM_PROCESSES;
+/// @return Returns 0 on success, -1 on failure.  On failure, the value of
+/// errno is also set.
+int uname(struct utsname *buf) {
+  if (buf == NULL) {
+    errno = EFAULT;
+    return -1;
   }
   
-  return &processErrorNumbers[currentProcessId];
+  strncpy(buf->sysname, "NanoOs", sizeof(buf->sysname));
+  gethostname(buf->nodename, sizeof(buf->nodename));
+  strncpy(buf->release, "0.2.0", sizeof(buf->release));
+  strncpy(buf->version, "", sizeof(buf->version));
+  strncpy(buf->machine, "arm", sizeof(buf->machine));
+  
+  return 0;
 }
 

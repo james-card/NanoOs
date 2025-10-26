@@ -28,108 +28,33 @@
 // Doxygen marker
 /// @file
 
-#include "NanoOs.h"
-#include "NanoOsUnistd.h"
-#include "NanoOsUnixApi.h"
+#include "NanoOsErrno.h"
+#include "../os/NanoOsTypes.h"
+#include "../os/Processes.h"
 
-#undef stdin
-#undef stdout
-#undef stderr
-#undef fopen
-#undef fclose
-#undef remove
-#undef fseek
-#undef vfscanf
-#undef fscanf
-#undef scanf
-#undef vfprintf
-#undef fprintf
-#undef printf
-#undef fputs
-#undef puts
-#undef fgets
-#undef fread
-#undef fwrite
-#undef strerror
-#undef fileno
+/// @var processErrorNumbers
+///
+/// @brief Process-specific storage for each process's errno value.
+static int processErrorNumbers[NANO_OS_NUM_PROCESSES + 1];
 
-NanoOsUnixApi nanoOsUnixApi = {
-  // Standard streams:
-  .stdin = nanoOsStdin,
-  .stdout = nanoOsStdout,
-  .stderr = nanoOsStderr,
+/// @fn in* errno_(void)
+///
+/// @brief Get a pointer to the element of the internal processErrorNumbers
+/// array that corresponds to the current process.
+///
+/// @return This function always succeeds and always returns a valid pointer.
+/// HOWEVER, if there is a system problem that prevents accurate retrieval of
+/// the current process ID, a pointer to a default "scratch" storage space will
+/// be returned instead of the pointer to the current process's storage.
+int* errno_(void) {
+  ProcessId currentProcessId = getRunningProcessId();
+  if (currentProcessId > NANO_OS_NUM_PROCESSES) {
+    // This isn't valid.  This shouldn't happen but that doesn't mean it won't.
+    // Use the last index of the array as scratch storage.  This will prevent
+    // a segfault as would happen if we returned NULL.
+    currentProcessId = NANO_OS_NUM_PROCESSES;
+  }
   
-  // File operations:
-  .fopen = filesystemFOpen,
-  .fclose = filesystemFClose,
-  .remove = filesystemRemove,
-  .fseek = filesystemFSeek,
-  .fileno = nanoOsFileno,
-  
-  // Formatted I/O:
-  .vsscanf = vsscanf,
-  .sscanf = sscanf,
-  .vfscanf = nanoOsVFScanf,
-  .fscanf = nanoOsFScanf,
-  .scanf = nanoOsScanf,
-  .vfprintf = nanoOsVFPrintf,
-  .fprintf = nanoOsFPrintf,
-  .printf = nanoOsPrintf,
-  .vsprintf = vsprintf,
-  .vsnprintf = vsnprintf,
-  .sprintf = sprintf,
-  .snprintf = snprintf,
-  
-  // Character I/O:
-  .fputs = nanoOsFPuts,
-  .puts = nanoOsPuts,
-  .fgets = nanoOsFGets,
-  
-  // Direct I/O:
-  .fread = filesystemFRead,
-  .fwrite = filesystemFWrite,
-  
-  // Memory management:
-  .free = memoryManagerFree,
-  .realloc = memoryManagerRealloc,
-  .malloc = memoryManagerMalloc,
-  .calloc = memoryManagerCalloc,
-  
-  // Copying functions:
-  .memcpy = memcpy,
-  .memmove = memmove,
-  .strcpy = strcpy,
-  .strncpy = strncpy,
-  .strcat = strcat,
-  .strncat = strncat,
-  
-  // Search functions:
-  .memcmp = memcmp,
-  .strcmp = strcmp,
-  .strncmp = strncmp,
-  .strstr = strstr,
-  .strchr = strchr,
-  .strrchr = strrchr,
-  .strspn = strspn,
-  .strcspn = strcspn,
-  
-  // Miscellaaneous string functions:
-  .memset = memset,
-  .strerror = nanoOsStrError,
-  .strlen = strlen,
-  
-  // Other stdlib functions:
-  .getenv = nanoOsGetenv,
-  
-  // unistd functions:
-  .gethostname = gethostname,
-  .sethostname = sethostname,
-  .ttyname_r = ttyname_r,
-  
-  // errno functions:
-  .errno_ = errno_,
-  
-  // sys/*.h functions:
-  .uname = uname,
-};
+  return &processErrorNumbers[currentProcessId];
+}
 

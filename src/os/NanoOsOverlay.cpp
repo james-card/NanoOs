@@ -29,7 +29,6 @@
 /// @file
 
 #include "Commands.h"
-#include "NanoOsUnixApi.h"
 #include "NanoOsOverlay.h"
 
 /// @fn int loadOverlay(const char *overlayPath)

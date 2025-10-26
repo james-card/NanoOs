@@ -39,7 +39,7 @@
 #include "SdCard.h"
 #include "ExFatFilesystem.h"
 #include "ExFatProcess.h"
-#include "NanoOsUnistd.h"
+#include "../unix/NanoOsUnistd.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
