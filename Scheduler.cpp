@@ -39,6 +39,7 @@
 #include "SdCard.h"
 #include "ExFatFilesystem.h"
 #include "ExFatProcess.h"
+#include "NanoOsUnistd.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
@@ -1199,6 +1200,30 @@ int schedulerCloseAllFileDescriptors(void) {
   return 0;
 }
 
+/// @fn char* schedulerGetHostname(void)
+///
+/// @brief Get the hostname that's read during startup.
+///
+/// @return Returns the hostname that's read during startup on success, NULL on
+/// failure.
+const char* schedulerGetHostname(void) {
+  const char *hostname = NULL;
+  ProcessMessage *processMessage
+    = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_HOSTNAME,
+    /* func= */ 0, /* data= */ 0, true);
+  if (processMessage == NULL) {
+    printString("ERROR: Could not communicate with scheduler.\n");
+    return hostname; // NULL
+  }
+
+  processMessageWaitForDone(processMessage, NULL);
+  hostname = nanoOsMessageDataValue(processMessage, char*);
+  processMessageRelease(processMessage);
+
+  return hostname;
+}
+
 // Scheduler command handlers and support functions
 
 /// @fn void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine)
@@ -2196,6 +2221,29 @@ int schedulerCloseAllFileDescriptorsCommandHandler(
   return returnValue;
 }
 
+/// @fn int schedulerGetHostnameCommandHandler(
+///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///
+/// @brief Get the hostname that's read when the scheduler starts.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int schedulerGetHostnameCommandHandler(
+  SchedulerState *schedulerState, ProcessMessage *processMessage
+) {
+  int returnValue = 0;
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  nanoOsMessage->data = (uintptr_t) schedulerState->hostname;
+  processMessageSetDone(processMessage);
+
+  return returnValue;
+}
+
 /// @typedef SchedulerCommandHandler
 ///
 /// @brief Signature of command handler for a scheduler command.
@@ -2215,6 +2263,7 @@ const SchedulerCommandHandler schedulerCommandHandlers[] = {
   schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
   // SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS:
   schedulerCloseAllFileDescriptorsCommandHandler,
+  schedulerGetHostnameCommandHandler,       // SCHEDULER_GET_HOSTNAME
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
@@ -2692,14 +2741,15 @@ __attribute__((noinline)) void startScheduler(
   printDebug("Started memory manager and filesystem.\n");
 
   // Allocate memory for the hostname.
-  schedulerState.hostname = (char*) kcalloc(1, 30);
+  schedulerState.hostname = (char*) kcalloc(1, HOST_NAME_MAX + 1);
   printDebug("Allocated memory for the hostname.\n");
   if (schedulerState.hostname != NULL) {
     FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
     if (hostnameFile != NULL) {
       printDebug("Opened hostname file.\n");
       if (kFilesystemFGets(&schedulerState,
-        schedulerState.hostname, 30, hostnameFile) != schedulerState.hostname
+        schedulerState.hostname, HOST_NAME_MAX + 1, hostnameFile)
+          != schedulerState.hostname
       ) {
         printString("ERROR! fgets did not read hostname!\n");
       }

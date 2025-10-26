@@ -57,6 +57,7 @@ typedef enum SchedulerCommandResponse {
   SCHEDULER_GET_PROCESS_USER,
   SCHEDULER_SET_PROCESS_USER,
   SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
+  SCHEDULER_GET_HOSTNAME,
   NUM_SCHEDULER_COMMANDS,
   // Responses:
   SCHEDULER_PROCESS_COMPLETE,
@@ -76,6 +77,7 @@ UserId schedulerGetProcessUser(void);
 int schedulerSetProcessUser(UserId userId);
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream);
 int schedulerCloseAllFileDescriptors(void);
+const char* schedulerGetHostname(void);
 
 #ifdef __cplusplus
 } // extern "C"
