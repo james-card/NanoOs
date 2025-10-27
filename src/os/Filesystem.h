@@ -49,6 +49,11 @@ extern "C"
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+/// @def MAX_PATH_LENGTH
+///
+/// @brief Maximum length of a full path on the filesystem.
+#define MAX_PATH_LENGTH 255
+
 /// @struct FilesystemState
 ///
 /// @brief State metadata the filesystem process uses to provide access to
