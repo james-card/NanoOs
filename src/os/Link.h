@@ -41,6 +41,7 @@ extern "C"
 
 int makeLink(const char *target, const char *linkFile);
 char* getTarget(const char *linkFile);
+FILE *lopen(const char *pathname, const char *mode);
 
 #ifdef __cplusplus
 } // extern "C"
