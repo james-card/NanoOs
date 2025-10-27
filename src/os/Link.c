@@ -42,6 +42,9 @@
 // We're on a "real" OS.
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#define MAX_PATH_LENGTH 255
+#define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
 #else
 
@@ -270,19 +273,23 @@ int makeLink(const char *target, const char *linkFile) {
   return (written == totalSize) ? 0 : -1;
 }
 
-/// @fn char* getNextTarget(const char *linkFile)
+/// @fn int getNextTarget(char *nextTarget, const char *linkFile)
 ///
 /// @brief Get the next target from the provided link file.
 ///
+/// @param nextTarget The buffer to fill with the next target.
 /// @param linkFile The path to the link file on the filesystem.
 ///
-/// @return Returns the target extracted from the link file on success, NULL
-/// on failure.
-char* getNextTarget(const char *linkFile) {
+/// @return Returns 0 on success, -1 on failure.
+int getNextTarget(char *nextTarget, const char *linkFile) {
+  if ((nextTarget == NULL) || (linkFile == NULL)) {
+    return -1;
+  }
+  
   // Open file and get size
   FILE *fp = fopen(linkFile, "rb");
   if (fp == NULL) {
-    return NULL;
+    return -1;
   }
   
   // Get file size
@@ -292,14 +299,16 @@ char* getNextTarget(const char *linkFile) {
   
   if (fileSize < LINK_VERSION1_HEADER_SIZE) {
     fclose(fp);
-    return NULL;
+    return -1;
   }
   
   // Allocate buffer and read entire file
-  uint8_t *buffer = (uint8_t*) malloc(fileSize);
+  const int bufferSize = LINK_VERSION1_PATH_INDEX + MAX_PATH_LENGTH;
+  uint8_t *buffer = (uint8_t*) malloc(MIN(fileSize, bufferSize));
   if (buffer == NULL) {
     fclose(fp);
-    return NULL;
+    errno = ENOMEM;
+    return -1;
   }
   
   size_t bytesRead = fread(buffer, 1, fileSize, fp);
@@ -307,13 +316,13 @@ char* getNextTarget(const char *linkFile) {
   
   if (bytesRead != (size_t) fileSize) {
     free(buffer);
-    return NULL;
+    return -1;
   }
   
   if (*((uint64_t*) &buffer[LINK_MAGIC_INDEX]) != *LINK_MAGIC) {
     // Not our link.
     free(buffer);
-    return NULL;
+    return -1;
   }
   
   uint16_t linkHeaderSize = *((uint16_t*) &buffer[LINK_HEADER_SIZE_INDEX]);
@@ -355,20 +364,14 @@ char* getNextTarget(const char *linkFile) {
     if (computedChecksum != storedChecksum) {
       // Link corrupted.  No good.
       free(buffer);
-      return NULL;
+      return -1;
     }
   }
   
-  char *nextTarget = (char*) malloc(strlen(targetPath) + 1);
-  if (nextTarget == NULL) {
-    // Out of memory.  Cannot continue.
-    free(buffer);
-    return NULL;
-  }
   strcpy(nextTarget, targetPath);
   
   free(buffer);
-  return nextTarget;
+  return 0;
 }
 
 /// @fn char* getTarget(const char *initialLink)
@@ -384,34 +387,43 @@ char* getTarget(const char *initialLink) {
     return NULL;
   }
   
-  char *slowPointer = (char*) malloc(strlen(initialLink) + 1);
+  char *slowPointer = (char*) malloc(MAX_PATH_LENGTH + 1);
   if (slowPointer == NULL) {
     // Nothing we can do.
+    errno = ENOMEM;
     return NULL;
   }
   strcpy(slowPointer, initialLink);
-  char *fastPointer = (char*) malloc(strlen(initialLink) + 1);
+  
+  char *fastPointer = (char*) malloc(MAX_PATH_LENGTH + 1);
   if (fastPointer == NULL) {
     // Nothing we can do.
     free(slowPointer);
+    errno = ENOMEM;
     return NULL;
   }
   strcpy(fastPointer, initialLink);
   
+  char *nextTarget = (char*) malloc(MAX_PATH_LENGTH + 1);
+  if (nextTarget == NULL) {
+    // Nothing we can do.
+    free(fastPointer);
+    free(slowPointer);
+    errno = ENOMEM;
+    return NULL;
+  }
+  
   while ((slowPointer != NULL) && (fastPointer != NULL)) {
     // slowPointer traverses one link at a time.
-    char *nextSlowPointer = getNextTarget(slowPointer);
-    if (nextSlowPointer != NULL) {
-      free(slowPointer); slowPointer = nextSlowPointer;
+    if (getNextTarget(nextTarget, slowPointer) == 0) {
+      strcpy(slowPointer, nextTarget);
     }
     
     // fastPointer traverses two links at a time.
-    char *nextFastPointer = getNextTarget(fastPointer);
-    free(fastPointer); fastPointer = nextFastPointer;
-    if (fastPointer != NULL) {
-      nextFastPointer = getNextTarget(fastPointer);
-      free(fastPointer); fastPointer = nextFastPointer;
-      if (fastPointer != NULL) {
+    if (getNextTarget(nextTarget, fastPointer) == 0) {
+      strcpy(fastPointer, nextTarget);
+      if (getNextTarget(nextTarget, fastPointer) == 0) {
+        strcpy(fastPointer, nextTarget);
         if (strcmp(slowPointer, fastPointer) == 0) {
           // We're in an infinite loop.  Bail.
           free(slowPointer); slowPointer = NULL;
@@ -421,6 +433,7 @@ char* getTarget(const char *initialLink) {
     }
   }
   
+  free(nextTarget);
   free(fastPointer);
   return slowPointer;
 }
