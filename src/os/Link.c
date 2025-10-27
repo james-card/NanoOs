@@ -303,15 +303,16 @@ int getNextTarget(char *nextTarget, const char *linkFile) {
   }
   
   // Allocate buffer and read entire file
-  const int bufferSize = LINK_VERSION1_PATH_INDEX + MAX_PATH_LENGTH;
-  uint8_t *buffer = (uint8_t*) malloc(MIN(fileSize, bufferSize));
+  const int bufferSize
+    = MIN(fileSize, (LINK_VERSION1_PATH_INDEX + MAX_PATH_LENGTH + 1));
+  uint8_t *buffer = (uint8_t*) malloc(bufferSize);
   if (buffer == NULL) {
     fclose(fp);
     errno = ENOMEM;
     return -1;
   }
   
-  size_t bytesRead = fread(buffer, 1, fileSize, fp);
+  size_t bytesRead = fread(buffer, 1, bufferSize, fp);
   fclose(fp); fp = NULL;
   
   if (bytesRead != (size_t) fileSize) {
@@ -413,11 +414,12 @@ char* getTarget(const char *initialLink) {
     return NULL;
   }
   
-  while ((slowPointer != NULL) && (fastPointer != NULL)) {
+  while (slowPointer != NULL) {
     // slowPointer traverses one link at a time.
-    if (getNextTarget(nextTarget, slowPointer) == 0) {
-      strcpy(slowPointer, nextTarget);
+    if (getNextTarget(nextTarget, slowPointer) != 0) {
+      break;
     }
+    strcpy(slowPointer, nextTarget);
     
     // fastPointer traverses two links at a time.
     if (getNextTarget(nextTarget, fastPointer) == 0) {
@@ -435,6 +437,51 @@ char* getTarget(const char *initialLink) {
   
   free(nextTarget);
   free(fastPointer);
+  
+  // There's no reason to keep more memory allocated than we need here.  Shrink
+  // slowPointer down to just the length of the path plus the NULL byte.
+  void *check = realloc(slowPointer, strlen(slowPointer) + 1);
+  if (check == NULL) {
+    // This should never happen since we're shrinking memory, but the compiler
+    // complains if we don't validate the pointer.
+    free(slowPointer); slowPointer = NULL;
+  }
+  slowPointer = (char*) check;
+  
   return slowPointer;
+}
+
+/// @fn FILE *lopen(const *pathname, const char *mode)
+///
+/// @brief Open a file on the filesystem that may be specified by a path to the
+/// file to open or to a link to the file to open.
+///
+/// @param pathname The path to the file or link on the filesystem.
+/// @param mode The mode to open the file with that's consistent with the
+///   standard C fopen call.
+///
+/// @return Returns a pointer to the opened file on success, NULL on failure.
+FILE *lopen(const char *pathname, const char *mode) {
+  if ((pathname == NULL) || (*pathname == '\0')) {
+    // Nothing to do.
+    return NULL;
+  } else if ((mode == NULL) || (*mode == '\0')) {
+    // The man page says we have to set errno to EINVAL.
+    errno = EINVAL;
+    return NULL;
+  }
+  
+  char *target = getTarget(pathname);
+  if ((target != NULL) && (strcmp(target, pathname) != 0)) {
+    pathname = target;
+  } else {
+    // Free the memory early so it can be reused for the fopen.
+    free(target); target = NULL;
+  }
+  
+  FILE *file = fopen(pathname, mode);
+  
+  free(target);
+  return file;
 }
 
