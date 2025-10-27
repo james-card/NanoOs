@@ -82,6 +82,21 @@ void runScheduler(SchedulerState *schedulerState);
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
 #define SD_CARD_PIN_CHIP_SELECT 4
 
+/// @struct ExecArgs
+///
+/// @brief Arguments for the standard POSIX execve call.
+///
+/// @param pathname The full, absolute path on disk to the program to run.
+/// @param argv The NULL-terminated array of arguments for the command.  argv[0]
+///   must be valid and should be the name of the program.
+/// @param envp The NULL-terminated array of environment variables in
+///   "name=value" format.  This array may be NULL.
+typedef struct ExecArgs {
+  char *pathname;
+  char **argv;
+  char **envp;
+} ExecArgs;
+
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main process object that's allocated in the main loop
@@ -189,6 +204,38 @@ const static FileDescriptor standardUserFileDescriptors[
     },
   },
 };
+
+/// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
+///
+/// @brief Free all the member variables of an ExecArgs structure.
+///
+/// @param execArgs A pointer to an ExecArgs structure.
+///
+/// @return This function always succeeds and always returns NULL.
+ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
+  free(execArgs->pathname);
+
+  char **argv = execArgs->argv;
+  // argv *SHOULD* never be NULL, but check just in case.
+  if (argv != NULL) {
+    for (int ii = 0; argv[ii] != NULL; ii++) {
+      free(argv[ii]);
+    }
+    free(argv);
+  }
+
+  char **envp = execArgs->envp;
+  if (envp != NULL) {
+    for (int ii = 0; envp[ii] != NULL; ii++) {
+      free(envp[ii]);
+    }
+    free(envp);
+  }
+
+  // *DO NOT* call free(execArgs).  The expectation is that execArgs is on the
+  // calling process's stack.  It should NOT be dynamically allocated.
+  return NULL;
+}
 
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
@@ -1224,7 +1271,57 @@ const char* schedulerGetHostname(void) {
   return hostname;
 }
 
+/// @fn int schedulerExecve(const char *pathname,
+///   char *const argv[], char *const envp[])
+///
+/// @brief NanoOs implementation of Unix execve function.
+///
+/// @param pathname The full, absolute path on disk to the program to run.
+/// @param argv The NULL-terminated array of arguments for the command.  argv[0]
+///   must be valid and should be the name of the program.
+/// @param envp The NULL-terminated array of environment variables in
+///   "name=value" format.  This array may be NULL.
+///
+/// @return This function will not return to the caller on success.  On failure,
+/// -1 will be returned and the value of errno will be set to indicate the
+/// reason for the failure.
+int schedulerExecve(const char *pathname,
+  char *const argv[], char *const envp[]
+) {
+  // Don't tell anybody, but all of the parameters passed in are actually not
+  // const... or at least they better not be because we're going to assume
+  // they're in dynamic memory and are going to assign the memory to the new
+  // process if we're successful.
+  ExecArgs execArgs = {
+    .pathname = (char*) pathname,
+    .argv = (char**) argv,
+    .envp = (char**) envp,
+  };
+
+  ProcessMessage *processMessage
+    = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_EXECVE,
+    /* func= */ 0, /* data= */ (uintptr_t) &execArgs, true);
+  if (processMessage == NULL) {
+    // The only way this should be possible is if all available messages are
+    // in use, so use ENOMEM as the errno.
+    errno = ENOMEM;
+    return -1;
+  }
+
+  schedulerWaitForProcessComplete();
+
+  // If we got this far then the exec failed for some reason.  The error will
+  // be in the data portion of the message we sent to the scheduler.
+  errno = nanoOsMessageDataValue(processMessage, int);
+  processMessageRelease(processMessage);
+
+  return -1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Scheduler command handlers and support functions
+////////////////////////////////////////////////////////////////////////////////
 
 /// @fn void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine)
 ///
@@ -2244,6 +2341,89 @@ int schedulerGetHostnameCommandHandler(
   return returnValue;
 }
 
+/// @fn int schedulerExecveCommandHandler(
+///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///
+/// @brief Exec a new program in place of a running program.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler process.
+/// @param processMessage A pointer to the ProcessMessage that was received.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int schedulerExecveCommandHandler(
+  SchedulerState *schedulerState, ProcessMessage *processMessage
+) {
+  (void) schedulerState;
+  int returnValue = 0;
+  if (processMessage == NULL) {
+    // This should be impossible, but there's nothing to do.  Return good
+    // status.
+    return returnValue; // 0
+  }
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  ExecArgs *execArgs = nanoOsMessageDataValue(processMessage, ExecArgs*);
+  if (execArgs == NULL) {
+    printString("ERROR! execArgs provided was NULL.\n");
+    return returnValue; // 0; Don't retry this command
+  }
+
+  char *pathname = execArgs->pathname;
+  if (pathname == NULL) {
+    // Invalid
+    execArgs = execArgsDestroy(execArgs);
+    return returnValue; // 0; Don't retry this command
+  }
+  char **argv = execArgs->argv;
+  if (argv == NULL) {
+    // Invalid
+    execArgs = execArgsDestroy(execArgs);
+    return returnValue; // 0; Don't retry this command
+  }
+  char **envp = execArgs->envp;
+
+  // execArgs itself is on the calling process's stack, so don't assign that.
+  if (assignMemory(pathname, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString("WARNING: Could not assign pathname to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
+
+  if (assignMemory(argv, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString("WARNING: Could not assign argv to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
+  for (int ii = 0; argv[ii] != NULL; ii++) {
+    if (assignMemory(argv[ii], NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+      printString("WARNING: Could not assign argv[");
+      printInt(ii);
+      printString("] to scheduler.\n");
+      printString("Undefined behavior.\n");
+    }
+  }
+
+  if (envp != NULL) {
+    if (assignMemory(envp, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+      printString("WARNING: Could not assign envp to scheduler.\n");
+      printString("Undefined behavior.\n");
+    }
+    for (int ii = 0; envp[ii] != NULL; ii++) {
+      if (assignMemory(envp[ii], NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+        printString("WARNING: Could not assign envp[");
+        printInt(ii);
+        printString("] to scheduler.\n");
+        printString("Undefined behavior.\n");
+      }
+    }
+  }
+
+  nanoOsMessage->data = errno;
+  processMessageSetDone(processMessage);
+
+  return returnValue;
+}
+
 /// @typedef SchedulerCommandHandler
 ///
 /// @brief Signature of command handler for a scheduler command.
@@ -2264,6 +2444,7 @@ const SchedulerCommandHandler schedulerCommandHandlers[] = {
   // SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS:
   schedulerCloseAllFileDescriptorsCommandHandler,
   schedulerGetHostnameCommandHandler,       // SCHEDULER_GET_HOSTNAME
+  schedulerExecveCommandHandler,            // SCHEDULER_EXECVE
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)
