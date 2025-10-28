@@ -69,7 +69,7 @@ typedef enum LinkValueType {
 ///
 /// @brief Magic value at the begining of a link to designate it as a NanoOS
 /// link.
-#define LINK_MAGIC ((uint64_t*) "NanoOsLn")
+#define LINK_MAGIC ((uint64_t*) "SoftLink")
 
 /// @brief LINK_MAGIC_SIZE
 ///
