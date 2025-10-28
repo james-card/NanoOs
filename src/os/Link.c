@@ -29,7 +29,8 @@
 ///
 /// @file              Link.c
 ///
-/// @brief             .lnk file format support
+/// @brief             Soft link support for filesystems that don't natively
+///                    support soft links.
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -167,32 +168,30 @@ int makeLink(const char *target, const char *linkFile) {
   }
   
   if (linkFileLength == 0) {
-    // Place in current directory with target filename + .lnk
+    // Place in current directory with target filename
     const char *filename = getFilename(target);
     if (filename == NULL) {
       return -1;
     }
     
-    outputPath = (char*) malloc(strlen(filename) + 5);  // +5 for ".lnk\0"
+    outputPath = (char*) malloc(strlen(filename) + 1);
     if (outputPath == NULL) {
       return -1;
     }
     strcpy(outputPath, filename);
-    strcat(outputPath, ".lnk");
   } else if (linkFile[linkFileLength - 1] == '/') {
-    // Place in specified directory with target filename + .lnk
+    // Place in specified directory with target filename
     const char *filename = getFilename(target);
     if (filename == NULL) {
       return -1;
     }
     
-    outputPath = (char*) malloc(strlen(linkFile) + strlen(filename) + 5);
+    outputPath = (char*) malloc(strlen(linkFile) + strlen(filename) + 1);
     if (outputPath == NULL) {
       return -1;
     }
     strcpy(outputPath, linkFile);
     strcat(outputPath, filename);
-    strcat(outputPath, ".lnk");
   } else {
     // Use linkFile as-is
     outputPath = (char*) malloc(strlen(linkFile) + 1);
@@ -200,6 +199,13 @@ int makeLink(const char *target, const char *linkFile) {
       return -1;
     }
     strcpy(outputPath, linkFile);
+  }
+  
+  if (strcmp(outputPath, target) == 0) {
+    // We've computed the target file as the output file.  If we continue,
+    // we'll corrupt the original input.  We can't do this.  Bail.
+    free(outputPath);
+    return -1;
   }
   
   // Calculate total buffer size needed
@@ -438,15 +444,18 @@ char* getTarget(const char *initialLink) {
   free(nextTarget);
   free(fastPointer);
   
-  // There's no reason to keep more memory allocated than we need here.  Shrink
-  // slowPointer down to just the length of the path plus the NULL byte.
-  void *check = realloc(slowPointer, strlen(slowPointer) + 1);
-  if (check == NULL) {
-    // This should never happen since we're shrinking memory, but the compiler
-    // complains if we don't validate the pointer.
-    free(slowPointer); slowPointer = NULL;
+  if (slowPointer != NULL) {
+    // There's no reason to keep more memory allocated than we need here.
+    // Shrink slowPointer down to just the length of the path plus the NULL
+    // byte.
+    void *check = realloc(slowPointer, strlen(slowPointer) + 1);
+    if (check == NULL) {
+      // This should never happen since we're shrinking memory, but the compiler
+      // complains if we don't validate the pointer.
+      free(slowPointer); slowPointer = NULL;
+    }
+    slowPointer = (char*) check;
   }
-  slowPointer = (char*) check;
   
   return slowPointer;
 }
