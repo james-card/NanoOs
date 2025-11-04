@@ -127,6 +127,13 @@ typedef enum LinkValueType {
 /// @brief The index within the link file of the target path.
 #define LINK_VERSION1_PATH_INDEX 16
 
+/// @def MAX_LINK_SIZE
+///
+/// @brief The maximum size of a valid link file.
+#define MAX_LINK_SIZE \
+  (LINK_VERSION1_PATH_INDEX + LINK_TYPE_LENGTH_SIZE \
+    + MAX_PATH_LENGTH + LINK_CHECKSUM_SIZE)
+
 /// @fn static char* getFilename(const char *path)
 ///
 /// @brief Helper function to get filename from path.
@@ -303,6 +310,9 @@ int getNextTarget(char *nextTarget, const char *linkFile) {
   fseek(fp, 0, SEEK_SET);
   
   if (fileSize < LINK_VERSION1_HEADER_SIZE) {
+    fclose(fp);
+    return -1;
+  } else if (fileSize > MAX_LINK_SIZE) {
     fclose(fp);
     return -1;
   }
