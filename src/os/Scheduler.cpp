@@ -207,7 +207,7 @@ const static FileDescriptor standardUserFileDescriptors[
 
 /// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
 ///
-/// @brief Free all the member variables of an ExecArgs structure.
+/// @brief Free all of an ExecArgs structure.
 ///
 /// @param execArgs A pointer to an ExecArgs structure.
 ///
@@ -232,8 +232,7 @@ ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
     free(envp);
   }
 
-  // *DO NOT* call free(execArgs).  The expectation is that execArgs is on the
-  // calling process's stack.  It should NOT be dynamically allocated.
+  free(execArgs);
   return NULL;
 }
 
@@ -1292,11 +1291,14 @@ int schedulerExecve(const char *pathname,
   // const... or at least they better not be because we're going to assume
   // they're in dynamic memory and are going to assign the memory to the new
   // process if we're successful.
-  ExecArgs execArgs = {
-    .pathname = (char*) pathname,
-    .argv = (char**) argv,
-    .envp = (char**) envp,
-  };
+  ExecArgs *execArgs = (ExecArgs*) malloc(sizeof(ExecArgs));
+  if (execArgs == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+  execArgs->pathname = (char*) pathname,
+  execArgs->argv = (char**) argv,
+  execArgs->envp = (char**) envp,
 
   ProcessMessage *processMessage
     = sendNanoOsMessageToPid(
@@ -1309,7 +1311,7 @@ int schedulerExecve(const char *pathname,
     return -1;
   }
 
-  schedulerWaitForProcessComplete();
+  processMessageWaitForDone(processMessage);
 
   // If we got this far then the exec failed for some reason.  The error will
   // be in the data portion of the message we sent to the scheduler.
@@ -2354,7 +2356,6 @@ int schedulerGetHostnameCommandHandler(
 int schedulerExecveCommandHandler(
   SchedulerState *schedulerState, ProcessMessage *processMessage
 ) {
-  (void) schedulerState;
   int returnValue = 0;
   if (processMessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
@@ -2367,24 +2368,43 @@ int schedulerExecveCommandHandler(
   ExecArgs *execArgs = nanoOsMessageDataValue(processMessage, ExecArgs*);
   if (execArgs == NULL) {
     printString("ERROR! execArgs provided was NULL.\n");
+    nanoOsMessage->data = EINVAL;
+    processMessageSetDone(processMessage);
     return returnValue; // 0; Don't retry this command
   }
 
   char *pathname = execArgs->pathname;
   if (pathname == NULL) {
     // Invalid
+    printString("ERROR! pathname provided was NULL.\n");
+    nanoOsMessage->data = EINVAL;
+    processMessageSetDone(processMessage);
     execArgs = execArgsDestroy(execArgs);
     return returnValue; // 0; Don't retry this command
   }
   char **argv = execArgs->argv;
   if (argv == NULL) {
     // Invalid
+    printString("ERROR! argv provided was NULL.\n");
+    nanoOsMessage->data = EINVAL;
+    processMessageSetDone(processMessage);
+    execArgs = execArgsDestroy(execArgs);
+    return returnValue; // 0; Don't retry this command
+  } else if (argv[0] == NULL) {
+    // Invalid
+    printString("ERROR! argv[0] provided was NULL.\n");
+    nanoOsMessage->data = EINVAL;
+    processMessageSetDone(processMessage);
     execArgs = execArgsDestroy(execArgs);
     return returnValue; // 0; Don't retry this command
   }
   char **envp = execArgs->envp;
 
-  // execArgs itself is on the calling process's stack, so don't assign that.
+  if (assignMemory(execArgs, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString("WARNING: Could not assign execArgs to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
+
   if (assignMemory(pathname, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
     printString("WARNING: Could not assign pathname to scheduler.\n");
     printString("Undefined behavior.\n");
@@ -2417,6 +2437,90 @@ int schedulerExecveCommandHandler(
       }
     }
   }
+
+  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
+    processId(processMessageFrom(processMessage))];
+  // The process should be blocked in processMessageQueueWaitForType waiting
+  // on a condition with an infinite timeout.  So, it *SHOULD* be on the
+  // waiting queue.  Take no chances, though.
+  (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
+    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+      == 0)
+    || processQueueRemove(&schedulerState->ready, processDescriptor);
+
+  // Protect the relevant memory from deletion below.
+  if (assignMemory(commandDescriptor->consoleInput,
+    NANO_OS_SCHEDULER_PROCESS_ID) != 0
+  ) {
+    printString(
+      "WARNING: Could not protect console input from deletion.\n");
+    printString("Undefined behavior.\n");
+  }
+  if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    printString(
+      "WARNING: Could not protect command descriptor from deletion.\n");
+    printString("Undefined behavior.\n");
+  }
+
+  // Kill and clear out the calling process.
+  processTerminate(processMessageFrom(processMessage));
+  processSetId(
+    processDescriptor->processHandle, processDescriptor->processId);
+
+  // We don't want to wait for the memory manager to release the memory.  Make
+  // it do it immediately.
+  if (schedulerSendNanoOsMessageToPid(
+    schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
+    MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+    /* func= */ 0, processDescriptor->processId)
+  ) {
+    printString("WARNING: Could not release memory for process ");
+    printInt(processDescriptor->processId);
+    printString("\n");
+    printString("Memory leak.\n");
+  }
+
+  processDescriptor->userId = schedulerState->allProcesses[
+    processId(processMessageFrom(processMessage))].userId;
+  processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+  processDescriptor->fileDescriptors
+    = (FileDescriptor*) standardUserFileDescriptors;
+
+  if (processCreate(&processDescriptor->processHandle,
+    startCommand, processMessage) == processError
+  ) {
+    printString(
+      "ERROR: Could not configure process handle for new command.\n");
+  }
+  if (assignMemory(commandDescriptor->consoleInput,
+    processDescriptor->processId) != 0
+  ) {
+    printString(
+      "WARNING: Could not assign console input to new process.\n");
+    printString("Memory leak.\n");
+  }
+  if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
+    printString(
+      "WARNING: Could not assign command descriptor to new process.\n");
+    printString("Memory leak.\n");
+  }
+
+  processDescriptor->name = commandEntry->name;
+
+  if (backgroundProcess == false) {
+    if (schedulerAssignPortToPid(schedulerState,
+      commandDescriptor->consolePort, processDescriptor->processId)
+      != processSuccess
+    ) {
+      printString("WARNING: Could not assign console port to process.\n");
+    }
+  }
+
+  // Resume the coroutine so that it picks up all the pointers it needs.
+  coroutineResume(processDescriptor->processHandle, NULL);
+
+  // Put the process on the ready queue.
+  processQueuePush(&schedulerState->ready, processDescriptor);
 
   nanoOsMessage->data = errno;
   processMessageSetDone(processMessage);
