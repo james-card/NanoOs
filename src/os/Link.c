@@ -124,8 +124,7 @@ typedef enum LinkValueType {
 
 /// @def LINK_VERSION1_PATH_INDEX
 ///
-/// @brief The index within the link file of the target path.  This is a 2-byte
-/// field in version 1.
+/// @brief The index within the link file of the target path.
 #define LINK_VERSION1_PATH_INDEX 16
 
 /// @fn static char* getFilename(const char *path)
