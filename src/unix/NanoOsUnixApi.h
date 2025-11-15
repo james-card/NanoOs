@@ -129,6 +129,7 @@ typedef struct NanoOsUnixApi {
   int (*gethostname)(char *name, size_t len);
   int (*sethostname)(const char *name, size_t len);
   int (*ttyname_r)(int fd, char *buf, size_t buflen);
+  int (*execve)(const char *pathname, char *const argv[], char *const envp[]);
   
   // errno functions:
   int* (*errno_)(void);

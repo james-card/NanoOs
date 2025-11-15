@@ -29,6 +29,7 @@
 /// @file
 
 #include "../os/NanoOs.h"
+#include "../os/Scheduler.h"
 #include "NanoOsUnistd.h"
 #include "NanoOsUnixApi.h"
 
@@ -125,6 +126,7 @@ NanoOsUnixApi nanoOsUnixApi = {
   .gethostname = gethostname,
   .sethostname = sethostname,
   .ttyname_r = ttyname_r,
+  .execve = schedulerExecve,
   
   // errno functions:
   .errno_ = errno_,
