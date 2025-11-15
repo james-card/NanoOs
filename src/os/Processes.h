@@ -223,6 +223,7 @@ extern "C"
 
 // Exported functionality
 void* startCommand(void *args);
+void* execCommand(void *args);
 int sendProcessMessageToProcess(
   ProcessHandle processHandle, ProcessMessage *processMessage);
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage);
@@ -230,6 +231,7 @@ ProcessMessage* getAvailableMessage(void);
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts);
+ExecArgs* execArgsDestroy(ExecArgs *execArgs);
 
 #ifdef __cplusplus
 } // extern "C"

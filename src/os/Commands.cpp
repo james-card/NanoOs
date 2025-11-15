@@ -121,7 +121,7 @@ int killCommandHandler(int argc, char **argv) {
 int echoCommandHandler(int argc, char **argv) {
   char commandPath[26] = "/usr/bin/";
   strcat(commandPath, "echo");
-  return runOverlayCommand(commandPath, argc, argv);
+  return runOverlayCommand(commandPath, argc, argv, NULL);
 }
 
 /// @fn int gettyCommandHandler(int argc, char **argv);
@@ -137,7 +137,7 @@ int echoCommandHandler(int argc, char **argv) {
 int gettyCommandHandler(int argc, char **argv) {
   char commandPath[26] = "/usr/bin/";
   strcat(commandPath, "getty");
-  return runOverlayCommand(commandPath, argc, argv);
+  return runOverlayCommand(commandPath, argc, argv, NULL);
 }
 
 /// @fn int grepCommandHandler(int argc, char **argv);
@@ -186,7 +186,7 @@ int grepCommandHandler(int argc, char **argv) {
 int helloworldCommandHandler(int argc, char **argv) {
   char commandPath[26] = "/usr/bin/";
   strcat(commandPath, "helloworld");
-  return runOverlayCommand(commandPath, argc, argv);
+  return runOverlayCommand(commandPath, argc, argv, NULL);
 }
 
 /// @fn int helpCommandHandler(int argc, char **argv);

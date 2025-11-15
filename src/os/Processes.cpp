@@ -45,6 +45,39 @@ ProcessMessage *messages = NULL;
 /// scheduler function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
+/// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
+///
+/// @brief Free all of an ExecArgs structure.
+///
+/// @param execArgs A pointer to an ExecArgs structure.
+///
+/// @return This function always succeeds and always returns NULL.
+ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
+  free(execArgs->pathname);
+
+  char **argv = execArgs->argv;
+  // argv *SHOULD* never be NULL, but check just in case.
+  if (argv != NULL) {
+    for (int ii = 0; argv[ii] != NULL; ii++) {
+      free(argv[ii]);
+    }
+    free(argv);
+  }
+
+  char **envp = execArgs->envp;
+  if (envp != NULL) {
+    for (int ii = 0; envp[ii] != NULL; ii++) {
+      free(envp[ii]);
+    }
+    free(envp);
+  }
+
+  // We don't need to and SHOULD NOT touch execArgs->schedulerState.
+
+  free(execArgs);
+  return NULL;
+}
+
 /// @fn int getNumTokens(const char *input)
 ///
 /// @brief Get the number of whitespace-delimited tokens in a string.
@@ -251,6 +284,73 @@ void* startCommand(void *args) {
     // console.
     releaseConsole();
   }
+
+  schedulerCloseAllFileDescriptors();
+
+  // Gracefully clear out our message queue.  We have to do this after closing
+  // our file descriptors (which is a blocking call) because some other process
+  // may be in the middle of sending us data and if we were to do this first,
+  // it could turn around and send us more data again.
+  msg_t *msg = processMessageQueuePop();
+  while (msg != NULL) {
+    processMessageSetDone(msg);
+    msg = processMessageQueuePop();
+  }
+
+  return (void*) ((intptr_t) returnValue);
+}
+
+/// @fn void* execCommand(void *args)
+///
+/// @brief Wrapper process function that calls a command function.
+///
+/// @param args The message received from the console process that describes
+///   the command to run, cast to a void*.
+///
+/// @return If the comamnd is run, returns the result of the command cast to a
+/// void*.  If the command is not run, returns -1 cast to a void*.
+void* execCommand(void *args) {
+  // The scheduler may be suspended because of launching this process.
+  // Immediately call processYield as a best practice to make sure the scheduler
+  // goes back to its work.
+  ProcessMessage *processMessage = (ProcessMessage*) args;
+  if (processMessage == NULL) {
+    printString("ERROR: No arguments message provided to startCommand.\n");
+    releaseConsole();
+    schedulerCloseAllFileDescriptors();
+    return (void*) ((intptr_t) -1);
+  }
+  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
+  ExecArgs *execArgs
+    = nanoOsMessageDataPointer(processMessage, ExecArgs*);
+  // processMessage will be released by the scheduler when we yield.
+  processYield();
+  char *pathname = execArgs->pathname;
+  char **argv = execArgs->argv;
+  char **envp = execArgs->envp;
+  SchedulerState *schedulerState = execArgs->schedulerState;
+
+  if ((argv == NULL) || (argv[0] == NULL)) {
+    // Fail.
+    printString("ERROR: Invalid argv.\n");
+    releaseConsole();
+    schedulerCloseAllFileDescriptors();
+    return (void*) ((intptr_t) -1);
+  }
+  int argc = 0;
+  for (; argv[argc] != NULL; argc++);
+
+  // Call the process function.
+  int returnValue = runOverlayCommand(pathname, argc, argv, envp);
+  execArgs = execArgsDestroy(execArgs);
+
+  if (callingProcessId != getRunningProcessId()) {
+    // This command did NOT replace a shell process.  Mark its slot in the
+    // process table as unowned.
+    schedulerState->allProcesses[
+      processId(getRunningProcess())].userId = NO_USER_ID;
+  }
+  releaseConsole();
 
   schedulerCloseAllFileDescriptors();
 

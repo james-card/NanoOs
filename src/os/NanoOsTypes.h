@@ -462,6 +462,24 @@ typedef struct BlockStorageDevice {
   uint8_t partitionNumber;
 } BlockStorageDevice;
 
+/// @struct ExecArgs
+///
+/// @brief Arguments for the standard POSIX execve call.
+///
+/// @param pathname The full, absolute path on disk to the program to run.
+/// @param argv The NULL-terminated array of arguments for the command.  argv[0]
+///   must be valid and should be the name of the program.
+/// @param envp The NULL-terminated array of environment variables in
+///   "name=value" format.  This array may be NULL.
+/// @param schedulerState A pointer to the SchedulerState managed by the
+///   scheduler.  This is needed by the execCommand function.
+typedef struct ExecArgs {
+  char *pathname;
+  char **argv;
+  char **envp;
+  SchedulerState *schedulerState;
+} ExecArgs;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

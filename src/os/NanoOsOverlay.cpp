@@ -31,14 +31,15 @@
 #include "Commands.h"
 #include "NanoOsOverlay.h"
 
-/// @fn int loadOverlay(const char *overlayPath)
+/// @fn int loadOverlay(const char *overlayPath, char **env)
 ///
 /// @brief Load and configure an overlay into the overlayMap in memory.
 ///
 /// @param overlayPath The full path to the overlay file on the filesystem.
+/// @param env The array of environment variables in "name=value" form.
 ///
 /// @return Returns 0 on success, negative error code on failure.
-int loadOverlay(const char *overlayPath) {
+int loadOverlay(const char *overlayPath, char **env) {
   FILE *overlayFile = fopen(overlayPath, "r");
   if (overlayFile == NULL) {
     fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
@@ -66,8 +67,10 @@ int loadOverlay(const char *overlayPath) {
       overlayMap->header.version, overlayPath);
     return -(EEND + 2);
   }
-  // Set the standard C API pointer for the overlay.
+
+  // Set the pieces of the overlay header that the program needs to run.
   overlayMap->header.unixApi = &nanoOsUnixApi;
+  overlayMap->header.env = env;
   
   return 0;
 }
@@ -102,16 +105,23 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   return overlayFunction;
 }
 
-/// @fn int runOverlayCommand(const char *commandPath, int argc, char **argv)
+/// @fn int runOverlayCommand(const char *commandPath,
+///   int argc, char **argv, char **env)
 ///
 /// @brief Run a command that's in overlay format on the filesystem.
 ///
 /// @param commandPath The full path to the command overlay file on the
 ///   filesystem.
+/// @param argc The number of arguments from the command line.
+/// @param argv The of arguments from the command line as an array of C strings.
+/// @param env The array of environment variable strings where each element is
+///   in "name=value" form.
 ///
 /// @return Returns 0 on success, a valid SUS value on failure.
-int runOverlayCommand(const char *commandPath, int argc, char **argv) {
-  int loadStatus = loadOverlay(commandPath);
+int runOverlayCommand(const char *commandPath,
+  int argc, char **argv, char **env
+) {
+  int loadStatus = loadOverlay(commandPath, env);
   if (loadStatus == -ENOENT) {
     // Error message already printed.
     return COMMAND_NOT_FOUND;

@@ -82,21 +82,6 @@ void runScheduler(SchedulerState *schedulerState);
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
 #define SD_CARD_PIN_CHIP_SELECT 4
 
-/// @struct ExecArgs
-///
-/// @brief Arguments for the standard POSIX execve call.
-///
-/// @param pathname The full, absolute path on disk to the program to run.
-/// @param argv The NULL-terminated array of arguments for the command.  argv[0]
-///   must be valid and should be the name of the program.
-/// @param envp The NULL-terminated array of environment variables in
-///   "name=value" format.  This array may be NULL.
-typedef struct ExecArgs {
-  char *pathname;
-  char **argv;
-  char **envp;
-} ExecArgs;
-
 /// @var schedulerProcess
 ///
 /// @brief Pointer to the main process object that's allocated in the main loop
@@ -204,37 +189,6 @@ const static FileDescriptor standardUserFileDescriptors[
     },
   },
 };
-
-/// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
-///
-/// @brief Free all of an ExecArgs structure.
-///
-/// @param execArgs A pointer to an ExecArgs structure.
-///
-/// @return This function always succeeds and always returns NULL.
-ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
-  free(execArgs->pathname);
-
-  char **argv = execArgs->argv;
-  // argv *SHOULD* never be NULL, but check just in case.
-  if (argv != NULL) {
-    for (int ii = 0; argv[ii] != NULL; ii++) {
-      free(argv[ii]);
-    }
-    free(argv);
-  }
-
-  char **envp = execArgs->envp;
-  if (envp != NULL) {
-    for (int ii = 0; envp[ii] != NULL; ii++) {
-      free(envp[ii]);
-    }
-    free(envp);
-  }
-
-  free(execArgs);
-  return NULL;
-}
 
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
@@ -1296,9 +1250,10 @@ int schedulerExecve(const char *pathname,
     errno = ENOMEM;
     return -1;
   }
-  execArgs->pathname = (char*) pathname,
-  execArgs->argv = (char**) argv,
-  execArgs->envp = (char**) envp,
+  execArgs->pathname = (char*) pathname;
+  execArgs->argv = (char**) argv;
+  execArgs->envp = (char**) envp;
+  execArgs->schedulerState = NULL; // Set by the scheduler
 
   ProcessMessage *processMessage
     = sendNanoOsMessageToPid(
@@ -1311,7 +1266,7 @@ int schedulerExecve(const char *pathname,
     return -1;
   }
 
-  processMessageWaitForDone(processMessage);
+  processMessageWaitForDone(processMessage, NULL);
 
   // If we got this far then the exec failed for some reason.  The error will
   // be in the data portion of the message we sent to the scheduler.
@@ -1422,7 +1377,8 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
       }
     }
 
-    // Resume the coroutine so that it picks up all the pointers it needs.
+    // Resume the coroutine so that it picks up all the pointers it needs
+    // before we release the message we were sent.
     coroutineResume(processDescriptor->processHandle, NULL);
 
     // Put the process on the ready queue.
@@ -2448,20 +2404,6 @@ int schedulerExecveCommandHandler(
       == 0)
     || processQueueRemove(&schedulerState->ready, processDescriptor);
 
-  // Protect the relevant memory from deletion below.
-  if (assignMemory(commandDescriptor->consoleInput,
-    NANO_OS_SCHEDULER_PROCESS_ID) != 0
-  ) {
-    printString(
-      "WARNING: Could not protect console input from deletion.\n");
-    printString("Undefined behavior.\n");
-  }
-  if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
-    printString(
-      "WARNING: Could not protect command descriptor from deletion.\n");
-    printString("Undefined behavior.\n");
-  }
-
   // Kill and clear out the calling process.
   processTerminate(processMessageFrom(processMessage));
   processSetId(
@@ -2480,50 +2422,82 @@ int schedulerExecveCommandHandler(
     printString("Memory leak.\n");
   }
 
-  processDescriptor->userId = schedulerState->allProcesses[
-    processId(processMessageFrom(processMessage))].userId;
-  processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
-  processDescriptor->fileDescriptors
-    = (FileDescriptor*) standardUserFileDescriptors;
-
+  execArgs->schedulerState = schedulerState;
   if (processCreate(&processDescriptor->processHandle,
-    startCommand, processMessage) == processError
+    execCommand, processMessage) == processError
   ) {
     printString(
       "ERROR: Could not configure process handle for new command.\n");
   }
-  if (assignMemory(commandDescriptor->consoleInput,
-    processDescriptor->processId) != 0
-  ) {
-    printString(
-      "WARNING: Could not assign console input to new process.\n");
-    printString("Memory leak.\n");
-  }
-  if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
-    printString(
-      "WARNING: Could not assign command descriptor to new process.\n");
-    printString("Memory leak.\n");
+
+  if (assignMemory(execArgs, processDescriptor->processId) != 0) {
+    printString("WARNING: Could not assign execArgs to scheduler.\n");
+    printString("Undefined behavior.\n");
   }
 
-  processDescriptor->name = commandEntry->name;
+  if (assignMemory(pathname, processDescriptor->processId) != 0) {
+    printString("WARNING: Could not assign pathname to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
 
-  if (backgroundProcess == false) {
+  if (assignMemory(argv, processDescriptor->processId) != 0) {
+    printString("WARNING: Could not assign argv to scheduler.\n");
+    printString("Undefined behavior.\n");
+  }
+  for (int ii = 0; argv[ii] != NULL; ii++) {
+    if (assignMemory(argv[ii], processDescriptor->processId) != 0) {
+      printString("WARNING: Could not assign argv[");
+      printInt(ii);
+      printString("] to scheduler.\n");
+      printString("Undefined behavior.\n");
+    }
+  }
+
+  if (envp != NULL) {
+    if (assignMemory(envp, processDescriptor->processId) != 0) {
+      printString("WARNING: Could not assign envp to scheduler.\n");
+      printString("Undefined behavior.\n");
+    }
+    for (int ii = 0; envp[ii] != NULL; ii++) {
+      if (assignMemory(envp[ii], processDescriptor->processId) != 0) {
+        printString("WARNING: Could not assign envp[");
+        printInt(ii);
+        printString("] to scheduler.\n");
+        printString("Undefined behavior.\n");
+      }
+    }
+  }
+
+  processDescriptor->name = argv[0];
+
+  /*
+   * This shouldn't be necessary.  In hindsight, perhaps I shouldn't be
+   * assigning a port to a process at all.  That's not the way Unix works.  I
+   * should probably remove the ability to exclusively assign a port to a
+   * process at some point in the future.  Delete this if I haven't found a
+   * good reason to continue granting exclusive access to a process by then.
+   * Leaving it uncommented in an if (false) so that compilation will fail
+   * if/when I delete the functionality.
+   *
+   * JBC 14-Nov-2025
+   */
+  if (false) {
     if (schedulerAssignPortToPid(schedulerState,
-      commandDescriptor->consolePort, processDescriptor->processId)
+      /*commandDescriptor->consolePort*/ 255, processDescriptor->processId)
       != processSuccess
     ) {
       printString("WARNING: Could not assign console port to process.\n");
     }
   }
 
-  // Resume the coroutine so that it picks up all the pointers it needs.
+  // Resume the coroutine so that it picks up all the pointers it needs before
+  // we release the message we were sent.
   coroutineResume(processDescriptor->processHandle, NULL);
 
   // Put the process on the ready queue.
   processQueuePush(&schedulerState->ready, processDescriptor);
 
-  nanoOsMessage->data = errno;
-  processMessageSetDone(processMessage);
+  processMessageRelease(processMessage);
 
   return returnValue;
 }

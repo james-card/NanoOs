@@ -367,7 +367,7 @@ void consoleSetPortShellCommandHandler(
   return;
 }
 
-/// @fn void consoleAssignPortInputCommandHandler(
+/// @fn void consoleAssignPortHelper(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage)
 ///
 /// @brief Assign a console port's input and possibly output to a running
