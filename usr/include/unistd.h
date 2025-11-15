@@ -44,6 +44,8 @@
   overlayMap.header.unixApi->sethostname(name, len)
 #define ttyname_r(fd, buf, buflen) \
   overlayMap.header.unixApi->ttyname_r(fd, buf, buflen)
+#define execve(pathname, argv, envp) \
+  overlayMap.header.unixApi->execve(pathname, argv, envp)
 
 #endif // UNISTD_H
 
