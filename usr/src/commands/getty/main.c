@@ -35,6 +35,17 @@
 #include <errno.h>
 #include <sys/utsname.h>
 
+/// @def LOGIN_PATH
+///
+/// @brief The absolute path to the login program on the filesystem.
+#define LOGIN_PATH "/usr/bin/login"
+
+/// @def LOGIN_NAME
+///
+/// @brief The desired name to show for the login program when we exec it.
+/// This will be used as argv[0] in the args we pass in to execve.
+#define LOGIN_NAME "login"
+
 /// @fn int printHostname(void)
 ///
 /// @brief Make the gethostname call and display it.
@@ -198,8 +209,26 @@ int main(int argc, char **argv) {
   
   while (input == NULL) {
     fputs("login: ", stdout);
-    input = fgets(buffer, sizeof(buffer), stdin);
+    input = fgets(buffer, 96, stdin);
   }
+  
+  char *loginPath = (char*) malloc(strlen(LOGIN_PATH) + 1);
+  strcpy(loginPath, LOGIN_PATH);
+  
+  char **loginArgv = (char**) malloc(3 * sizeof(char*));
+  loginArgv[0] = (char*) malloc(strlen(LOGIN_NAME) + 1);
+  strcpy(loginArgv[0], LOGIN_NAME);
+  loginArgv[1] = (char*) malloc(strlen(buffer) + 1);
+  strcpy(loginArgv[1], buffer);
+  loginArgv[2] = NULL;
+  
+  execve(loginPath, loginArgv, NULL);
+  // If we get here then the exec failed.  We don't really have to check the
+  // return value but we do need to print out what happened as documented by
+  // errno.
+  fputs("ERROR! execve failed with status: ", stderr);
+  fputs(strerror(errno), stderr);
+  fputs("\n", stderr);
   
   free(buffer);
   return 0;
