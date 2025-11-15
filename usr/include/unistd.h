@@ -39,13 +39,13 @@
 #include "NanoOsUser.h"
 
 #define gethostname(name, len) \
-  overlayMap.header.unixApi->gethostname(name, len)
+  overlayMap.header.osApi->gethostname(name, len)
 #define sethostname(name, len) \
-  overlayMap.header.unixApi->sethostname(name, len)
+  overlayMap.header.osApi->sethostname(name, len)
 #define ttyname_r(fd, buf, buflen) \
-  overlayMap.header.unixApi->ttyname_r(fd, buf, buflen)
+  overlayMap.header.osApi->ttyname_r(fd, buf, buflen)
 #define execve(pathname, argv, envp) \
-  overlayMap.header.unixApi->execve(pathname, argv, envp)
+  overlayMap.header.osApi->execve(pathname, argv, envp)
 
 #endif // UNISTD_H
 

@@ -69,7 +69,7 @@ int loadOverlay(const char *overlayPath, char **env) {
   }
 
   // Set the pieces of the overlay header that the program needs to run.
-  overlayMap->header.unixApi = &nanoOsUnixApi;
+  overlayMap->header.osApi = &nanoOsApi;
   overlayMap->header.env = env;
   
   return 0;
@@ -87,7 +87,7 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   int comp = 0;
   OverlayFunction overlayFunction = NULL;
   
-  for (uint16_t ii = 0, jj = overlayMap->header.numExports - 1; ii <= jj;) {
+  for (uint16_t ii = 0, jj = overlayMap->numExports - 1; ii <= jj;) {
     cur = (ii + jj) >> 1;
     comp = strcmp(overlayMap->exports[cur].name, overlayFunctionName);
     if (comp == 0) {

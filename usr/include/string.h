@@ -41,43 +41,43 @@
 
 // Copying functions:
 #define memcpy(dest, src, n) \
-  overlayMap.header.unixApi->memcpy(dest, src, n)
+  overlayMap.header.osApi->memcpy(dest, src, n)
 #define memmove(dest, src, n) \
-  overlayMap.header.unixApi->memmove(dest, src, n)
+  overlayMap.header.osApi->memmove(dest, src, n)
 #define strcpy(dest, src) \
-  overlayMap.header.unixApi->strcpy(dest, src)
+  overlayMap.header.osApi->strcpy(dest, src)
 #define strncpy(dest, src, dsize) \
-  overlayMap.header.unixApi->strncpy(dest, src, dsize)
+  overlayMap.header.osApi->strncpy(dest, src, dsize)
 #define strcat(dest, src) \
-  overlayMap.header.unixApi->strcat(dest, src)
+  overlayMap.header.osApi->strcat(dest, src)
 #define strncat(dest, src, ssize) \
-  overlayMap.header.unixApi->strncat(dest, src, ssize)
+  overlayMap.header.osApi->strncat(dest, src, ssize)
 
 // Search functions:
 #define memcmp(dest, src, n) \
-  overlayMap.header.unixApi->memcmp(dest, src, n)
+  overlayMap.header.osApi->memcmp(dest, src, n)
 #define strcmp(dest, src) \
-  overlayMap.header.unixApi->strcmp(dest, src)
+  overlayMap.header.osApi->strcmp(dest, src)
 #define strncmp(dest, src, n) \
-  overlayMap.header.unixApi->strncmp(dest, src, n)
+  overlayMap.header.osApi->strncmp(dest, src, n)
 #define strstr(haystack, needle) \
-  overlayMap.header.unixApi->strstr(haystack, needle)
+  overlayMap.header.osApi->strstr(haystack, needle)
 #define strchr(s, c) \
-  overlayMap.header.unixApi->strchr(s, c)
+  overlayMap.header.osApi->strchr(s, c)
 #define strrchr(s, c) \
-  overlayMap.header.unixApi->strrchr(s, c)
+  overlayMap.header.osApi->strrchr(s, c)
 #define strspn(s, accept) \
-  overlayMap.header.unixApi->strspn(s, accept)
+  overlayMap.header.osApi->strspn(s, accept)
 #define strcspn(s, reject) \
-  overlayMap.header.unixApi->strcspn(s, reject)
+  overlayMap.header.osApi->strcspn(s, reject)
 
 // Miscellaaneous string functions:
 #define memset(s, c, n) \
-  overlayMap.header.unixApi->memset(s, c, n)
+  overlayMap.header.osApi->memset(s, c, n)
 #define strerror(errnum) \
-  overlayMap.header.unixApi->strerror(errnum)
+  overlayMap.header.osApi->strerror(errnum)
 #define strlen(s) \
-  overlayMap.header.unixApi->strlen(s)
+  overlayMap.header.osApi->strlen(s)
 
 #endif // STRING_H
 

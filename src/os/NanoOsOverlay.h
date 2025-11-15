@@ -41,7 +41,7 @@
 #include <stdint.h>
 
 // Headers from kernel space.
-#include "../unix/NanoOsUnixApi.h"
+#include "../unix/NanoOsApi.h"
 #include "../unix/NanoOsUnistd.h"
 
 #ifdef __cplusplus
@@ -79,7 +79,7 @@ typedef struct NanoOsOverlayExport {
 ///   valid NanoOs overlay header.
 /// @param version The version of the overlay header.  Format will be:
 ///   (major << 24) | (minor << 16) | (revision << 8) | (build << 0).
-/// @param unixApi A pointer to the NanoOsUnixApi structure in the kernel that
+/// @param osApi A pointer to the NanoOsApi structure in the kernel that
 ///   manages all the standard C API interfaces.
 /// @param callOverlayFunction A pointer to the function that allows a function
 ///   in a different overlay to be called.
@@ -89,9 +89,7 @@ typedef struct NanoOsOverlayExport {
 typedef struct NanoOsOverlayHeader {
   uint64_t magic;         // Must be NANO_OS_OVERLAY_MAGIC
   uint32_t version;
-  NanoOsUnixApi *unixApi;
-  void* (*callOverlayFunction)(void*);
-  uint16_t numExports;
+  NanoOsApi *osApi;
   char **env;
 } NanoOsOverlayHeader;
 
@@ -105,6 +103,7 @@ typedef struct NanoOsOverlayHeader {
 typedef struct NanoOsOverlayMap {
   NanoOsOverlayHeader header;
   NanoOsOverlayExport *exports;
+  uint16_t numExports;
 } NanoOsOverlayMap;
 
 /// @struct MainArgs

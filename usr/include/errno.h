@@ -39,7 +39,7 @@
 #include "NanoOsUser.h"
 
 #define errno \
-  (*overlayMap.header.unixApi->errno_())
+  (*overlayMap.header.osApi->errno_())
 
 #endif // ERRNO_H
 

@@ -31,7 +31,7 @@
 #include "../os/NanoOs.h"
 #include "../os/Scheduler.h"
 #include "NanoOsUnistd.h"
-#include "NanoOsUnixApi.h"
+#include "NanoOsApi.h"
 
 #undef stdin
 #undef stdout
@@ -54,7 +54,7 @@
 #undef strerror
 #undef fileno
 
-NanoOsUnixApi nanoOsUnixApi = {
+NanoOsApi nanoOsApi = {
   // Standard streams:
   .stdin = nanoOsStdin,
   .stdout = nanoOsStdout,
@@ -133,5 +133,8 @@ NanoOsUnixApi nanoOsUnixApi = {
   
   // sys/*.h functions:
   .uname = uname,
+  
+  // NanoOs-specific functionality
+  .callOverlayFunction = NULL,
 };
 

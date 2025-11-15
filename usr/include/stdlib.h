@@ -39,15 +39,15 @@
 #include "NanoOsUser.h"
 
 #define free(ptr) \
-  overlayMap.header.unixApi->free(ptr)
+  overlayMap.header.osApi->free(ptr)
 #define realloc(ptr, size) \
-  overlayMap.header.unixApi->realloc(ptr, size)
+  overlayMap.header.osApi->realloc(ptr, size)
 #define malloc(size) \
-  overlayMap.header.unixApi->malloc(size)
+  overlayMap.header.osApi->malloc(size)
 #define calloc(nmemb, size) \
-  overlayMap.header.unixApi->calloc(nmemb, size)
+  overlayMap.header.osApi->calloc(nmemb, size)
 #define getenv(s) \
-  overlayMap.header.unixApi->getenv(s)
+  overlayMap.header.osApi->getenv(s)
 
 #endif // STDLIB_H
 

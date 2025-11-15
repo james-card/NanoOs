@@ -3,10 +3,11 @@
 /// @author            James Card
 /// @date              09.01.2025
 ///
-/// @file              NanoOsUnixApi.h
+/// @file              NanoOsApi.h
 ///
-/// @brief             Functionality from Single Unix Specification API that is
-///                    to be exported to user programs.
+/// @brief             Functionality from Single Specification API plus any
+///                    OS-specific functionality that is to be exported to user
+///                    programs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -57,7 +58,7 @@ extern "C"
 {
 #endif
 
-typedef struct NanoOsUnixApi {
+typedef struct NanoOsApi {
   // Standard streams:
   FILE *stdin;
   FILE *stdout;
@@ -136,9 +137,12 @@ typedef struct NanoOsUnixApi {
   
   // sys/*.h functions:
   int (*uname)(struct utsname *buf);
-} NanoOsUnixApi;
+  
+  // NanoOs-specific functionality
+  void* (*callOverlayFunction)(void*);
+} NanoOsApi;
 
-extern NanoOsUnixApi nanoOsUnixApi;
+extern NanoOsApi nanoOsApi;
 
 #ifdef __cplusplus
 }
