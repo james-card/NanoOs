@@ -1,4 +1,4 @@
-COMMANDS := $(shell ls | grep -v makefile)
+COMMANDS := $(shell ls | grep -Ev 'makefile|include.mk')
 
 .PHONY: all clean $(COMMANDS)
 
