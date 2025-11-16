@@ -1258,7 +1258,7 @@ int schedulerExecve(const char *pathname,
   ProcessMessage *processMessage
     = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_EXECVE,
-    /* func= */ 0, /* data= */ (uintptr_t) &execArgs, true);
+    /* func= */ 0, /* data= */ (uintptr_t) execArgs, true);
   if (processMessage == NULL) {
     // The only way this should be possible is if all available messages are
     // in use, so use ENOMEM as the errno.
@@ -1272,6 +1272,7 @@ int schedulerExecve(const char *pathname,
   // be in the data portion of the message we sent to the scheduler.
   errno = nanoOsMessageDataValue(processMessage, int);
   processMessageRelease(processMessage);
+  execArgs = execArgsDestroy(execArgs);
 
   return -1;
 }
@@ -2335,7 +2336,6 @@ int schedulerExecveCommandHandler(
     printString("ERROR! pathname provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
     processMessageSetDone(processMessage);
-    execArgs = execArgsDestroy(execArgs);
     return returnValue; // 0; Don't retry this command
   }
   char **argv = execArgs->argv;
@@ -2344,14 +2344,12 @@ int schedulerExecveCommandHandler(
     printString("ERROR! argv provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
     processMessageSetDone(processMessage);
-    execArgs = execArgsDestroy(execArgs);
     return returnValue; // 0; Don't retry this command
   } else if (argv[0] == NULL) {
     // Invalid
     printString("ERROR! argv[0] provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
     processMessageSetDone(processMessage);
-    execArgs = execArgsDestroy(execArgs);
     return returnValue; // 0; Don't retry this command
   }
   char **envp = execArgs->envp;
