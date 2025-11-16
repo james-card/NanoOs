@@ -45,36 +45,37 @@ ProcessMessage *messages = NULL;
 /// scheduler function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
-/// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
+/// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs, void (*freeMem)(void*))
 ///
 /// @brief Free all of an ExecArgs structure.
 ///
 /// @param execArgs A pointer to an ExecArgs structure.
+/// @param freeMem Pointer to the function to use to free memory.
 ///
 /// @return This function always succeeds and always returns NULL.
-ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
-  free(execArgs->pathname);
+ExecArgs* execArgsDestroy(ExecArgs *execArgs, void (*freeMem)(void*)) {
+  freeMem(execArgs->pathname);
 
   char **argv = execArgs->argv;
   // argv *SHOULD* never be NULL, but check just in case.
   if (argv != NULL) {
     for (int ii = 0; argv[ii] != NULL; ii++) {
-      free(argv[ii]);
+      freeMem(argv[ii]);
     }
-    free(argv);
+    freeMem(argv);
   }
 
   char **envp = execArgs->envp;
   if (envp != NULL) {
     for (int ii = 0; envp[ii] != NULL; ii++) {
-      free(envp[ii]);
+      freeMem(envp[ii]);
     }
-    free(envp);
+    freeMem(envp);
   }
 
   // We don't need to and SHOULD NOT touch execArgs->schedulerState.
 
-  free(execArgs);
+  freeMem(execArgs);
   return NULL;
 }
 
@@ -342,7 +343,7 @@ void* execCommand(void *args) {
 
   // Call the process function.
   int returnValue = runOverlayCommand(pathname, argc, argv, envp);
-  execArgs = execArgsDestroy(execArgs);
+  execArgs = execArgsDestroy(execArgs, memoryManagerFree);
 
   if (callingProcessId != getRunningProcessId()) {
     // This command did NOT replace a shell process.  Mark its slot in the

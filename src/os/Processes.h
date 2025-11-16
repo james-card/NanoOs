@@ -231,7 +231,7 @@ ProcessMessage* getAvailableMessage(void);
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts);
-ExecArgs* execArgsDestroy(ExecArgs *execArgs);
+ExecArgs* execArgsDestroy(ExecArgs *execArgs, void (*freeMem)(void*));
 
 #ifdef __cplusplus
 } // extern "C"
