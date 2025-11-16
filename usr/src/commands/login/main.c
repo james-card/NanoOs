@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
     fputs("Login successful!\n", stderr);
   } else {
     fputs("Login failed!\n", stderr);
+    fprintf(stderr, "Expected \"%s\", got \"%s\"\n", argv[1], buffer);
     returnValue = 1;
   }
   
