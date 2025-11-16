@@ -205,11 +205,13 @@ int main(int argc, char **argv) {
     fputs("ERROR! Could not allocate space for buffer in getty.\n", stderr);
     return 1;
   }
-  char *input = NULL;
   
-  while (input == NULL) {
-    fputs("login: ", stdout);
-    input = fgets(buffer, 96, stdin);
+  fputs("login: ", stdout);
+  char *input = fgets(buffer, 96, stdin);
+  if ((input != NULL) && (strlen(input) > 0)
+    && (input[strlen(input) - 1] == '\n')
+  ) {
+    input[strlen(input) - 1] = '\0';
   }
   
   char *loginPath = (char*) malloc(strlen(LOGIN_PATH) + 1);
