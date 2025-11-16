@@ -56,9 +56,9 @@
 
 NanoOsApi nanoOsApi = {
   // Standard streams:
-  .stdin = nanoOsStdin,
-  .stdout = nanoOsStdout,
-  .stderr = nanoOsStderr,
+  .stdin  = (FILE*) ((intptr_t) 0x1),
+  .stdout = (FILE*) ((intptr_t) 0x2),
+  .stderr = (FILE*) ((intptr_t) 0x3),
   
   // File operations:
   .fopen = filesystemFOpen,
