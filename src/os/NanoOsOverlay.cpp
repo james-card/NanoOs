@@ -47,7 +47,7 @@ int loadOverlay(const char *overlayPath, char **env) {
     return -ENOENT;
   }
 
-  if (fread(overlayMap, 1, OVERLAY_SIZE, overlayFile) == 0) {
+  if (fread(HAL->overlayMap, 1, HAL->overlaySize, overlayFile) == 0) {
     fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
       overlayPath);
     fclose(overlayFile); overlayFile = NULL;
@@ -55,22 +55,22 @@ int loadOverlay(const char *overlayPath, char **env) {
   }
   fclose(overlayFile); overlayFile = NULL;
 
-  if (overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+  if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
       overlayPath);
     return -(EEND + 1);
   }
-  if (overlayMap->header.version
+  if (HAL->overlayMap->header.version
     != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
   ) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
-      overlayMap->header.version, overlayPath);
+      HAL->overlayMap->header.version, overlayPath);
     return -(EEND + 2);
   }
 
   // Set the pieces of the overlay header that the program needs to run.
-  overlayMap->header.osApi = &nanoOsApi;
-  overlayMap->header.env = env;
+  HAL->overlayMap->header.osApi = &nanoOsApi;
+  HAL->overlayMap->header.env = env;
   
   return 0;
 }
@@ -87,11 +87,11 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   int comp = 0;
   OverlayFunction overlayFunction = NULL;
   
-  for (uint16_t ii = 0, jj = overlayMap->numExports - 1; ii <= jj;) {
+  for (uint16_t ii = 0, jj = HAL->overlayMap->numExports - 1; ii <= jj;) {
     cur = (ii + jj) >> 1;
-    comp = strcmp(overlayMap->exports[cur].name, overlayFunctionName);
+    comp = strcmp(HAL->overlayMap->exports[cur].name, overlayFunctionName);
     if (comp == 0) {
-      overlayFunction = overlayMap->exports[cur].fn;
+      overlayFunction = HAL->overlayMap->exports[cur].fn;
       break;
     } else if (comp < 0) { // cur < overlayFunctionName
       // Move the left bound to one greater than cur.

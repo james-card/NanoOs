@@ -506,13 +506,14 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // RAM addresses start at 0x20000000.  Overlay addresses are based on the
   // address of overlayMap.  This is intended to leave enough room for whatever
   // globals and dynamic memory the Arduino libraries use.  Overlays are a
-  // maximum of OVERLAY_SIZE bytes in size, so the lowest address we can use for
-  // our own dynamic memory manager is (overlayMap + OVERLAY_SIZE).
+  // maximum of overlaySize bytes in size, so the lowest address we can use for
+  // our own dynamic memory manager is (overlayMap + overlaySize).
   extern char __bss_end__;
-  mallocBufferStart = (char*) (((uintptr_t) overlayMap) + OVERLAY_SIZE);
-  if (((uintptr_t) &__bss_end__) > ((uintptr_t) overlayMap)) {
+  mallocBufferStart
+    = (char*) (((uintptr_t) HAL->overlayMap) + HAL->overlaySize);
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
     printString("ERROR!!! &__bss_end__ > ");
-    printLong((uintptr_t) overlayMap);
+    printLong((uintptr_t) HAL->overlayMap);
     printString("\nRunning user programs will corrupt system memory!!!\n");
   }
 #elif defined(__AVR__)

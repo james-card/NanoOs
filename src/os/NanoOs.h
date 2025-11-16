@@ -202,19 +202,6 @@ extern "C"
 ///   multi-byte type.
 #define writeBytes(dst, src) copyBytes(dst, src, sizeof(*(src)))
 
-/// @def overlayMap
-///
-/// @brief The location in memory where all overlays will reside, cast to a
-/// NanoOsOverlayMap pointer.  On ARM cores, this is the start of memory plus
-/// 6 KB.
-#define overlayMap ((NanoOsOverlayMap*) 0x20001800)
-
-/// @def OVERLAY_SIZE
-///
-/// @brief The size, in bytes, of the overlay buffer.  i.e. The maximum size of
-/// a single overlay that can be read into memory.
-#define OVERLAY_SIZE 8192
-
 // Support functions
 ProcessId getNumPipes(const char *commandLine);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
@@ -234,6 +221,7 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 // NanoOs includes.  These have to be included separately and last.
 #include "../unix/NanoOsLibC.h"
 #include "Commands.h"
+#include "Hal.h"
 #include "MemoryManager.h"
 #include "Processes.h"
 #include "Filesystem.h"

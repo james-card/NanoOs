@@ -28,11 +28,16 @@
 // Custom includes
 #include "src/os/NanoOs.h"
 #include "src/os/Scheduler.h"
+#include "src/os/HalArduinoNano33Iot.h"
+
+const Hal *HAL = NULL;
 
 // The setup function runs once when you press reset or power the board.  This
 // is to be used for Arduino-specific setup.  *ANYTHING* that requires use of
 // coroutines needs to be done in the loop function.
 void setup() {
+  HAL = halArduinoNano33IotInit();
+
   // Start the USB serial port at 1000000 bps:
   Serial.begin(1000000);
   // wait for serial port to connect. Needed for native USB port only.
