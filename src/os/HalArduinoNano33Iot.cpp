@@ -32,14 +32,16 @@
 #include <Arduino.h>
 
 #include "HalArduinoNano33Iot.h"
+#include "../unix/NanoOsErrno.h"
 
 HardwareSerial *serialPorts[2] = {
   &Serial,
   &Serial1,
 };
+const int numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
 
 int arduinoNano33IotGetNumSerialPorts(void) {
-  return sizeof(serialPorts) / sizeof(serialPorts[0]);
+  return numSerialPorts;
 }
 
 int arduinoNano33IotInitializeSerialPort(int port, int baud) {
@@ -47,6 +49,28 @@ int arduinoNano33IotInitializeSerialPort(int port, int baud) {
   // wait for serial port to connect.
   while (!(*serialPorts[port]));
   return 0;
+}
+
+int arduinoNano33IotPollSerialPort(int port) {
+  int serialData = -ERANGE;
+  
+  if ((port >= 0) && (port < numSerialPorts)) {
+    serialData = serialPorts[port]->read();
+  }
+  
+  return serialData;
+}
+
+ssize_t arduinoNano33IotWriteSerialPort(int port,
+  const uint8_t *data, ssize_t length
+) {
+  ssize_t numBytesWritten = -ERANGE;
+  
+  if ((port >= 0) && (port < numSerialPorts) && (length >= 0)) {
+    numBytesWritten = serialPorts[port]->write(data, length);
+  }
+  
+  return numBytesWritten;
 }
 
 static Hal arduinoNano33IotHal = {
@@ -57,6 +81,8 @@ static Hal arduinoNano33IotHal = {
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,
   .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
+  .pollSerialPort = arduinoNano33IotPollSerialPort,
+  .writeSerialPort = arduinoNano33IotWriteSerialPort,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
