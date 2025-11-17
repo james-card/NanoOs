@@ -45,6 +45,8 @@ extern "C"
 typedef struct Hal {
   NanoOsOverlayMap *overlayMap;
   uintptr_t overlaySize;
+  
+  int (*initializeSerialPort)(int port, int baud);
 } Hal;
 
 extern const Hal *HAL;

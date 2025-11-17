@@ -39,12 +39,10 @@ void setup() {
   HAL = halArduinoNano33IotInit();
 
   // Start the USB serial port at 1000000 bps:
-  Serial.begin(1000000);
-  // wait for serial port to connect. Needed for native USB port only.
-  while (!Serial);
+  HAL->initializeSerialPort(0, 1000000);
 
   // Start the secondary serial port at 1000000 bps:
-  Serial1.begin(1000000);
+  HAL->initializeSerialPort(1, 1000000);
 
   // We need a guard at bootup because if the system crashes in a way that makes
   // the processor unresponsive, it will be very difficult to load new firmware.

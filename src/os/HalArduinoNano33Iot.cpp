@@ -29,11 +29,29 @@
 ///
 /// @brief HAL implementation for an Arduino Nano 33 IoT
 
+#include <Arduino.h>
+
 #include "HalArduinoNano33Iot.h"
 
+HardwareSerial *serialPorts[2] = {
+  &Serial,
+  &Serial1,
+};
+
+int arduinoNano33IotInitializeSerialPort(int port, int baud) {
+  serialPorts[port]->begin(baud);
+  // wait for serial port to connect.
+  while (!(*serialPorts[port]));
+  return 0;
+}
+
 static Hal arduinoNano33IotHal = {
+  // Overlay definitions.
   .overlayMap = (NanoOsOverlayMap*) 0x20001800,
   .overlaySize = 8192,
+  
+  // Serial port functionality.
+  .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
