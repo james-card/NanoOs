@@ -793,19 +793,18 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-/// @fn int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort)
+/// @fn int readSerialByte(ConsolePort *consolePort, int serialPort)
 ///
 /// @brief Do a non-blocking read of a serial port.
 ///
 /// @param ConsolePort A pointer to the ConsolePort data structure that contains
 ///   the buffer information to use.
-/// @param serialPort A reference to the HardwareSerial object (Serial or
-///   Serial1) to read a byte from.
+/// @param serialPort The zero-based index of the serial port to read from.
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort) {
+int readSerialByte(ConsolePort *consolePort, int serialPort) {
   int serialData = -1;
-  serialData = serialPort.read();
+  serialData = HAL->pollSerialPort(serialPort);
   if (serialData > -1) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
@@ -814,9 +813,10 @@ int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort) {
       if (((char) serialData != '\r')
         && ((char) serialData != '\n')
       ) {
-        serialPort.print((char) serialData);
+        char serialChar = (char) serialData;
+        HAL->writeSerialPort(serialPort, (uint8_t*) &serialChar, 1);
       } else {
-        serialPort.print("\r\n");
+        HAL->writeSerialPort(serialPort, (uint8_t*) "\r\n", 2);
       }
     }
     consolePort->consoleIndex++;
@@ -835,7 +835,7 @@ int readSerialByte(ConsolePort *consolePort, HardwareSerial &serialPort) {
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
 int readUsbSerialByte(ConsolePort *consolePort) {
-  return readSerialByte(consolePort, Serial);
+  return readSerialByte(consolePort, 0);
 }
 
 /// @fn int readGpioSerialByte(ConsolePort *consolePort)
@@ -847,7 +847,7 @@ int readUsbSerialByte(ConsolePort *consolePort) {
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
 int readGpioSerialByte(ConsolePort *consolePort) {
-  return readSerialByte(consolePort, Serial1);
+  return readSerialByte(consolePort, 1);
 }
 
 /// @fn int printSerialString(HardwareSerial &serialPort, const char *string)
