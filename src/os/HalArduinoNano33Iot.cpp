@@ -38,6 +38,10 @@ HardwareSerial *serialPorts[2] = {
   &Serial1,
 };
 
+int arduinoNano33IotGetNumSerialPorts(void) {
+  return sizeof(serialPorts) / sizeof(serialPorts[0]);
+}
+
 int arduinoNano33IotInitializeSerialPort(int port, int baud) {
   serialPorts[port]->begin(baud);
   // wait for serial port to connect.
@@ -51,6 +55,7 @@ static Hal arduinoNano33IotHal = {
   .overlaySize = 8192,
   
   // Serial port functionality.
+  .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,
   .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
 };
 

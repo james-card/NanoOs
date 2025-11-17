@@ -43,13 +43,41 @@ extern "C"
 #endif
 
 typedef struct Hal {
+  // Overlay definitions.
+  
+  /// @var overlayMap
+  ///
+  /// @brief Memory address where overlays will be loaded.
   NanoOsOverlayMap *overlayMap;
+  
+  /// @var overlaySize
+  ///
+  /// @brief The number of bytes available for the overlay at the address.
   uintptr_t overlaySize;
   
+  // Serial port functionality.
+  
+  /// @fn int getNumSerialPorts(void);
+  ///
+  /// @brief Get the number of addressable and configurable serial ports on the
+  /// system.
+  ///
+  /// @return Returns the number of serial ports on the system (which may be 0)
+  /// on success, -errno on failure.
+  int (*getNumSerialPorts)(void);
+  
+  /// @fn initializeSerialPort(int port, int baud)
+  ///
+  /// @brief Initialize a hardware serial port.
+  ///
+  /// @param port The zero-based index of the port to initialize.
+  /// @param baud The desired baud rate of the port.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
   int (*initializeSerialPort)(int port, int baud);
 } Hal;
 
-extern const Hal *HAL;
+extern const Hal *hal;
 
 #ifdef __cplusplus
 } // extern "C"

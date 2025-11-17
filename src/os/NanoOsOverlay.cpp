@@ -47,7 +47,7 @@ int loadOverlay(const char *overlayPath, char **env) {
     return -ENOENT;
   }
 
-  if (fread(HAL->overlayMap, 1, HAL->overlaySize, overlayFile) == 0) {
+  if (fread(hal->overlayMap, 1, hal->overlaySize, overlayFile) == 0) {
     fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
       overlayPath);
     fclose(overlayFile); overlayFile = NULL;
@@ -55,22 +55,22 @@ int loadOverlay(const char *overlayPath, char **env) {
   }
   fclose(overlayFile); overlayFile = NULL;
 
-  if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+  if (hal->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
       overlayPath);
     return -(EEND + 1);
   }
-  if (HAL->overlayMap->header.version
+  if (hal->overlayMap->header.version
     != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
   ) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
-      HAL->overlayMap->header.version, overlayPath);
+      hal->overlayMap->header.version, overlayPath);
     return -(EEND + 2);
   }
 
   // Set the pieces of the overlay header that the program needs to run.
-  HAL->overlayMap->header.osApi = &nanoOsApi;
-  HAL->overlayMap->header.env = env;
+  hal->overlayMap->header.osApi = &nanoOsApi;
+  hal->overlayMap->header.env = env;
   
   return 0;
 }
@@ -87,11 +87,11 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   int comp = 0;
   OverlayFunction overlayFunction = NULL;
   
-  for (uint16_t ii = 0, jj = HAL->overlayMap->numExports - 1; ii <= jj;) {
+  for (uint16_t ii = 0, jj = hal->overlayMap->numExports - 1; ii <= jj;) {
     cur = (ii + jj) >> 1;
-    comp = strcmp(HAL->overlayMap->exports[cur].name, overlayFunctionName);
+    comp = strcmp(hal->overlayMap->exports[cur].name, overlayFunctionName);
     if (comp == 0) {
-      overlayFunction = HAL->overlayMap->exports[cur].fn;
+      overlayFunction = hal->overlayMap->exports[cur].fn;
       break;
     } else if (comp < 0) { // cur < overlayFunctionName
       // Move the left bound to one greater than cur.
