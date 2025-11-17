@@ -28,10 +28,6 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-#include <HardwareSerial.h>
-
 #include "Console.h"
 #include "Commands.h"
 #include "Scheduler.h"
@@ -85,9 +81,11 @@ int consolePrintMessage(
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (processMessageWaiting(inputMessage) == false) {
     if (processMessageRelease(inputMessage) != processSuccess) {
-      Serial.print("ERROR: Could not release inputMessage from ");
-      Serial.print(__func__);
-      Serial.print("\n");
+      // printUsbSerialString is defined below.  Provide the prototype.
+      int printUsbSerialString(const char *string);
+      printUsbSerialString("ERROR: Could not release inputMessage from ");
+      printUsbSerialString(__func__);
+      printUsbSerialString("\n");
     }
   }
 }
@@ -1071,31 +1069,31 @@ int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
 /// @param message The message to send to the console.
 ///
 /// @return Returns the value returned by printConsoleValue.
-int printConsole(char message) {
+int printConsoleChar(char message) {
   return printConsoleValue(CONSOLE_VALUE_CHAR, &message, sizeof(message));
 }
-int printConsole(unsigned char message) {
+int printConsoleUChar(unsigned char message) {
   return printConsoleValue(CONSOLE_VALUE_UCHAR, &message, sizeof(message));
 }
-int printConsole(int message) {
+int printConsoleInt(int message) {
   return printConsoleValue(CONSOLE_VALUE_INT, &message, sizeof(message));
 }
-int printConsole(unsigned int message) {
+int printConsoleUInt(unsigned int message) {
   return printConsoleValue(CONSOLE_VALUE_UINT, &message, sizeof(message));
 }
-int printConsole(long int message) {
+int printConsoleLong(long int message) {
   return printConsoleValue(CONSOLE_VALUE_LONG_INT, &message, sizeof(message));
 }
-int printConsole(long unsigned int message) {
+int printConsoleULong(long unsigned int message) {
   return printConsoleValue(CONSOLE_VALUE_LONG_UINT, &message, sizeof(message));
 }
-int printConsole(float message) {
+int printConsoleFloat(float message) {
   return printConsoleValue(CONSOLE_VALUE_FLOAT, &message, sizeof(message));
 }
-int printConsole(double message) {
+int printConsoleDouble(double message) {
   return printConsoleValue(CONSOLE_VALUE_DOUBLE, &message, sizeof(message));
 }
-int printConsole(const char *message) {
+int printConsoleString(const char *message) {
   return printConsoleValue(CONSOLE_VALUE_STRING, &message, sizeof(message));
 }
 

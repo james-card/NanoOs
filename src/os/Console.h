@@ -111,20 +111,18 @@ int setConsoleEcho(bool desiredEchoState);
 // Exported processes
 void* runConsole(void *args);
 
+int printConsoleChar(char message);
+int printConsoleUChar(unsigned char message);
+int printConsoleInt(int message);
+int printConsoleUInt(unsigned int message);
+int printConsoleLong(long int message);
+int printConsoleULong(long unsigned int message);
+int printConsoleFloat(float message);
+int printConsoleDouble(double message);
+int printConsoleString(const char *message);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-#ifdef __cplusplus
-int printConsole(char message);
-int printConsole(unsigned char message);
-int printConsole(int message);
-int printConsole(unsigned int message);
-int printConsole(long int message);
-int printConsole(long unsigned int message);
-int printConsole(float message);
-int printConsole(double message);
-int printConsole(const char *message);
-#endif // __cplusplus
 
 #endif // CONSOLE_H
