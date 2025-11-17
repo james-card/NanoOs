@@ -28,10 +28,6 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-#include <HardwareSerial.h>
-
 // NanoOs includes
 #include "Console.h"
 #include "MemoryManager.h"
@@ -644,7 +640,7 @@ void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
 /// it would return NULL if it returned anything.
 void* runMemoryManager(void *args) {
   (void) args;
-  printConsole("\n");
+  printConsoleString("\n");
   
   MemoryManagerState memoryManagerState;
   ProcessMessage *schedulerMessage = NULL;
@@ -662,9 +658,9 @@ void* runMemoryManager(void *args) {
   printDebug("dynamicMemorySize = ");
   printDebug(dynamicMemorySize);
   printDebug("\n");
-  printConsole("Using ");
-  printConsole(dynamicMemorySize);
-  printConsole(" bytes of dynamic memory.\n");
+  printConsoleString("Using ");
+  printConsoleULong(dynamicMemorySize);
+  printConsoleString(" bytes of dynamic memory.\n");
   releaseConsole();
   
   while (1) {
@@ -740,7 +736,8 @@ void* memoryManagerSendReallocMessage(void *ptr, size_t size) {
   
   ProcessMessage *sent
     = sendNanoOsMessageToPid(NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_REALLOC, /* func= */ 0, (NanoOsMessageData) &reallocMessage,
+    MEMORY_MANAGER_REALLOC, /* func= */ 0,
+    (NanoOsMessageData) ((uintptr_t) &reallocMessage),
     true);
   
   if (sent == NULL) {
