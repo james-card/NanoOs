@@ -30,15 +30,15 @@
 #include "src/os/Scheduler.h"
 #include "src/os/HalArduinoNano33Iot.h"
 
-const Hal *hal = NULL;
+const Hal *HAL = NULL;
 
 // The setup function runs once when you press reset or power the board.  This
 // is to be used for Arduino-specific setup.  *ANYTHING* that requires use of
 // coroutines needs to be done in the loop function.
 void setup() {
-  hal = halArduinoNano33IotInit();
+  HAL = halArduinoNano33IotInit();
 
-  int numSerialPorts = hal->getNumSerialPorts();
+  int numSerialPorts = HAL->getNumSerialPorts();
   if (numSerialPorts < 0) {
     // Nothing we can do.  Halt.
     while(1);
@@ -46,7 +46,7 @@ void setup() {
   
   // Set all the serial ports to run at 1000000 baud.
   for (int ii = 0; ii < numSerialPorts; ii++) {
-    if (hal->initializeSerialPort(ii, 1000000) < 0) {
+    if (HAL->initializeSerialPort(ii, 1000000) < 0) {
       // Nothing we can do.  Halt.
       while(1);
     }

@@ -510,10 +510,10 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // our own dynamic memory manager is (overlayMap + overlaySize).
   extern char __bss_end__;
   mallocBufferStart
-    = (char*) (((uintptr_t) hal->overlayMap) + hal->overlaySize);
-  if (((uintptr_t) &__bss_end__) > ((uintptr_t) hal->overlayMap)) {
+    = (char*) (((uintptr_t) HAL->overlayMap) + HAL->overlaySize);
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
     printString("ERROR!!! &__bss_end__ > ");
-    printLong((uintptr_t) hal->overlayMap);
+    printLong((uintptr_t) HAL->overlayMap);
     printString("\nRunning user programs will corrupt system memory!!!\n");
   }
 #elif defined(__AVR__)

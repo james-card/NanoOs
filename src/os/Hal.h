@@ -77,7 +77,7 @@ typedef struct Hal {
   int (*initializeSerialPort)(int port, int baud);
 } Hal;
 
-extern const Hal *hal;
+extern const Hal *HAL;
 
 #ifdef __cplusplus
 } // extern "C"
