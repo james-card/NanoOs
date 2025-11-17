@@ -28,10 +28,6 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-#include <HardwareSerial.h>
-
 // Custom includes
 #include "NanoOs.h"
 #include "Console.h"
@@ -98,7 +94,7 @@ static ProcessDescriptor *allProcesses = NULL;
 /// @var standardKernelFileDescriptors
 ///
 /// @brief The array of file descriptors that all kernel processes use.
-const static FileDescriptor standardKernelFileDescriptors[
+static const FileDescriptor standardKernelFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
   {
@@ -146,7 +142,7 @@ const static FileDescriptor standardKernelFileDescriptors[
 /// @brief Pointer to the array of FileDescriptor objects (declared in the
 /// startScheduler function on the scheduler's stack) that all processes start
 /// out with.
-const static FileDescriptor standardUserFileDescriptors[
+static const FileDescriptor standardUserFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
   {
@@ -623,7 +619,7 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
 
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(sent);
-  nanoOsMessage->data = (NanoOsMessageData) &reallocMessage;
+  nanoOsMessage->data = (NanoOsMessageData) ((uintptr_t) &reallocMessage);
   processMessageInit(sent, MEMORY_MANAGER_REALLOC,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   // sent->from would normally be set during processMessageQueuePush.  We're
@@ -1088,7 +1084,8 @@ int schedulerRunProcess(const CommandEntry *commandEntry,
 
   ProcessMessage *sent = sendNanoOsMessageToPid(
     NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
-    (NanoOsMessageData) commandEntry, (NanoOsMessageData) commandDescriptor,
+    (NanoOsMessageData) ((uintptr_t) commandEntry),
+    (NanoOsMessageData) ((uintptr_t) commandDescriptor),
     true);
   if (sent == NULL) {
     printString("ERROR: Could not communicate with scheduler.\n");
@@ -1416,10 +1413,13 @@ static inline ProcessDescriptor* launchForegroundProcess(
   // The process should be blocked in processMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
-  (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
-      == 0)
-    || processQueueRemove(&schedulerState->ready, processDescriptor);
+  if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0) {
+    if (processQueueRemove(
+      &schedulerState->timedWaiting, processDescriptor) != 0
+    ) {
+      processQueueRemove(&schedulerState->ready, processDescriptor);
+    }
+  }
 
   // Protect the relevant memory from deletion below.
   if (assignMemory(commandDescriptor->consoleInput,
@@ -2008,9 +2008,13 @@ int schedulerKillProcessCommandHandler(
       // ready queue is the second-most-likely place it could be.  The least-
       // likely place for it to be would be the timed waiting queue with a very
       // long timeout.  So, attempt to remove from the queues in that order.
-      (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-      || (processQueueRemove(&schedulerState->ready, processDescriptor) == 0)
-      || processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
+      if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0
+      ) {
+        if (processQueueRemove(&schedulerState->ready, processDescriptor) != 0
+        ) {
+          processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
+        }
+      }
 
       // Tell the console to release the port for us.  We will forward it
       // the message we acquired above, which it will use to send to the
@@ -2397,10 +2401,13 @@ int schedulerExecveCommandHandler(
   // The process should be blocked in processMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
-  (processQueueRemove(&schedulerState->waiting, processDescriptor) == 0)
-    || (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
-      == 0)
-    || processQueueRemove(&schedulerState->ready, processDescriptor);
+  if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0) {
+    if (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+      != 0
+    ) {
+      processQueueRemove(&schedulerState->ready, processDescriptor);
+    }
+  }
 
   // Kill and clear out the calling process.
   processTerminate(processMessageFrom(processMessage));
