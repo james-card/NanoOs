@@ -850,7 +850,7 @@ int readGpioSerialByte(ConsolePort *consolePort) {
   return readSerialByte(consolePort, 1);
 }
 
-/// @fn int printSerialString(HardwareSerial &serialPort, const char *string)
+/// @fn int printSerialString(int serialPort, const char *string)
 ///
 /// @brief Print a string to the default serial port.
 ///
@@ -859,7 +859,7 @@ int readGpioSerialByte(ConsolePort *consolePort) {
 /// @param string A pointer to the string to print.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printSerialString(HardwareSerial &serialPort, const char *string) {
+int printSerialString(int serialPort, const char *string) {
   int returnValue = 0;
   size_t numBytes = 0;
 
@@ -871,8 +871,10 @@ int printSerialString(HardwareSerial &serialPort, const char *string) {
     numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
   }
   while (newlineAt != NULL) {
-    returnValue += (int) serialPort.write(string, numBytes);
-    returnValue += (int) serialPort.write("\r\n");
+    returnValue += (int) HAL->writeSerialPort(
+      serialPort, (uint8_t*) string, numBytes);
+    returnValue += (int) HAL->writeSerialPort(
+      serialPort, (uint8_t*) "\r\n", 2);
     string = newlineAt + 1;
     newlineAt = strchr(string, '\n');
     if (newlineAt == NULL) {
@@ -881,7 +883,8 @@ int printSerialString(HardwareSerial &serialPort, const char *string) {
       numBytes = (size_t) (((uintptr_t) newlineAt) - ((uintptr_t) string));
     }
   }
-  returnValue += (int) serialPort.write(string, numBytes);
+  returnValue += (int) HAL->writeSerialPort(
+    serialPort, (uint8_t*) string, numBytes);
 
   return returnValue;
 }
@@ -894,7 +897,7 @@ int printSerialString(HardwareSerial &serialPort, const char *string) {
 ///
 /// @return Returns the number of bytes written to the serial port.
 int printUsbSerialString(const char *string) {
-  return printSerialString(Serial, string);
+  return printSerialString(0, string);
 }
 
 /// @fn int printGpioSerialString(const char *string)
@@ -905,7 +908,7 @@ int printUsbSerialString(const char *string) {
 ///
 /// @return Returns the number of bytes written to the serial port.
 int printGpioSerialString(const char *string) {
-  return printSerialString(Serial1, string);
+  return printSerialString(1, string);
 }
 
 /// @fn void* runConsole(void *args)
