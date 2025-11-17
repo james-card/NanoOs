@@ -75,6 +75,29 @@ typedef struct Hal {
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*initializeSerialPort)(int port, int baud);
+  
+  /// @fn int pollSerialPort(int port)
+  ///
+  /// @brief Poll a serial port for a single byte of data.
+  ///
+  /// @param port The zero-based index of the port to read from.
+  ///
+  /// @return Returns the byte read, cast to an int, on success, -errno on
+  /// failure.
+  int (*pollSerialPort)(int port);
+  
+  /// @fn ssize_t writeSerialPort(int port, const uint8_t *data, ssize_t length)
+  ///
+  /// @brief Write data to a serial port.
+  ///
+  /// @param port The zero-based index of the port to read from.
+  /// @param data A pointer to arbitrary bytes of data to write to the serial
+  ///   port.
+  /// @param length The number of bytes to write to the serial port from the
+  ///   data pointer.
+  ///
+  /// @return Returns the number of bytes written on success, -errno on failure.
+  ssize_t (*writeSerialPort)(int port, const uint8_t *data, ssize_t length);
 } Hal;
 
 extern const Hal *HAL;
