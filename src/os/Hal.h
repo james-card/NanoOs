@@ -98,6 +98,16 @@ typedef struct Hal {
   ///
   /// @return Returns the number of bytes written on success, -errno on failure.
   ssize_t (*writeSerialPort)(int port, const uint8_t *data, ssize_t length);
+  
+  // Digital IO pin functionality.
+  
+  /// @fn int getNumDios(void)
+  ///
+  /// @brief Get the number of digial IO pins on the system.
+  ///
+  /// @return Returns the number of digital IO pins on success, -errno on
+  /// failure.
+  int (*getNumDios)(void);
 } Hal;
 
 extern const Hal *HAL;
