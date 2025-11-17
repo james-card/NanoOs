@@ -34,6 +34,15 @@
 #include "HalArduinoNano33Iot.h"
 #include "../unix/NanoOsErrno.h"
 
+/// @def NUM_DIGITAL_IO_PINS
+///
+/// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
+#define NUM_DIGITAL_IO_PINS 14
+
+/// @var serialPorts
+///
+/// @brief Array of serial ports on the system.  Index 0 is the main port,
+/// which is the USB serial port.
 HardwareSerial *serialPorts[2] = {
   &Serial,
   &Serial1,
@@ -73,6 +82,10 @@ ssize_t arduinoNano33IotWriteSerialPort(int port,
   return numBytesWritten;
 }
 
+int arduinoNano33IotGetNumDios(void) {
+  return NUM_DIGITAL_IO_PINS;
+}
+
 static Hal arduinoNano33IotHal = {
   // Overlay definitions.
   .overlayMap = (NanoOsOverlayMap*) 0x20001800,
@@ -83,6 +96,9 @@ static Hal arduinoNano33IotHal = {
   .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
   .pollSerialPort = arduinoNano33IotPollSerialPort,
   .writeSerialPort = arduinoNano33IotWriteSerialPort,
+  
+  // Digital IO pin functionality.
+  .getNumDios = arduinoNano33IotGetNumDios,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
