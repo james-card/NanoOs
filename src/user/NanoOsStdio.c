@@ -28,9 +28,6 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-
 #include "../kernel/NanoOs.h"
 #include "NanoOsStdio.h"
 #include "../kernel/Console.h"
@@ -58,7 +55,7 @@ FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
 ///
 /// @return This function always returns 0;
 int printString_(const char *string) {
-  Serial.print(string);
+  HAL->writeSerialPort(0, (uint8_t*) string, strlen(string));
 
   return 0;
 }
@@ -69,7 +66,9 @@ int printString_(const char *string) {
 ///
 /// @return This function always returns 0.
 int printInt_(int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%d", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -80,7 +79,9 @@ int printInt_(int integer) {
 ///
 /// @return This function always returns 0.
 int printUInt_(unsigned int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%u", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -91,7 +92,9 @@ int printUInt_(unsigned int integer) {
 ///
 /// @return This function always returns 0.
 int printLong_(long int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%ld", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -102,7 +105,9 @@ int printLong_(long int integer) {
 ///
 /// @return This function always returns 0.
 int printULong_(unsigned long int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%lu", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -113,7 +118,9 @@ int printULong_(unsigned long int integer) {
 ///
 /// @return This function always returns 0.
 int printLongLong_(long long int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%lld", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -124,7 +131,9 @@ int printLongLong_(long long int integer) {
 ///
 /// @return This function always returns 0.
 int printULongLong_(unsigned long long int integer) {
-  Serial.print(integer);
+  char number[20];
+  sprintf(number, "%llu", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -135,7 +144,9 @@ int printULongLong_(unsigned long long int integer) {
 ///
 /// @return This function always returns 0.
 int printDouble(double floatingPointValue) {
-  Serial.print(floatingPointValue);
+  char number[20];
+  sprintf(number, "%lf", floatingPointValue);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -146,7 +157,9 @@ int printDouble(double floatingPointValue) {
 ///
 /// @return This function always returns 0.
 int printHex_(unsigned long long int integer) {
-  Serial.print(integer, HEX);
+  char number[20];
+  sprintf(number, "%llx", integer);
+  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -646,16 +659,18 @@ int vsscanf(const char *buffer, const char *format, va_list args) {
         break;
 
       default:
-        // No modifier present.  typeModifier will remain TYPE_MODIFIER_NONE.
-        char formatChar = *format;
-        if ((formatChar >= '0') && (formatChar <= '9')) {
-          // By definition, strtoul will have to succeed, so we can just pass
-          // in the pointer to the format string to have it set to the first
-          // character past the size specifier.
-          char *nextChar = NULL;
-          typeSize = (size_t) strtoul(format, &nextChar, 10);
-          if (nextChar != NULL) {
-            format = (const char*) nextChar;
+        {
+          // No modifier present.  typeModifier will remain TYPE_MODIFIER_NONE.
+          char formatChar = *format;
+          if ((formatChar >= '0') && (formatChar <= '9')) {
+            // By definition, strtoul will have to succeed, so we can just pass
+            // in the pointer to the format string to have it set to the first
+            // character past the size specifier.
+            char *nextChar = NULL;
+            typeSize = (size_t) strtoul(format, &nextChar, 10);
+            if (nextChar != NULL) {
+              format = (const char*) nextChar;
+            }
           }
         }
         break;
