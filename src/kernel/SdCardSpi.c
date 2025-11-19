@@ -30,6 +30,7 @@
 
 // Custom includes
 #include "SdCardSpi.h"
+#include "HalArduinoNano33Iot.h"
 
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
@@ -140,7 +141,8 @@ int sdSpiCardInit(uint8_t chipSelect) {
   bool isSDv2 = false;
   
   // Set up SPI at the default speed
-  int initStatus = HAL->initSpi(SD_CARD_SPI_DEVICE, chipSelect);
+  int initStatus = HAL->initSpiDevice(SD_CARD_SPI_DEVICE,
+    chipSelect, SPI_SCK_DIO, SPI_COPI_DIO, SPI_CIPO_DIO);
   if (initStatus != 0) {
     // Just pass the error upward.
     return initStatus;
