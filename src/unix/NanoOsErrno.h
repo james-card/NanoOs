@@ -63,7 +63,8 @@ extern "C"
 #define ENOTTY          15      /* No such terminal device */
 #define ERANGE          16      /* Parameter or result out of range */
 #define ELOOP           17      /* Infinite loop detected */
-#define EEND            18      /* End of error codes */
+#define ETIMEDOUT       18      /* Operation timed out */
+#define EEND            19      /* End of error codes */
 
 int* errno_(void);
 #define errno (*errno_())

@@ -79,6 +79,7 @@ const char *errorStrings[] = {
   "No such terminal device",          // ENOTTY
   "Parameter or result out of range", // ERANGE
   "Infinite loop detected",           // ELOOP
+  "Operation timed out",              // ETIMEDOUT
 };
 
 /// @var NUM_ERRORS
