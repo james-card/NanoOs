@@ -41,8 +41,8 @@
 #include <stdint.h>
 
 // Headers from kernel space.
-#include "../unix/NanoOsApi.h"
-#include "../unix/NanoOsUnistd.h"
+#include "../user/NanoOsApi.h"
+#include "../user/NanoOsUnistd.h"
 
 #ifdef __cplusplus
 extern "C"

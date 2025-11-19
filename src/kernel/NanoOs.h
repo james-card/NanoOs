@@ -219,7 +219,7 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 #endif
 
 // NanoOs includes.  These have to be included separately and last.
-#include "../unix/NanoOsLibC.h"
+#include "../user/NanoOsLibC.h"
 #include "Commands.h"
 #include "Hal.h"
 #include "MemoryManager.h"

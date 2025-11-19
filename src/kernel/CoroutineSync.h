@@ -39,7 +39,7 @@
 #include <time.h>
 #include <stdint.h>
 
-#include "../unix/NanoOsLibC.h"
+#include "../user/NanoOsLibC.h"
 
 #ifdef __cplusplus
 extern "C"

@@ -28,8 +28,8 @@
 // Doxygen marker
 /// @file
 
-#include "../os/NanoOs.h"
-#include "../os/Scheduler.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Scheduler.h"
 #include "NanoOsUnistd.h"
 #include "NanoOsApi.h"
 

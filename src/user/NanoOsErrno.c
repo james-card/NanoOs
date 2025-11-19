@@ -29,8 +29,8 @@
 /// @file
 
 #include "NanoOsErrno.h"
-#include "../os/NanoOsTypes.h"
-#include "../os/Processes.h"
+#include "../kernel/NanoOsTypes.h"
+#include "../kernel/Processes.h"
 
 /// @var processErrorNumbers
 ///

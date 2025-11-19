@@ -30,7 +30,7 @@
 
 #include <string.h>
 #include "NanoOsSys.h"
-#include "../os/NanoOs.h"
+#include "../kernel/NanoOs.h"
 #include "NanoOsUnistd.h"
 
 /// @fn int uname(struct utsname *buf)

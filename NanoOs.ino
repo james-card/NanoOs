@@ -26,10 +26,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
-#include "src/os/HalArduinoNano33Iot.h"
-#include "src/os/NanoOs.h"
-#include "src/os/Scheduler.h"
-#include "src/os/SdCardSpi.h"
+#include "src/kernel/HalArduinoNano33Iot.h"
+#include "src/kernel/NanoOs.h"
+#include "src/kernel/Scheduler.h"
+#include "src/kernel/SdCardSpi.h"
 
 const Hal *HAL = NULL;
 

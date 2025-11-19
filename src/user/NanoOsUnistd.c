@@ -30,9 +30,9 @@
 
 #include <string.h>
 #include "NanoOsUnistd.h"
-#include "../os/Console.h"
-#include "../os/NanoOs.h"
-#include "../os/Scheduler.h"
+#include "../kernel/Console.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Scheduler.h"
 
 /// @fn int gethostname(char *name, size_t len)
 ///

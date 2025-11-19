@@ -31,11 +31,11 @@
 // Arduino includes
 #include <Arduino.h>
 
-#include "../os/NanoOs.h"
+#include "../kernel/NanoOs.h"
 #include "NanoOsStdio.h"
-#include "../os/Console.h"
-#include "../os/Filesystem.h"
-#include "../os/Scheduler.h"
+#include "../kernel/Console.h"
+#include "../kernel/Filesystem.h"
+#include "../kernel/Scheduler.h"
 
 /// @var nanoOsStdin
 ///

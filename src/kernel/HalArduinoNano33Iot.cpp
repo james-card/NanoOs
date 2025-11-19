@@ -36,7 +36,7 @@
 #include <SPI.h>
 
 #include "HalArduinoNano33Iot.h"
-#include "../unix/NanoOsErrno.h"
+#include "../user/NanoOsErrno.h"
 
 /// @def NUM_DIGITAL_IO_PINS
 ///
