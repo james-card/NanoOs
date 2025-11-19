@@ -125,13 +125,28 @@ static struct ArduinoNano33IotSpi {
 } arduinoSpi[NUM_DIGITAL_IO_PINS] = {};
 static const int numArduinoSpis = sizeof(arduinoSpi) / sizeof(arduinoSpi[0]);
 
-int arduinoNano33IotInitSpi(int spi, uint8_t chipSelect) {
+int arduinoNano33IotInitSpiDevice(int spi,
+  uint8_t cs, uint8_t sck, uint8_t copi, uint8_t cipo
+) {
   if ((spi < 0) || (spi >= numArduinoSpis)) {
     // Outside the limit of the devices we support.
     return -ENODEV;
-  } else if (chipSelect > NUM_DIGITAL_IO_PINS) {
+  } else if (cs > NUM_DIGITAL_IO_PINS) {
     // No such DIO pin to configure.
     return -ERANGE;
+  } else if (
+    (cs == SPI_SCK_DIO)
+    || (cs == SPI_COPI_DIO)
+    || (cs == SPI_CIPO_DIO)
+    || (cs == UART_RX_DIO)
+    || (cs == UART_TX_DIO)
+    || (sck != SPI_SCK_DIO)
+    || (copi != SPI_COPI_DIO)
+    || (cipo != SPI_CIPO_DIO)
+  ) {
+    return -EINVAL;
+  } else if (arduinoSpi[spi].configured == true) {
+    return -EBUSY;
   }
   
   if (globalSpiConfigured == false) {
@@ -141,12 +156,12 @@ int arduinoNano33IotInitSpi(int spi, uint8_t chipSelect) {
   }
   
   // Configure the chip select DIO for output.
-  arduinoNano33IotConfigureDio(chipSelect, 1);
+  arduinoNano33IotConfigureDio(cs, 1);
   // Deselect the chip select pin.
-  arduinoNano33IotWriteDio(chipSelect, 1);
+  arduinoNano33IotWriteDio(cs, 1);
   
   // Configure our internal metadata for the device.
-  arduinoSpi[spi].chipSelect = chipSelect;
+  arduinoSpi[spi].chipSelect = cs;
   arduinoSpi[spi].configured = true;
   
   return 0;
@@ -212,7 +227,7 @@ static Hal arduinoNano33IotHal = {
   .writeDio = arduinoNano33IotWriteDio,
   
   // SPI functionality.
-  .initSpi = arduinoNano33IotInitSpi,
+  .initSpiDevice = arduinoNano33IotInitSpiDevice,
   .startSpiTransfer = arduinoNano33IotStartSpiTransfer,
   .endSpiTransfer = arduinoNano33IotEndSpiTransfer,
   .spiTransfer8 = arduinoNano33IotSpiTransfer8,

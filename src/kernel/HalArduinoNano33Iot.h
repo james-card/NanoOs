@@ -41,6 +41,31 @@ extern "C"
 {
 #endif
 
+/// @def UART_RX_DIO
+///
+/// @brief DIO pin used for UART RX on the Arduino Nano 33 IoT.
+#define UART_RX_DIO 0
+
+/// @def UART_TX_DIO
+///
+/// @brief DIO pin used for UART TX on the Arduino Nano 33 IoT.
+#define UART_TX_DIO 1
+
+/// @def SPI_COPI_DIO
+///
+/// @brief DIO pin used for SPI COPI on the Arduino Nano 33 IoT.
+#define SPI_COPI_DIO 11
+
+/// @def SPI_CIPO_DIO
+///
+/// @brief DIO pin used for SPI CIPO on the Arduino Nano 33 IoT.
+#define SPI_CIPO_DIO 12
+
+/// @def SPI_SCK_DIO
+///
+/// @brief DIO pin used for SPI serial clock on the Arduino Nano 33 IoT.
+#define SPI_SCK_DIO 13
+
 const Hal* halArduinoNano33IotInit(void);
 
 #ifdef __cplusplus

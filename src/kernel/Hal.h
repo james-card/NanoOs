@@ -134,7 +134,8 @@ typedef struct Hal {
   
   // SPI functionality.
   
-  /// @fn int initSpi(int spi, uint8_t chipSelect)
+  /// @fn int initSpiDevice(int spi,
+  ///   uint8_t cs, uint8_t sck, uint8_t copi, uint8_t cipo);
   ///
   /// @brief Initialize a SPI device on the system.
   ///
@@ -142,7 +143,8 @@ typedef struct Hal {
   /// @param chipSelect The DIO to use as the chip-select line.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*initSpi)(int spi, uint8_t chipSelect);
+  int (*initSpiDevice)(int spi,
+    uint8_t cs, uint8_t sck, uint8_t copi, uint8_t cipo);
   
   /// @fn int startSpiTransfer(int spi)
   ///
