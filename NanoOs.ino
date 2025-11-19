@@ -103,7 +103,7 @@ void loop() {
     printString("coroutineConfig failed.\n");
     while(1);
   }
-  // Create but *DO NOT* resume one dummy process.  This will double the size of
+  // Create but *DO NOT* resume one dummy process.  This will set the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
     printString("Could not double scheduler process's stack size.\n");
