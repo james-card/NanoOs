@@ -28,9 +28,6 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-
 #include "../kernel/NanoOs.h"
 #include "NanoOsLibC.h"
 #include "../kernel/Console.h"
@@ -50,9 +47,9 @@ int timespec_get(struct timespec* spec, int base) {
     return 0;
   }
   
-  unsigned long now = getElapsedMilliseconds(0);
-  spec->tv_sec = (time_t) (now / 1000UL);
-  spec->tv_nsec = (now % 1000UL) * 1000000UL;
+  int64_t now = HAL->getElapsedNanoseconds(0);
+  spec->tv_sec = (time_t) (now / ((int64_t) 1000000000));
+  spec->tv_nsec = now % ((int64_t) 1000000000);
 
   return base;
 }
@@ -105,26 +102,7 @@ char* nanoOsStrError(int errnum) {
   return (char*) errorStrings[errnum];
 }
 
-/// @fn unsigned long getElapsedMilliseconds(unsigned long startTime)
-///
-/// @brief Get the number of milliseconds that have elapsed since a specified
-/// time in the past.
-///
-/// @param startTime The time in the past to calcualte the elapsed time from.
-///
-/// @return Returns the number of milliseconds that have elapsed since the
-/// provided start time.
-unsigned long getElapsedMilliseconds(unsigned long startTime) {
-  unsigned long now = millis();
-
-  if (now < startTime) {
-    return ULONG_MAX;
-  }
-
-  return now - startTime;
-}
-
-/// @fn void msleep(unsigned int duration)
+/// @fn void msleep(int duration)
 ///
 /// @brief Delay execution for a specified number of milliseconds.
 ///
@@ -132,9 +110,9 @@ unsigned long getElapsedMilliseconds(unsigned long startTime) {
 ///   execution.
 ///
 /// @return This function returns no value.
-void msleep(unsigned int durationMs) {
-  unsigned long start = getElapsedMilliseconds(0);
-  while (getElapsedMilliseconds(start) < durationMs);
+void msleep(int durationMs) {
+  int64_t start = HAL->getElapsedMilliseconds(0);
+  while (HAL->getElapsedMilliseconds(start) < durationMs);
 }
 
 /// @fn char* nanoOsGetenv(const char *name)

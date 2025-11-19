@@ -134,8 +134,7 @@ typedef void TypeDescriptor;
 #define STOP       ((void*) ((intptr_t) -1))
 
 extern const char *boolNames[];
-unsigned long getElapsedMilliseconds(unsigned long startTime);
-void msleep(unsigned int durationMs);
+void msleep(int durationMs);
 
 char* nanoOsStrError(int errnum);
 #ifdef strerror
