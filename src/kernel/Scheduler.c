@@ -2793,15 +2793,8 @@ __attribute__((noinline)) void startScheduler(
   }
   printDebug("Initialized kernel process file descriptors.\n");
 
-  // Extend the scheduler stack.
-  ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, dummyProcess, NULL) != processSuccess) {
-    printString("Could not extend scheduler stack.\n");
-  }
-  printDebug("Extended scheduler stack.\n");
-
   // Create the console process.
-  processHandle = 0;
+  ProcessHandle processHandle = 0;
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
