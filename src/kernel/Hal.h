@@ -178,6 +178,66 @@ typedef struct Hal {
   /// corresponding to the 8 bits transferred from the device on success,
   /// -errno on failure.
   int (*spiTransfer8)(int spi, uint8_t data);
+  
+  // System time functionality.
+  
+  /// @fn int setSystemTime(struct timespec *ts)
+  ///
+  /// @brief Set the current time on the system.
+  ///
+  /// @param ts A pointer to a struct timespec that contains the seconds and
+  ///   nanoseconds since the epoch.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*setSystemTime)(struct timespec *ts);
+  
+  /// @fn int64_t getElapsedMilliseconds(int64_t startTime)
+  ///
+  /// @brief Get the number of milliseconds that have elapsed since the
+  /// provided start time.
+  ///
+  /// @param startTime The initial number of milliseconds to measure against.
+  ///   If this value is 0, then the value returned is the number of
+  ///   milliseconds that have elapsed since the start of the epoch.  Note:  If
+  ///   the system time has not yet been set then providing a startTime of 0
+  ///   will yield the number of milliseconds that the system has been up
+  ///   instead of the number of milliseconds since the start of the epoch.
+  ///
+  /// @return Returns the number of milliseconds that have elapsed since the
+  /// provided start time on success, -1 on failure.
+  int64_t (*getElapsedMilliseconds)(int64_t startTime);
+  
+  /// @fn int64_t getElapsedMicroseconds(int64_t startTime)
+  ///
+  /// @brief Get the number of microseconds that have elapsed since the
+  /// provided start time.
+  ///
+  /// @param startTime The initial number of microseconds to measure against.
+  ///   If this value is 0, then the value returned is the number of
+  ///   microseconds that have elapsed since the start of the epoch.  Note:  If
+  ///   the system time has not yet been set then providing a startTime of 0
+  ///   will yield the number of microseconds that the system has been up
+  ///   instead of the number of microseconds since the start of the epoch.
+  ///
+  /// @return Returns the number of microseconds that have elapsed since the
+  /// provided start time on success, -1 on failure.
+  int64_t (*getElapsedMicroseconds)(int64_t startTime);
+  
+  /// @fn int64_t getElapsedNanoseconds(int64_t startTime)
+  ///
+  /// @brief Get the number of nanoseconds that have elapsed since the
+  /// provided start time.
+  ///
+  /// @param startTime The initial number of nanoseconds to measure against.
+  ///   If this value is 0, then the value returned is the number of
+  ///   nanoseconds that have elapsed since the start of the epoch.  Note:  If
+  ///   the system time has not yet been set then providing a startTime of 0
+  ///   will yield the number of nanoseconds that the system has been up
+  ///   instead of the number of nanoseconds since the start of the epoch.
+  ///
+  /// @return Returns the number of nanoseconds that have elapsed since the
+  /// provided start time on success, -1 on failure.
+  int64_t (*getElapsedNanoseconds)(int64_t startTime);
 } Hal;
 
 extern const Hal *HAL;

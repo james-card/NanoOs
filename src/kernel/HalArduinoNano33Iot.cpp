@@ -35,6 +35,9 @@
 // Basic SPI communication
 #include <SPI.h>
 
+// Standard C includes from the compiler
+#include <limits.h>
+
 #include "HalArduinoNano33Iot.h"
 #include "../user/NanoOsErrno.h"
 
@@ -51,6 +54,10 @@ static HardwareSerial *serialPorts[2] = {
   &Serial,
   &Serial1,
 };
+
+/// @var numSerialPorts
+///
+/// @brief The number of serial ports we support on the Arduino Nano 33 IoT.
 static const int numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
 
 int arduinoNano33IotGetNumSerialPorts(void) {
@@ -116,14 +123,37 @@ int arduinoNano33IotWriteDio(int dio, bool high) {
   return returnValue;
 }
 
+/// @var globalSpiConfigured
+///
+/// @brief Whether or not the Arduino's SPI interface has already been
+/// configured.
 static bool globalSpiConfigured = false;
 
+/// @var arduinoSpiDevices
+///
+/// @brief Array of structures that will hold the information about SPI
+/// connections.
+///
+/// @details
+/// On the Arduino Nano 33 IoT, 5 DIO pins are reserved:
+/// - UART RX
+/// - UART TX
+/// - SPI SCK
+/// - SPI COPI
+/// - SPI CIPO
+/// So, the maximum number of devcies we can support is the number of DIO pins
+/// minus 5.
 static struct ArduinoNano33IotSpi {
   bool    configured;         // Will default to false
   uint8_t chipSelect;
   bool    transferInProgress; // Will default to false
-} arduinoSpi[NUM_DIGITAL_IO_PINS] = {};
-static const int numArduinoSpis = sizeof(arduinoSpi) / sizeof(arduinoSpi[0]);
+} arduinoSpiDevices[NUM_DIGITAL_IO_PINS - 5] = {};
+
+/// @var numArduinoSpis
+///
+/// @brief The number of devices we support in the arduinoSpiDevices array.
+static const int numArduinoSpis
+  = sizeof(arduinoSpiDevices) / sizeof(arduinoSpiDevices[0]);
 
 int arduinoNano33IotInitSpiDevice(int spi,
   uint8_t cs, uint8_t sck, uint8_t copi, uint8_t cipo
@@ -145,7 +175,7 @@ int arduinoNano33IotInitSpiDevice(int spi,
     || (cipo != SPI_CIPO_DIO)
   ) {
     return -EINVAL;
-  } else if (arduinoSpi[spi].configured == true) {
+  } else if (arduinoSpiDevices[spi].configured == true) {
     return -EBUSY;
   }
   
@@ -161,46 +191,52 @@ int arduinoNano33IotInitSpiDevice(int spi,
   arduinoNano33IotWriteDio(cs, 1);
   
   // Configure our internal metadata for the device.
-  arduinoSpi[spi].chipSelect = cs;
-  arduinoSpi[spi].configured = true;
+  arduinoSpiDevices[spi].chipSelect = cs;
+  arduinoSpiDevices[spi].configured = true;
   
   return 0;
 }
 
 int arduinoNano33IotStartSpiTransfer(int spi) {
-  if ((spi < 0) || (spi >= numArduinoSpis) || (!arduinoSpi[spi].configured)) {
+  if ((spi < 0) || (spi >= numArduinoSpis)
+    || (arduinoSpiDevices[spi].configured == false)
+  ) {
     // Outside the limit of the devices we support.
     return -ENODEV;
   }
   
   // Select the chip select pin.
-  arduinoNano33IotWriteDio(arduinoSpi[spi].chipSelect, 0);
-  arduinoSpi[spi].transferInProgress = true;
+  arduinoNano33IotWriteDio(arduinoSpiDevices[spi].chipSelect, 0);
+  arduinoSpiDevices[spi].transferInProgress = true;
   
   return 0;
 }
 
 int arduinoNano33IotEndSpiTransfer(int spi) {
-  if ((spi < 0) || (spi >= numArduinoSpis) || (!arduinoSpi[spi].configured)) {
+  if ((spi < 0) || (spi >= numArduinoSpis)
+    || (arduinoSpiDevices[spi].configured == false)
+  ) {
     // Outside the limit of the devices we support.
     return -ENODEV;
   }
   
   // Deselect the chip select pin.
-  arduinoNano33IotWriteDio(arduinoSpi[spi].chipSelect, 1);
+  arduinoNano33IotWriteDio(arduinoSpiDevices[spi].chipSelect, 1);
   for (int ii = 0; ii < 8; ii++) {
     SPI.transfer(0xFF); // 8 clock pulses
   }
-  arduinoSpi[spi].transferInProgress = false;
+  arduinoSpiDevices[spi].transferInProgress = false;
   
   return 0;
 }
 
 int arduinoNano33IotSpiTransfer8(int spi, uint8_t data) {
-  if ((spi < 0) || (spi >= numArduinoSpis) || (!arduinoSpi[spi].configured)) {
+  if ((spi < 0) || (spi >= numArduinoSpis)
+    || (arduinoSpiDevices[spi].configured == false)
+  ) {
     // Outside the limit of the devices we support.
     return -ENODEV;
-  } else if (!arduinoSpi[spi].transferInProgress) {
+  } else if (!arduinoSpiDevices[spi].transferInProgress) {
     // The only error that arduinoNano33IotStartSpiTransfer can return is
     // ENODEV and we've already checked for that, so we don't need to check the
     // return value here.
@@ -210,6 +246,47 @@ int arduinoNano33IotSpiTransfer8(int spi, uint8_t data) {
   return (int) SPI.transfer(data);
 }
 
+/// @var baseSystemTimeMs
+///
+/// @brief The time provided by the user or some other process as a baseline
+/// time for the system.
+static int64_t baseSystemTimeMs = 0;
+
+int arduinoNano33IotSetSystemTime(struct timespec *now) {
+  if (now == NULL) {
+    return -EINVAL;
+  }
+  
+  baseSystemTimeMs
+    = (((int64_t) now->tv_sec) * ((int64_t) 1000))
+    + (((int64_t) now->tv_nsec) / ((int64_t) 1000000));
+  
+  return 0;
+}
+
+int64_t arduinoNano33IotGetElapsedMilliseconds(int64_t startTime) {
+  int64_t now = baseSystemTimeMs + millis();
+
+  if (now < startTime) {
+    return -1;
+  }
+
+  return now - startTime;
+}
+
+int64_t arduinoNano33IotGetElapsedMicroseconds(int64_t startTime) {
+  return arduinoNano33IotGetElapsedMilliseconds(
+    startTime / ((int64_t) 1000)) * ((int64_t) 1000);
+}
+
+int64_t arduinoNano33IotGetElapsedNanoseconds(int64_t startTime) {
+  return arduinoNano33IotGetElapsedMilliseconds(
+    startTime / ((int64_t) 1000000)) * ((int64_t) 1000000);
+}
+
+/// @var arduinoNano33IotHal
+///
+/// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
   // Overlay definitions.
   .overlayMap = (NanoOsOverlayMap*) 0x20001800,
@@ -231,8 +308,15 @@ static Hal arduinoNano33IotHal = {
   .startSpiTransfer = arduinoNano33IotStartSpiTransfer,
   .endSpiTransfer = arduinoNano33IotEndSpiTransfer,
   .spiTransfer8 = arduinoNano33IotSpiTransfer8,
+  
+  // System time functionality.
+  .setSystemTime = arduinoNano33IotSetSystemTime,
+  .getElapsedMilliseconds = arduinoNano33IotGetElapsedMilliseconds,
+  .getElapsedMicroseconds = arduinoNano33IotGetElapsedMicroseconds,
+  .getElapsedNanoseconds = arduinoNano33IotGetElapsedNanoseconds,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
   return &arduinoNano33IotHal;
 }
+
