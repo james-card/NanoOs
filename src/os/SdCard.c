@@ -28,15 +28,8 @@
 // Doxygen marker
 /// @file
 
-// Arduino includes
-#include <Arduino.h>
-#include <HardwareSerial.h>
-
 // Custom includes
 #include "SdCard.h"
-
-// Basic SD card communication using SPI
-#include <SPI.h>
 
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
@@ -58,6 +51,16 @@
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
 
+/// @def SD_CARD_PIN_CHIP_SELECT
+///
+/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
+#define SD_CARD_PIN_CHIP_SELECT 4
+
+/// @def SD_CARD_SPI_DEVICE
+///
+/// @brief The SPI device ID to use in SPI calls in the HAL.
+#define SD_CARD_SPI_DEVICE 0
+
 /// @struct SdCommandParams
 ///
 /// @param startBlock The block number to start the command on.
@@ -75,14 +78,12 @@ typedef struct SdCommandParams {
 ///
 /// @brief State maintained by an SdCard process.
 ///
-/// @param chipSelect The I/O pin connected to the SD card's chip select line.
 /// @param blockSize The number of bytes per block on the SD card as presented
 ///   to the host.
 /// @param numBlocks The total number of blocks available on the SD card.
 /// @param sdCardVersion The version of the card (1 or 2).
 /// @param bsDevice A pointer to the BlockStorageDevice that abstracts this card.
 typedef struct SdCardState {
-  uint8_t chipSelect;
   uint16_t blockSize;
   uint32_t numBlocks;
   int sdCardVersion;
@@ -94,45 +95,27 @@ typedef struct SdCardState {
 /// @brief Definition of a filesystem command handler function.
 typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
 
-/// @fn void sdSpiEnd(int chipSelect)
-///
-/// @brief End communication with the SD card.
-///
-/// @param chipSelect The I/O pin connected to the SD card's chip select line.
-///
-/// @return This function returns no value.
-__attribute__((noinline)) void sdSpiEnd(uint8_t chipSelect) {
-  // Deselect the SD chip select pin.
-  digitalWrite(chipSelect, HIGH);
-  for (int ii = 0; ii < 8; ii++) {
-    SPI.transfer(0xFF); // 8 clock pulses
-  }
-
-  return;
-}
-
-/// @fn uint8_t sdSpiSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg)
+/// @fn uint8_t sdSpiSendCommand(int sdCardSpiDevice, uint8_t cmd, uint32_t arg)
 ///
 /// @brief Send a command and its argument to the SD card over the SPI
 /// interface.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @brief sdCardSpiDevice The zero-based SPI device ID to use.
 /// @param cmd The 8-bit SD command to send to the SD card.
 /// @param arg The 32-bit arguent to send for the SD command.
 ///
 /// @return Returns the 8-bit command response from the SD card.
-uint8_t sdSpiSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg) {
-  digitalWrite(chipSelect, LOW);
+uint8_t sdSpiSendCommand(int sdCardSpiDevice, uint8_t cmd, uint32_t arg) {
+  HAL->startSpiTransfer(sdCardSpiDevice);
   
   // Command byte
-  SPI.transfer(cmd | 0x40);
+  HAL->spiTransfer8(sdCardSpiDevice, cmd | 0x40);
   
   // Argument
-  SPI.transfer((arg >> 24) & 0xff);
-  SPI.transfer((arg >> 16) & 0xff);
-  SPI.transfer((arg >>  8) & 0xff);
-  SPI.transfer((arg >>  0) & 0xff);
+  HAL->spiTransfer8(sdCardSpiDevice, (arg >> 24) & 0xff);
+  HAL->spiTransfer8(sdCardSpiDevice, (arg >> 16) & 0xff);
+  HAL->spiTransfer8(sdCardSpiDevice, (arg >>  8) & 0xff);
+  HAL->spiTransfer8(sdCardSpiDevice, (arg >>  0) & 0xff);
   
   // CRC - only needed for CMD0 and CMD8
   uint8_t crc = 0xFF;
@@ -141,12 +124,12 @@ uint8_t sdSpiSendCommand(uint8_t chipSelect, uint8_t cmd, uint32_t arg) {
   } else if (cmd == CMD8) {
     crc = 0x87; // Valid CRC for CMD8 (0x1AA)
   }
-  SPI.transfer(crc);
+  HAL->spiTransfer8(sdCardSpiDevice, crc);
   
   // Wait for response
   uint8_t response;
   for (int ii = 0; ii < 10; ii++) {
-    response = SPI.transfer(0xFF);
+    response = HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
     if ((response & 0x80) == 0) {
       break; // Exit if valid response
     }
@@ -169,71 +152,71 @@ int sdSpiCardInit(uint8_t chipSelect) {
   uint16_t timeoutCount;
   bool isSDv2 = false;
   
-  // Set up chip select pin
-  pinMode(chipSelect, OUTPUT);
-  digitalWrite(chipSelect, HIGH);
-  
-  // Set up SPI at low speed
-  SPI.begin();
+  // Set up SPI at the default speed
+  int initStatus = HAL->initSpi(SD_CARD_SPI_DEVICE, chipSelect);
+  if (initStatus != 0) {
+    // Just pass the error upward.
+    return initStatus;
+  }
   
   // Extended power up sequence - Send more clock cycles
   for (int ii = 0; ii < 32; ii++) {
-    SPI.transfer(0xFF);
+    HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   }
   
   // Send CMD0 to enter SPI mode
   timeoutCount = 200;  // Extended timeout
   do {
     for (int ii = 0; ii < 8; ii++) {  // More dummy clocks
-      SPI.transfer(0xFF);
+      HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
     }
-    response = sdSpiSendCommand(chipSelect, CMD0, 0);
+    response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, CMD0, 0);
     if (--timeoutCount == 0) {
-      sdSpiEnd(chipSelect);
-      return -1;
+      HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
+      return -ETIMEDOUT;
     }
   } while (response != R1_IDLE_STATE);
   
   // Send CMD8 to check version
   for (int ii = 0; ii < 8; ii++) {
-    SPI.transfer(0xFF);
+    HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   }
-  response = sdSpiSendCommand(chipSelect, CMD8, 0x000001AA);
+  response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, CMD8, 0x000001AA);
   if (response == R1_IDLE_STATE) {
     isSDv2 = true;
     for (int ii = 0; ii < 4; ii++) {
-      response = SPI.transfer(0xFF);
+      response = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
     }
   }
-  sdSpiEnd(chipSelect);
+  HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
   
   // Initialize card with ACMD41
   timeoutCount = 20000;  // Much longer timeout
   do {
-    response = sdSpiSendCommand(chipSelect, CMD55, 0);
-    sdSpiEnd(chipSelect);
+    response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, CMD55, 0);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     
     for (int ii = 0; ii < 8; ii++) {
-      SPI.transfer(0xFF);
+      HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
     }
     
     // Try both with and without HCS bit based on card version
     uint32_t acmd41Arg = isSDv2 ? 0x40000000 : 0;
-    response = sdSpiSendCommand(chipSelect, ACMD41, acmd41Arg);
-    sdSpiEnd(chipSelect);
+    response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, ACMD41, acmd41Arg);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     
     if (--timeoutCount == 0) {
-      sdSpiEnd(chipSelect);
-      return -5;
+      HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
+      return -ETIMEDOUT;
     }
   } while (response != 0);
   
   // If we get here, card is initialized
   for (int ii = 0; ii < 8; ii++) {
-    SPI.transfer(0xFF);
+    HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   }
   
-  sdSpiEnd(chipSelect);
+  HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
   return isSDv2 ? 2 : 1;
 }
 
@@ -263,35 +246,35 @@ int sdSpiReadBlock(SdCardState *sdCardState,
   
   
   // Send READ_SINGLE_BLOCK command
-  uint8_t response = sdSpiSendCommand(sdCardState->chipSelect, CMD17, address);
+  uint8_t response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, CMD17, address);
   if (response != 0x00) {
-    sdSpiEnd(sdCardState->chipSelect);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     return EIO; // Command failed
   }
   
   // Wait for data token (0xFE)
   uint16_t timeout = 10000;
   while (timeout--) {
-    response = SPI.transfer(0xFF);
+    response = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
     if (response == 0xFE) {
       break;
     }
     if (timeout == 0) {
-      sdSpiEnd(sdCardState->chipSelect);
+      HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
       return EIO;  // Timeout waiting for data
     }
   }
   
   // Read 512 byte block
   for (int ii = 0; ii < 512; ii++) {
-    buffer[ii] = SPI.transfer(0xFF);
+    buffer[ii] = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   }
   
   // Read CRC (2 bytes, ignored)
-  SPI.transfer(0xFF);
-  SPI.transfer(0xFF);
+  HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
+  HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   
-  sdSpiEnd(sdCardState->chipSelect);
+  HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
   return 0;
 }
 
@@ -314,10 +297,10 @@ int sdSpiWriteBlock(SdCardState *sdCardState,
   }
   
   // Check if card is responsive
-  digitalWrite(sdCardState->chipSelect, LOW);
-  uint8_t response = SPI.transfer(0xFF);
+  HAL->startSpiTransfer(SD_CARD_SPI_DEVICE);
+  uint8_t response = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   if (response != 0xFF) {
-    digitalWrite(sdCardState->chipSelect, HIGH);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     return EIO;
   }
   
@@ -327,71 +310,70 @@ int sdSpiWriteBlock(SdCardState *sdCardState,
   }
   
   // Send WRITE_BLOCK command
-  response = sdSpiSendCommand(sdCardState->chipSelect, CMD24, address);
+  response = sdSpiSendCommand(SD_CARD_SPI_DEVICE, CMD24, address);
   if (response != 0x00) {
-    sdSpiEnd(sdCardState->chipSelect);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     return EIO; // Command failed
   }
   
   // Wait for card to be ready before sending data
   uint16_t timeout = 10000;
   do {
-    response = SPI.transfer(0xFF);
+    response = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
     if (--timeout == 0) {
-      sdSpiEnd(sdCardState->chipSelect);
+      HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
       return EIO;
     }
   } while (response != 0xFF);
   
   // Send start token
-  SPI.transfer(0xFE);
+  HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFE);
   
   // Write data
   for (int ii = 0; ii < 512; ii++) {
-    SPI.transfer(buffer[ii]);
+    HAL->spiTransfer8(SD_CARD_SPI_DEVICE, buffer[ii]);
   }
   
   // Send dummy CRC
-  SPI.transfer(0xFF);
-  SPI.transfer(0xFF);
+  HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
+  HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   
   // Get data response
-  response = SPI.transfer(0xFF);
+  response = HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF);
   if ((response & 0x1F) != 0x05) {
-    sdSpiEnd(sdCardState->chipSelect);
+    HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
     return EIO; // Bad response
   }
   
   // Wait for write to complete
   timeout = 10000;
   while (timeout--) {
-    if (SPI.transfer(0xFF) != 0x00) {
+    if (HAL->spiTransfer8(SD_CARD_SPI_DEVICE, 0xFF) != 0x00) {
       break;
     }
     if (timeout == 0) {
-      sdSpiEnd(sdCardState->chipSelect);
+      HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
       return EIO; // Write timeout
     }
   }
   
-  sdSpiEnd(sdCardState->chipSelect);
+  HAL->endSpiTransfer(SD_CARD_SPI_DEVICE);
   return 0;
 }
 
-/// @fn int16_t sdSpiGetBlockSize(uint8_t chipSelect)
+/// @fn int16_t sdSpiGetBlockSize(int sdCardSpiDevice)
 ///
 /// @brief Get the size, in bytes, of blocks on the SD card as presented to the
 /// host.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @param sdCardSpiDevice The zero-based ID of the SPI device.
 ///
 /// @return Returns the number of bytes per block on success, negative error
 /// code on failure.
-int16_t sdSpiGetBlockSize(uint8_t chipSelect) {
-  uint8_t response = sdSpiSendCommand(chipSelect, CMD9, 0);
+int16_t sdSpiGetBlockSize(int sdCardSpiDevice) {
+  uint8_t response = sdSpiSendCommand(sdCardSpiDevice, CMD9, 0);
   if (response != 0x00) {
-    sdSpiEnd(chipSelect);
+    HAL->endSpiTransfer(sdCardSpiDevice);
     printString(__func__);
     printString(": ERROR! CMD9 returned ");
     printInt(response);
@@ -400,7 +382,7 @@ int16_t sdSpiGetBlockSize(uint8_t chipSelect) {
   }
 
   for(int i = 0; i < 100; i++) {
-    response = SPI.transfer(0xFF);
+    response = HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
     if (response == 0xFE) {
       break;  // Data token
     }
@@ -409,36 +391,35 @@ int16_t sdSpiGetBlockSize(uint8_t chipSelect) {
   // Read 16-byte CSD register
   uint8_t csd[16];
   for(int i = 0; i < 16; i++) {
-    csd[i] = SPI.transfer(0xFF);
+    csd[i] = HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
   }
   
   // Read 2 CRC bytes
-  SPI.transfer(0xFF);
-  SPI.transfer(0xFF);
-  sdSpiEnd(chipSelect);
+  HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
+  HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
+  HAL->endSpiTransfer(sdCardSpiDevice);
 
   // For CSD Version 1.0 and 2.0, READ_BL_LEN is at the same location
   uint8_t readBlockLength = (csd[5] & 0x0F);
   return (int16_t) (((uint16_t) 1) << readBlockLength);
 }
 
-/// @fn int sdSpiGetBlockCount(uint8_t chipSelect)
+/// @fn int sdSpiGetBlockCount(sdCardSpiDevice)
 ///
 /// @brief Get the total number of available blocks on an SD card.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @param sdCardSpiDevice The zero-based ID of the SPI device.
 ///
 /// @return Returns the number of blocks available on success, negative error
 /// code on failure.
-int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
+int32_t sdSpiGetBlockCount(int sdCardSpiDevice) {
   uint8_t cardSpecificData[16];
   uint32_t blockCount = 0;
   
   // Send SEND_CSD command
-  uint8_t response = sdSpiSendCommand(chipSelect, CMD9, 0);
+  uint8_t response = sdSpiSendCommand(sdCardSpiDevice, CMD9, 0);
   if (response != 0x00) {
-    sdSpiEnd(chipSelect);
+    HAL->endSpiTransfer(sdCardSpiDevice);
     printString(__func__);
     printString(": ERROR! CMD9 returned ");
     printInt(response);
@@ -449,22 +430,22 @@ int32_t sdSpiGetBlockCount(uint8_t chipSelect) {
   // Wait for data token
   uint16_t timeoutCount = 10000;
   while (timeoutCount--) {
-    response = SPI.transfer(0xFF);
+    response = HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
     if (response == 0xFE) {
       break;
     }
     if (timeoutCount == 0) {
-      sdSpiEnd(chipSelect);
+      HAL->endSpiTransfer(sdCardSpiDevice);
       return -2;
     }
   }
   
   // Read CSD register
   for (int ii = 0; ii < 16; ii++) {
-    cardSpecificData[ii] = SPI.transfer(0xFF);
+    cardSpecificData[ii] = HAL->spiTransfer8(sdCardSpiDevice, 0xFF);
   }
   
-  sdSpiEnd(chipSelect);
+  HAL->endSpiTransfer(sdCardSpiDevice);
   
   // Calculate capacity based on CSD version
   if ((cardSpecificData[0] >> 6) == 0x01) {  // CSD version 2.0
@@ -723,9 +704,10 @@ int sdWriteBlocks(void *context, uint32_t startBlock,
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCard(void *args) {
+  (void) args;
+
   SdCardState sdCardState;
   memset(&sdCardState, 0, sizeof(sdCardState));
-  sdCardState.chipSelect = (uint8_t) ((intptr_t) args);
   BlockStorageDevice sdDevice = {
     .context = (void*) ((intptr_t) getRunningProcessId()),
     .readBlocks = sdReadBlocks,
@@ -736,10 +718,11 @@ void* runSdCard(void *args) {
   };
   sdCardState.bsDevice = &sdDevice;
 
-  sdCardState.sdCardVersion = sdSpiCardInit(sdCardState.chipSelect);
+  sdCardState.sdCardVersion = sdSpiCardInit(SD_CARD_PIN_CHIP_SELECT);
   if (sdCardState.sdCardVersion > 0) {
-    sdCardState.blockSize = sdDevice.blockSize = sdSpiGetBlockSize(sdCardState.chipSelect);
-    sdCardState.numBlocks = sdSpiGetBlockCount(sdCardState.chipSelect);
+    sdCardState.blockSize = sdDevice.blockSize
+      = sdSpiGetBlockSize(SD_CARD_SPI_DEVICE);
+    sdCardState.numBlocks = sdSpiGetBlockCount(SD_CARD_SPI_DEVICE);
 #ifdef SD_CARD_DEBUG
     printString("Card is ");
     printString((sdCardState.sdCardVersion == 1) ? "SDSC" : "SDHC/SDXC");
@@ -755,8 +738,8 @@ void* runSdCard(void *args) {
     printString(" total bytes)\n");
 #endif // SD_CARD_DEBUG
   } else {
-    printString("ERROR! sdSpiCardInit returned status ");
-    printInt(sdCardState.sdCardVersion);
+    printString("ERROR! sdSpiCardInit returned status: ");
+    printString(strerror(-sdCardState.sdCardVersion));
     printString("\n");
   }
   coroutineYield(&sdDevice);

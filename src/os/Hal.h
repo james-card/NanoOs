@@ -108,6 +108,74 @@ typedef struct Hal {
   /// @return Returns the number of digital IO pins on success, -errno on
   /// failure.
   int (*getNumDios)(void);
+  
+  /// @fn int configureDio(int dio, bool output)
+  ///
+  /// @brief Configure a DIO for either input or output.
+  ///
+  /// @param dio An integer indicating the DIO to configure.
+  /// @param output Whether the DIO should be configured for output (true) or
+  ///   input (false).
+  ///
+  /// @return Returns 0 on success, -errno onfailure.
+  int (*configureDio)(int dio, bool output);
+  
+  /// @fn int writeDio(int dio, bool high)
+  ///
+  /// @brief Write either a high or low value to a DIO.  The DIO must be
+  /// configured for output.
+  ///
+  /// @param dio An integer indicating the DIO to write the value to.
+  /// @param high Whether the value to be written to the DIO should be high
+  ///   (true) or low (false).
+  ///
+  /// @return Returns 0 on success, -errno onfailure.
+  int (*writeDio)(int dio, bool high);
+  
+  // SPI functionality.
+  
+  /// @fn int initSpi(int spi, uint8_t chipSelect)
+  ///
+  /// @brief Initialize a SPI device on the system.
+  ///
+  /// @param spi The zero-based index of the SPI device to initialize.
+  /// @param chipSelect The DIO to use as the chip-select line.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*initSpi)(int spi, uint8_t chipSelect);
+  
+  /// @fn int startSpiTransfer(int spi)
+  ///
+  /// @brief Begin a transfer with a SPI device.
+  ///
+  /// @param spi The zero-based index of the SPI device to begin transferring
+  /// data with.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*startSpiTransfer)(int spi);
+  
+  /// @fn int endSpiTransfer(int spi)
+  ///
+  /// @brief End a transfer with a SPI device.
+  ///
+  /// @param spi The zero-based index of the SPI device to halt transferring
+  /// data with.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*endSpiTransfer)(int spi);
+  
+  /// @fn int spiTransfer8(int spi, uint8_t data)
+  ///
+  /// @brief Tranfer 8 bits (1 byte) between the SPI controller and a
+  /// peripheral.
+  ///
+  /// @param spi The zero-based index of the SPI device to transfer data with.
+  /// @param data The 8-bit value to transfer to the peripheral.
+  ///
+  /// @return Returns a value in the range 0x00000000 to 0x000000ff
+  /// corresponding to the 8 bits transferred from the device on success,
+  /// -errno on failure.
+  int (*spiTransfer8)(int spi, uint8_t data);
 } Hal;
 
 extern const Hal *HAL;
