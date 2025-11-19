@@ -26,9 +26,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
+#include "src/os/HalArduinoNano33Iot.h"
 #include "src/os/NanoOs.h"
 #include "src/os/Scheduler.h"
-#include "src/os/HalArduinoNano33Iot.h"
+#include "src/os/SdCardSpi.h"
 
 const Hal *HAL = NULL;
 
@@ -51,6 +52,8 @@ void setup() {
       while(1);
     }
   }
+
+  runSdCard = runSdCardSpi;
 
   // We need a guard at bootup because if the system crashes in a way that makes
   // the processor unresponsive, it will be very difficult to load new firmware.

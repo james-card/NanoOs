@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
 /// @author            James Card
-/// @date              1.13.2025
+/// @date              11.18.2025
 ///
-/// @file              SdCard.h
+/// @file              SdCardSpi.h
 ///
-/// @brief             SD card functionality for NanoOs.
+/// @brief             SPI-based SD card functionality for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -33,50 +33,21 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SD_CARD_H
-#define SD_CARD_H
+#ifndef SD_CARD_SPI_H
+#define SD_CARD_SPI_H
 
 // Custom includes
-#include "NanoOs.h"
+#include "SdCard.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/// @struct SdCommandParams
-///
-/// @param startBlock The block number to start the command on.
-/// @param numBlocks The number of blocks to perform the command on.
-/// @param blockSize The number of bytes in each block.
-/// @param buffer A pointer to the memory to read from or write to.
-typedef struct SdCommandParams {
-  uint32_t startBlock;
-  uint32_t numBlocks;
-  uint16_t blockSize;
-  uint8_t *buffer;
-} SdCommandParams;
-
-/// @enum SdCardCommandResponse
-///
-/// @brief Commands and responses understood by the SD card inter-process
-/// message handler.
-typedef enum SdCardCommandResponse {
-  // Commands:
-  SD_CARD_READ_BLOCKS,
-  SD_CARD_WRITE_BLOCKS,
-  NUM_SD_CARD_COMMANDS,
-  // Responses:
-} SdCardCommandResponse;
-
-extern void* (*runSdCard)(void *args);
-int sdReadBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
-int sdWriteBlocks(void *context, uint32_t startBlock,
-  uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer);
+void* runSdCardSpi(void *args);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // SD_CARD_H
+#endif // SD_CARD_SPI_H
