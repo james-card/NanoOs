@@ -25,8 +25,8 @@ CFLAGS += -fno-jump-tables
 LINKS = \
 
 INCLUDES = \
-    -I../../../../src/os \
-    -I../../../../src/unix \
+    -I../../../../src/kernel \
+    -I../../../../src/user \
     -I../../../include \
 
 WARNINGS = \
