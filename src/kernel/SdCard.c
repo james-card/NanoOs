@@ -30,7 +30,7 @@
 
 // Custom includes
 #include "SdCard.h"
-
+#include "NanoOs.h"
 
 void* (*runSdCard)(void *args);
 

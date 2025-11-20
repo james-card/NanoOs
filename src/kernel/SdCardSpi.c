@@ -31,6 +31,7 @@
 // Custom includes
 #include "SdCardSpi.h"
 #include "HalArduinoNano33Iot.h"
+#include "NanoOs.h"
 
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
