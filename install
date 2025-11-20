@@ -9,6 +9,7 @@ if [ "${targetDevice}" = "" ]; then
 fi
 
 echo "Building applications..."
+make -C usr/src clean
 make -C usr/src
 
 # Make a temporary mountpoint
