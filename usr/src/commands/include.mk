@@ -3,15 +3,25 @@ OBJ_DIR = ../../../obj
 BIN_DIR = ../../../bin
 
 # CLI tools
-MKDIR = mkdir -p
-RM = rm -rf
+MKDIR := mkdir -p
+RM    := rm -rf
 
 # Build tools
-CC = arm-none-eabi-gcc
-LD = arm-none-eabi-ld
-OBJCOPY = arm-none-eabi-objcopy
-OBJDUMP = arm-none-eabi-objdump
-SIZE = arm-none-eabi-size
+ifeq ($(strip $(COMPILE)),)
+    override COMPILE := arm-none-eabi-gcc
+endif
+ifeq ($(strip $(LINK)),)
+    override LINK    := arm-none-eabi-ld
+endif
+ifeq ($(strip $(OBJCOPY)),)
+    override OBJCOPY := arm-none-eabi-objcopy
+endif
+ifeq ($(strip $(OBJDUMP)),)
+    override OBJDUMP := arm-none-eabi-objdump
+endif
+ifeq ($(strip $(SIZE)),)
+    override SIZE    := arm-none-eabi-size
+endif
 
 # Linker flags
 LDFLAGS = -T ../../NanoOs.ld --gc-sections
@@ -63,24 +73,24 @@ $(BINARY): $(ELF)
 $(ELF): $(OBJECTS)
 	@echo "Linking: $@"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(LD) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
+	$(LINK) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
 	$(SIZE) $@
 
 # Compile object files
 $(OBJ_DIR)/$(TARGET)main.o: main.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/start.o: ../../start.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/%.o: %.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(CC) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(TARGET)OverlayMap.c: $(SOURCES)
 	@echo "Creating $(TARGET)OverlayMap.c"

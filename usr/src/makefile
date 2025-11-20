@@ -5,7 +5,8 @@ SOURCES := commands
 all: $(SOURCES)
 
 $(SOURCES): ./%:
-	$(MAKE) -C $@
+	$(MAKE) -C $@ COMPILE=$(COMPILE) LINK=$(LINK) OBJCOPY=$(OBJCOPY) \
+		OBJDUMP=$(OBJDUMP) SIZE=$(SIZE)
 
 clean:
 	for command in $(SOURCES); do $(MAKE) -C $${command} clean; done
