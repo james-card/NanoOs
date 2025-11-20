@@ -35,7 +35,7 @@
 #define HAL_H
 
 #include "NanoOsOverlay.h"
-
+#include "../user/NanoOsLibC.h"
 
 #ifdef __cplusplus
 extern "C"
