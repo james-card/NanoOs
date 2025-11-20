@@ -23,11 +23,15 @@ ifeq ($(strip $(SIZE)),)
     override SIZE    := arm-none-eabi-size
 endif
 
+ifeq ($(COMPILE),arm-none-eabi-gcc)
+    CPU := -mcpu=cortex-m0
+endif
+
 # Linker flags
 LDFLAGS = -T ../../NanoOs.ld --gc-sections
 
 # Compiler flags
-CFLAGS = -mcpu=cortex-m0 -Os -nostdlib -ffreestanding
+CFLAGS = $(CPU) -Os -nostdlib -ffreestanding
 CFLAGS += -Wall -Wextra -std=c17
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -fno-jump-tables
