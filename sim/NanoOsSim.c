@@ -33,8 +33,25 @@
 
 const Hal *HAL = NULL;
 
+void usage(const char *argv0) {
+  const char *programName = strrchr(argv0, '/');
+  if (programName != NULL) {
+    // The expected case.
+    programName++;
+  } else {
+    programName = argv0;
+  }
+  
+  fprintf(stderr, "Usage: %s <MMC block device path>\n", programName);
+}
+
 int main(int argc, char **argv) {
-  sdCardDevicePath = "/dev/mmcblk0";
+  if (argc != 2) {
+    usage(argv[0]);
+    return 1;
+  }
+
+  sdCardDevicePath = argv[1];
   HAL = halPosixInit();
 
   int numSerialPorts = HAL->getNumSerialPorts();
