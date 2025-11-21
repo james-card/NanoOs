@@ -29,24 +29,22 @@
 ///
 /// @brief HAL implementation for a Posix simulator.
 
-#include "HalPosix.h"
-#include "user/NanoOsErrno.h"
-
 // Standard C includes from the compiler
 #undef errno
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
-#include <time.h>
+
+#include "HalPosix.h"
 
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
 /// which is the USB serial port.
-static FILE *serialPorts[2] = {
-  stdout,
-  stderr,
+static FILE **serialPorts[2] = {
+  &stdout,
+  &stderr,
 };
 
 /// @var numSerialPorts
@@ -59,14 +57,18 @@ int posixGetNumSerialPorts(void) {
 }
 
 int posixInitializeSerialPort(int port, int baud) {
-  if (port == 0) {
-    // We don't actually need to do anything to stdout or stderr, but we do need
-    // to configure stdin to be non-blocking.
-    if (fcntl(0, F_SETFL, fcntl(sock->sockfd, F_GETFL) | O_NONBLOCK) == 0) {
-      return 0;
-    } else {
-      return -errno;
-    }
+  (void) baud;
+  
+  if (port != 0) {
+    return 0;
+  }
+  
+  // We don't actually need to do anything to stdout or stderr, but we do need
+  // to configure stdin to be non-blocking.
+  if (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) == 0) {
+    return 0;
+  } else {
+    return -errno;
   }
 }
 
@@ -76,7 +78,7 @@ int posixPollSerialPort(int port) {
   // While we'll support two outputs, we will only support one input to keep
   // things simple in the simulator.
   if (port == 0) {
-    serialData = getChar();
+    serialData = getchar();
     if (serialData == EOF) {
       serialData = -1;
     }
@@ -91,7 +93,7 @@ ssize_t posixWriteSerialPort(int port,
   ssize_t numBytesWritten = -ERANGE;
   
   if ((port >= 0) && (port < numSerialPorts) && (length >= 0)) {
-    numBytesWritten = fwrite(data, 1, length, serialPorts[port]);
+    numBytesWritten = fwrite(data, 1, length, *serialPorts[port]);
   }
   
   return numBytesWritten;
@@ -102,34 +104,59 @@ int posixGetNumDios(void) {
 }
 
 int posixConfigureDio(int dio, bool output) {
+  (void) dio;
+  (void) output;
+  
   return -ENOSYS;
 }
 
 int posixWriteDio(int dio, bool high) {
+  (void) dio;
+  (void) high;
+  
   return -ENOSYS;
 }
 
 int posixInitSpiDevice(int spi,
   uint8_t cs, uint8_t sck, uint8_t copi, uint8_t cipo
 ) {
+  (void) spi;
+  (void) cs;
+  (void) sck;
+  (void) copi;
+  (void) cipo;
+  
   return -ENOSYS;
 }
 
 int posixStartSpiTransfer(int spi) {
+  (void) spi;
+  
   return -ENOSYS;
 }
 
 int posixEndSpiTransfer(int spi) {
+  (void) spi;
+  
   return -ENOSYS;
 }
 
 int posixSpiTransfer8(int spi, uint8_t data) {
+  (void) spi;
+  (void) data;
+  
   return -ENOSYS;
 }
 
 int posixSetSystemTime(struct timespec *now) {
+  (void) now;
+  
   return 0;
 }
+
+// posixGetElapsedNanoseconds is used as the base implementation, so declare
+// its prototype here.
+int64_t posixGetElapsedNanoseconds(int64_t startTime);
 
 int64_t posixGetElapsedMilliseconds(int64_t startTime) {
   return posixGetElapsedNanoseconds(
@@ -142,6 +169,7 @@ int64_t posixGetElapsedMicroseconds(int64_t startTime) {
 }
 
 int64_t posixGetElapsedNanoseconds(int64_t startTime) {
+  #include <time.h>
   struct timespec spec;
   clock_gettime(CLOCK_REALTIME, &spec);
   return ((((int64_t) spec.tv_sec) * ((int64_t) 1000000000))
