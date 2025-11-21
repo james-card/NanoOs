@@ -34,13 +34,27 @@
 #ifndef HAL_H
 #define HAL_H
 
-#include "NanoOsOverlay.h"
-#include "../user/NanoOsLibC.h"
+// Standard C includes
+#include <limits.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#if defined(__linux__) || defined(__linux) || defined(_WIN32)
+// We're compiling as an application within another OS
+#include <sys/types.h>
+#endif
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+typedef struct NanoOsOverlayMap NanoOsOverlayMap;
 
 typedef struct Hal {
   // Overlay definitions.
