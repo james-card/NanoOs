@@ -54,6 +54,14 @@ extern "C"
 #define NANO_OS_STACK_SIZE 720
 #elif defined(__AVR__)
 #define NANO_OS_STACK_SIZE 320
+#elif defined(__linux__)
+// We're building as a Linux application, but we're not on ARM, so we're likely
+// on x86.  x86 binaries are roughly twice the size of ARM, so give it double
+// the stack size.  We're in an application with virutal memory, so we could
+// make this arbitrarily large, however in the spirit of keeping a simulation
+// environment as close as possible to the real thing, we'll give ourselves
+// something more reasonable.
+#define NANO_OS_STACK_SIZE 1440
 #endif // __arm__
 
 /// @def NANO_OS_NUM_MESSAGES
