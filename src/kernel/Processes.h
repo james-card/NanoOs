@@ -37,7 +37,7 @@
 #define PROCESSES_H
 
 // Custom includes
-#include "NanoOs.h"
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"
