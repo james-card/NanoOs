@@ -32,7 +32,7 @@ endif
 LDFLAGS = -T ../../NanoOs.ld --gc-sections
 
 # Compiler flags
-CFLAGS = $(CPU) -std=c17
+CFLAGS = $(CPU) -std=gnu17
 
 LINKS = \
 
@@ -60,7 +60,7 @@ OBJECTS = \
 all: $(BINARY)
 
 # Build overlay binary
-$(BINARY): $(OBJECTS)
+$(BINARY): $(COMPONENTS) $(OBJECTS)
 	@echo "Creating binary: $@"
 	$(MKDIR) "$(BIN_DIR)"
 	$(OBJCOPY) -O binary $< $@
