@@ -10,7 +10,8 @@ fi
 
 echo "Building applications..."
 make -C usr/src clean
-make -C usr/src COMPILE=gcc LINK=ld OBJCOPY=objcopy OBJDUMP=objdump SIZE=size
+make -C usr/src COMPILE=gcc LINK=ld OBJCOPY=objcopy OBJDUMP=objdump SIZE=size \
+	LINKER_SCRIPT=NanoOsSim.ld
 
 # Make a temporary mountpoint
 mountDir="$(mktemp -d)"
