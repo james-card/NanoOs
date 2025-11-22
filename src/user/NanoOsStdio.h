@@ -113,19 +113,9 @@ extern FILE *nanoOsStderr;
 
 // Debug functions
 int printString_(const char *string);
-#define printString printString_
-int printInt_(int integer);
-#define printInt printInt_
-int printUInt_(unsigned int integer);
-#define printUInt printUInt_
-int printLong_(long int integer);
-#define printLong printLong_
-int printULong_(unsigned long int integer);
-#define printULong printULong_
-int printLongLong_(long long int integer);
-#define printLongLong printLongLong_
-int printULongLong_(unsigned long long int integer);
-#define printULongLong printULongLong_
+#define printString(str) printString_((const char*) (str))
+int printInt_(long long int integer);
+#define printInt(value) printInt_((long long int) (value))
 int printDouble(double floatingPointValue);
 int printHex_(unsigned long long int integer);
 #define printHex(integer) printHex_((unsigned long long int) integer)

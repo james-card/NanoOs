@@ -54,63 +54,11 @@ FILE *nanoOsStderr = (FILE*) ((intptr_t) 0x3);
 
 /// @fn int printString_(const char *string)
 ///
-/// @brief C wrapper around Serial.print for a C string.
+/// @brief C wrapper around HAL->writeSerialPort for a C string.
 ///
 /// @return This function always returns 0;
 int printString_(const char *string) {
   HAL->writeSerialPort(0, (uint8_t*) string, strlen(string));
-
-  return 0;
-}
-
-/// @fn int printInt_(int integer)
-///
-/// @brief C wrapper around Serial.print for an integer.
-///
-/// @return This function always returns 0.
-int printInt_(int integer) {
-  char number[20];
-  sprintf(number, "%d", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
-
-  return 0;
-}
-
-/// @fn int printUInt_(unsigned int integer)
-///
-/// @brief C wrapper around Serial.print for an integer.
-///
-/// @return This function always returns 0.
-int printUInt_(unsigned int integer) {
-  char number[20];
-  sprintf(number, "%u", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
-
-  return 0;
-}
-
-/// @fn int printLong_(long int integer)
-///
-/// @brief C wrapper around Serial.print for an integer.
-///
-/// @return This function always returns 0.
-int printLong_(long int integer) {
-  char number[20];
-  sprintf(number, "%ld", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
-
-  return 0;
-}
-
-/// @fn int printULong_(unsigned long int integer)
-///
-/// @brief C wrapper around Serial.print for an integer.
-///
-/// @return This function always returns 0.
-int printULong_(unsigned long int integer) {
-  char number[20];
-  sprintf(number, "%lu", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
 
   return 0;
 }
@@ -138,12 +86,12 @@ int ullToString(unsigned long long int number, char **nextChar) {
   return 0;
 }
 
-/// @fn int printLongLong_(long long int integer)
+/// @fn int printInt_(long long int integer)
 ///
-/// @brief C wrapper around Serial.print for an integer.
+/// @brief C wrapper around HAL->writeSerialPort for an integer.
 ///
 /// @return This function always returns 0.
-int printLongLong_(long long int integer) {
+int printInt_(long long int integer) {
   char number[20];
   number[19] = '\0';
   char *nextChar = &number[18];
@@ -160,25 +108,9 @@ int printLongLong_(long long int integer) {
   return 0;
 }
 
-/// @fn int printULongLong_(unsigned long long int integer)
-///
-/// @brief C wrapper around Serial.print for an integer.
-///
-/// @return This function always returns 0.
-int printULongLong_(unsigned long long int integer) {
-  char number[20];
-  number[19] = '\0';
-  char *nextChar = &number[18];
-  ullToString((unsigned long long int) integer, &nextChar);
-  nextChar++;
-  HAL->writeSerialPort(0, (uint8_t*) nextChar, strlen(nextChar));
-
-  return 0;
-}
-
 /// @fn int printDouble(double floatingPointValue)
 ///
-/// @brief C wrapper around Serial.print for a double.
+/// @brief C wrapper around HAL->writeSerialPort for a double.
 ///
 /// @return This function always returns 0.
 int printDouble(double floatingPointValue) {
@@ -191,7 +123,7 @@ int printDouble(double floatingPointValue) {
 
 /// @fn int printHex_(unsigned long long int integer)
 ///
-/// @brief C wrapper around Serial.print for a hexadecimal integer.
+/// @brief C wrapper around HAL->writeSerialPort for a hexadecimal integer.
 ///
 /// @return This function always returns 0.
 int printHex_(unsigned long long int integer) {

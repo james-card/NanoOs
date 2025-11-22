@@ -2384,7 +2384,7 @@ static int freeClusterChain(
     result = writeFatEntry(driverState, currentCluster, freeMarker);
     if (result != EXFAT_SUCCESS) {
       printString("  ERROR: Failed to clear FAT entry for cluster ");
-      printULong(currentCluster);
+      printInt(currentCluster);
       printString("\n");
       return result;
     }
@@ -2393,7 +2393,7 @@ static int freeClusterChain(
     result = updateAllocationBitmap(driverState, currentCluster, false);
     if (result != EXFAT_SUCCESS) {
       printString("  ERROR: Failed to update bitmap for cluster ");
-      printULong(currentCluster);
+      printInt(currentCluster);
       printString("\n");
       return result;
     }
@@ -2792,7 +2792,7 @@ int exFatSeek(
       int result = allocateCluster(driverState, &newCluster);
       if (result != EXFAT_SUCCESS) {
         printString("ERROR: Failed to allocate cluster ");
-        printULong(ii);
+        printInt(ii);
         printString("\n");
         return -ENOSPC;
       }
