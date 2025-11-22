@@ -149,12 +149,14 @@ extern "C"
 ///
 /// @brief Macro to identify debugging prints when necessary.
 #define printDebugString(msg) printString(msg)
-#define printDebugInt(value) printLongLong((long long int) (value))
+#define printDebugInt(value) printInt(value)
+#define printDebugHex(value) printHex(value)
 
 #else // NANO_OS_DEBUG
 
 #define printDebugString(msg) {}
 #define printDebugInt(value) {}
+#define printDebugHex(value) {}
 
 #endif // NANO_OS_DEBUG
 
