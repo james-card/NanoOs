@@ -28,9 +28,11 @@
 // Doxygen marker
 /// @file
 
-// Standard C includes
-#include <string.h>
+// Standard library includes
+#include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 // NanoOs includes
 #include "Processes.h"
@@ -65,9 +67,10 @@ int sdCardReadBlocksCommandHandler(
     = (NanoOsMessage*) processMessageData(processMessage);
   printDebug("sdCardReadBlocksCommandHandler: Got NanoOsMessage\n");
   
-  if (sdCardState->context == NULL) {
+  int devFd = (int) ((intptr_t) sdCardState->context);
+  if (devFd < 0) {
     // Nothing we can do.
-    printDebug("sdCardReadBlocksCommandHandler: context is NULL\n");
+    printDebug("sdCardReadBlocksCommandHandler: Invalid file descriptor\n");
     nanoOsMessage->data = EIO;
     processMessageSetDone(processMessage);
     printDebug("sdCardReadBlocksCommandHandler: Returning early\n");
@@ -84,22 +87,19 @@ int sdCardReadBlocksCommandHandler(
   printDebug("sdCardReadBlocksCommandHandler: Got read/write parameters\n");
 
   if (returnValue == 0) {
-    FILE *devFile = (FILE*) sdCardState->context;
     uint8_t *buffer = sdCommandParams->buffer;
 
-    printDebug("sdCardReadBlocksCommandHandler: Calling fseek\n");
-    if (fseek(devFile, sdCardState->blockSize * startSdBlock, SEEK_SET) != 0) {
-      printDebug("sdCardReadBlocksCommandHandler: fseek FAILED\n");
+    printDebug("sdCardReadBlocksCommandHandler: Calling lseek\n");
+    if (lseek(devFd, sdCardState->blockSize * startSdBlock, SEEK_SET) < 0) {
+      printDebug("sdCardReadBlocksCommandHandler: lseek FAILED\n");
       returnValue = errno;
       goto exit;
     }
 
     printDebug("sdCardReadBlocksCommandHandler: Calling fread\n");
-    if (fread(buffer, sdCardState->blockSize, numSdBlocks, devFile)
-      != numSdBlocks
-    ) {
-      printDebug("sdCardReadBlocksCommandHandler: fread FAILED\n");
-      returnValue = EIO;
+    if (read(devFd, buffer, sdCardState->blockSize * numSdBlocks) <= 0) {
+      printDebug("sdCardReadBlocksCommandHandler: read FAILED\n");
+      returnValue = errno;
     }
   }
 
@@ -130,7 +130,8 @@ int sdCardWriteBlocksCommandHandler(
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   
-  if (sdCardState->context == NULL) {
+  int devFd = (int) ((intptr_t) sdCardState->context);
+  if (devFd < 0) {
     // Nothing we can do.
     nanoOsMessage->data = EIO;
     processMessageSetDone(processMessage);
@@ -144,18 +145,15 @@ int sdCardWriteBlocksCommandHandler(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
 
   if (returnValue == 0) {
-    FILE *devFile = (FILE*) sdCardState->context;
     uint8_t *buffer = sdCommandParams->buffer;
 
-    if (fseek(devFile, sdCardState->blockSize * startSdBlock, SEEK_SET) != 0) {
+    if (lseek(devFd, sdCardState->blockSize * startSdBlock, SEEK_SET) < 0) {
       returnValue = errno;
       goto exit;
     }
 
-    if (fwrite(buffer, sdCardState->blockSize, numSdBlocks, devFile)
-      != numSdBlocks
-    ) {
-      returnValue = EIO;
+    if (write(devFd, buffer, sdCardState->blockSize * numSdBlocks) <= 0) {
+      returnValue = errno;
     }
   }
 
@@ -230,12 +228,14 @@ void* runSdCardPosix(void *args) {
   sdCardState.blockSize = 512;
   sdCardState.numBlocks = 2000000000; // About 1 TB
   sdCardState.sdCardVersion = 2;
-  sdCardState.context = fopen(sdCardDevicePath, "r+");
+  sdCardState.context = (void*) ((intptr_t) open(sdCardDevicePath, O_RDWR));
+  int openError = errno;
 
   coroutineYield(&sdDevice);
-  if (sdCardState.context == NULL) {
+  if (((intptr_t) sdCardState.context) < 0) {
     fprintf(stderr, "ERROR: Failed to open sdCardDevicePath \"%s\"\n",
       sdCardDevicePath);
+    fprintf(stderr, "Error returned: %s", strerror(openError));
   }
 
   ProcessMessage *schedulerMessage = NULL;
