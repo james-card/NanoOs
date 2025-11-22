@@ -8,19 +8,22 @@ RM    := rm -rf
 
 # Build tools
 ifeq ($(strip $(COMPILE)),)
-    override COMPILE := arm-none-eabi-gcc
+    override COMPILE       := arm-none-eabi-gcc
 endif
 ifeq ($(strip $(LINK)),)
-    override LINK    := arm-none-eabi-ld
+    override LINK          := arm-none-eabi-ld
 endif
 ifeq ($(strip $(OBJCOPY)),)
-    override OBJCOPY := arm-none-eabi-objcopy
+    override OBJCOPY       := arm-none-eabi-objcopy
 endif
 ifeq ($(strip $(OBJDUMP)),)
-    override OBJDUMP := arm-none-eabi-objdump
+    override OBJDUMP       := arm-none-eabi-objdump
 endif
 ifeq ($(strip $(SIZE)),)
-    override SIZE    := arm-none-eabi-size
+    override SIZE          := arm-none-eabi-size
+endif
+ifeq ($(strip $(LINKER_SCRIPT)),)
+    override LINKER_SCRIPT := NanoOs.ld
 endif
 
 ifeq ($(COMPILE),arm-none-eabi-gcc)
@@ -28,7 +31,7 @@ ifeq ($(COMPILE),arm-none-eabi-gcc)
 endif
 
 # Linker flags
-LDFLAGS = -T ../../NanoOs.ld --gc-sections
+LDFLAGS = -T ../../$(LINKER_SCRIPT) --gc-sections
 
 # Compiler flags
 CFLAGS = $(CPU) -Os -nostdlib -ffreestanding
