@@ -118,7 +118,7 @@ int printInt_(long long int integer);
 #define printInt(value) printInt_((long long int) (value))
 int printDouble(double floatingPointValue);
 int printHex_(unsigned long long int integer);
-#define printHex(integer) printHex_((unsigned long long int) integer)
+#define printHex(integer) printHex_((unsigned long long int) (integer))
 int printList_(const char *firstString, ...);
 #define printList(firstString, ...) printList_(firstString, ##__VA_ARGS__, STOP)
 
