@@ -22,21 +22,22 @@ endif
 ifeq ($(strip $(SIZE)),)
     override SIZE          := arm-none-eabi-size
 endif
-ifeq ($(strip $(LINKER_SCRIPT)),)
-    override LINKER_SCRIPT := NanoOs.ld
-endif
 
 ifeq ($(COMPILE),arm-none-eabi-gcc)
     CPU := -mcpu=cortex-m0
 endif
 
+ifneq ($(LINKER_SCRIPT),)
+    override LINKER_SCRIPT := -T ../../$(LINKER_SCRIPT)
+endif
+
 # Linker flags
-LDFLAGS = -T ../../$(LINKER_SCRIPT) --gc-sections
+LDFLAGS = $(LINKER_SCRIPT) --gc-sections -static -no-pie --build-id=none
 
 # Compiler flags
 CFLAGS = $(CPU) -Os -nostdlib -ffreestanding
-CFLAGS += -Wall -Wextra -std=c17
-CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -std=c17 -fno-pic -fno-pie -fno-stack-protector -static
+CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
 CFLAGS += -fno-jump-tables
 
 LINKS = \
