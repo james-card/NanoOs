@@ -8,6 +8,14 @@ if [ "${targetDevice}" = "" ]; then
 	exit 1
 fi
 
+if [ ! -e "${targetDevice}" ]; then
+	imageFile="$(mktemp)"
+	trap "rm \"${imageFile}\"" ERR
+	# 100 MB is fine for us for now... honestly, it's excesive
+	dd if=/dev/zero of="${imageFile}" bs=1M count=100 status=progress
+	losetup "${targetDevice}" "${imageFile}"
+fi
+
 echo "Building applications..."
 make -C usr/src clean
 make -C usr/src COMPILE=gcc LINK=ld OBJCOPY=objcopy OBJDUMP=objdump SIZE=size \
