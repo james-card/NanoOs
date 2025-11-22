@@ -200,8 +200,16 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
     + ((int64_t) spec.tv_nsec)) - startTime;
 }
 
-#define OVERLAY_SIZE          8192
-#define OVERLAY_ADDRESS 0x20001000
+/// @def OVERLAY_BASE_ADDRESS
+///
+/// @brief This is the base address that we will use in our mmap call.  The
+/// address has to be page aligned on Linux.  The address below should work
+/// fine unless the host system is using 1 GB pages.
+#define OVERLAY_BASE_ADDRESS 0x20000000
+
+#define OVERLAY_SIZE               8192
+
+#define OVERLAY_OFFSET             6144
 
 /// @var posixHal
 ///
@@ -247,14 +255,18 @@ const Hal* halPosixInit(void) {
     = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
   fprintf(stderr, "Bottom of stack     = %p\n", (void*) posixHal.bottomOfStack);
   
-  posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_ADDRESS,
-    OVERLAY_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
+  posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_BASE_ADDRESS,
+    OVERLAY_SIZE << 2, PROT_READ | PROT_WRITE | PROT_EXEC,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
     -1, 0);
   if (posixHal.overlayMap == MAP_FAILED) {
     fprintf(stderr, "mmap failed with error: %s\n", strerror(errno));
     return NULL;
   }
+  
+  // The address that the code is built around for both the Cortex-M0 and the
+  // simulation code is OVERLAY_OFFSET bytes into the map we just made.
+  posixHal.overlayMap = (void*) (OVERLAY_BASE_ADDRESS + OVERLAY_OFFSET);
   
   fprintf(stderr, "posixHal.overlayMap = %p\n", (void*) posixHal.overlayMap);
   fprintf(stderr, "\n");
