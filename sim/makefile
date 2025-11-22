@@ -26,9 +26,6 @@ ifeq ($(COMPILE),arm-none-eabi-gcc)
     CPU := -mcpu=cortex-m0
 endif
 
-# Linker flags
-LDFLAGS := -T ../../NanoOs.ld --gc-sections
-
 # Compiler flags
 CFLAGS := $(CPU) -std=gnu17
 
