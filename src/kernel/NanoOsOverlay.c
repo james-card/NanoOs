@@ -60,11 +60,13 @@ int loadOverlay(const char *overlayPath, char **env) {
   }
   fclose(overlayFile); overlayFile = NULL;
 
+  printDebugString("Verifying overlay magic\n");
   if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
       overlayPath);
     return -(EEND + 1);
   }
+  printDebugString("Verifying overlay version\n");
   if (HAL->overlayMap->header.version
     != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
   ) {
@@ -74,6 +76,7 @@ int loadOverlay(const char *overlayPath, char **env) {
   }
 
   // Set the pieces of the overlay header that the program needs to run.
+  printDebugString("Configuring overlay environment\n");
   HAL->overlayMap->header.osApi = &nanoOsApi;
   HAL->overlayMap->header.env = env;
   
@@ -134,6 +137,7 @@ int runOverlayCommand(const char *commandPath,
     // Error message already printed.
     return COMMAND_CANNOT_EXECUTE;
   }
+  printDebugString("Overlay loaded successfully\n");
 
   OverlayFunction _start = findOverlayFunction("_start");
   if (_start == NULL) {
@@ -142,12 +146,19 @@ int runOverlayCommand(const char *commandPath,
       commandPath);
     return 1;
   }
+  printDebugString("Found _start function\n");
 
   MainArgs mainArgs = {
     .argc = argc,
     .argv = argv,
   };
+  printDebugString("Calling _start function at address 0x");
+  printDebugHex((uintptr_t) _start);
+  printDebugString("\n");
   int returnValue = (int) ((intptr_t) _start(&mainArgs));
+  printDebugString("Got return value ");
+  printDebugInt(returnValue);
+  printDebugString(" from _start function\n");
   if (returnValue != ENOERR) {
     fprintf(stderr,
       "Got unexpected return value %d from _start in \"%s\"\n",
