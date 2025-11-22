@@ -1,7 +1,5 @@
-COMPONENTS := kernel user
-
-OBJ_DIR = obj
-BIN_DIR = bin
+OBJ_DIR    := obj
+BIN_DIR    := bin
 
 # CLI tools
 MKDIR := mkdir -p
@@ -29,29 +27,54 @@ ifeq ($(COMPILE),arm-none-eabi-gcc)
 endif
 
 # Linker flags
-LDFLAGS = -T ../../NanoOs.ld --gc-sections
+LDFLAGS := -T ../../NanoOs.ld --gc-sections
 
 # Compiler flags
-CFLAGS = $(CPU) -std=gnu17
+CFLAGS := $(CPU) -std=gnu17
 
-LINKS = \
+LINKS := \
 
-INCLUDES = \
+INCLUDES := \
     -Ikernel \
     -Iuser \
 
-WARNINGS = \
+WARNINGS := \
     -Wall \
     -Wextra \
     -pedantic \
     -Werror \
 
+COMPONENTS := \
+    ../src/kernel \
+    ../src/user \
+
 # Source and target files
-BINARY = $(BIN_DIR)/nano-os-sim
+TARGET := nano-os-sim
+BINARY := $(BIN_DIR)/$(TARGET)
 
-SOURCES = \
+OS_OBJECTS := \
+    $(OBJ_DIR)/Commands.o \
+    $(OBJ_DIR)/Console.o \
+    $(OBJ_DIR)/Coroutines.o \
+    $(OBJ_DIR)/ExFatFilesystem.o \
+    $(OBJ_DIR)/ExFatProcess.o \
+    $(OBJ_DIR)/Filesystem.o \
+    $(OBJ_DIR)/Link.o \
+    $(OBJ_DIR)/MemoryManager.o \
+    $(OBJ_DIR)/Messages.o \
+    $(OBJ_DIR)/NanoOs.o \
+    $(OBJ_DIR)/NanoOsOverlay.o \
+    $(OBJ_DIR)/Processes.o \
+    $(OBJ_DIR)/Scheduler.o \
+    $(OBJ_DIR)/SdCard.o \
+    $(OBJ_DIR)/NanoOsApi.o \
+    $(OBJ_DIR)/NanoOsErrno.o \
+    $(OBJ_DIR)/NanoOsLibC.o \
+    $(OBJ_DIR)/NanoOsStdio.o \
+    $(OBJ_DIR)/NanoOsSys.o \
+    $(OBJ_DIR)/NanoOsUnistd.o \
 
-OBJECTS = \
+SIM_OBJECTS := \
     $(OBJ_DIR)/HalPosix.o \
     $(OBJ_DIR)/NanoOsSim.o \
     $(OBJ_DIR)/SdCardPosix.o \
@@ -59,21 +82,18 @@ OBJECTS = \
 # Default target
 all: $(BINARY)
 
-# Build overlay binary
-$(BINARY): $(COMPONENTS) $(OBJECTS)
-	@echo "Creating binary: $@"
+# Build simulator binary
+$(BINARY): $(COMPONENTS) $(SIM_OBJECTS)
 	$(MKDIR) "$(BIN_DIR)"
-	$(OBJCOPY) -O binary $< $@
-	@echo "Binary size:"
-	@ls -la $@
+	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) \
+		$(SIM_OBJECTS) $(OS_OBJECTS) -o $@
 
-$(COMPONENTS): ./%:
-	$(MAKE) -C $@ TARGET="$@" COMPILE=$(COMPILE) LINK=$(LINK) \
+../src/%: FORCE
+	$(MAKE) -C $@ COMPILE=$(COMPILE) LINK=$(LINK) \
 		OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) SIZE=$(SIZE)
 
 # Compile object files
 $(OBJ_DIR)/%.o: %.c
-	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
 	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
@@ -92,13 +112,14 @@ symbols: $(BINARY)
 
 # Clean build artifacts
 clean:
-	$(RM) $(OBJECTS) $(BINARY) $(TARGET).dis $(TARGET)OverlayMap.c
+	$(RM) $(SIM_OBJECTS) $(BINARY) $(TARGET).dis
+	for component in $(COMPONENTS); do $(MAKE) -C $${component} clean; done
 
 # Show help
 help:
 	@echo "NanoOS Overlay Build System"
 	@echo "Usage:"
-	@echo "  make          - Build $(TARGET)"
+	@echo "  make          - Build the simulator"
 	@echo "  make disasm   - Generate disassembly listing"
 	@echo "  make sections - Show ELF section information"  
 	@echo "  make symbols  - Show symbol table"
@@ -106,7 +127,9 @@ help:
 	@echo "  make help     - Show this help"
 	@echo ""
 	@echo "Include paths:"
-	@arm-none-eabi-gcc $(CFLAGS) $(INCLUDES) -E -Wp,-v -x c /dev/null 2>&1 | grep "^ "
+	@$(COMPILE) $(CFLAGS) $(INCLUDES) -E -Wp,-v -x c /dev/null 2>&1 | grep "^ "
+
+FORCE:
 
 # Phony targets
 .PHONY: all clean disasm sections symbols help

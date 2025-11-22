@@ -28,9 +28,17 @@
 // Doxygen marker
 /// @file
 
+#include <stdio.h>
+
 #include "Console.h"
 #include "Commands.h"
+#include "Hal.h"
+#include "NanoOs.h"
+#include "Processes.h"
 #include "Scheduler.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 /// @fn int consolePrintMessage(
 ///   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message)
@@ -54,7 +62,7 @@ int consolePrintMessage(
   bool portFound = false;
   for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
-      consolePorts[ii].printString(message);
+      consolePorts[ii].consolePrintString(message);
       portFound = true;
     }
   }
@@ -948,7 +956,7 @@ void* runConsole(void *args) {
   consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[USB_SERIAL_PORT].readByte = readUsbSerialByte;
   consoleState.consolePorts[USB_SERIAL_PORT].echo = true;
-  consoleState.consolePorts[USB_SERIAL_PORT].printString
+  consoleState.consolePorts[USB_SERIAL_PORT].consolePrintString
     = printUsbSerialString;
 
   consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex = 0;
@@ -958,7 +966,7 @@ void* runConsole(void *args) {
   consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput = false;
   consoleState.consolePorts[GPIO_SERIAL_PORT].readByte = readGpioSerialByte;
   consoleState.consolePorts[GPIO_SERIAL_PORT].echo = true;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].printString
+  consoleState.consolePorts[GPIO_SERIAL_PORT].consolePrintString
     = printGpioSerialString;
 
   while (1) {
@@ -971,7 +979,7 @@ void* runConsole(void *args) {
           consolePort->consoleIndex--;
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
           if (byteRead == ((int) '\r')) {
-            consolePort->printString("\n");
+            consolePort->consolePrintString("\n");
           }
 
           // Use consoleIndex as the size to create a buffer and make a copy.
@@ -986,8 +994,8 @@ void* runConsole(void *args) {
           ////   // Handle the next next message in our queue just in case.
           ////   handleConsoleMessages(&consoleState);
           //// } else {
-          ////   consolePort->printString("Unknown command.\n");
-          ////   consolePort->printString("> ");
+          ////   consolePort->consolePrintString("Unknown command.\n");
+          ////   consolePort->consolePrintString("> ");
           //// }
         } else if (consolePort->waitingForInput == true) {
           consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
@@ -1044,16 +1052,16 @@ void* runConsole(void *args) {
 /// @return This function is non-blocking, always succeeds, and always returns
 /// 0.
 int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
-  printDebug("Entering printConsoleValue.\n");
+  printDebugString("Entering printConsoleValue.\n");
   NanoOsMessageData message = 0;
   length = (length <= sizeof(message)) ? length : sizeof(message);
   memcpy(&message, value, length);
 
-  printDebug("Sending message to console process.\n");
+  printDebugString("Sending message to console process.\n");
   sendNanoOsMessageToPid(NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_WRITE_VALUE,
     valueType, message, false);
 
-  printDebug("Leaving printConsoleValue.\n");
+  printDebugString("Leaving printConsoleValue.\n");
   return 0;
 }
 

@@ -31,8 +31,46 @@
 // Custom includes
 #include "SdCard.h"
 #include "NanoOs.h"
+#include "Processes.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 void* (*runSdCard)(void *args);
+
+/// @fn int sdCardGetReadWriteParameters(
+///   SdCardState *sdCardState, SdCommandParams *sdCommandParams,
+///   uint32_t *startSdBlock, uint32_t *numSdBlocks)
+///
+/// @brief Get the startSdBlock and numSdBlocks parameters for a read or write
+/// operation on the SD card.
+///
+/// @param sdCardState A pointer to the SdCardState object maintained by the
+///   SD card process.
+/// @param sdCommandParams A pointer to the SdCommandParams structure passed in
+///   by the client function.
+/// @param startSdBlock A pointer to the uint32_t variable that will hold the
+///   first block of the SD card to read from or write to.
+/// @param numSdBlocks A pointer to the uint32_t variable that will hold the
+///   number of blocks on the SD card to read or write.
+///
+/// @return Returns 0 on success, EINVAL on failure.
+int sdCardGetReadWriteParameters(
+  SdCardState *sdCardState, SdCommandParams *sdCommandParams,
+  uint32_t *startSdBlock, uint32_t *numSdBlocks
+) {
+  *startSdBlock = sdCommandParams->startBlock
+    << sdCardState->bsDevice->blockBitShift;
+  *numSdBlocks = sdCommandParams->numBlocks
+    << sdCardState->bsDevice->blockBitShift;
+  if ((*startSdBlock + *numSdBlocks) > sdCardState->numBlocks) {
+    printString(__func__);
+    printString(": ERROR! Invalid R/W range\n");
+    return EINVAL;
+  }
+
+  return 0;
+}
 
 /// @fn int sdReadBlocks(void *context, uint32_t startBlock,
 ///   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer)

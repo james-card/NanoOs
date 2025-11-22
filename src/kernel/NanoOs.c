@@ -29,9 +29,12 @@
 /// @file
 
 // Custom includes
-#include "NanoOs.h"
 #include "Console.h"
+#include "NanoOs.h"
+#include "Processes.h"
 #include "Scheduler.h"
+
+#include "../user/NanoOsStdio.h"
 
 // Externs
 extern const User users[];
@@ -64,7 +67,7 @@ ProcessId getNumPipes(const char *commandLine) {
 /// @brief File-local variable to hold the per-process storage.
 static void *processStorage[
   NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID][
-  NUM_PROCESS_STORAGE_KEYS] = {};
+  NUM_PROCESS_STORAGE_KEYS] = {0};
 
 /// @fn void *getProcessStorage(uint8_t key)
 ///

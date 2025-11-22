@@ -33,13 +33,11 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-// Custom includes
-#include "NanoOs.h"
-#include "Coroutines.h"
-
 // #ifndef has to come after includes for this file.
 #ifndef COMMANDS_H
 #define COMMANDS_H
+
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"

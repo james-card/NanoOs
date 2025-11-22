@@ -28,38 +28,23 @@
 // Doxygen marker
 /// @file
 
-// Custom includes
-#include "SdCardPosix.h"
+// Standard C includes
 #include <string.h>
 #include <stdio.h>
+
+// NanoOs includes
+#include "Processes.h"
+
+// Simulator includes
+#include "SdCardPosix.h"
 
 /// @var sdCardDevicePath
 ///
 /// @brief Full path to the device file to open from the filesystem.
 const char *sdCardDevicePath = NULL;
 
-/// @struct SdCardState
-///
-/// @brief State maintained by an SdCard process.
-///
-/// @param blockSize The number of bytes per block on the SD card as presented
-///   to the host.
-/// @param numBlocks The total number of blocks available on the SD card.
-/// @param sdCardVersion The version of the card (1 or 2).
-/// @param bsDevice A pointer to the BlockStorageDevice that abstracts this
-///   card.
-typedef struct SdCardState {
-  uint16_t blockSize;
-  uint32_t numBlocks;
-  int sdCardVersion;
-  BlockStorageDevice *bsDevice;
-  FILE *sdCardFile;
-} SdCardState;
-
-/// @typedef SdCardCommandHandler
-///
-/// @brief Definition of a filesystem command handler function.
-typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
+//// #define printDebug(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+#define printDebug(fmt, ...) {}
 
 /// @fn int sdCardReadBlocksCommandHandler(
 ///   SdCardState *sdCardState, ProcessMessage *processMessage)
@@ -75,29 +60,56 @@ typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
 int sdCardReadBlocksCommandHandler(
   SdCardState *sdCardState, ProcessMessage *processMessage
 ) {
+  printDebug("sdCardReadBlocksCommandHandler: Enter\n");
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  printDebug("sdCardReadBlocksCommandHandler: Got NanoOsMessage\n");
+  
+  if (sdCardState->context == NULL) {
+    // Nothing we can do.
+    printDebug("sdCardReadBlocksCommandHandler: context is NULL\n");
+    nanoOsMessage->data = EIO;
+    processMessageSetDone(processMessage);
+    printDebug("sdCardReadBlocksCommandHandler: Returning early\n");
+    return 0;
+  }
+  printDebug("sdCardReadBlocksCommandHandler: context is *NOT* NULL\n");
+  
   SdCommandParams *sdCommandParams
     = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
+  printDebug("sdCardReadBlocksCommandHandler: Got sdCommandParams\n");
   uint32_t startSdBlock = 0, numSdBlocks = 0;
   int returnValue = sdCardGetReadWriteParameters(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
+  printDebug("sdCardReadBlocksCommandHandler: Got read/write parameters\n");
 
   if (returnValue == 0) {
+    FILE *devFile = (FILE*) sdCardState->context;
     uint8_t *buffer = sdCommandParams->buffer;
 
-    for (uint32_t ii = 0; ii < numSdBlocks; ii++) {
-      returnValue = sdSpiReadBlock(sdCardState, startSdBlock + ii, buffer);
-      if (returnValue != 0) {
-        break;
-      }
-      buffer += sdCardState->blockSize;
+    printDebug("sdCardReadBlocksCommandHandler: Calling fseek\n");
+    if (fseek(devFile, sdCardState->blockSize * startSdBlock, SEEK_SET) != 0) {
+      printDebug("sdCardReadBlocksCommandHandler: fseek FAILED\n");
+      returnValue = errno;
+      goto exit;
+    }
+
+    printDebug("sdCardReadBlocksCommandHandler: Calling fread\n");
+    if (fread(buffer, sdCardState->blockSize, numSdBlocks, devFile)
+      != numSdBlocks
+    ) {
+      printDebug("sdCardReadBlocksCommandHandler: fread FAILED\n");
+      returnValue = EIO;
     }
   }
 
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+  printDebug("sdCardReadBlocksCommandHandler: Exiting\n");
+exit:
   nanoOsMessage->data = returnValue;
+  printDebug("sdCardReadBlocksCommandHandler: Setting message to done\n");
   processMessageSetDone(processMessage);
 
+  printDebug("sdCardReadBlocksCommandHandler: Returning\n");
   return 0;
 }
 
@@ -115,6 +127,16 @@ int sdCardReadBlocksCommandHandler(
 int sdCardWriteBlocksCommandHandler(
   SdCardState *sdCardState, ProcessMessage *processMessage
 ) {
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  
+  if (sdCardState->context == NULL) {
+    // Nothing we can do.
+    nanoOsMessage->data = EIO;
+    processMessageSetDone(processMessage);
+    return 0;
+  }
+  
   SdCommandParams *sdCommandParams
     = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
   uint32_t startSdBlock = 0, numSdBlocks = 0;
@@ -122,19 +144,22 @@ int sdCardWriteBlocksCommandHandler(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
 
   if (returnValue == 0) {
+    FILE *devFile = (FILE*) sdCardState->context;
     uint8_t *buffer = sdCommandParams->buffer;
 
-    for (uint32_t ii = 0; ii < numSdBlocks; ii++) {
-      returnValue = sdSpiWriteBlock(sdCardState, startSdBlock + ii, buffer);
-      if (returnValue != 0) {
-        break;
-      }
-      buffer += sdCardState->blockSize;
+    if (fseek(devFile, sdCardState->blockSize * startSdBlock, SEEK_SET) != 0) {
+      returnValue = errno;
+      goto exit;
+    }
+
+    if (fwrite(buffer, sdCardState->blockSize, numSdBlocks, devFile)
+      != numSdBlocks
+    ) {
+      returnValue = EIO;
     }
   }
 
-  NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+exit:
   nanoOsMessage->data = returnValue;
   processMessageSetDone(processMessage);
 
@@ -165,6 +190,8 @@ void handleSdCardMessages(SdCardState *sdCardState) {
     SdCardCommandResponse messageType
       = (SdCardCommandResponse) processMessageType(processMessage);
     if (messageType >= NUM_SD_CARD_COMMANDS) {
+      printDebug("handleSdCardMessages: Received invalid messageType %d\n",
+        messageType);
       processMessage = processMessageQueuePop();
       continue;
     }
@@ -203,9 +230,13 @@ void* runSdCardPosix(void *args) {
   sdCardState.blockSize = 512;
   sdCardState.numBlocks = 2000000000; // About 1 TB
   sdCardState.sdCardVersion = 2;
-  sdCardState.sdCardFile = fopen(sdCardDevicePath, "r+");
+  sdCardState.context = fopen(sdCardDevicePath, "r+");
 
   coroutineYield(&sdDevice);
+  if (sdCardState.context == NULL) {
+    fprintf(stderr, "ERROR: Failed to open sdCardDevicePath \"%s\"\n",
+      sdCardDevicePath);
+  }
 
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
@@ -219,9 +250,9 @@ void* runSdCardPosix(void *args) {
       if (messageType < NUM_SD_CARD_COMMANDS) {
         sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
       } else {
-        printString("ERROR: Received unknown sdCard command ");
-        printInt(messageType);
-        printString(" from scheduler.\n");
+        fprintf(stderr,
+          "ERROR: Received unknown sdCard command %d from scheduler.\n",
+          messageType);
       }
     } else {
       handleSdCardMessages(&sdCardState);

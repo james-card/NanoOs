@@ -35,6 +35,12 @@
 
 #include "ExFatProcess.h"
 #include "ExFatFilesystem.h"
+#include "NanoOs.h"
+#include "Processes.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
+#include "Filesystem.h"
 
 /// @typedef ExFatCommandHandler
 ///
@@ -58,6 +64,13 @@ int exFatProcessOpenFileCommandHandler(
   NanoOsFile *nanoOsFile = NULL;
   const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
   const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
+
+  printDebugString("Opening file \"");
+  printDebugString(pathname);
+  printDebugString("\" in mode \"");
+  printDebugString(mode);
+  printDebugString("\"\n");
+
   if (driverState->driverStateValid) {
     ExFatFileHandle *exFatFile = exFatOpenFile(driverState, pathname, mode);
     if (exFatFile != NULL) {
@@ -286,7 +299,14 @@ static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
     FilesystemCommandResponse type = 
       (FilesystemCommandResponse) processMessageType(msg);
     if (type < NUM_FILESYSTEM_COMMANDS) {
+      printDebugString("Handling filesystem message type ");
+      printDebugInt(type);
+      printDebugString("\n");
       filesystemCommandHandlers[type](driverState, msg);
+    } else {
+      printString("ERROR! Received unknown filesystem message type ");
+      printInt(type);
+      printString("\n");
     }
     msg = processMessageQueuePop();
   }
@@ -302,15 +322,21 @@ static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
 /// @return This function never returns, but would return NULL if it did.
 void* runExFatFilesystem(void *args) {
   coroutineYield(NULL);
+  printDebugString("runExFatFilesystem: Allocating FilesystemState\n");
   FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
+  printDebugString("runExFatFilesystem: Allocating ExFatDriverState\n");
   ExFatDriverState *driverState
     = (ExFatDriverState*) calloc(1, sizeof(ExFatDriverState));
   fs->blockDevice = (BlockStorageDevice*) args;
   fs->blockSize = fs->blockDevice->blockSize;
   
+  printDebugString("runExFatFilesystem: Allocating fs->blockSize\n");
   fs->blockBuffer = (uint8_t*) malloc(fs->blockSize);
+  printDebugString("runExFatFilesystem: Getting partition info\n");
   getPartitionInfo(fs);
+  printDebugString("runExFatFilesystem: Initiallizing driverState\n");
   exFatInitialize(driverState, fs);
+  printDebugString("runExFatFilesystem: Initialization complete\n");
   
   ProcessMessage *msg = NULL;
   while (1) {

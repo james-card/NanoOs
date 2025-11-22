@@ -28,11 +28,17 @@
 // Doxygen marker
 /// @file
 
+#include "../user/NanoOsApi.h"
 #include "Commands.h"
 #include "Console.h"
-#include "Scheduler.h"
-#include "../user/NanoOsApi.h"
+#include "MemoryManager.h"
+#include "NanoOs.h"
 #include "NanoOsOverlay.h"
+#include "Processes.h"
+#include "Scheduler.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 // Defined at the bottom of this file:
 extern const CommandEntry commands[];
@@ -208,7 +214,7 @@ int helpCommandHandler(int argc, char **argv) {
     }
   }
   maxCommandNameLength++;
-  sprintf(formatString, "%%-%us %%s\n", maxCommandNameLength);
+  sprintf(formatString, "%%-%us %%s\n", (unsigned int) maxCommandNameLength);
 
   char *commandName = (char*) malloc(maxCommandNameLength + 2);
   for (int ii = 0; ii < NUM_COMMANDS; ii++) {

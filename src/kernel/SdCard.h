@@ -43,6 +43,27 @@ extern "C"
 {
 #endif
 
+typedef struct BlockStorageDevice BlockStorageDevice;
+
+/// @struct SdCardState
+///
+/// @brief State maintained by an SdCard process.
+///
+/// @param context A pointer to any implementation-specific context.
+/// @param blockSize The number of bytes per block on the SD card as presented
+///   to the host.
+/// @param numBlocks The total number of blocks available on the SD card.
+/// @param sdCardVersion The version of the card (1 or 2).
+/// @param bsDevice A pointer to the BlockStorageDevice that abstracts this
+///   card.
+typedef struct SdCardState {
+  void *context;
+  uint16_t blockSize;
+  uint32_t numBlocks;
+  int sdCardVersion;
+  BlockStorageDevice *bsDevice;
+} SdCardState;
+
 /// @struct SdCommandParams
 ///
 /// @param startBlock The block number to start the command on.
@@ -68,7 +89,18 @@ typedef enum SdCardCommandResponse {
   // Responses:
 } SdCardCommandResponse;
 
+// Forward declaration to enable the rest of the type definitions.
+typedef struct msg_t ProcessMessage;
+
+/// @typedef SdCardCommandHandler
+///
+/// @brief Definition of a filesystem command handler function.
+typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
+
 extern void* (*runSdCard)(void *args);
+int sdCardGetReadWriteParameters(
+  SdCardState *sdCardState, SdCommandParams *sdCommandParams,
+  uint32_t *startSdBlock, uint32_t *numSdBlocks);
 int sdReadBlocks(void *context, uint32_t startBlock,
   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer);
 int sdWriteBlocks(void *context, uint32_t startBlock,

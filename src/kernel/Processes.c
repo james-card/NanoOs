@@ -29,9 +29,15 @@
 /// @file
 
 // Custom includes
-#include "Processes.h"
 #include "Console.h"
+#include "MemoryManager.h"
+#include "NanoOs.h"
+#include "NanoOsOverlay.h"
+#include "Processes.h"
 #include "Scheduler.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 /// @var messages
 ///

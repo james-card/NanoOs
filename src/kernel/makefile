@@ -1,5 +1,6 @@
-OBJ_DIR = ../obj
-BIN_DIR = ../bin
+# This makefile exist for the simulator, so make the paths relative to that.
+OBJ_DIR = ../../sim/obj
+BIN_DIR = ../../sim/bin
 
 # CLI tools
 MKDIR := mkdir -p
@@ -30,7 +31,7 @@ endif
 LDFLAGS = 
 
 # Compiler flags
-CFLAGS = $(CPU) -std=c17
+CFLAGS = $(CPU) -std=gnu17
 
 LINKS = \
 
@@ -66,7 +67,6 @@ all: $(OBJECTS)
 
 # Compile object files
 $(OBJ_DIR)/%.o: %.c
-	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
 	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 

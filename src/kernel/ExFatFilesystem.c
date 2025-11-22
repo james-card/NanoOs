@@ -34,6 +34,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "ExFatFilesystem.h"
+#include "NanoOs.h"
+#include "NanoOsTypes.h"
+#include "Processes.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 #include "Filesystem.h"
 
 /// @brief Read a sector from the storage device

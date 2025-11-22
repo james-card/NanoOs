@@ -29,13 +29,21 @@
 /// @file
 
 // Custom includes
-#include "NanoOs.h"
+#include "Commands.h"
 #include "Console.h"
-#include "Scheduler.h"
-#include "SdCard.h"
 #include "ExFatFilesystem.h"
 #include "ExFatProcess.h"
+#include "MemoryManager.h"
+#include "NanoOs.h"
+#include "Processes.h"
+#include "Scheduler.h"
+#include "SdCard.h"
+
+// User space includes
 #include "../user/NanoOsUnistd.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
@@ -682,9 +690,9 @@ void* kmalloc(size_t size) {
 /// size on success, NULL on failure.
 void* kcalloc(size_t nmemb, size_t size) {
   size_t totalSize = nmemb * size;
-  printDebug("Calling schedulerResumeReallocMessage\n");
+  printDebugString("Calling schedulerResumeReallocMessage\n");
   void *returnValue = schedulerResumeReallocMessage(NULL, totalSize);
-  printDebug("Returned from schedulerResumeReallocMessage\n");
+  printDebugString("Returned from schedulerResumeReallocMessage\n");
   
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
@@ -923,7 +931,7 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   // We don't know where our messages to the scheduler will be in its queue, so
   // we can't assume they will be processed immediately, but we can't wait
   // forever either.  Set a 100 ms timeout.
-  struct timespec timeout = {};
+  struct timespec timeout = {0};
   timespec_get(&timeout, TIME_UTC);
   timeout.tv_nsec += 100000000;
 
@@ -1591,24 +1599,30 @@ FILE* kfopen(SchedulerState *schedulerState,
   const char *pathname, const char *mode
 ) {
   FILE *returnValue = NULL;
+  printDebugString("kfopen: Getting message\n");
   ProcessMessage *processMessage = getAvailableMessage();
   while (processMessage == NULL) {
     runScheduler(schedulerState);
     processMessage = getAvailableMessage();
   }
+  printDebugString("kfopen: Message retrieved\n");
   NanoOsMessage *nanoOsMessage
     = (NanoOsMessage*) processMessageData(processMessage);
   nanoOsMessage->func = (intptr_t) mode;
   nanoOsMessage->data = (intptr_t) pathname;
+  printDebugString("kfopen: Initializing message\n");
   processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
+  printDebugString("kfopen: Pushing message\n");
   processMessageQueuePush(
     schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
     processMessage);
 
+  printDebugString("kfopen: Resuming filesystem\n");
   while (processMessageDone(processMessage) == false) {
     runScheduler(schedulerState);
   }
+  printDebugString("kfopen: Filesystem message is done\n");
 
   returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
 
@@ -2751,27 +2765,27 @@ __attribute__((noinline)) void startScheduler(
   SchedulerState **coroutineStatePointer
 ) {
   // Initialize the scheduler's state.
-  SchedulerState schedulerState = {};
+  SchedulerState schedulerState = {0};
   schedulerState.hostname = NULL;
   schedulerState.ready.name = "ready";
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
-  printDebug("Set scheduler state.\n");
+  printDebugString("Set scheduler state.\n");
 
   // Initialize the pointer that was used to configure coroutines.
   *coroutineStatePointer = &schedulerState;
 
   // Initialize the static ProcessMessage storage.
-  ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {0};
   extern ProcessMessage *messages;
   messages = messagesStorage;
 
   // Initialize the static NanoOsMessage storage.
-  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {};
+  NanoOsMessage nanoOsMessagesStorage[NANO_OS_NUM_MESSAGES] = {0};
   extern NanoOsMessage *nanoOsMessages;
   nanoOsMessages = nanoOsMessagesStorage;
-  printDebug("Allocated messages storage.\n");
+  printDebugString("Allocated messages storage.\n");
 
   // Initialize the allProcesses pointer.
   allProcesses = schedulerState.allProcesses;
@@ -2783,7 +2797,7 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
-  printDebug("Configured scheduler process.\n");
+  printDebugString("Configured scheduler process.\n");
 
   // Initialize all the kernel process file descriptors.
   for (ProcessId ii = 0; ii < NANO_OS_FIRST_USER_PROCESS_ID; ii++) {
@@ -2791,7 +2805,7 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[ii].fileDescriptors
       = (FileDescriptor*) standardKernelFileDescriptors;
   }
-  printDebug("Initialized kernel process file descriptors.\n");
+  printDebugString("Initialized kernel process file descriptors.\n");
 
   // Create the console process.
   ProcessHandle processHandle = 0;
@@ -2804,45 +2818,45 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
-  printDebug("Created console process.\n");
+  printDebugString("Created console process.\n");
 
   // Start the console by calling coroutineResume.
   coroutineResume(
     allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
-  printDebug("Started console process.\n");
+  printDebugString("Started console process.\n");
 
-  printDebug("\n");
-  printDebug("sizeof(int) = ");
-  printDebug(sizeof(int));
-  printDebug("\n");
-  printDebug("sizeof(void*) = ");
-  printDebug(sizeof(void*));
-  printDebug("\n");
-  printDebug("Main stack size = ");
-  printDebug(ABS_DIFF(
+  printDebugString("\n");
+  printDebugString("sizeof(int) = ");
+  printDebugInt(sizeof(int));
+  printDebugString("\n");
+  printDebugString("sizeof(void*) = ");
+  printDebugInt(sizeof(void*));
+  printDebugString("\n");
+  printDebugString("Main stack size = ");
+  printDebugInt(ABS_DIFF(
     ((intptr_t) schedulerProcess),
     ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
   ));
-  printDebug(" bytes\n");
-  printDebug("schedulerState size = ");
-  printDebug(sizeof(SchedulerState));
-  printDebug(" bytes\n");
-  printDebug("messagesStorage size = ");
-  printDebug(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
-  printDebug(" bytes\n");
-  printDebug("nanoOsMessagesStorage size = ");
-  printDebug(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
-  printDebug(" bytes\n");
-  printDebug("ConsoleState size = ");
-  printDebug(sizeof(ConsoleState));
-  printDebug(" bytes\n");
+  printDebugString(" bytes\n");
+  printDebugString("schedulerState size = ");
+  printDebugInt(sizeof(SchedulerState));
+  printDebugString(" bytes\n");
+  printDebugString("messagesStorage size = ");
+  printDebugInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
+  printDebugString(" bytes\n");
+  printDebugString("nanoOsMessagesStorage size = ");
+  printDebugInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
+  printDebugString(" bytes\n");
+  printDebugString("ConsoleState size = ");
+  printDebugInt(sizeof(ConsoleState));
+  printDebugString(" bytes\n");
 
   // Create the SD card process.
   processHandle = 0;
   if (processCreate(&processHandle, runSdCard, NULL) != processSuccess) {
     printString("Could not start SD card process.\n");
   }
-  printDebug("Started SD card process.\n");
+  printDebugString("Started SD card process.\n");
   processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
     = NANO_OS_SD_CARD_PROCESS_ID;
@@ -2852,7 +2866,7 @@ __attribute__((noinline)) void startScheduler(
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
     allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebug("Configured SD card process.\n");
+  printDebugString("Configured SD card process.\n");
 
   // Create the filesystem process.
   processHandle = 0;
@@ -2867,7 +2881,7 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
-  printDebug("Created filesystem process.\n");
+  printDebugString("Created filesystem process.\n");
 
   // We need to do an initial population of all the processes because we need to
   // get to the end of memory to run the memory manager in whatever is left
@@ -2889,31 +2903,31 @@ __attribute__((noinline)) void startScheduler(
     allProcesses[ii].processHandle = processHandle;
     allProcesses[ii].userId = NO_USER_ID;
   }
-  printDebug("Created all processes.\n");
+  printDebugString("Created all processes.\n");
 
-  printDebug("Console stack size = ");
-  printDebug(ABS_DIFF(
+  printDebugString("Console stack size = ");
+  printDebugInt(ABS_DIFF(
     ((uintptr_t) allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle),
     ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
     - sizeof(Coroutine)
   );
-  printDebug(" bytes\n");
+  printDebugString(" bytes\n");
 
-  printDebug("Coroutine stack size = ");
-  printDebug(ABS_DIFF(
+  printDebugString("Coroutine stack size = ");
+  printDebugInt(ABS_DIFF(
     ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
     ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
     - sizeof(Coroutine)
   );
-  printDebug(" bytes\n");
+  printDebugString(" bytes\n");
 
-  printDebug("Coroutine size = ");
-  printDebug(sizeof(Coroutine));
-  printDebug("\n");
+  printDebugString("Coroutine size = ");
+  printDebugInt(sizeof(Coroutine));
+  printDebugString("\n");
 
-  printDebug("standardKernelFileDescriptors size = ");
-  printDebug(sizeof(standardKernelFileDescriptors));
-  printDebug("\n");
+  printDebugString("standardKernelFileDescriptors size = ");
+  printDebugInt(sizeof(standardKernelFileDescriptors));
+  printDebugString("\n");
 
   // Create the memory manager process.  : THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT :
@@ -2929,12 +2943,12 @@ __attribute__((noinline)) void startScheduler(
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId = ROOT_USER_ID;
-  printDebug("Created memory manager.\n");
+  printDebugString("Created memory manager.\n");
 
   // Start the memory manager by calling coroutineResume.
   coroutineResume(
     allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle, NULL);
-  printDebug("Started memory manager.\n");
+  printDebugString("Started memory manager.\n");
 
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
@@ -2945,7 +2959,7 @@ __attribute__((noinline)) void startScheduler(
         "WARNING: Could not assign console port to memory manager.\n");
     }
   }
-  printDebug("Assigned console ports to memory manager.\n");
+  printDebugString("Assigned console ports to memory manager.\n");
 
   // Set the shells for the ports.
   if (schedulerSetPortShell(&schedulerState,
@@ -2960,7 +2974,7 @@ __attribute__((noinline)) void startScheduler(
     printString("WARNING: Could not set shell for GPIO serial port.\n");
     printString("         Undefined behavior will result.\n");
   }
-  printDebug("Set shells for ports.\n");
+  printDebugString("Set shells for ports.\n");
 
   // The scheduler will take care of cleaning up the dummy processes.
 
@@ -2978,7 +2992,7 @@ __attribute__((noinline)) void startScheduler(
   ) {
     processQueuePush(&schedulerState.ready, &allProcesses[ii]);
   }
-  printDebug("Populated ready queue.\n");
+  printDebugString("Populated ready queue.\n");
 
   // Get the memory manager and filesystem up and running.
   coroutineResume(
@@ -2987,15 +3001,15 @@ __attribute__((noinline)) void startScheduler(
   coroutineResume(
     allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
     NULL);
-  printDebug("Started memory manager and filesystem.\n");
+  printDebugString("Started memory manager and filesystem.\n");
 
   // Allocate memory for the hostname.
   schedulerState.hostname = (char*) kcalloc(1, HOST_NAME_MAX + 1);
-  printDebug("Allocated memory for the hostname.\n");
+  printDebugString("Allocated memory for the hostname.\n");
   if (schedulerState.hostname != NULL) {
     FILE *hostnameFile = kfopen(&schedulerState, "/etc/hostname", "r");
     if (hostnameFile != NULL) {
-      printDebug("Opened hostname file.\n");
+      printDebugString("Opened hostname file.\n");
       if (kFilesystemFGets(&schedulerState,
         schedulerState.hostname, HOST_NAME_MAX + 1, hostnameFile)
           != schedulerState.hostname
@@ -3010,7 +3024,7 @@ __attribute__((noinline)) void startScheduler(
         strcpy(schedulerState.hostname, "localhost");
       }
       kfclose(&schedulerState, hostnameFile);
-      printDebug("Closed hostname file.\n");
+      printDebugString("Closed hostname file.\n");
     } else {
       printString("ERROR! kfopen of hostname returned NULL!\n");
       strcpy(schedulerState.hostname, "localhost");
@@ -3023,13 +3037,13 @@ __attribute__((noinline)) void startScheduler(
   do {
     FILE *helloFile = kfopen(&schedulerState, "hello", "w");
     if (helloFile == NULL) {
-      printDebug("ERROR: Could not open hello file for writing!\n");
+      printDebugString("ERROR: Could not open hello file for writing!\n");
       break;
     }
-    printDebug("helloFile is non-NULL!\n");
+    printDebugString("helloFile is non-NULL!\n");
 
     if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
-      printDebug("ERROR: Could not write to hello file!\n");
+      printDebugString("ERROR: Could not write to hello file!\n");
       kfclose(&schedulerState, helloFile);
       break;
     }
@@ -3037,7 +3051,7 @@ __attribute__((noinline)) void startScheduler(
 
     helloFile = kfopen(&schedulerState, "hello", "r");
     if (helloFile == NULL) {
-      printDebug("ERROR: Could not open hello file for reading after write!\n");
+      printDebugString("ERROR: Could not open hello file for reading after write!\n");
       kremove(&schedulerState, "hello");
       break;
     }
@@ -3046,32 +3060,32 @@ __attribute__((noinline)) void startScheduler(
     if (kFilesystemFGets(&schedulerState,
       worldString, sizeof(worldString), helloFile) != worldString
     ) {
-      printDebug("ERROR: Could not read worldString after write!\n");
+      printDebugString("ERROR: Could not read worldString after write!\n");
       kfclose(&schedulerState, helloFile);
       kremove(&schedulerState, "hello");
       break;
     }
 
     if (strcmp(worldString, "world") != 0) {
-      printDebug("ERROR: Expected \"world\", read \"");
-      printDebug(worldString);
-      printDebug("\"!\n");
+      printDebugString("ERROR: Expected \"world\", read \"");
+      printDebugString(worldString);
+      printDebugString("\"!\n");
       kfclose(&schedulerState, helloFile);
       kremove(&schedulerState, "hello");
       break;
     }
-    printDebug("Successfully read \"world\" from \"hello\"!\n");
+    printDebugString("Successfully read \"world\" from \"hello\"!\n");
     kfclose(&schedulerState, helloFile);
 
     helloFile = kfopen(&schedulerState, "hello", "a");
     if (helloFile == NULL) {
-      printDebug("ERROR: Could not open hello file for appending!\n");
+      printDebugString("ERROR: Could not open hello file for appending!\n");
       kremove(&schedulerState, "hello");
       break;
     }
 
     if (kFilesystemFPuts(&schedulerState, "world", helloFile) == EOF) {
-      printDebug("ERROR: Could not append to hello file!\n");
+      printDebugString("ERROR: Could not append to hello file!\n");
       kfclose(&schedulerState, helloFile);
       kremove(&schedulerState, "hello");
       break;
@@ -3080,7 +3094,7 @@ __attribute__((noinline)) void startScheduler(
 
     helloFile = kfopen(&schedulerState, "hello", "r");
     if (helloFile == NULL) {
-      printDebug(
+      printDebugString(
         "ERROR: Could not open hello file for reading after append!\n");
       kremove(&schedulerState, "hello");
       break;
@@ -3089,24 +3103,24 @@ __attribute__((noinline)) void startScheduler(
     if (kFilesystemFGets(&schedulerState,
       worldString, sizeof(worldString), helloFile) != worldString
     ) {
-      printDebug( "ERROR: Could not read worldString after append!\n");
+      printDebugString("ERROR: Could not read worldString after append!\n");
       kfclose(&schedulerState, helloFile);
       kremove(&schedulerState, "hello");
       break;
     }
 
     if (strcmp(worldString, "worldworld") == 0) {
-      printDebug(
+      printDebugString(
         "Successfully read \"worldworld\" from \"hello\"!\n");
     } else {
-      printDebug("ERROR: Expected \"worldworld\", read \"");
-      printDebug(worldString);
-      printDebug("\"!\n");
+      printDebugString("ERROR: Expected \"worldworld\", read \"");
+      printDebugString(worldString);
+      printDebugString("\"!\n");
     }
 
     kfclose(&schedulerState, helloFile);
     if (kremove(&schedulerState, "hello") != 0) {
-      printDebug("ERROR: kremove failed to remove the \"hello\" file.\n");
+      printDebugString("ERROR: kremove failed to remove the \"hello\" file.\n");
     }
   } while (0);
 #endif // NANO_OS_DEBUG

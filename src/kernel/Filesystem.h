@@ -36,8 +36,12 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-// Custom includes
-#include "NanoOs.h"
+#include <stddef.h>
+#include <stdint.h>
+
+typedef struct BlockStorageDevice BlockStorageDevice;
+typedef struct NanoOsFile FILE;
+typedef struct msg_t ProcessMessage;
 
 #ifdef __cplusplus
 extern "C"

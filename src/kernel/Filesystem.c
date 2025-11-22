@@ -6,7 +6,10 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "../user/NanoOsStdio.h"
 #include "Filesystem.h"
+#include "NanoOs.h"
+#include "Processes.h"
 
 // Partition table constants
 #define PARTITION_TABLE_OFFSET 0x1BE
@@ -30,14 +33,18 @@
 /// @return Returns 0 on success, negative error code on failure.
 int getPartitionInfo(FilesystemState *fs) {
   if (fs->blockDevice->partitionNumber == 0) {
+    printDebugString("getPartitionInfo: Partition number is 0\n");
     return -1;
   }
 
+  printDebugString("getPartitionInfo: Reading block 0\n");
   if (fs->blockDevice->readBlocks(fs->blockDevice->context, 0, 1, 
       fs->blockSize, fs->blockBuffer) != 0
   ) {
+    printDebugString("getPartitionInfo: Failed to read block 0\n");
     return -2;
   }
+  printDebugString("getPartitionInfo: Got block 0\n");
 
   uint8_t *partitionTable = fs->blockBuffer + PARTITION_TABLE_OFFSET;
   uint8_t *entry
@@ -54,16 +61,20 @@ int getPartitionInfo(FilesystemState *fs) {
     uint32_t lbaValue, sectorsValue;
     
     // Read LBA offset using readBytes for alignment safety
+    printDebugString("getPartitionInfo: Reading LBA offset\n");
     readBytes(&lbaValue, &entry[PARTITION_LBA_OFFSET]);
     fs->startLba = lbaValue;
-      
+    
     // Read number of sectors using readBytes for alignment safety  
+    printDebugString("getPartitionInfo: Reading partition sectors\n");
     readBytes(&sectorsValue, &entry[PARTITION_SECTORS_OFFSET]);
-      
     fs->endLba = fs->startLba + sectorsValue - 1;
+    
+    printDebugString("getPartitionInfo: Returing good status\n");
     return 0;
   }
   
+  printDebugString("getPartitionInfo: Invalid partition type\n");
   return -3;
 }
 

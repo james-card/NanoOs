@@ -202,3 +202,5 @@ int nanoOsFileno(FILE *stream);
 #endif
 
 #endif // NANO_OS_STDIO_H
+
+#include "../kernel/Filesystem.h"

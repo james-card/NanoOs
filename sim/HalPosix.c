@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <termios.h>
 
 #include "HalPosix.h"
 
@@ -65,11 +66,33 @@ int posixInitializeSerialPort(int port, int baud) {
   
   // We don't actually need to do anything to stdout or stderr, but we do need
   // to configure stdin to be non-blocking.
-  if (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) == 0) {
-    return 0;
-  } else {
+  if (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) != 0) {
     return -errno;
   }
+  
+  // We manage all the prints to screen ourselves, so disable stdin echoing
+  // as well.
+  struct termios oldFlags = {0};
+  struct termios newFlags = {0};
+  
+  // Get the current console flags.
+  int stdinFileno = fileno(stdin);
+  if (tcgetattr(stdinFileno, &oldFlags) != 0) {
+    fprintf(stderr, "Could not get current attributes for console.\n");
+    return -errno;
+  }
+
+  // Disable echo to the console.
+  newFlags = oldFlags;
+  newFlags.c_lflag |= ECHONL;
+  newFlags.c_lflag &= ~(ECHO | ICANON);
+  //// newFlags.c_cc[VMIN] = 1;
+  if (tcsetattr(stdinFileno, TCSANOW, &newFlags) != 0) {
+    fprintf(stderr, "Could not set new attributes for console.\n");
+    return -errno;
+  }
+  
+  return 0;
 }
 
 int posixPollSerialPort(int port) {
@@ -180,6 +203,9 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal posixHal = {
+  // Memory definitions.
+  .bottomOfStack = 0,
+  
   // Overlay definitions.
   .overlayMap = (NanoOsOverlayMap*) 0x20001800,
   .overlaySize = 8192,
@@ -209,6 +235,14 @@ static Hal posixHal = {
 };
 
 const Hal* halPosixInit(void) {
+  int topOfStack = 0;
+  fprintf(stderr, "Top of stack    = %p\n", (void*) &topOfStack);
+  
+  // Simulate having a total of 16 KB available for dynamic memory.
+  posixHal.bottomOfStack
+    = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
+  fprintf(stderr, "Bottom of stack = %p\n", (void*) posixHal.bottomOfStack);
+  
   return &posixHal;
 }
 

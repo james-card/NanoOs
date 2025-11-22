@@ -28,10 +28,13 @@
 // Doxygen marker
 /// @file
 
-#include "../kernel/NanoOs.h"
 #include "NanoOsLibC.h"
+
 #include "../kernel/Console.h"
 #include "../kernel/Filesystem.h"
+#include "../kernel/Hal.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/NanoOsOverlay.h"
 #include "../kernel/Scheduler.h"
 
 /// @fn int timespec_get(struct timespec* spec, int base)

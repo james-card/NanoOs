@@ -34,6 +34,9 @@
 #include "../kernel/NanoOs.h"
 #include "../kernel/Scheduler.h"
 
+// Must come last
+#include "NanoOsStdio.h"
+
 /// @fn int gethostname(char *name, size_t len)
 ///
 /// @brief Implementation of the standard Unix gethostname system call.

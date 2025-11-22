@@ -32,6 +32,10 @@
 #include "SdCardSpi.h"
 #include "HalArduinoNano33Iot.h"
 #include "NanoOs.h"
+#include "Processes.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 // SD card commands
 #define CMD0    0x40  // GO_IDLE_STATE
@@ -62,27 +66,6 @@
 ///
 /// @brief The SPI device ID to use in SPI calls in the HAL.
 #define SD_CARD_SPI_DEVICE 0
-
-/// @struct SdCardState
-///
-/// @brief State maintained by an SdCard process.
-///
-/// @param blockSize The number of bytes per block on the SD card as presented
-///   to the host.
-/// @param numBlocks The total number of blocks available on the SD card.
-/// @param sdCardVersion The version of the card (1 or 2).
-/// @param bsDevice A pointer to the BlockStorageDevice that abstracts this card.
-typedef struct SdCardState {
-  uint16_t blockSize;
-  uint32_t numBlocks;
-  int sdCardVersion;
-  BlockStorageDevice *bsDevice;
-} SdCardState;
-
-/// @typedef SdCardCommandHandler
-///
-/// @brief Definition of a filesystem command handler function.
-typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
 
 /// @fn uint8_t sdSpiSendCommand(int sdCardSpiDevice, uint8_t cmd, uint32_t arg)
 ///
@@ -460,40 +443,6 @@ int32_t sdSpiGetBlockCount(int sdCardSpiDevice) {
   }
   
   return (int32_t) blockCount;
-}
-
-/// @fn int sdCardGetReadWriteParameters(
-///   SdCardState *sdCardState, SdCommandParams *sdCommandParams,
-///   uint32_t *startSdBlock, uint32_t *numSdBlocks)
-///
-/// @brief Get the startSdBlock and numSdBlocks parameters for a read or write
-/// operation on the SD card.
-///
-/// @param sdCardState A pointer to the SdCardState object maintained by the
-///   SD card process.
-/// @param sdCommandParams A pointer to the SdCommandParams structure passed in
-///   by the client function.
-/// @param startSdBlock A pointer to the uint32_t variable that will hold the
-///   first block of the SD card to read from or write to.
-/// @param numSdBlocks A pointer to the uint32_t variable that will hold the
-///   number of blocks on the SD card to read or write.
-///
-/// @return Returns 0 on success, EINVAL on failure.
-int sdCardGetReadWriteParameters(
-  SdCardState *sdCardState, SdCommandParams *sdCommandParams,
-  uint32_t *startSdBlock, uint32_t *numSdBlocks
-) {
-  *startSdBlock = sdCommandParams->startBlock
-    << sdCardState->bsDevice->blockBitShift;
-  *numSdBlocks = sdCommandParams->numBlocks
-    << sdCardState->bsDevice->blockBitShift;
-  if ((*startSdBlock + *numSdBlocks) > sdCardState->numBlocks) {
-    printString(__func__);
-    printString(": ERROR! Invalid R/W range\n");
-    return EINVAL;
-  }
-
-  return 0;
 }
 
 /// @fn int sdCardReadBlocksCommandHandler(

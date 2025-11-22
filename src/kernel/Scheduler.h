@@ -44,6 +44,9 @@ extern "C"
 {
 #endif
 
+typedef struct NanoOsFile NanoOsFile;
+#define FILE NanoOsFile
+
 /// @enum SchedulerCommandResponse
 ///
 /// @brief Commands and responses understood by the scheduler inter-process

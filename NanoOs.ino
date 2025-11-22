@@ -30,6 +30,7 @@
 #include "src/kernel/NanoOs.h"
 #include "src/kernel/Scheduler.h"
 #include "src/kernel/SdCardSpi.h"
+#include "src/user/NanoOsStdio.h"
 
 const Hal *HAL = NULL;
 
@@ -106,11 +107,11 @@ void loop() {
   // Create but *DO NOT* resume one dummy process.  This will set the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
-    printString("Could not double scheduler process's stack size.\n");
+    printString("Could not set scheduler process's stack size.\n");
   }
 
   // Enter the scheduler.  This never returns.
-  printDebug("Starting scheduler.\n");
+  printDebugString("Starting scheduler.\n");
   startScheduler(&coroutineStatePointer);
 }
 

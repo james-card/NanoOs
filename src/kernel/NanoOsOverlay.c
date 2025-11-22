@@ -29,7 +29,12 @@
 /// @file
 
 #include "Commands.h"
+#include "Hal.h"
+#include "NanoOs.h"
 #include "NanoOsOverlay.h"
+
+// Must come last
+#include "../user/NanoOsStdio.h"
 
 /// @fn int loadOverlay(const char *overlayPath, char **env)
 ///

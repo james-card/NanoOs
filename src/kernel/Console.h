@@ -33,12 +33,10 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-// Custom includes
-#include "NanoOs.h"
-#include "Coroutines.h"
-
 #ifndef CONSOLE_H
 #define CONSOLE_H
+
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C"

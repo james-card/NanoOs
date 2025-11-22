@@ -34,9 +34,6 @@
 #ifndef EXFAT_PROCESS_H
 #define EXFAT_PROCESS_H
 
-#include "Filesystem.h"
-#include "NanoOs.h"
-
 #ifdef __cplusplus
 extern "C"
 {

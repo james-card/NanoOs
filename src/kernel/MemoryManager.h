@@ -36,14 +36,12 @@
 #ifndef MEMORY_MANAGER_H
 #define MEMORY_MANAGER_H
 
-// NanoOs includes
-#include "NanoOs.h"
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
 
 /// @def MEMORY_MANAGER_PROCESS_STACK_CHUNK_SIZE
 ///
@@ -59,11 +57,18 @@ extern "C"
 /// we need a larger stack when debugging to accommodate the logging calls.
 //// #define MEMORY_MANAGER_DEBUG
 #ifdef MEMORY_MANAGER_DEBUG
-#define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 768
 #elif defined(__AVR__)
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 128
 #elif defined(__arm__)
 #define MEMORY_MANAGER_PROCESS_STACK_SIZE 192
+#elif defined(__linux__)
+// We're building as a Linux application, but we're not on ARM, so we're likely
+// on x86_64.  That means we're building on a 64-bit target with 64-bit stack
+// operands instead of a 32-bit target like on ARM.  Function calls also seem
+// to push a lot more information onto the stack in user mode than when in
+// standalone mode.  Quadruple the size of the stack relative to ARM.
+#define MEMORY_MANAGER_PROCESS_STACK_SIZE 768
 #endif // MEMORY_MANAGER_DEBUG
 
 

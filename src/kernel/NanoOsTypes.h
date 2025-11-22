@@ -337,7 +337,7 @@ typedef struct ConsolePort {
   bool                waitingForInput;
   int               (*readByte)(struct ConsolePort *consolePort);
   bool                echo;
-  int               (*printString)(const char *string);
+  int               (*consolePrintString)(const char *string);
 } ConsolePort;
 
 /// @struct ConsoleState

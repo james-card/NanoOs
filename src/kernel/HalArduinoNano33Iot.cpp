@@ -288,6 +288,9 @@ int64_t arduinoNano33IotGetElapsedNanoseconds(int64_t startTime) {
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
+  // Memory definitions.
+  .bottomOfStack = (void*) (0x20001800 + 8192),
+  
   // Overlay definitions.
   .overlayMap = (NanoOsOverlayMap*) 0x20001800,
   .overlaySize = 8192,

@@ -36,7 +36,6 @@
 
 //// #define NANO_OS_DEBUG
 #include "NanoOsErrno.h"
-#include "NanoOsStdio.h"
 
 /*
  * This file is included by Coroutines.h to provide functionality missing from

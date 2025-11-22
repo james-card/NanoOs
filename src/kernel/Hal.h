@@ -57,6 +57,15 @@ extern "C"
 typedef struct NanoOsOverlayMap NanoOsOverlayMap;
 
 typedef struct Hal {
+  // Memory definitions.
+  
+  /// @var bottomOfStack
+  ///
+  /// @brief The memmory manager uses stack memory for dynamic memory
+  /// allocation and needs to know where the bottom of it is so that it doesn't
+  /// overallocate.
+  void *bottomOfStack;
+  
   // Overlay definitions.
   
   /// @var overlayMap

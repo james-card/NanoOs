@@ -30,8 +30,12 @@
 
 // NanoOs includes
 #include "Console.h"
+#include "Hal.h"
 #include "MemoryManager.h"
+#include "NanoOs.h"
 #include "NanoOsOverlay.h"
+#include "Processes.h"
+#include "../user/NanoOsStdio.h"
 
 /****************** Begin Custom Memory Management Functions ******************/
 
@@ -505,8 +509,9 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // maximum of overlaySize bytes in size, so the lowest address we can use for
   // our own dynamic memory manager is (overlayMap + overlaySize).
   extern char __bss_end__;
-  mallocBufferStart
-    = (char*) (((uintptr_t) HAL->overlayMap) + HAL->overlaySize);
+  //// mallocBufferStart
+  ////   = (char*) (((uintptr_t) HAL->) + HAL->overlaySize);
+  mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack);
   if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
     printString("ERROR!!! &__bss_end__ > ");
     printLong((uintptr_t) HAL->overlayMap);
@@ -516,23 +521,25 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   extern int __heap_start;
   extern char *__brkval;
   mallocBufferStart = (__brkval == NULL) ? (char*) &__heap_start : __brkval;
+#elif defined(__linux__)
+  mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack);
 #endif // __arm__
   uintptr_t memorySize
     = (((uintptr_t) &mallocBufferStart)
     - ((uintptr_t) mallocBufferStart));
   memorySize &= ((uintptr_t) ~7);
 
-  printDebug("mallocBufferStart = ");
-  printDebug((uintptr_t) mallocBufferStart);
-  printDebug("\n");
+  printDebugString("mallocBufferStart = ");
+  printDebugInt((uintptr_t) mallocBufferStart);
+  printDebugString("\n");
 
-  printDebug("&mallocBufferStart = ");
-  printDebug((uintptr_t) &mallocBufferStart);
-  printDebug("\n");
+  printDebugString("&mallocBufferStart = ");
+  printDebugInt((uintptr_t) &mallocBufferStart);
+  printDebugString("\n");
 
-  printDebug("memorySize = ");
-  printDebug(memorySize);
-  printDebug("\n");
+  printDebugString("memorySize = ");
+  printDebugInt(memorySize);
+  printDebugString("\n");
   
   // To allocate mallocBufferStart, we had to decrement the stack pointer by at
   // least sizeof(mallocBufferStart) bytes first.  So, the true beginning of our
@@ -552,8 +559,8 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   memNode(memoryManagerState->mallocNext)->size = memorySize;
   memNode(memoryManagerState->mallocNext)->owner = PROCESS_ID_NOT_SET;
   
-  printDebug("Leaving initializeGlobals in MemoryManager.cpp\n");
-  longjmp(returnBuffer, (int) stack);
+  printDebugString("Leaving initializeGlobals in MemoryManager.c\n");
+  longjmp(returnBuffer, (int) ((intptr_t) stack));
 }
 
 /// @fn void allocateMemoryManagerStack(MemoryManagerState *memoryManagerState,
@@ -650,14 +657,14 @@ void* runMemoryManager(void *args) {
     allocateMemoryManagerStack(&memoryManagerState, returnBuffer,
       MEMORY_MANAGER_PROCESS_STACK_SIZE, NULL);
   }
-  printDebug("Returned from allocateMemoryManagerStack.\n");
+  printDebugString("Returned from allocateMemoryManagerStack.\n");
   
   //// printMemoryManagerState(&memoryManagerState);
   dynamicMemorySize
     = memoryManagerState.mallocStart - memoryManagerState.mallocEnd;
-  printDebug("dynamicMemorySize = ");
-  printDebug(dynamicMemorySize);
-  printDebug("\n");
+  printDebugString("dynamicMemorySize = ");
+  printDebugInt(dynamicMemorySize);
+  printDebugString("\n");
   printConsoleString("Using ");
   printConsoleULong(dynamicMemorySize);
   printConsoleString(" bytes of dynamic memory.\n");

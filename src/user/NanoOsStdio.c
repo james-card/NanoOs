@@ -28,11 +28,14 @@
 // Doxygen marker
 /// @file
 
-#include "../kernel/NanoOs.h"
-#include "NanoOsStdio.h"
 #include "../kernel/Console.h"
-#include "../kernel/Filesystem.h"
+#include "../kernel/Hal.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Processes.h"
 #include "../kernel/Scheduler.h"
+
+// Must come last
+#include "NanoOsStdio.h"
 
 /// @var nanoOsStdin
 ///
@@ -112,6 +115,29 @@ int printULong_(unsigned long int integer) {
   return 0;
 }
 
+/// @fn int ullToString(unsigned long long int number, char **nextChar)
+///
+/// @brief Convert an unsigned long long int to its base 10 string
+/// representation.
+///
+/// @param number The non-negative number to convert.
+/// @param nextChar A double pointer to the next character in the buffer to
+///   populate.
+int ullToString(unsigned long long int number, char **nextChar) {
+  if (number == 0) {
+    **nextChar = '0';
+    return 0;
+  }
+
+  while (number > 0) {
+    **nextChar = '0' + (number % 10);
+    (*nextChar)--;
+    number /= 10;
+  }
+
+  return 0;
+}
+
 /// @fn int printLongLong_(long long int integer)
 ///
 /// @brief C wrapper around Serial.print for an integer.
@@ -119,8 +145,17 @@ int printULong_(unsigned long int integer) {
 /// @return This function always returns 0.
 int printLongLong_(long long int integer) {
   char number[20];
-  sprintf(number, "%lld", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
+  number[19] = '\0';
+  char *nextChar = &number[18];
+
+  if (integer >= 0) {
+    ullToString((unsigned long long int) integer, &nextChar);
+    nextChar++;
+  } else {
+    ullToString((unsigned long long int) -integer, &nextChar);
+    *nextChar = '-';
+  }
+  HAL->writeSerialPort(0, (uint8_t*) nextChar, strlen(nextChar));
 
   return 0;
 }
@@ -132,8 +167,11 @@ int printLongLong_(long long int integer) {
 /// @return This function always returns 0.
 int printULongLong_(unsigned long long int integer) {
   char number[20];
-  sprintf(number, "%llu", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
+  number[19] = '\0';
+  char *nextChar = &number[18];
+  ullToString((unsigned long long int) integer, &nextChar);
+  nextChar++;
+  HAL->writeSerialPort(0, (uint8_t*) nextChar, strlen(nextChar));
 
   return 0;
 }
@@ -158,8 +196,22 @@ int printDouble(double floatingPointValue) {
 /// @return This function always returns 0.
 int printHex_(unsigned long long int integer) {
   char number[20];
-  sprintf(number, "%llx", integer);
-  HAL->writeSerialPort(0, (uint8_t*) number, strlen(number));
+  number[19] = '\0';
+  char *nextChar = &number[18];
+
+  if (integer > 0) {
+    const char *alphabet = "0123456789abcdef";
+    while (integer > 0) {
+      *nextChar = alphabet[integer & 0xf];
+      nextChar--;
+      integer >>= 4;
+    }
+    nextChar++;
+  } else {
+    *nextChar = '0';
+  }
+
+  HAL->writeSerialPort(0, (uint8_t*) nextChar, strlen(nextChar));
 
   return 0;
 }

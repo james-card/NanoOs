@@ -44,12 +44,12 @@
 
 #define FILE NanoOsFile
 
-#include "Filesystem.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+typedef struct FilesystemState FilesystemState;
 
 // exFAT constants
 #define EXFAT_SIGNATURE              0x4146544658455845ULL // "EXFATFAT"

@@ -37,9 +37,7 @@
 #define NANO_OS_H
 
 // Local headers
-#include "NanoOsOverlay.h"
 #include "NanoOsTypes.h"
-#include "Coroutines.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -56,12 +54,11 @@ extern "C"
 #define NANO_OS_STACK_SIZE 320
 #elif defined(__linux__)
 // We're building as a Linux application, but we're not on ARM, so we're likely
-// on x86.  x86 binaries are roughly twice the size of ARM, so give it double
-// the stack size.  We're in an application with virutal memory, so we could
-// make this arbitrarily large, however in the spirit of keeping a simulation
-// environment as close as possible to the real thing, we'll give ourselves
-// something more reasonable.
-#define NANO_OS_STACK_SIZE 1440
+// on x86_64.  That means we're building on a 64-bit target with 64-bit stack
+// operands instead of a 32-bit target like on ARM.  Function calls also seem
+// to push a lot more information onto the stack in user mode than when in
+// standalone mode.  Quadruple the size of the stack relative to ARM.
+#define NANO_OS_STACK_SIZE 2880
 #endif // __arm__
 
 /// @def NANO_OS_NUM_MESSAGES
@@ -148,14 +145,16 @@ extern "C"
 
 #ifdef NANO_OS_DEBUG
 
-/// @def printDebug
+/// @def printDebugString
 ///
 /// @brief Macro to identify debugging prints when necessary.
-#define printDebug Serial.print
+#define printDebugString(msg) printString(msg)
+#define printDebugInt(value) printLongLong((long long int) (value))
 
 #else // NANO_OS_DEBUG
 
-#define printDebug(msg, ...) {}
+#define printDebugString(msg) {}
+#define printDebugInt(value) {}
 
 #endif // NANO_OS_DEBUG
 
@@ -225,13 +224,5 @@ int setProcessStorage_(uint8_t key, void *val, int processId, ...);
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-// NanoOs includes.  These have to be included separately and last.
-#include "../user/NanoOsLibC.h"
-#include "Commands.h"
-#include "Hal.h"
-#include "MemoryManager.h"
-#include "Processes.h"
-#include "Filesystem.h"
 
 #endif // NANO_OS_H

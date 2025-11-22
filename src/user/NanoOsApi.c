@@ -28,10 +28,16 @@
 // Doxygen marker
 /// @file
 
+// Must come first
+#include "NanoOsApi.h"
+
+#include "../kernel/MemoryManager.h"
 #include "../kernel/NanoOs.h"
 #include "../kernel/Scheduler.h"
 #include "NanoOsUnistd.h"
-#include "NanoOsApi.h"
+
+// Must come last
+#include "NanoOsStdio.h"
 
 #undef stdin
 #undef stdout

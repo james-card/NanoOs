@@ -25,11 +25,42 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Custom includes
-#include "kernel/NanoOs.h"
-#include "kernel/Scheduler.h"
-#include "HalPosix.h"
+// NanoOs includes
+#include "NanoOs.h"
+#include "Scheduler.h"
 #include "SdCardPosix.h"
+
+// Has to come last
+#include "NanoOsStdio.h"
+
+// Simulator includes
+#include "HalPosix.h"
+
+// undef all the things that NanoOs defines
+#undef stdin
+#undef stdout
+#undef stderr
+#undef fopen
+#undef fclose
+#undef remove
+#undef fseek
+#undef vfscanf
+#undef fscanf
+#undef scanf
+#undef vfprintf
+#undef fprintf
+#undef printf
+#undef fputs
+#undef puts
+#undef fgets
+#undef fread
+#undef fwrite
+#undef strerror
+#undef fileno
+#undef FILE
+
+// Standard C includes
+#include <stdio.h>
 
 const Hal *HAL = NULL;
 
@@ -70,11 +101,11 @@ int main(int argc, char **argv) {
 
   runSdCard = runSdCardPosix;
 
-  // We need a guard at bootup because if the system crashes in a way that makes
-  // the processor unresponsive, it will be very difficult to load new firmware.
-  // Sleep long enough to begin a firmware upload on reset.
-  printString("\nBooting...\n");
-  msleep(7000);
+  // On hardware, we need a "Booting..." message and a delay so that we give
+  // ourselves enough time to start a firmware update in case we've loaded
+  // something that's resulting in bricking the system.  Since the simulator is
+  // just an application running in its own virtual memory sandbox, we don't
+  // need that here, so skipping it.
 
   // Prototypes and externs we need that are not exported from the other
   // library.
@@ -100,17 +131,17 @@ int main(int argc, char **argv) {
     comutexUnlockCallback,
     coconditionSignalCallback) != coroutineSuccess
   ) {
-    printString("coroutineConfig failed.\n");
-    while(1);
+    fputs("coroutineConfig failed.\n", stderr);
+    return 1;
   }
   // Create but *DO NOT* resume one dummy process.  This will set the size of
   // the main stack.
   if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
-    printString("Could not double scheduler process's stack size.\n");
+    fputs("Could not set scheduler process's stack size.\n", stderr);
   }
 
   // Enter the scheduler.  This never returns.
-  printDebug("Starting scheduler.\n");
+  printDebugString("Starting scheduler.\n");
   startScheduler(&coroutineStatePointer);
 
   return 0;
