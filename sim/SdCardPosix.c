@@ -226,7 +226,7 @@ void* runSdCardPosix(void *args) {
   };
   sdCardState.bsDevice = &sdDevice;
   sdCardState.blockSize = 512;
-  sdCardState.numBlocks = 2000000000; // About 1 TB
+  sdCardState.numBlocks = 204800; // 100 MB
   sdCardState.sdCardVersion = 2;
   sdCardState.context = (void*) ((intptr_t) open(sdCardDevicePath, O_RDWR));
   int openError = errno;
