@@ -84,18 +84,22 @@ int main(int argc, char **argv) {
 
   sdCardDevicePath = argv[1];
   HAL = halPosixInit();
+  if (HAL == NULL) {
+    // Error message has already been printed.  Bail.
+    return 1;
+  }
 
   int numSerialPorts = HAL->getNumSerialPorts();
   if (numSerialPorts < 0) {
-    // Nothing we can do.  Halt.
-    while(1);
+    // Nothing we can do.  Bail.
+    return 1;
   }
   
   // Set all the serial ports to run at 1000000 baud.
   for (int ii = 0; ii < numSerialPorts; ii++) {
     if (HAL->initializeSerialPort(ii, 1000000) < 0) {
-      // Nothing we can do.  Halt.
-      while(1);
+      // Nothing we can do.  Bail.
+      return 1;
     }
   }
 
