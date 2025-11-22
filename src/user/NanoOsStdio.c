@@ -74,6 +74,10 @@ int printString_(const char *string) {
 int ullToString(unsigned long long int number, char **nextChar) {
   if (number == 0) {
     **nextChar = '0';
+    // The caller expects nextChar to be positioned one character before the
+    // most-recent one written, so we need to back up one character before
+    // returning.
+    (*nextChar)--;
     return 0;
   }
 
