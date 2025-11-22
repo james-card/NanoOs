@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <sys/mman.h>
 #include <termios.h>
 
 #include "HalPosix.h"
@@ -199,6 +200,9 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
     + ((int64_t) spec.tv_nsec)) - startTime;
 }
 
+#define OVERLAY_SIZE          8192
+#define OVERLAY_ADDRESS 0x20001000
+
 /// @var posixHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -207,8 +211,8 @@ static Hal posixHal = {
   .bottomOfStack = 0,
   
   // Overlay definitions.
-  .overlayMap = (NanoOsOverlayMap*) 0x20001800,
-  .overlaySize = 8192,
+  .overlayMap = NULL,
+  .overlaySize = OVERLAY_SIZE,
   
   // Serial port functionality.
   .getNumSerialPorts = posixGetNumSerialPorts,
@@ -236,12 +240,24 @@ static Hal posixHal = {
 
 const Hal* halPosixInit(void) {
   int topOfStack = 0;
-  fprintf(stderr, "Top of stack    = %p\n", (void*) &topOfStack);
+  fprintf(stderr, "Top of stack        = %p\n", (void*) &topOfStack);
   
-  // Simulate having a total of 16 KB available for dynamic memory.
+  // Simulate having a total of 64 KB available for dynamic memory.
   posixHal.bottomOfStack
     = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
-  fprintf(stderr, "Bottom of stack = %p\n", (void*) posixHal.bottomOfStack);
+  fprintf(stderr, "Bottom of stack     = %p\n", (void*) posixHal.bottomOfStack);
+  
+  posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_ADDRESS,
+    OVERLAY_SIZE, PROT_READ | PROT_WRITE,
+    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+    -1, 0);
+  if (posixHal.overlayMap == MAP_FAILED) {
+    fprintf(stderr, "mmap failed with error: %s\n", strerror(errno));
+    return NULL;
+  }
+  
+  fprintf(stderr, "posixHal.overlayMap = %p\n", (void*) posixHal.overlayMap);
+  fprintf(stderr, "\n");
   
   return &posixHal;
 }
