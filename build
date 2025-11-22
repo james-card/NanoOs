@@ -3,8 +3,9 @@
 set -e
 
 targetDevice="${1}"
-if [ "${targetDevice}" = "" ]; then
-	echo "Usage ${0} <target device>" >&2
+hostname="${2}"
+if [[ "${targetDevice}" = "" || "${hostname}" = "" ]]; then
+	echo "Usage ${0} <target device> <hostname>" >&2
 	exit 1
 fi
 
@@ -18,8 +19,6 @@ trap "rm -rf \"${mountDir}\"" ERR EXIT
 
 echo ""
 echo "Build complete."
-printf "Desired hostname: "
-read hostname
 
 sudo mkfs.exfat "${targetDevice}" -L NanoOs
 sudo mount "${targetDevice}" "${mountDir}"

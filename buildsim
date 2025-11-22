@@ -3,8 +3,9 @@
 set -e
 
 targetDevice="${1}"
-if [ "${targetDevice}" = "" ]; then
-	echo "Usage ${0} <target device>" >&2
+hostname="${2}"
+if [[ "${targetDevice}" = "" || "${hostname}" = "" ]]; then
+	echo "Usage ${0} <target device> <hostname>" >&2
 	exit 1
 fi
 
@@ -13,7 +14,7 @@ if [ ! -e "${targetDevice}" ]; then
 	trap "rm \"${imageFile}\"" ERR
 	# 100 MB is fine for us for now... honestly, it's excesive
 	dd if=/dev/zero of="${imageFile}" bs=1M count=100 status=progress
-	losetup "${targetDevice}" "${imageFile}"
+	sudo losetup "${targetDevice}" "${imageFile}"
 fi
 
 echo "Building applications..."
@@ -29,8 +30,6 @@ trap "rm -rf \"${mountDir}\"" ERR EXIT
 
 echo ""
 echo "Build complete."
-printf "Desired hostname: "
-read hostname
 
 sudo mkfs.exfat "${targetDevice}" -L NanoOs
 sudo mount "${targetDevice}" "${mountDir}"
