@@ -11,7 +11,7 @@ fi
 
 echo "Building applications..."
 make -C usr/src clean
-make -C usr/src
+make -C usr/src LINKER_SCRIPT=NanoOs.ld
 
 # Make a temporary mountpoint
 mountDir="$(mktemp -d)"
