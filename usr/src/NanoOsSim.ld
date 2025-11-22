@@ -1,13 +1,13 @@
 /**
  * 
  *  @author            James Card
- *  @date              09.01.2025
+ *  @date              11.22.2025
  * 
- *  @file              NanoOs.ld
+ *  @file              NanoOsSim.ld
  * 
- *  @brief             Linker script for ARM-compiled NanoOs user-space
+ *  @brief             Linker script for simulator NanoOs user-space
  *                     applications organized at base address 0x20001000.
- *                     For use with arm-none-eabi-gcc.
+ *                     For use with the host OS's gcc.
  * 
  *  @copyright
  *                    Copyright (c) 2012-2025 James Card
@@ -35,7 +35,7 @@
  * 
  */
 
-/* Overlay Linker Script for ARM Cortex-M0 */
+/* Overlay Linker Script for host-based simulator application */
 /* Overlay loads at RAM address 0x20001000 */
 
 MEMORY
@@ -94,6 +94,13 @@ SECTIONS
     /* Discard sections we don't need */
     /DISCARD/ :
     {
+        *(.note.gnu.build-id)
+        *(.note.GNU-stack)
+        *(.note*)
+        *(.gnu.hash)
+        *(.gnu.version*)
+        *(.eh_frame)
+        *(.eh_frame_hdr)
         *(.ARM.exidx*)
         *(.ARM.extab*)
         *(.comment)
