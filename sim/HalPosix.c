@@ -248,7 +248,7 @@ const Hal* halPosixInit(void) {
   fprintf(stderr, "Bottom of stack     = %p\n", (void*) posixHal.bottomOfStack);
   
   posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_ADDRESS,
-    OVERLAY_SIZE, PROT_READ | PROT_WRITE,
+    OVERLAY_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
     -1, 0);
   if (posixHal.overlayMap == MAP_FAILED) {
