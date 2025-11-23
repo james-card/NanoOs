@@ -52,12 +52,20 @@ int loadOverlay(const char *overlayPath, char **env) {
     return -ENOENT;
   }
 
+  printDebugString(__func__);
+  printDebugString(": Reading from overlayFile 0x");
+  printDebugHex((uintptr_t) overlayFile);
+  printDebugString("\n");
   if (fread(HAL->overlayMap, 1, HAL->overlaySize, overlayFile) == 0) {
     fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
       overlayPath);
     fclose(overlayFile); overlayFile = NULL;
     return -EIO;
   }
+  printDebugString(__func__);
+  printDebugString(": Closing overlayFile 0x");
+  printDebugHex((uintptr_t) overlayFile);
+  printDebugString("\n");
   fclose(overlayFile); overlayFile = NULL;
 
   printDebugString("Verifying overlay magic\n");
