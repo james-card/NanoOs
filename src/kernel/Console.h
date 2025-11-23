@@ -43,6 +43,14 @@ extern "C"
 {
 #endif
 
+// ASCII characters that we need in our logic.
+#define ASCII_BACKSPACE 8
+#define ASCII_NEWLINE  10
+#define ASCII_RETURN   13
+#define ASCII_ESCAPE   27
+#define ASCII_SPACE    32
+#define ASCII_DELETE  127
+
 /// @enum ConsoleCommandResponse
 ///
 /// @brief The commands and responses that the console understands via
