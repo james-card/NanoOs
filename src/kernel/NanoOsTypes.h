@@ -311,10 +311,11 @@ typedef struct ConsoleBuffer {
 /// @brief Descriptor for a single console port that can be used for input from
 /// a user.
 ///
+/// @var portId The numerical ID for the port.
 /// @param consoleBuffer A pointer to the ConsoleBuffer used to buffer input
 ///   from the user.
-/// @param consoleIndex An index into the buffer provided by consoleBuffer of
-///   the next position to read a byte into.
+/// @param consoleBufferIndex An index into the buffer provided by consoleBuffer
+///   of the next position to read a byte into.
 /// @param outputOwner The ID of the process that currently has the ability to
 ///   write output to the port.
 /// @param inputOwner The ID of the process that currently has the ability to
@@ -329,15 +330,17 @@ typedef struct ConsoleBuffer {
 /// @param printString A pointer to the function that will print a string of
 ///   output to the console port.
 typedef struct ConsolePort {
+  unsigned char       portId;
   ConsoleBuffer      *consoleBuffer;
-  unsigned char       consoleIndex;
+  unsigned char       consoleBufferIndex;
   ProcessId           outputOwner;
   ProcessId           inputOwner;
   ProcessId           shell;
   bool                waitingForInput;
   int               (*readByte)(struct ConsolePort *consolePort);
   bool                echo;
-  int               (*consolePrintString)(const char *string);
+  int               (*consolePrintString)(unsigned char port,
+                        const char *string);
 } ConsolePort;
 
 /// @struct ConsoleState
@@ -349,10 +352,12 @@ typedef struct ConsolePort {
 ///   from the user.
 /// @param consoleBuffers The array of ConsoleBuffers that can be used by
 ///   the console ports for input and by processes for output.
+/// @param numConsolePorts The number of active console ports.
 typedef struct ConsoleState {
   ConsolePort consolePorts[CONSOLE_NUM_PORTS];
   // consoleBuffers needs to come at the end.
   ConsoleBuffer consoleBuffers[CONSOLE_NUM_BUFFERS];
+  int numConsolePorts;
 } ConsoleState;
 
 /// @struct ConsolePortPidAssociation
