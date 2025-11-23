@@ -37,6 +37,7 @@
 #define NANO_OS_H
 
 // Local headers
+#include "MemoryManager.h"
 #include "NanoOsTypes.h"
 
 #ifdef __cplusplus
