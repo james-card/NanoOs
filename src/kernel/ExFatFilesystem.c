@@ -1741,13 +1741,12 @@ ExFatFileHandle* exFatOpenFile(
   handle->appendMode = append;
 
   // Copy filename
-  uint8_t nameLength = 0;
-  for (uint8_t ii = 0; fileName[ii] != '\0' &&
-       ii < EXFAT_MAX_FILENAME_LENGTH; ii++) {
-    handle->fileName[ii] = fileName[ii];
-    nameLength = ii + 1;
-  }
-  handle->fileName[nameLength] = '\0';
+  handle->fileName[EXFAT_MAX_FILENAME_LENGTH] = '\0';
+  strncpy(handle->fileName, filePath, EXFAT_MAX_FILENAME_LENGTH);
+  printDebugString(__func__);
+  printDebugString(": Opening file \"");
+  printDebugString(handle->fileName);
+  printDebugString("\"\n");
 
   // Set position based on mode
   if (append) {
@@ -1816,6 +1815,11 @@ int32_t exFatRead(
     return -EACCES; // Permission denied
   }
 
+  printDebugString(__func__);
+  printDebugString(": Reading from file \"");
+  printDebugString(file->fileName);
+  printDebugString("\"\n");
+
   // Calculate remaining bytes in file
   uint64_t remainingBytes = 0;
   if (file->currentPosition < file->fileSize) {
@@ -1870,9 +1874,18 @@ int32_t exFatRead(
     // Read the sector
     int result = readSector(driverState, sector, buffer);
     if (result != EXFAT_SUCCESS) {
+      printDebugString(__func__);
+      printDebugString(": readSector failed\n");
       if (bytesRead > 0) {
+        printDebugString(__func__);
+        printDebugString(": returning ");
+        printDebugInt(bytesRead);
+        printDebugString("\n");
         return bytesRead; // Return what we've read so far
       }
+
+      printDebugString(__func__);
+      printDebugString(": returning -EIO\n");
       return -EIO;
     }
 
@@ -1913,6 +1926,12 @@ int32_t exFatRead(
     }
   }
 
+  printDebugString(__func__);
+  printDebugString(": Read ");
+  printDebugInt(bytesRead);
+  printDebugString(" bytes from file \"");
+  printDebugString(file->fileName);
+  printDebugString("\"\n");
   return (int32_t) bytesRead;
 }
 
@@ -2231,6 +2250,10 @@ int exFatFclose(
   }
 
   int returnValue = 0;
+  printDebugString(__func__);
+  printDebugString(": Closing file \"");
+  printDebugString(exFatFile->fileName);
+  printDebugString("\"\n");
 
   // If file was opened for writing, flush metadata to directory entry
   // This ensures file size, timestamps, and cluster information are updated
