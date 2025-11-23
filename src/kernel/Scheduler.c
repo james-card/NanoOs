@@ -2963,13 +2963,13 @@ __attribute__((noinline)) void startScheduler(
 
   // Set the shells for the ports.
   if (schedulerSetPortShell(&schedulerState,
-    USB_SERIAL_PORT, USB_SERIAL_PORT_SHELL_PID) != processSuccess
+    0, USB_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
     printString("WARNING: Could not set shell for USB serial port.\n");
     printString("         Undefined behavior will result.\n");
   }
   if (schedulerSetPortShell(&schedulerState,
-    GPIO_SERIAL_PORT, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
+    1, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
   ) {
     printString("WARNING: Could not set shell for GPIO serial port.\n");
     printString("         Undefined behavior will result.\n");

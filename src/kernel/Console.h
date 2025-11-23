@@ -43,16 +43,6 @@ extern "C"
 {
 #endif
 
-/// @def USB_SERIAL_PORT
-///
-/// Index into ConsoleState.conslePorts for the USB serial port.
-#define USB_SERIAL_PORT 0
-
-/// @def GPIO_SERIAL_PORT
-///
-/// Index into ConsoleState.conslePorts for the GPIO serial port.
-#define GPIO_SERIAL_PORT 1
-
 /// @enum ConsoleCommandResponse
 ///
 /// @brief The commands and responses that the console understands via

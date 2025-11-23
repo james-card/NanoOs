@@ -40,8 +40,8 @@
 // Must come last
 #include "../user/NanoOsStdio.h"
 
-/// @fn int consolePrintMessage(
-///   ConsoleState *consoleState, ProcessMessage *inputMessage, const char *message)
+/// @fn int consolePrintMessage(ConsoleState *consoleState,
+///   ProcessMessage *inputMessage, const char *message)
 ///
 /// @brief Print a message to all console ports that are owned by a process.
 ///
@@ -60,9 +60,9 @@ int consolePrintMessage(
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
-      consolePorts[ii].consolePrintString(message);
+      consolePorts[ii].consolePrintString(consolePorts[ii].portId, message);
       portFound = true;
     }
   }
@@ -89,11 +89,11 @@ int consolePrintMessage(
 void consoleMessageCleanup(ProcessMessage *inputMessage) {
   if (processMessageWaiting(inputMessage) == false) {
     if (processMessageRelease(inputMessage) != processSuccess) {
-      // printUsbSerialString is defined below.  Provide the prototype.
-      int printUsbSerialString(const char *string);
-      printUsbSerialString("ERROR: Could not release inputMessage from ");
-      printUsbSerialString(__func__);
-      printUsbSerialString("\n");
+      // printSerialString is defined below.  Provide the prototype.
+      int printSerialString(unsigned char serialPort, const char *string);
+      printSerialString(0, "ERROR: Could not release inputMessage from ");
+      printSerialString(0, __func__);
+      printSerialString(0, "\n");
     }
   }
 }
@@ -119,7 +119,7 @@ ConsoleBuffer* getAvailableConsoleBuffer(
   // Check to see if the requesting process owns one of the ports for output.
   // Use the buffer for that port if so.
   ConsolePort *consolePorts = consoleState->consolePorts;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if ((consolePorts[ii].outputOwner == processId)
       || (consolePorts[ii].inputOwner == processId)
     ) {
@@ -357,7 +357,7 @@ void consoleSetPortShellCommandHandler(
   uint8_t consolePort = consolePortPidAssociation->consolePort;
   ProcessId processId = consolePortPidAssociation->processId;
 
-  if (consolePort < CONSOLE_NUM_PORTS) {
+  if (consolePort < consoleState->numConsolePorts) {
     consoleState->consolePorts[consolePort].shell = processId;
     processMessageSetDone(inputMessage);
     consoleMessageCleanup(inputMessage);
@@ -402,7 +402,7 @@ void consoleAssignPortHelper(
   uint8_t consolePort = consolePortPidAssociation->consolePort;
   ProcessId processId = consolePortPidAssociation->processId;
 
-  if (consolePort < CONSOLE_NUM_PORTS) {
+  if (consolePort < consoleState->numConsolePorts) {
     if (assignOutput == true) {
       consoleState->consolePorts[consolePort].outputOwner = processId;
     }
@@ -482,7 +482,7 @@ void consoleReleasePortCommandHandler(
   ProcessId owner = processId(processMessageFrom(inputMessage));
   ConsolePort *consolePorts = consoleState->consolePorts;
 
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].outputOwner = consolePorts[ii].shell;
     }
@@ -524,7 +524,7 @@ void consoleGetOwnedPortCommandHandler(
   ProcessMessage *returnMessage = inputMessage;
 
   int ownedPort = -1;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     // inputOwner is assigned at the same as outputOwner, but inputOwner can be
     // set separately later if the commands are being piped together.
     // Therefore, checking inputOwner checks both of them.
@@ -573,7 +573,7 @@ void consoleSetEchoCommandHandler(
   nanoOsMessage->data = 0;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].outputOwner == owner) {
       consolePorts[ii].echo = desiredEchoState;
       portFound = true;
@@ -614,7 +614,7 @@ void consoleWaitForInputCommandHandler(
   ConsolePort *consolePorts = consoleState->consolePorts;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].waitingForInput = true;
       portFound = true;
@@ -663,7 +663,7 @@ void consoleReleasePidPortCommandHandler(
   bool releaseMessage = false;
 
   bool portFound = false;
-  for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].inputOwner = consolePorts[ii].shell;
       // NOTE:  By calling sendProcessMessageToPid from within the for loop, we
@@ -730,7 +730,7 @@ void consoleReleaseBufferCommandHandler(
   ConsoleBuffer *consoleBuffer
     = nanoOsMessageDataPointer(inputMessage, ConsoleBuffer*);
   if (consoleBuffer != NULL) {
-    for (int ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
       if (consoleBuffer == &consoleBuffers[ii]) {
         // The buffer being released is one of the buffers dedicated to a port.
         // *DO NOT* mark it as not being in use because it is always in use.
@@ -799,73 +799,48 @@ void handleConsoleMessages(ConsoleState *consoleState) {
   return;
 }
 
-/// @fn int readSerialByte(ConsolePort *consolePort, int serialPort)
+/// @fn int readSerialByte(ConsolePort *consolePort)
 ///
 /// @brief Do a non-blocking read of a serial port.
 ///
 /// @param ConsolePort A pointer to the ConsolePort data structure that contains
 ///   the buffer information to use.
-/// @param serialPort The zero-based index of the serial port to read from.
 ///
 /// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readSerialByte(ConsolePort *consolePort, int serialPort) {
+int readSerialByte(ConsolePort *consolePort) {
   int serialData = -1;
-  serialData = HAL->pollSerialPort(serialPort);
+  serialData = HAL->pollSerialPort((int) consolePort->portId);
   if (serialData > -1) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
-    buffer[consolePort->consoleIndex] = (char) serialData;
+    buffer[consolePort->consoleBufferIndex] = (char) serialData;
     if (consolePort->echo == true) {
       if (((char) serialData != '\r')
         && ((char) serialData != '\n')
       ) {
         char serialChar = (char) serialData;
-        HAL->writeSerialPort(serialPort, (uint8_t*) &serialChar, 1);
+        HAL->writeSerialPort((int) consolePort->portId,
+          (uint8_t*) &serialChar, 1);
       } else {
-        HAL->writeSerialPort(serialPort, (uint8_t*) "\r\n", 2);
+        HAL->writeSerialPort((int) consolePort->portId, (uint8_t*) "\r\n", 2);
       }
     }
-    consolePort->consoleIndex++;
-    consolePort->consoleIndex %= CONSOLE_BUFFER_SIZE;
+    consolePort->consoleBufferIndex++;
+    consolePort->consoleBufferIndex %= CONSOLE_BUFFER_SIZE;
   }
 
   return serialData;
 }
 
-/// @fn int readUsbSerialByte(ConsolePort *consolePort)
-///
-/// @brief Do a non-blocking read of the USB serial port.
-///
-/// @param ConsolePort A pointer to the ConsolePort data structure that contains
-///   the buffer information to use.
-///
-/// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readUsbSerialByte(ConsolePort *consolePort) {
-  return readSerialByte(consolePort, 0);
-}
-
-/// @fn int readGpioSerialByte(ConsolePort *consolePort)
-///
-/// @brief Do a non-blocking read of the GPIO serial port.
-///
-/// @param ConsolePort A pointer to the ConsolePort data structure that contains
-///   the buffer information to use.
-///
-/// @return Returns the byte read, cast to an int, on success, -1 on failure.
-int readGpioSerialByte(ConsolePort *consolePort) {
-  return readSerialByte(consolePort, 1);
-}
-
-/// @fn int printSerialString(int serialPort, const char *string)
+/// @fn int printSerialString(unsigned char serialPort, const char *string)
 ///
 /// @brief Print a string to the default serial port.
 ///
-/// @param serialPort A reference to the HardwareSerial object (Serial or
-///   Serial1) to read a byte from.
+/// @param serialPort The numerical ID of the serial port to read a byte from.
 /// @param string A pointer to the string to print.
 ///
 /// @return Returns the number of bytes written to the serial port.
-int printSerialString(int serialPort, const char *string) {
+int printSerialString(unsigned char serialPort, const char *string) {
   int returnValue = 0;
   size_t numBytes = 0;
 
@@ -878,9 +853,9 @@ int printSerialString(int serialPort, const char *string) {
   }
   while (newlineAt != NULL) {
     returnValue += (int) HAL->writeSerialPort(
-      serialPort, (uint8_t*) string, numBytes);
+      (int) serialPort, (uint8_t*) string, numBytes);
     returnValue += (int) HAL->writeSerialPort(
-      serialPort, (uint8_t*) "\r\n", 2);
+      (int) serialPort, (uint8_t*) "\r\n", 2);
     string = newlineAt + 1;
     newlineAt = strchr(string, '\n');
     if (newlineAt == NULL) {
@@ -890,31 +865,9 @@ int printSerialString(int serialPort, const char *string) {
     }
   }
   returnValue += (int) HAL->writeSerialPort(
-    serialPort, (uint8_t*) string, numBytes);
+    (int) serialPort, (uint8_t*) string, numBytes);
 
   return returnValue;
-}
-
-/// @fn int printUsbSerialString(const char *string)
-///
-/// @brief Print a string to the USB serial port.
-///
-/// @param string A pointer to the string to print.
-///
-/// @return Returns the number of bytes written to the serial port.
-int printUsbSerialString(const char *string) {
-  return printSerialString(0, string);
-}
-
-/// @fn int printGpioSerialString(const char *string)
-///
-/// @brief Print a string to the GPIO serial port.
-///
-/// @param string A pointer to the string to print.
-///
-/// @return Returns the number of bytes written to the serial port.
-int printGpioSerialString(const char *string) {
-  return printSerialString(1, string);
 }
 
 /// @fn void* runConsole(void *args)
@@ -937,69 +890,65 @@ void* runConsole(void *args) {
   memset(&consoleState, 0, sizeof(ConsoleState));
   ProcessMessage *schedulerMessage = NULL;
 
-  for (uint8_t ii = 0; ii < CONSOLE_NUM_BUFFERS; ii++) {
-    consoleState.consoleBuffers[ii].inUse = false;
-  }
+  consoleState.numConsolePorts
+    = MIN(CONSOLE_NUM_PORTS, HAL->getNumSerialPorts());
 
   // For each console port, use the console buffer at the corresponding index.
-  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (uint8_t ii = 0; ii < consoleState.numConsolePorts; ii++) {
     consoleState.consolePorts[ii].consoleBuffer
       = &consoleState.consoleBuffers[ii];
     consoleState.consolePorts[ii].consoleBuffer->inUse = true;
   }
 
-  // Set the port-specific data.
-  consoleState.consolePorts[USB_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[USB_SERIAL_PORT].inputOwner = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[USB_SERIAL_PORT].outputOwner = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[USB_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[USB_SERIAL_PORT].waitingForInput = false;
-  consoleState.consolePorts[USB_SERIAL_PORT].readByte = readUsbSerialByte;
-  consoleState.consolePorts[USB_SERIAL_PORT].echo = true;
-  consoleState.consolePorts[USB_SERIAL_PORT].consolePrintString
-    = printUsbSerialString;
-
-  consoleState.consolePorts[GPIO_SERIAL_PORT].consoleIndex = 0;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].inputOwner = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].outputOwner = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].shell = PROCESS_ID_NOT_SET;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].waitingForInput = false;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].readByte = readGpioSerialByte;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].echo = true;
-  consoleState.consolePorts[GPIO_SERIAL_PORT].consolePrintString
-    = printGpioSerialString;
+  for (int ii = 0; ii < consoleState.numConsolePorts; ii++) {
+    // Set the port-specific data.
+    consoleState.consolePorts[ii].portId = ii;
+    consoleState.consolePorts[ii].consoleBufferIndex = 0;
+    consoleState.consolePorts[ii].inputOwner = PROCESS_ID_NOT_SET;
+    consoleState.consolePorts[ii].outputOwner = PROCESS_ID_NOT_SET;
+    consoleState.consolePorts[ii].shell = PROCESS_ID_NOT_SET;
+    consoleState.consolePorts[ii].waitingForInput = false;
+    consoleState.consolePorts[ii].readByte = readSerialByte;
+    consoleState.consolePorts[ii].echo = true;
+    consoleState.consolePorts[ii].consolePrintString = printSerialString;
+  }
 
   while (1) {
-    for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+    for (uint8_t ii = 0; ii < consoleState.numConsolePorts; ii++) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
         if (consolePort->inputOwner == PROCESS_ID_NOT_SET) {
           // NULL-terminate the buffer.
-          consolePort->consoleIndex--;
-          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
+          consolePort->consoleBufferIndex--;
+          consolePort->consoleBuffer->buffer[consolePort->consoleBufferIndex]
+            = '\0';
           if (byteRead == ((int) '\r')) {
-            consolePort->consolePrintString("\n");
+            consolePort->consolePrintString(consolePort->portId, "\n");
           }
 
-          // Use consoleIndex as the size to create a buffer and make a copy.
-          char *bufferCopy = (char*) malloc(consolePort->consoleIndex + 1);
+          // Use consoleBufferIndex as the size to create a buffer and make a
+          // copy.
+          char *bufferCopy
+            = (char*) malloc(consolePort->consoleBufferIndex + 1);
           memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
-            consolePort->consoleIndex);
-          bufferCopy[consolePort->consoleIndex] = '\0';
-          consolePort->consoleIndex = 0;
+            consolePort->consoleBufferIndex);
+          bufferCopy[consolePort->consoleBufferIndex] = '\0';
+          consolePort->consoleBufferIndex = 0;
           //// if (handleCommand(ii, bufferCopy) == processSuccess) {
           ////   // If the command has already returned or wrote to the console
           ////   // before its first yield, we may need to display its output.
           ////   // Handle the next next message in our queue just in case.
           ////   handleConsoleMessages(&consoleState);
           //// } else {
-          ////   consolePort->consolePrintString("Unknown command.\n");
-          ////   consolePort->consolePrintString("> ");
+          ////   consolePort->consolePrintString(consolePort->portId,
+          ////     "Unknown command.\n");
+          ////   consolePort->consolePrintString(consolePort->portId, "> ");
           //// }
         } else if (consolePort->waitingForInput == true) {
-          consolePort->consoleBuffer->buffer[consolePort->consoleIndex] = '\0';
-          consolePort->consoleIndex = 0;
+          consolePort->consoleBuffer->buffer[consolePort->consoleBufferIndex]
+            = '\0';
+          consolePort->consoleBufferIndex = 0;
           sendNanoOsMessageToPid(
             consolePort->inputOwner, CONSOLE_RETURNING_INPUT,
             /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
@@ -1007,7 +956,7 @@ void* runConsole(void *args) {
         } else {
           // Console port is owned but owning process is not waiting for input.
           // Reset our buffer and do nothing.
-          consolePort->consoleIndex = 0;
+          consolePort->consoleBufferIndex = 0;
         }
       }
     }
