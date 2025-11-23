@@ -39,7 +39,22 @@
 #include <limits.h>
 
 #include "HalArduinoNano33Iot.h"
+// Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
+// operational prior to the memory manager and really should be completely
+// independent of it.
 #include "../user/NanoOsErrno.h"
+
+// The fact that we've included Arduino.h in this file means that the memory
+// management functions from its library are available in this file.  That's a
+// problem.  (a) We can't allow dynamic memory at the HAL level and (b) if we
+// were to allocate memory from Arduino's memory manager, we'd run the risk
+// of corrupting something elsewhere in memory.  Just in case we ever forget
+// this and try to use memory management functions in the future, define them
+// all to MEMORY_ERROR so that the build will fail.
+#define malloc  MEMORY_ERROR
+#define calloc  MEMORY_ERROR
+#define realloc MEMORY_ERROR
+#define freee   MEMORY_ERROR
 
 /// @def NUM_DIGITAL_IO_PINS
 ///
