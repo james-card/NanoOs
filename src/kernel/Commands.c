@@ -31,7 +31,6 @@
 #include "../user/NanoOsApi.h"
 #include "Commands.h"
 #include "Console.h"
-#include "MemoryManager.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
 #include "Processes.h"
