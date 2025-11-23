@@ -360,7 +360,7 @@ void* runShell(void *args) {
   }
   const char *processUsername = getUsernameByUserId(processUserId);
   while (1) {
-    printf("%s@localhost%s ", processUsername, prompt);
+    printf("%s@%s%s ", processUsername, hostname, prompt);
     fgets(commandBuffer, sizeof(commandBuffer), stdin);
     const CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
     if (commandEntry == NULL) {
