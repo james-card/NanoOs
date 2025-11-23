@@ -514,7 +514,7 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack);
   if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
     printString("ERROR!!! &__bss_end__ > ");
-    printLong((uintptr_t) HAL->overlayMap);
+    printInt((uintptr_t) HAL->overlayMap);
     printString("\nRunning user programs will corrupt system memory!!!\n");
   }
 #elif defined(__AVR__)
