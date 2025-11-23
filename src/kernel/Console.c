@@ -751,6 +751,28 @@ void consoleReleaseBufferCommandHandler(
   return;
 }
 
+/// @fn void consoleGetNumPortsCommandHandler(
+///   ConsoleState *consoleState, ProcessMessage *inputMessage)
+///
+/// @brief Get the number of running console ports.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the ProcessMessage with the received
+///   command.
+///
+/// @return This function returns no value.
+void consoleGetNumPortsCommandHandler(
+  ConsoleState *consoleState, ProcessMessage *inputMessage
+) {
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(inputMessage);
+  nanoOsMessage->data = (intptr_t) consoleState->numConsolePorts;
+  processMessageSetDone(inputMessage);
+
+  return;
+}
+
 /// @typedef ConsoleCommandHandler
 ///
 /// @brief Signature of command handler for a console command.
@@ -772,6 +794,7 @@ const ConsoleCommandHandler consoleCommandHandlers[] = {
   consoleWaitForInputCommandHandler,    // CONSOLE_WAIT_FOR_INPUT
   consoleReleasePidPortCommandHandler,  // CONSOLE_RELEASE_PID_PORT
   consoleReleaseBufferCommandHandler,   // CONSOLE_RELEASE_BUFFER
+  consoleGetNumPortsCommandHandler,     // CONSOLE_GET_NUM_PORTS
 };
 
 /// @fn void handleConsoleMessages(ConsoleState *consoleState)
@@ -1113,6 +1136,26 @@ int setConsoleEcho(bool desiredEchoState) {
 
   int returnValue = nanoOsMessageDataValue(reply, int);
   processMessageRelease(reply);
+
+  return returnValue;
+}
+
+/// @fn int getNumConsolePorts(void)
+///
+/// @brief Get the number of ports the console is running.
+///
+/// @return Returns the number of ports running on success, -1 on failure.
+int getNumConsolePorts(void) {
+  ProcessMessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_NUM_PORTS,
+    /* func= */ 0, /* data= */ 0, /* waiting= */ true);
+  if (sent == NULL) {
+    return -1;
+  }
+
+  processMessageWaitForDone(sent, NULL);
+  int returnValue = nanoOsMessageDataValue(sent, int);
+  processMessageRelease(sent);
 
   return returnValue;
 }

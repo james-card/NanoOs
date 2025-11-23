@@ -61,6 +61,7 @@ typedef enum ConsoleCommandResponse {
   CONSOLE_WAIT_FOR_INPUT,
   CONSOLE_RELEASE_PID_PORT,
   CONSOLE_RELEASE_BUFFER,
+  CONSOLE_GET_NUM_PORTS,
   NUM_CONSOLE_COMMANDS,
   // Responses:
   CONSOLE_RETURNING_BUFFER,
@@ -101,6 +102,7 @@ int printConsoleULong(long unsigned int message);
 int printConsoleFloat(float message);
 int printConsoleDouble(double message);
 int printConsoleString(const char *message);
+int getNumConsolePorts(void);
 
 #ifdef __cplusplus
 } // extern "C"
