@@ -836,20 +836,43 @@ int readSerialByte(ConsolePort *consolePort) {
   if (serialData > -1) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
-    buffer[consolePort->consoleBufferIndex] = (char) serialData;
-    if (consolePort->echo == true) {
-      if (((char) serialData != '\r')
-        && ((char) serialData != '\n')
-      ) {
-        char serialChar = (char) serialData;
-        HAL->writeSerialPort((int) consolePort->portId,
-          (uint8_t*) &serialChar, 1);
-      } else {
-        HAL->writeSerialPort((int) consolePort->portId, (uint8_t*) "\r\n", 2);
+    if (((serialData > 31) && (serialData < 127))
+      || (serialData == (int) '\r') || (serialData == (int) '\n')
+    ) {
+      // Data is a printable ASCII character.
+      if (consolePort->echo == true) {
+        if ((serialData != (int) '\r') && (serialData != (int) '\n')) {
+          char serialChar = (char) serialData;
+          HAL->writeSerialPort((int) consolePort->portId,
+            (uint8_t*) &serialChar, 1);
+        } else {
+          HAL->writeSerialPort((int) consolePort->portId, (uint8_t*) "\r\n", 2);
+        }
       }
+      
+      if (consolePort->consoleBufferIndex < (CONSOLE_BUFFER_SIZE - 1)) {
+        buffer[consolePort->consoleBufferIndex] = (char) serialData;
+        consolePort->consoleBufferIndex++;
+      }
+    } else if ((serialData == 8) || (serialData == 127)) {
+      // Data is a backspace or delete ASCII control character.  Treat them
+      // both like a backspace.
+      if (consolePort->echo == true) {
+        uint8_t backspace = 8;
+        uint8_t space = 32;
+        HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
+        HAL->writeSerialPort((int) consolePort->portId, &space, 1);
+        HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
+      }
+      
+      if (consolePort->consoleBufferIndex > 0) {
+        consolePort->consoleBufferIndex--;
+      }
+    } else {
+      printDebugString("Received unhandled character ");
+      printDebugInt(serialData);
+      printDebugString("\n");
     }
-    consolePort->consoleBufferIndex++;
-    consolePort->consoleBufferIndex %= CONSOLE_BUFFER_SIZE;
   }
 
   return serialData;
@@ -941,34 +964,9 @@ void* runConsole(void *args) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
       if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
-        if (consolePort->inputOwner == PROCESS_ID_NOT_SET) {
-          // NULL-terminate the buffer.
-          consolePort->consoleBufferIndex--;
-          consolePort->consoleBuffer->buffer[consolePort->consoleBufferIndex]
-            = '\0';
-          if (byteRead == ((int) '\r')) {
-            consolePort->consolePrintString(consolePort->portId, "\n");
-          }
-
-          // Use consoleBufferIndex as the size to create a buffer and make a
-          // copy.
-          char *bufferCopy
-            = (char*) malloc(consolePort->consoleBufferIndex + 1);
-          memcpy(bufferCopy, consolePort->consoleBuffer->buffer,
-            consolePort->consoleBufferIndex);
-          bufferCopy[consolePort->consoleBufferIndex] = '\0';
-          consolePort->consoleBufferIndex = 0;
-          //// if (handleCommand(ii, bufferCopy) == processSuccess) {
-          ////   // If the command has already returned or wrote to the console
-          ////   // before its first yield, we may need to display its output.
-          ////   // Handle the next next message in our queue just in case.
-          ////   handleConsoleMessages(&consoleState);
-          //// } else {
-          ////   consolePort->consolePrintString(consolePort->portId,
-          ////     "Unknown command.\n");
-          ////   consolePort->consolePrintString(consolePort->portId, "> ");
-          //// }
-        } else if (consolePort->waitingForInput == true) {
+        if ((consolePort->inputOwner != PROCESS_ID_NOT_SET)
+          && (consolePort->waitingForInput == true)
+        ) {
           consolePort->consoleBuffer->buffer[consolePort->consoleBufferIndex]
             = '\0';
           consolePort->consoleBufferIndex = 0;
@@ -977,8 +975,8 @@ void* runConsole(void *args) {
             /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
           consolePort->waitingForInput = false;
         } else {
-          // Console port is owned but owning process is not waiting for input.
-          // Reset our buffer and do nothing.
+          // Console port is either not owned or owning process is not waiting
+          // for input.  Reset our buffer and do nothing.
           consolePort->consoleBufferIndex = 0;
         }
       }
