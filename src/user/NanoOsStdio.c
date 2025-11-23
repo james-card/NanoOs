@@ -838,18 +838,21 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
   int bufferIndex = 0;
 
   if (stream == stdin) {
-    // There are three stop conditions:
+    // There are four stop conditions:
     // 1. nanoOsWaitForInput returns NULL, signalling the end of the input
     //    from the stream.
     // 2. We read a newline.
-    // 3. We reach size - 1 bytes received from the stream.
+    // 3. We read an escape sequence.
+    // 4. We reach size - 1 bytes received from the stream.
     if (nanoOsBuffer == NULL) {
       nanoOsBuffer = nanoOsWaitForInput();
       setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
     } else {
-      newlineAt = strchr(nanoOsBuffer->buffer, '\n');
+      // We're continuing to read from a buffer that contained a newline plus
+      // something else after it.
+      newlineAt = strchr(nanoOsBuffer->buffer, ASCII_NEWLINE);
       if (newlineAt == NULL) {
-        newlineAt = strchr(nanoOsBuffer->buffer, '\r');
+        newlineAt = strchr(nanoOsBuffer->buffer, ASCII_RETURN);
       }
       if (newlineAt != NULL) {
         bufferIndex = (((uintptr_t) newlineAt)
@@ -894,7 +897,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
         NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (uintptr_t) nanoOsBuffer, false);
 
-      if (newlineAt != NULL) {
+      if ((newlineAt != NULL) || (strchr(nanoOsBuffer->buffer, ASCII_ESCAPE))) {
         // We've reached one of the stop cases, so we're not going to attempt
         // to receive any more data from the file descriptor.
         nanoOsBuffer = NULL;
