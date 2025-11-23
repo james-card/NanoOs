@@ -575,7 +575,7 @@ void* runSdCardSpi(void *args) {
 
   SdCardState sdCardState;
   memset(&sdCardState, 0, sizeof(sdCardState));
-  BlockStorageDevice sdDevice = {
+  BlockStorageDevice blockStorageDevice = {
     .context = (void*) ((intptr_t) getRunningProcessId()),
     .readBlocks = sdReadBlocks,
     .writeBlocks = sdWriteBlocks,
@@ -583,11 +583,11 @@ void* runSdCardSpi(void *args) {
     .blockBitShift = 0,
     .partitionNumber = 0,
   };
-  sdCardState.bsDevice = &sdDevice;
+  sdCardState.bsDevice = &blockStorageDevice;
 
   sdCardState.sdCardVersion = sdSpiCardInit(SD_CARD_PIN_CHIP_SELECT);
   if (sdCardState.sdCardVersion > 0) {
-    sdCardState.blockSize = sdDevice.blockSize
+    sdCardState.blockSize = blockStorageDevice.blockSize
       = sdSpiGetBlockSize(SD_CARD_SPI_DEVICE);
     sdCardState.numBlocks = sdSpiGetBlockCount(SD_CARD_SPI_DEVICE);
 #ifdef SD_CARD_DEBUG
@@ -596,7 +596,7 @@ void* runSdCardSpi(void *args) {
     printString("\n");
 
     printString("Card block size = ");
-    printInt(sdDevice.blockSize);
+    printInt(blockStorageDevice.blockSize);
     printString("\n");
     printLong(sdCardState.numBlocks);
     printString(" total blocks (");
@@ -609,7 +609,7 @@ void* runSdCardSpi(void *args) {
     printString(strerror(-sdCardState.sdCardVersion));
     printString("\n");
   }
-  coroutineYield(&sdDevice);
+  coroutineYield(&blockStorageDevice);
 
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
