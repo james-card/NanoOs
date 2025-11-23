@@ -220,6 +220,18 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     .buffer = ptr,
     .length = (uint32_t) (size * nmemb)
   };
+
+  printDebugString(__func__);
+  printDebugString(": Sending message to filesystem process to read ");
+  printDebugInt(nmemb);
+  printDebugString(" elements ");
+  printDebugInt(size);
+  printDebugString(" bytes in size from file 0x");
+  printDebugHex((uintptr_t) stream);
+  printDebugString(" into address 0x");
+  printDebugHex((uintptr_t) ptr);
+  printDebugString("\n");
+
   ProcessMessage *processMessage = sendNanoOsMessageToPid(
     NANO_OS_FILESYSTEM_PROCESS_ID,
     FILESYSTEM_READ_FILE,
@@ -230,6 +242,14 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   returnValue = (filesystemIoCommandParameters.length / size);
   processMessageRelease(processMessage);
 
+  printDebugString(__func__);
+  printDebugString(": Returning ");
+  printDebugInt(returnValue);
+  printDebugString(" from read of file 0x");
+  printDebugHex((uintptr_t) filesystemIoCommandParameters.file);
+  printDebugString(" into address 0x");
+  printDebugHex((uintptr_t) filesystemIoCommandParameters.buffer);
+  printDebugString("\n");
   return returnValue;
 }
 
