@@ -48,15 +48,15 @@
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
 
-/// @def USB_SERIAL_PORT_SHELL_PID
+/// @def FIRST_SHELL_PID
 ///
-/// @brief The process ID (PID) of the USB serial port shell.
-#define USB_SERIAL_PORT_SHELL_PID 5
+/// @brief The process ID of the first shell on the system.
+#define FIRST_SHELL_PID 5
 
-/// @def GPIO_SERIAL_PORT_SHELL_PID
+/// @def MAX_NUM_SHELLS
 ///
-/// @brief The process ID (PID) of the GPIO serial port shell.
-#define GPIO_SERIAL_PORT_SHELL_PID 6
+/// @brief The maximum number of shell processes the system can run.
+#define MAX_NUM_SHELLS 2
 
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
@@ -187,6 +187,14 @@ static const FileDescriptor standardUserFileDescriptors[
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
+};
+
+/// @var shellNames
+///
+/// @brief The names of the shells as they will appear in the process table.
+static const char* const shellNames[MAX_NUM_SHELLS] = {
+  "shell 0",
+  "shell 1",
 };
 
 /// @fn int processQueuePush(
@@ -825,6 +833,41 @@ int schedulerSetPortShell(
   returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
     NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
+
+  return returnValue;
+}
+
+/// @fn int schedulerGetNumConsolePorts(SchedulerState *schedulerState)
+///
+/// @brief Get the number of ports the console is running.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintainted by
+///   the scheduler.
+///
+/// @return Returns the number of ports the console is running on success, -1
+/// on failure.
+int schedulerGetNumConsolePorts(SchedulerState *schedulerState) {
+  ProcessMessage *messageToSend = getAvailableMessage();
+  while (messageToSend == NULL) {
+    runScheduler(schedulerState);
+    messageToSend = getAvailableMessage();
+  }
+  int returnValue = -1;
+
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(messageToSend);
+  processMessageInit(messageToSend, CONSOLE_GET_NUM_PORTS,
+    /*data= */ nanoOsMessage, /* size= */ sizeof(NanoOsMessage),
+    /* waiting= */ true);
+  if (schedulerSendProcessMessageToPid(schedulerState,
+    NANO_OS_CONSOLE_PROCESS_ID, messageToSend) != processSuccess
+  ) {
+    printString("ERROR: Could not send CONSOLE_GET_NUM_PORTS to console\n");
+    return returnValue; // -1
+  }
+
+  returnValue = nanoOsMessageDataValue(messageToSend, int);
+  processMessageRelease(messageToSend);
 
   return returnValue;
 }
@@ -2061,9 +2104,7 @@ int schedulerKillProcessCommandHandler(
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
-        if ((processId != USB_SERIAL_PORT_SHELL_PID)
-          && (processId != GPIO_SERIAL_PORT_SHELL_PID)
-        ) {
+        if (processId > (FIRST_SHELL_PID + schedulerState->numShells)) {
           // The expected case.
           processQueuePush(&schedulerState->free, processDescriptor);
         } else {
@@ -2686,7 +2727,9 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 
   // Check the shells and restart them if needed.
-  if ((processDescriptor->processId == USB_SERIAL_PORT_SHELL_PID)
+  if ((processDescriptor->processId >= FIRST_SHELL_PID)
+    && (processDescriptor->processId
+      < (FIRST_SHELL_PID + schedulerState->numShells))
     && (processRunning(processDescriptor->processHandle) == false)
   ) {
     if ((schedulerState->hostname == NULL)
@@ -2699,44 +2742,20 @@ void runScheduler(SchedulerState *schedulerState) {
     }
 
     // Restart the shell.
-    allProcesses[USB_SERIAL_PORT_SHELL_PID].numFileDescriptors
+    allProcesses[processDescriptor->processId].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
-    allProcesses[USB_SERIAL_PORT_SHELL_PID].fileDescriptors
+    allProcesses[processDescriptor->processId].fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
+    processDescriptor->name
+      = shellNames[processDescriptor->processId - FIRST_SHELL_PID];
     if (processCreate(&processDescriptor->processHandle,
         runShell, schedulerState->hostname
       ) == processError
     ) {
-      printString(
-        "ERROR: Could not configure process for USB shell.\n");
+      printString("ERROR: Could not configure process for ");
+      printString(processDescriptor->name);
+      printString("\n");
     }
-    processDescriptor->name = "USB shell";
-    coroutineResume(processDescriptor->processHandle, NULL);
-  } else if ((processDescriptor->processId == GPIO_SERIAL_PORT_SHELL_PID)
-    && (processRunning(processDescriptor->processHandle) == false)
-  ) {
-    if ((schedulerState->hostname == NULL)
-      || (*schedulerState->hostname == '\0')
-    ) {
-      // We're not done initializing yet.  Put the process back on the ready
-      // queue and try again later.
-      processQueuePush(&schedulerState->ready, processDescriptor);
-      return;
-    }
-
-    // Restart the shell.
-    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].numFileDescriptors
-      = NUM_STANDARD_FILE_DESCRIPTORS;
-    allProcesses[GPIO_SERIAL_PORT_SHELL_PID].fileDescriptors
-      = (FileDescriptor*) standardUserFileDescriptors;
-    if (processCreate(&processDescriptor->processHandle,
-        runShell, schedulerState->hostname
-      ) == processError
-    ) {
-      printString(
-        "ERROR: Could not configure process for GPIO shell.\n");
-    }
-    processDescriptor->name = "GPIO shell";
     coroutineResume(processDescriptor->processHandle, NULL);
   }
 
@@ -2851,6 +2870,21 @@ __attribute__((noinline)) void startScheduler(
   printDebugInt(sizeof(ConsoleState));
   printDebugString(" bytes\n");
 
+  schedulerState.numShells = schedulerGetNumConsolePorts(&schedulerState);
+  if (schedulerState.numShells <= 0) {
+    // This should be impossible since the HAL was successfully initialized,
+    // but take no chances.
+    printString("ERROR! No console ports running.\nHalting.\n");
+    while(1);
+  }
+  // Irrespective of how many ports the console may be running, we can't run
+  // more shell processes than what we're configured for.  Make sure we set a
+  // sensible limit.
+  schedulerState.numShells = MIN(schedulerState.numShells, MAX_NUM_SHELLS);
+  printDebugString("Managing ");
+  printDebugInt(schedulerState.numShells);
+  printDebugString(" shells\n");
+
   // Create the SD card process.
   processHandle = 0;
   if (processCreate(&processHandle, runSdCard, NULL) != processSuccess) {
@@ -2951,7 +2985,7 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("Started memory manager.\n");
 
   // Assign the console ports to it.
-  for (uint8_t ii = 0; ii < CONSOLE_NUM_PORTS; ii++) {
+  for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
     if (schedulerAssignPortToPid(&schedulerState,
       ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != processSuccess
     ) {
@@ -2962,17 +2996,15 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("Assigned console ports to memory manager.\n");
 
   // Set the shells for the ports.
-  if (schedulerSetPortShell(&schedulerState,
-    0, USB_SERIAL_PORT_SHELL_PID) != processSuccess
-  ) {
-    printString("WARNING: Could not set shell for USB serial port.\n");
-    printString("         Undefined behavior will result.\n");
-  }
-  if (schedulerSetPortShell(&schedulerState,
-    1, GPIO_SERIAL_PORT_SHELL_PID) != processSuccess
-  ) {
-    printString("WARNING: Could not set shell for GPIO serial port.\n");
-    printString("         Undefined behavior will result.\n");
+  for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
+    if (schedulerSetPortShell(&schedulerState,
+      ii, FIRST_SHELL_PID + ii) != processSuccess
+    ) {
+      printString("WARNING: Could not set shell for ");
+      printString(shellNames[ii]);
+      printString(".\n");
+      printString("         Undefined behavior will result.\n");
+    }
   }
   printDebugString("Set shells for ports.\n");
 
