@@ -836,12 +836,12 @@ int readSerialByte(ConsolePort *consolePort) {
   if (serialData > -1) {
     ConsoleBuffer *consoleBuffer = consolePort->consoleBuffer;
     char *buffer = consoleBuffer->buffer;
-    if (((serialData > 31) && (serialData < 127))
-      || (serialData == (int) '\r') || (serialData == (int) '\n')
+    if (((serialData >= ASCII_SPACE) && (serialData < ASCII_DELETE))
+      || (serialData == ASCII_RETURN) || (serialData == ASCII_NEWLINE)
     ) {
       // Data is a printable ASCII character.
       if (consolePort->echo == true) {
-        if ((serialData != (int) '\r') && (serialData != (int) '\n')) {
+        if ((serialData != ASCII_RETURN) && (serialData != ASCII_NEWLINE)) {
           char serialChar = (char) serialData;
           HAL->writeSerialPort((int) consolePort->portId,
             (uint8_t*) &serialChar, 1);
@@ -854,13 +854,15 @@ int readSerialByte(ConsolePort *consolePort) {
         buffer[consolePort->consoleBufferIndex] = (char) serialData;
         consolePort->consoleBufferIndex++;
       }
-    } else if ((serialData == 8) || (serialData == 127)) {
+    } else if ((serialData == ASCII_BACKSPACE)
+      || (serialData == ASCII_DELETE)
+    ) {
       // Data is a backspace or delete ASCII control character.  Treat them
       // both like a backspace.
       if (consolePort->consoleBufferIndex > 0) {
         if (consolePort->echo == true) {
-          uint8_t backspace = 8;
-          uint8_t space = 32;
+          uint8_t backspace = ASCII_BACKSPACE;
+          uint8_t space = ASCII_SPACE;
           HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
           HAL->writeSerialPort((int) consolePort->portId, &space, 1);
           HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
@@ -868,6 +870,21 @@ int readSerialByte(ConsolePort *consolePort) {
         
         consolePort->consoleBufferIndex--;
       }
+    } else if (serialData == ASCII_ESCAPE) {
+      // Data is the beginning of an escape sequence.  We need to fill the
+      // buffer with the full sequence.
+      do {
+        if (consolePort->consoleBufferIndex < (CONSOLE_BUFFER_SIZE - 1)) {
+          buffer[consolePort->consoleBufferIndex] = (char) serialData;
+          consolePort->consoleBufferIndex++;
+        }
+        serialData = HAL->pollSerialPort((int) consolePort->portId);
+      } while (serialData > -1);
+      
+      // In this case, we need to return ASCII_ESCAPE so that the main loop
+      // knows to forward this to the waiting process.  Handling escape
+      // sequences is process specific.
+      serialData = ASCII_ESCAPE;
     } else {
       printDebugString("Received unhandled character ");
       printDebugInt(serialData);
@@ -963,7 +980,9 @@ void* runConsole(void *args) {
     for (uint8_t ii = 0; ii < consoleState.numConsolePorts; ii++) {
       ConsolePort *consolePort = &consoleState.consolePorts[ii];
       byteRead = consolePort->readByte(consolePort);
-      if ((byteRead == ((int) '\n')) || (byteRead == ((int) '\r'))) {
+      if ((byteRead == ASCII_NEWLINE) || (byteRead == ASCII_RETURN)
+        || (byteRead == ASCII_ESCAPE)
+      ) {
         if ((consolePort->inputOwner != PROCESS_ID_NOT_SET)
           && (consolePort->waitingForInput == true)
         ) {
