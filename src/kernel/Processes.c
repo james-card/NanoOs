@@ -30,7 +30,6 @@
 
 // Custom includes
 #include "Console.h"
-#include "MemoryManager.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
 #include "Processes.h"
