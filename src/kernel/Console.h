@@ -43,13 +43,6 @@ extern "C"
 {
 #endif
 
-/// @def LED_CYCLE_TIME_MS
-///
-/// @brief The amount of time, in milliseconds of a full cycle of the LED.  The
-/// console process is also responsible for blinking the LED so that the user
-/// has external confirmation that the system is still running.
-#define LED_CYCLE_TIME_MS 2000
-
 /// @def USB_SERIAL_PORT
 ///
 /// Index into ConsoleState.conslePorts for the USB serial port.
