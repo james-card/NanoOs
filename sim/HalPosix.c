@@ -45,8 +45,7 @@
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
 /// which is the USB serial port.
-static FILE **serialPorts[2] = {
-  &stdout,
+static FILE **serialPorts[] = {
   &stderr,
 };
 
