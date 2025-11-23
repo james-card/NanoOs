@@ -857,15 +857,15 @@ int readSerialByte(ConsolePort *consolePort) {
     } else if ((serialData == 8) || (serialData == 127)) {
       // Data is a backspace or delete ASCII control character.  Treat them
       // both like a backspace.
-      if (consolePort->echo == true) {
-        uint8_t backspace = 8;
-        uint8_t space = 32;
-        HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
-        HAL->writeSerialPort((int) consolePort->portId, &space, 1);
-        HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
-      }
-      
       if (consolePort->consoleBufferIndex > 0) {
+        if (consolePort->echo == true) {
+          uint8_t backspace = 8;
+          uint8_t space = 32;
+          HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
+          HAL->writeSerialPort((int) consolePort->portId, &space, 1);
+          HAL->writeSerialPort((int) consolePort->portId, &backspace, 1);
+        }
+        
         consolePort->consoleBufferIndex--;
       }
     } else {
