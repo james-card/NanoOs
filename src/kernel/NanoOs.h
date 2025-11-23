@@ -100,6 +100,16 @@ extern "C"
 /// after the last system process ID.
 #define NANO_OS_FIRST_USER_PROCESS_ID                     5
 
+/// @def NANO_OS_FIRST_SHELL_PID
+///
+/// @brief The process ID of the first shell on the system.
+#define NANO_OS_FIRST_SHELL_PID                           5
+
+/// @def NANO_OS_MAX_NUM_SHELLS
+///
+/// @brief The maximum number of shell processes the system can run.
+#define NANO_OS_MAX_NUM_SHELLS                            2
+
 /// @def NANO_OS_VERSION
 ///
 /// @brief The version string for NanoOs

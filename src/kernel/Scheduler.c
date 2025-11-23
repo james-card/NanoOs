@@ -48,16 +48,6 @@
 // Support prototypes.
 void runScheduler(SchedulerState *schedulerState);
 
-/// @def FIRST_SHELL_PID
-///
-/// @brief The process ID of the first shell on the system.
-#define FIRST_SHELL_PID 5
-
-/// @def MAX_NUM_SHELLS
-///
-/// @brief The maximum number of shell processes the system can run.
-#define MAX_NUM_SHELLS 2
-
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
 /// @brief The number of file descriptors a process usually starts out with.
@@ -192,7 +182,7 @@ static const FileDescriptor standardUserFileDescriptors[
 /// @var shellNames
 ///
 /// @brief The names of the shells as they will appear in the process table.
-static const char* const shellNames[MAX_NUM_SHELLS] = {
+static const char* const shellNames[NANO_OS_MAX_NUM_SHELLS] = {
   "shell 0",
   "shell 1",
 };
@@ -2104,7 +2094,7 @@ int schedulerKillProcessCommandHandler(
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
-        if (processId > (FIRST_SHELL_PID + schedulerState->numShells)) {
+        if (processId > (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells)) {
           // The expected case.
           processQueuePush(&schedulerState->free, processDescriptor);
         } else {
@@ -2727,9 +2717,9 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 
   // Check the shells and restart them if needed.
-  if ((processDescriptor->processId >= FIRST_SHELL_PID)
+  if ((processDescriptor->processId >= NANO_OS_FIRST_SHELL_PID)
     && (processDescriptor->processId
-      < (FIRST_SHELL_PID + schedulerState->numShells))
+      < (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells))
     && (processRunning(processDescriptor->processHandle) == false)
   ) {
     if ((schedulerState->hostname == NULL)
@@ -2747,7 +2737,7 @@ void runScheduler(SchedulerState *schedulerState) {
     allProcesses[processDescriptor->processId].fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
     processDescriptor->name
-      = shellNames[processDescriptor->processId - FIRST_SHELL_PID];
+      = shellNames[processDescriptor->processId - NANO_OS_FIRST_SHELL_PID];
     if (processCreate(&processDescriptor->processHandle,
         runShell, schedulerState->hostname
       ) == processError
@@ -2880,7 +2870,8 @@ __attribute__((noinline)) void startScheduler(
   // Irrespective of how many ports the console may be running, we can't run
   // more shell processes than what we're configured for.  Make sure we set a
   // sensible limit.
-  schedulerState.numShells = MIN(schedulerState.numShells, MAX_NUM_SHELLS);
+  schedulerState.numShells
+    = MIN(schedulerState.numShells, NANO_OS_MAX_NUM_SHELLS);
   printDebugString("Managing ");
   printDebugInt(schedulerState.numShells);
   printDebugString(" shells\n");
@@ -2998,7 +2989,7 @@ __attribute__((noinline)) void startScheduler(
   // Set the shells for the ports.
   for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
     if (schedulerSetPortShell(&schedulerState,
-      ii, FIRST_SHELL_PID + ii) != processSuccess
+      ii, NANO_OS_FIRST_SHELL_PID + ii) != processSuccess
     ) {
       printString("WARNING: Could not set shell for ");
       printString(shellNames[ii]);
