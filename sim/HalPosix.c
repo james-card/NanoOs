@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "HalPosix.h"
 
@@ -204,12 +205,20 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
 ///
 /// @brief This is the base address that we will use in our mmap call.  The
 /// address has to be page aligned on Linux.  The address below should work
-/// fine unless the host system is using 1 GB pages.
+/// fine unless the host is using 1 GB pages.
 #define OVERLAY_BASE_ADDRESS 0x20000000
 
-#define OVERLAY_SIZE               8192
+/// @def OVERLAY_OFFSET
+///
+/// @brief This is the offset into the allocated and mapped memory that the
+/// overlays will actually be loaded into.
+#define OVERLAY_OFFSET           0x1800
 
-#define OVERLAY_OFFSET             6144
+/// @def OVERLAY_SIZE
+///
+/// @brief This is the size of the overlay that's permitted by the real
+/// hardware.
+#define OVERLAY_SIZE               8192
 
 /// @var posixHal
 ///
@@ -255,8 +264,17 @@ const Hal* halPosixInit(void) {
     = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
   fprintf(stderr, "Bottom of stack     = %p\n", (void*) posixHal.bottomOfStack);
   
+  // The size used in the mmap call has to be large enough to accommodate the
+  // size used for the overlay, plus the offset into the overlay.  It also has
+  // to be page aligned.  Do the appropriate math to get us what we need
+  // without wasting too much space.
+  long pageSize = sysconf(_SC_PAGESIZE);
+  size_t overlayBaseSize
+    = ((size_t) (OVERLAY_OFFSET + OVERLAY_SIZE + (pageSize - 1)))
+    & ~((size_t) (pageSize - 1));
+  
   posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_BASE_ADDRESS,
-    OVERLAY_SIZE << 2, PROT_READ | PROT_WRITE | PROT_EXEC,
+    overlayBaseSize, PROT_READ | PROT_WRITE | PROT_EXEC,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
     -1, 0);
   if (posixHal.overlayMap == MAP_FAILED) {
