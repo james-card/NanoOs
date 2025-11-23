@@ -39,6 +39,10 @@ const Hal *HAL = NULL;
 // coroutines needs to be done in the loop function.
 void setup() {
   HAL = halArduinoNano33IotInit();
+  if (HAL == NULL) {
+    // Nothing we can do.  Halt.
+    while(1);
+  }
 
   int numSerialPorts = HAL->getNumSerialPorts();
   if (numSerialPorts < 0) {
