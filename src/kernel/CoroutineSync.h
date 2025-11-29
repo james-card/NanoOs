@@ -47,7 +47,7 @@ extern "C"
 #endif
 
 // Forward declarations
-typedef struct Coroutine Coroutine;
+typedef struct Coroutine Coroutine, coro_s, *coro_t;
 
 // Mutex support.
 
@@ -78,7 +78,7 @@ typedef struct Comutex {
   int recursionLevel;
   Coroutine *head;
   int64_t timeoutTime;
-} Comutex;
+} Comutex, coro_mtx_t;
 
 int comutexInit(Comutex *mtx, int type);
 int comutexLock(Comutex *mtx);
@@ -113,7 +113,7 @@ typedef struct Cocondition {
   Coroutine *head;
   Coroutine *tail;
   int64_t timeoutTime;
-} Cocondition;
+} Cocondition, coro_cnd_t;
 
 int coconditionBroadcast(Cocondition *cond);
 void coconditionDestroy(Cocondition *cond);

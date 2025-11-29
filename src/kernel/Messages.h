@@ -108,7 +108,7 @@ typedef union msg_mtx_t {
 #ifdef THREAD_SAFE_COROUTINES
   mtx_t thrd_mtx;
 #endif // THREAD_SAFE_COROUTINES
-  Comutex coro_mtx;
+  coro_mtx_t coro_mtx;
 } msg_mtx_t;
 
 /// @union msg_cnd_t
@@ -118,7 +118,7 @@ typedef union msg_cnd_t {
 #ifdef THREAD_SAFE_COROUTINES
   cnd_t thrd_cnd;
 #endif // THREAD_SAFE_COROUTINES
-  Cocondition coro_cnd;
+  coro_cnd_t coro_cnd;
 } msg_cnd_t;
 
 /// @union msg_endpoint_t
@@ -129,7 +129,7 @@ typedef union msg_endpoint_t {
 #ifdef THREAD_SAFE_COROUTINES
   thrd_t thrd;
 #endif // THREAD_SAFE_COROUTINES
-  Coroutine *coro;
+  coro_t coro;
 } msg_endpoint_t;
 
 /// @struct msg_t

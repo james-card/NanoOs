@@ -58,7 +58,7 @@ extern "C"
 #endif
 
 // Forward declarations.  Doxygen below.
-typedef struct Coroutine Coroutine;
+typedef struct Coroutine Coroutine, coro_s, *coro_t;
 typedef struct msg_t msg_t;
 
 #include "Messages.h"
@@ -266,7 +266,7 @@ typedef struct Coroutine {
   Comutex *blockingComutex;
   Cocondition *blockingCocondition;
   uint32_t guard2;
-} Coroutine;
+} Coroutine, coro_s, *coro_t;
 
 // Coroutine message support.
 
