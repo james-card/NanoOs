@@ -471,6 +471,74 @@ Coroutine* coroutineTssPop(tss_t* list) {
 
 #endif // THREAD_SAFE_COROUTINES
 
+/// @def coroutinePushRunning
+///
+/// @brief Push a coroutine onto the appropriate running stack.
+#ifdef THREAD_SAFE_COROUTINES
+
+#define coroutinePushRunning(coroutine) \
+  ((_coroutineThreadingSupportEnabled) \
+  ? coroutineTssPush(&_tssRunning, coroutine) \
+  : coroutineGlobalPush(&_globalRunning, coroutine))
+
+#else
+
+#define coroutinePushRunning(coroutine) \
+  coroutineGlobalPush(&_globalRunning, coroutine)
+
+#endif // THREAD_SAFE_COROUTINES coroutinePushRunning
+
+/// @def coroutinePushIdle
+///
+/// @brief Push a coroutine onto the appropriate idle stack.
+#ifdef THREAD_SAFE_COROUTINES
+
+#define coroutinePushIdle(coroutine) \
+  ((_coroutineThreadingSupportEnabled) \
+  ? coroutineTssPush(&_tssIdle, coroutine) \
+  : coroutineGlobalPush(&_globalIdle, coroutine))
+
+#else
+
+#define coroutinePushIdle(coroutine) \
+  coroutineGlobalPush(&_globalIdle, coroutine)
+
+#endif // THREAD_SAFE_COROUTINES coroutinePushIdle
+
+/// @def coroutinePopRunning
+///
+/// @brief Pop a coroutine from the appropriate running stack.
+#ifdef THREAD_SAFE_COROUTINES
+
+#define coroutinePopRunning() \
+  ((_coroutineThreadingSupportEnabled) \
+  ? coroutineTssPop(&_tssRunning) \
+  : coroutineGlobalPop(&_globalRunning))
+
+#else
+
+#define coroutinePopRunning() \
+  coroutineGlobalPop(&_globalRunning);
+
+#endif // THREAD_SAFE_COROUTINES coroutinePopRunning
+
+/// @def coroutinePopIdle
+///
+/// @brief Pop a coroutine from the appropriate idle stack.
+#ifdef THREAD_SAFE_COROUTINES
+
+#define coroutinePopIdle() \
+  ((_coroutineThreadingSupportEnabled) \
+  ? coroutineTssPop(&_tssIdle) \
+  : coroutineGlobalPop(&_globalIdle))
+
+#else
+
+#define coroutinePopIdle() \
+  coroutineGlobalPop(&_globalIdle);
+
+#endif // THREAD_SAFE_COROUTINES coroutinePopIdle
+
 /// @fn Coroutine* getRunningCoroutine(void)
 ///
 /// @brief Get a pointer to the Coroutine that is currently running (the one
@@ -574,15 +642,7 @@ void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
       return NULL;
     }
 
-#ifdef THREAD_SAFE_COROUTINES
-    if (!_coroutineThreadingSupportEnabled) {
-      coroutineGlobalPush(&_globalRunning, targetCoroutine);
-    } else {
-      coroutineTssPush(&_tssRunning, targetCoroutine);
-    }
-#else
-    coroutineGlobalPush(&_globalRunning, targetCoroutine);
-#endif
+    coroutinePushRunning(targetCoroutine);
     // The target coroutine is now at the head of the running list as is
     // expected by coroutinePass().
     CoroutineFuncData funcData;
@@ -626,17 +686,7 @@ void* coroutineYield(void *arg) {
     return NULL;
   }
 
-  Coroutine *currentCoroutine = NULL;
-#ifdef THREAD_SAFE_COROUTINES
-  if (!_coroutineThreadingSupportEnabled) {
-    currentCoroutine = coroutineGlobalPop(&_globalRunning);
-  } else {
-    currentCoroutine = coroutineTssPop(&_tssRunning);
-  }
-#else
-  currentCoroutine = coroutineGlobalPop(&_globalRunning);
-#endif
-
+  Coroutine *currentCoroutine = coroutinePopRunning();
   currentCoroutine->state = COROUTINE_STATE_BLOCKED;
   CoroutineFuncData funcData;
   funcData.data = arg;
@@ -717,15 +767,7 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
   if (userCoroutine == NULL) {
     // This is the expected case.  The head of the idle list has the Coroutine
     // allocated in coroutineMain.
-#ifdef THREAD_SAFE_COROUTINES
-    if (!_coroutineThreadingSupportEnabled) {
-      configuredCoroutine = coroutineGlobalPop(&_globalIdle);
-    } else {
-      configuredCoroutine = coroutineTssPop(&_tssIdle);
-    }
-#else
-    configuredCoroutine = coroutineGlobalPop(&_globalIdle);
-#endif
+    configuredCoroutine = coroutinePopIdle();
   } else {
     // Use what the user provided.  By definition, idle must be non-NULL in
     // this case.  We need to remove the user's coroutine from the idle list.
@@ -742,31 +784,15 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
         }
       }
     } else {
-      // Just pop the appropriate idle list.
+      // Just pop the idle stack.
       found = true;
-#ifdef THREAD_SAFE_COROUTINES
-      if (!_coroutineThreadingSupportEnabled) {
-        coroutineGlobalPop(&_globalIdle);
-      } else {
-        coroutineTssPop(&_tssIdle);
-      }
-#else
-      coroutineGlobalPop(&_globalIdle);
-#endif
+      coroutinePopIdle();
     }
 
     configuredCoroutine = userCoroutine;
     if (found == false) {
       // The user has provided an uninitialized coroutine.  Pop one from idle.
-#ifdef THREAD_SAFE_COROUTINES
-      if (!_coroutineThreadingSupportEnabled) {
-        configuredCoroutine = coroutineGlobalPop(&_globalIdle);
-      } else {
-        configuredCoroutine = coroutineTssPop(&_tssIdle);
-      }
-#else
-      configuredCoroutine = coroutineGlobalPop(&_globalIdle);
-#endif
+      configuredCoroutine = coroutinePopIdle();
     }
   }
 
@@ -782,15 +808,7 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
   // since that's done above and we know that coroutine is resumable, so we
   // can skip that check.
   Coroutine *currentCoroutine = getRunningCoroutine();
-#ifdef THREAD_SAFE_COROUTINES
-  if (!_coroutineThreadingSupportEnabled) {
-    coroutineGlobalPush(&_globalRunning, configuredCoroutine);
-  } else {
-    coroutineTssPush(&_tssRunning, configuredCoroutine);
-  }
-#else
-  coroutineGlobalPush(&_globalRunning, configuredCoroutine);
-#endif
+  coroutinePushRunning(configuredCoroutine);
   // The target coroutine is now at the head of the running list as is
   // expected by coroutinePass().  funcData contains the coroutine that was
   // passed to this function.
@@ -879,15 +897,7 @@ void coroutineMain(void *stack) {
   me.id = COROUTINE_ID_NOT_SET;
   me.guard1 = COROUTINE_GUARD_VALUE;
   me.guard2 = COROUTINE_GUARD_VALUE;
-#ifdef THREAD_SAFE_COROUTINES
-  if (!_coroutineThreadingSupportEnabled) {
-    coroutineGlobalPush(&_globalIdle, &me);
-  } else {
-    coroutineTssPush(&_tssIdle, &me);
-  }
-#else
-  coroutineGlobalPush(&_globalIdle, &me);
-#endif
+  coroutinePushIdle(&me);
 
   // Initialize the message queue.
   comessageQueueCreate(&me);
@@ -956,26 +966,9 @@ void coroutineMain(void *stack) {
 
     // Deallocate the currently running coroutine and make it available to the
     // next iteration of the constructor.
-#ifdef THREAD_SAFE_COROUTINES
-    Coroutine *currentCoroutine = NULL;
-    if (!_coroutineThreadingSupportEnabled) {
-      currentCoroutine = coroutineGlobalPop(&_globalRunning);
-    } else {
-      currentCoroutine = coroutineTssPop(&_tssRunning);
-    }
-#else
-    Coroutine* currentCoroutine = coroutineGlobalPop(&_globalRunning);
-#endif
+    Coroutine *currentCoroutine = coroutinePopRunning();
     currentCoroutine->state = COROUTINE_STATE_NOT_RUNNING;
-#ifdef THREAD_SAFE_COROUTINES
-    if (!_coroutineThreadingSupportEnabled) {
-      coroutineGlobalPush(&_globalIdle, currentCoroutine);
-    } else {
-      coroutineTssPush(&_tssIdle, currentCoroutine);
-    }
-#else
-    coroutineGlobalPush(&_globalIdle, currentCoroutine);
-#endif
+    coroutinePushIdle(currentCoroutine);
 
     // Destroy any messages that were sent.
     comessageQueueDestroy(&me);
@@ -1148,15 +1141,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
         prev->nextInList = targetCoroutine->nextInList;
       } else {
         // The target coroutine is the top of the running stack.
-#ifdef THREAD_SAFE_COROUTINES
-        if (!_coroutineThreadingSupportEnabled) {
-          coroutineGlobalPop(&_globalRunning);
-        } else {
-          coroutineTssPop(&_tssRunning);
-        }
-#else
-        coroutineGlobalPop(&_globalRunning);
-#endif
+        coroutinePopRunning();
       }
       break;
     }
@@ -1166,16 +1151,9 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   // Halt the coroutine.
   targetCoroutine->id = COROUTINE_ID_NOT_SET;
   targetCoroutine->state = COROUTINE_STATE_NOT_RUNNING;
-  memcpy(&targetCoroutine->context, &targetCoroutine->resetContext, sizeof(jmp_buf));
-#ifdef THREAD_SAFE_COROUTINES
-  if (!_coroutineThreadingSupportEnabled) {
-    coroutineGlobalPush(&_globalIdle, targetCoroutine);
-  } else {
-    coroutineTssPush(&_tssIdle, targetCoroutine);
-  }
-#else
-  coroutineGlobalPush(&_globalIdle, targetCoroutine);
-#endif
+  memcpy(&targetCoroutine->context,
+    &targetCoroutine->resetContext, sizeof(jmp_buf));
+  coroutinePushIdle(targetCoroutine);
 
   // Unlock any mutexes the coroutine had locked.
   if (mutexes != NULL) {
