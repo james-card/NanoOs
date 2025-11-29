@@ -128,12 +128,14 @@ int main(int argc, char **argv) {
   // scheduler.
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
-  if (coroutineConfig(
-    &_mainCoroutine,
-    NANO_OS_STACK_SIZE,
-    &coroutineStatePointer,
-    comutexUnlockCallback,
-    coconditionSignalCallback) != coroutineSuccess
+  CoroutineConfigOptions coroutineConfigOptions = {
+    .stackSize = NANO_OS_STACK_SIZE,
+    .stateData = &coroutineStatePointer,
+    .comutexUnlockCallback = comutexUnlockCallback,
+    .coconditionSignalCallback = coconditionSignalCallback,
+  };
+  if (coroutineConfig(&_mainCoroutine, &coroutineConfigOptions)
+    != coroutineSuccess
   ) {
     fputs("coroutineConfig failed.\n", stderr);
     return 1;

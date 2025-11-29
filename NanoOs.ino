@@ -98,12 +98,14 @@ void loop() {
   // scheduler.
   Coroutine _mainCoroutine;
   schedulerProcess = &_mainCoroutine;
-  if (coroutineConfig(
-    &_mainCoroutine,
-    NANO_OS_STACK_SIZE,
-    &coroutineStatePointer,
-    comutexUnlockCallback,
-    coconditionSignalCallback) != coroutineSuccess
+  CoroutineConfigOptions coroutineConfigOptions = {
+    .stackSize = NANO_OS_STACK_SIZE,
+    .stateData = &coroutineStatePointer,
+    .comutexUnlockCallback = comutexUnlockCallback,
+    .coconditionSignalCallback = coconditionSignalCallback,
+  };
+  if (coroutineConfig(&_mainCoroutine, &coroutineConfigOptions)
+    != coroutineSuccess
   ) {
     printString("coroutineConfig failed.\n");
     while(1);

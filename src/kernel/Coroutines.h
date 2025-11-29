@@ -268,7 +268,25 @@ typedef struct Coroutine {
   uint32_t guard2;
 } Coroutine, coro_s, *coro_t;
 
-// Coroutine message support.
+/// @struct CoroutineConfigOptions
+///
+/// @brief Configuration options for coroutineConfig().
+///
+/// @param stackSize The desired minimum size, in bytes, of each coroutine's
+///   stack.  Actual size will be slightly larger than this.  If this value is
+///   < COROUTINE_STACK_CHUNK_SIZE, COROUTINE_DEFAULT_STACK_SIZE will be used.
+/// @param stateData A pointer to arbitrary state data that will be passed to
+///   the callbacks.  This parameter is optional and may be NULL.
+/// @param comutexUnlockCallback A function to call when a comutex is unlocked.
+///   This parameter is optional and may be NULL.
+/// @param coconditionSignalCallback A function to call when a cocondition is
+///   signalled.  This parameter is optional and may be NULL.
+typedef struct CoroutineConfigOptions {
+  int stackSize;
+  void *stateData;
+  ComutexUnlockCallback comutexUnlockCallback;
+  CoconditionSignalCallback coconditionSignalCallback;
+} CoroutineConfigOptions;
 
 // Support functions
 int64_t coroutineGetNanoseconds(const struct timespec *ts);
@@ -316,10 +334,7 @@ int64_t coroutineGetNanoseconds(const struct timespec *ts);
   coroutineId(getRunningCoroutine())
 
 // Coroutine function prototypes.  Doxygen inline in source file.
-int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
-  ComutexUnlockCallback comutexUnlockCallback,
-  CoconditionSignalCallback coconditionSignalCallback
-);
+int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options);
 Coroutine* coroutineInit(Coroutine *userCoroutine,
   CoroutineFunction func, void *arg);
 int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg);

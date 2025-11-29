@@ -1307,34 +1307,29 @@ bool coroutineThreadingSupportEnabled() {
 
 #endif // THREAD_SAFE_COROUTINES
 
-/// @fn int coroutineConfig(Coroutine *first, int stackSize, void *stateData, ComutexUnlockCallback comutexUnlockCallback, CoconditionSignalCallback coconditionSignalCallback)
+/// @fn int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options)
 ///
 /// @brief Configure the global or thread-specific defaults for all coroutines
 /// allocated by the current thread.
 ///
-/// @param first A pointer to the root Coroutine to use.
-/// @param stackSize The desired minimum size of a coroutine's stack, in bytes.
-///   If this value is less than COROUTINE_STACK_CHUNK_SIZE,
-///   COROUTINE_DEFAULT_STACK_SIZE will be used.
-/// @param stateData Any state data that should be provided to the callbacks.
-///   This parameter may be NULL.
-/// @param comutexUnlockCallback The callback that is to be used whenever a
-///   comutex is unlocked.  This parameter may be NULL.
-/// @param coconditionSignalCallback The callback that is to be used whenever
-///   a cocondition is signalled.  This parameter may be NULL.
+/// @param first A pointer to the root Coroutine to use.  This parameter is
+///   mandatory.
+/// @param options A pointer to a CoroutineConfigOptions structure that provides
+///   optional settings for coroutines.  This parameter is optional and may be
+///   NULL.  See the Doxygen for the structure in Coroutines.h for more details.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on error.
-int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
-  ComutexUnlockCallback comutexUnlockCallback,
-  CoconditionSignalCallback coconditionSignalCallback
-) {
+int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
   if (first == NULL) {
     fprintf(stderr, "NULL first provided to coroutineConfig.\n");
     return coroutineError;
   }
   
-  if (stackSize < COROUTINE_STACK_CHUNK_SIZE) {
-    stackSize = COROUTINE_DEFAULT_STACK_SIZE;
+  int stackSize = COROUTINE_DEFAULT_STACK_SIZE;
+  if ((options != NULL)
+    && (options->stackSize > COROUTINE_STACK_CHUNK_SIZE)
+  ) {
+    stackSize = options->stackSize;
   }
 
   Coroutine* idle = _globalIdle;
@@ -1379,22 +1374,29 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
         return coroutineError;
     }
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
-    tss_set(_tssStateData, stateData);
-    if (comutexUnlockCallback != NULL) {
-      ComutexUnlockCallback *comutexUnlockCallbackPointer
-        = (ComutexUnlockCallback*) malloc(sizeof(ComutexUnlockCallback));
-      *comutexUnlockCallbackPointer = comutexUnlockCallback;
-      tss_set(_tssComutexUnlockCallback, comutexUnlockCallbackPointer);
+    if (options != NULL) {
+      tss_set(_tssStateData, options->stateData);
+      if (options->comutexUnlockCallback != NULL) {
+        ComutexUnlockCallback *comutexUnlockCallbackPointer
+          = (ComutexUnlockCallback*) malloc(sizeof(ComutexUnlockCallback));
+        *comutexUnlockCallbackPointer = options->comutexUnlockCallback;
+        tss_set(_tssComutexUnlockCallback, comutexUnlockCallbackPointer);
+      } else {
+        tss_set(_tssComutexUnlockCallback, NULL);
+      }
+      if (options->coconditionSignalCallback != NULL) {
+        CoconditionSignalCallback *coconditionSignalCallbackPointer
+          = (CoconditionSignalCallback*)
+            malloc(sizeof(CoconditionSignalCallback));
+        *coconditionSignalCallbackPointer = options->coconditionSignalCallback;
+        tss_set(_tssCoconditionSignalCallback,
+          coconditionSignalCallbackPointer);
+      } else {
+        tss_set(_tssCoconditionSignalCallback, NULL);
+      }
     } else {
+      tss_set(_tssStateData, NULL);
       tss_set(_tssComutexUnlockCallback, NULL);
-    }
-    if (coconditionSignalCallback != NULL) {
-      CoconditionSignalCallback *coconditionSignalCallbackPointer
-        = (CoconditionSignalCallback*)
-          malloc(sizeof(CoconditionSignalCallback));
-      *coconditionSignalCallbackPointer = coconditionSignalCallback;
-      tss_set(_tssCoconditionSignalCallback, coconditionSignalCallbackPointer);
-    } else {
       tss_set(_tssCoconditionSignalCallback, NULL);
     }
   }
@@ -1423,14 +1425,16 @@ int coroutineConfig(Coroutine *first, int stackSize, void *stateData,
   if (_globalStackSize == COROUTINE_DEFAULT_STACK_SIZE) {
     _globalStackSize = stackSize;
   }
-  if (_globalStateData == NULL) {
-    _globalStateData = stateData;
-  }
-  if (_globalComutexUnlockCallback == NULL) {
-    _globalComutexUnlockCallback = comutexUnlockCallback;
-  }
-  if (_globalCoconditionSignalCallback == NULL) {
-    _globalCoconditionSignalCallback = coconditionSignalCallback;
+  if (options != NULL) {
+    if (_globalStateData == NULL) {
+      _globalStateData = options->stateData;
+    }
+    if (_globalComutexUnlockCallback == NULL) {
+      _globalComutexUnlockCallback = options->comutexUnlockCallback;
+    }
+    if (_globalCoconditionSignalCallback == NULL) {
+      _globalCoconditionSignalCallback = options->coconditionSignalCallback;
+    }
   }
 
   return coroutineSuccess;
