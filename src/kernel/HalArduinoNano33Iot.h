@@ -41,15 +41,17 @@ extern "C"
 {
 #endif
 
-/// @def UART_RX_DIO
+/// @def DIO_START
 ///
-/// @brief DIO pin used for UART RX on the Arduino Nano 33 IoT.
-#define UART_RX_DIO 0
+/// @brief On the Arduino Nano 33 IoT, D0 is used for Serial1's RX and D1 is
+/// used for Serial1's TX.  We use expect to use Serial1, so our first usable
+/// DIO is 2.
+#define DIO_START 2
 
-/// @def UART_TX_DIO
+/// @def NUM_DIO_PINS
 ///
-/// @brief DIO pin used for UART TX on the Arduino Nano 33 IoT.
-#define UART_TX_DIO 1
+/// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
+#define NUM_DIO_PINS 14
 
 /// @def SPI_COPI_DIO
 ///

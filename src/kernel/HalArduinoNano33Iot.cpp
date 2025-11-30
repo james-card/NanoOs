@@ -56,18 +56,6 @@
 #define realloc MEMORY_ERROR
 #define freee   MEMORY_ERROR
 
-/// @def DIO_START
-///
-/// @brief On the Arduino Nano 33 IoT, D0 is used for Serial1's RX and D1 is
-/// used for Serial1's TX.  We use expect to use Serial1, so our first usable
-/// DIO is 2.
-#define DIO_START 2
-
-/// @def NUM_DIO_PINS
-///
-/// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
-#define NUM_DIO_PINS 14
-
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
@@ -193,12 +181,10 @@ int arduinoNano33IotInitSpiDevice(int spi,
     // No such DIO pin to configure.
     return -ERANGE;
   } else if (
-    (cs == SPI_SCK_DIO)
-    || (cs == SPI_COPI_DIO)
-    || (cs == SPI_CIPO_DIO)
-    || (cs == UART_RX_DIO)
-    || (cs == UART_TX_DIO)
-    || (sck != SPI_SCK_DIO)
+       (cs   == SPI_SCK_DIO)
+    || (cs   == SPI_COPI_DIO)
+    || (cs   == SPI_CIPO_DIO)
+    || (sck  != SPI_SCK_DIO)
     || (copi != SPI_COPI_DIO)
     || (cipo != SPI_CIPO_DIO)
   ) {
