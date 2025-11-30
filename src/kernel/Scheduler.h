@@ -85,10 +85,13 @@ const char* schedulerGetHostname(void);
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]);
 
-// Coroutine setup functions used in NanoOs.ino
+// Coroutine setup functions used in the loader.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
 void comutexUnlockCallback(void *stateData, Comutex *comutex);
 void* dummyProcess(void *args);
+
+// ProcessHandle that will be used to represent the scheduler.
+extern ProcessHandle schedulerProcess;
 
 #ifdef __cplusplus
 } // extern "C"
