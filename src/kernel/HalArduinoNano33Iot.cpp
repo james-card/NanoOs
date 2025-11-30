@@ -56,10 +56,17 @@
 #define realloc MEMORY_ERROR
 #define freee   MEMORY_ERROR
 
-/// @def NUM_DIGITAL_IO_PINS
+/// @def DIO_START
+///
+/// @brief On the Arduino Nano 33 IoT, D0 is used for Serial1's RX and D1 is
+/// used for Serial1's TX.  We use expect to use Serial1, so our first usable
+/// DIO is 2.
+#define DIO_START 2
+
+/// @def NUM_DIO_PINS
 ///
 /// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
-#define NUM_DIGITAL_IO_PINS 14
+#define NUM_DIO_PINS 14
 
 /// @var serialPorts
 ///
@@ -115,13 +122,13 @@ ssize_t arduinoNano33IotWriteSerialPort(int port,
 }
 
 int arduinoNano33IotGetNumDios(void) {
-  return NUM_DIGITAL_IO_PINS;
+  return NUM_DIO_PINS;
 }
 
 int arduinoNano33IotConfigureDio(int dio, bool output) {
   int returnValue = -ERANGE;
   
-  if ((dio > 0) && (dio < NUM_DIGITAL_IO_PINS)) {
+  if ((dio >= DIO_START) && (dio < NUM_DIO_PINS)) {
     uint8_t modes[2] = { INPUT, OUTPUT };
     pinMode(dio, modes[output]);
     
@@ -134,7 +141,7 @@ int arduinoNano33IotConfigureDio(int dio, bool output) {
 int arduinoNano33IotWriteDio(int dio, bool high) {
   int returnValue = -ERANGE;
   
-  if ((dio > 0) && (dio < NUM_DIGITAL_IO_PINS)) {
+  if ((dio >= DIO_START) && (dio < NUM_DIO_PINS)) {
     uint8_t levels[2] = { LOW, HIGH };
     digitalWrite(dio, levels[high]);
     
@@ -168,7 +175,7 @@ static struct ArduinoNano33IotSpi {
   bool    configured;         // Will default to false
   uint8_t chipSelect;
   bool    transferInProgress; // Will default to false
-} arduinoSpiDevices[NUM_DIGITAL_IO_PINS - 5] = {};
+} arduinoSpiDevices[NUM_DIO_PINS - 5] = {};
 
 /// @var numArduinoSpis
 ///
@@ -182,7 +189,7 @@ int arduinoNano33IotInitSpiDevice(int spi,
   if ((spi < 0) || (spi >= numArduinoSpis)) {
     // Outside the limit of the devices we support.
     return -ENODEV;
-  } else if (cs > NUM_DIGITAL_IO_PINS) {
+  } else if ((cs < DIO_START) || (cs >= NUM_DIO_PINS)) {
     // No such DIO pin to configure.
     return -ERANGE;
   } else if (
