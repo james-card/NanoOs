@@ -390,6 +390,7 @@ int msg_wait_for_done(msg_t *msg, const struct timespec *ts) {
   int wait_status = msg_error;
   if (msg->done == true) {
     return_value = msg_success;
+    msg->waiting = false;
   } else {
     if (ts == NULL) {
       lock_status = msg->msg_sync->mtx_lock(&msg->lock);
