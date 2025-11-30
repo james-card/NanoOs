@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   }
 
   int numSerialPorts = HAL->getNumSerialPorts();
-  if (numSerialPorts < 0) {
+  if (numSerialPorts <= 0) {
     // Nothing we can do.  Bail.
     return 1;
   }
