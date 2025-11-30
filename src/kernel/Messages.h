@@ -162,7 +162,7 @@ typedef union msg_endpoint_t {
 ///   primitive functions to use with the conditions and mutexes in this object.
 /// @param reply_to A pointer to the msg_q_t to reply to.
 typedef struct msg_t {
-  int type;
+  int64_t type;
   void *data;
   size_t size;
   struct msg_t *next;
