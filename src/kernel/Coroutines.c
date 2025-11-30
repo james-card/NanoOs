@@ -1327,7 +1327,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
   
   int stackSize = COROUTINE_DEFAULT_STACK_SIZE;
   if ((options != NULL)
-    && (options->stackSize > COROUTINE_STACK_CHUNK_SIZE)
+    && (options->stackSize >= COROUTINE_STACK_CHUNK_SIZE)
   ) {
     stackSize = options->stackSize;
   }
