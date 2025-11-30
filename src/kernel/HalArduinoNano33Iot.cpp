@@ -80,10 +80,16 @@ int arduinoNano33IotGetNumSerialPorts(void) {
 }
 
 int arduinoNano33IotInitializeSerialPort(int port, int baud) {
-  serialPorts[port]->begin(baud);
-  // wait for serial port to connect.
-  while (!(*serialPorts[port]));
-  return 0;
+  int returnValue = -ERANGE;
+  
+  if ((port >= 0) && (port < numSerialPorts)) {
+    serialPorts[port]->begin(baud);
+    // wait for serial port to connect.
+    while (!(*serialPorts[port]));
+    returnValue = 0;
+  }
+  
+  return returnValue;
 }
 
 int arduinoNano33IotPollSerialPort(int port) {
