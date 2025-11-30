@@ -111,13 +111,6 @@ int main(int argc, char **argv) {
   // just an application running in its own virtual memory sandbox, we don't
   // need that here, so skipping it.
 
-  // Prototypes and externs we need that are not exported from the other
-  // library.
-  void* dummyProcess(void *args);
-  void comutexUnlockCallback(void *stateData, Comutex *comutex);
-  void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
-  extern ProcessHandle schedulerProcess;
-
   // SchedulerState pointer that we will have to populate in startScheduler.
   SchedulerState *coroutineStatePointer = NULL;
 

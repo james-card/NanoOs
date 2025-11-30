@@ -81,12 +81,6 @@ void setup() {
 // turn, means that we can never exit this function.  So, we will do all the
 // one-time setup and then run our scheduler loop from within this call.
 void loop() {
-  // Prototypes and externs we need that are not exported from the other
-  // library.
-  void* dummyProcess(void *args);
-  void comutexUnlockCallback(void *stateData, Comutex *comutex);
-  void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
-  extern ProcessHandle schedulerProcess;
 
   // SchedulerState pointer that we will have to populate in startScheduler.
   SchedulerState *coroutineStatePointer = NULL;
