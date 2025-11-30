@@ -62,7 +62,7 @@ int posixInitializeSerialPort(int port, int baud) {
   (void) baud;
   
   if (port != 0) {
-    return 0;
+    return -ERANGE;
   }
   
   // We don't actually need to do anything to stdout or stderr, but we do need
@@ -87,7 +87,6 @@ int posixInitializeSerialPort(int port, int baud) {
   newFlags = oldFlags;
   newFlags.c_lflag |= ECHONL;
   newFlags.c_lflag &= ~(ECHO | ICANON);
-  //// newFlags.c_cc[VMIN] = 1;
   if (tcsetattr(stdinFileno, TCSANOW, &newFlags) != 0) {
     fprintf(stderr, "Could not set new attributes for console.\n");
     return -errno;
