@@ -1,0 +1,264 @@
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//                     Copyright (c) 2012-2025 James Card                     //
+//                                                                            //
+// Permission is hereby granted, free of charge, to any person obtaining a    //
+// copy of this software and associated documentation files (the "Software"), //
+// to deal in the Software without restriction, including without limitation  //
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,   //
+// and/or sell copies of the Software, and to permit persons to whom the      //
+// Software is furnished to do so, subject to the following conditions:       //
+//                                                                            //
+// The above copyright notice and this permission notice shall be included    //
+// in all copies or substantial portions of the Software.                     //
+//                                                                            //
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR //
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   //
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    //
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER //
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    //
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        //
+// DEALINGS IN THE SOFTWARE.                                                  //
+//                                                                            //
+//                                 James Card                                 //
+//                          http://www.jamescard.org                          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// Doxygen marker
+/// @file
+
+// Standard library includes
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+// NanoOs includes
+#include "Processes.h"
+
+// Simulator includes
+#include "SdCardPosix.h"
+
+/// @var sdCardDevicePath
+///
+/// @brief Full path to the device file to open from the filesystem.
+const char *sdCardDevicePath = NULL;
+
+//// #define printDebug(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+#define printDebug(fmt, ...) {}
+
+/// @fn int sdCardReadBlocksCommandHandler(
+///   SdCardState *sdCardState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for the SD_CARD_READ_BLOCKS command.
+///
+/// @param sdCardState A pointer to the SdCardState object maintained by the
+///   SD card process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the SD card process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int sdCardReadBlocksCommandHandler(
+  SdCardState *sdCardState, ProcessMessage *processMessage
+) {
+  printDebug("sdCardReadBlocksCommandHandler: Enter\n");
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  printDebug("sdCardReadBlocksCommandHandler: Got NanoOsMessage\n");
+  
+  int devFd = (int) ((intptr_t) sdCardState->context);
+  if (devFd < 0) {
+    // Nothing we can do.
+    printDebug("sdCardReadBlocksCommandHandler: Invalid file descriptor\n");
+    nanoOsMessage->data = EIO;
+    processMessageSetDone(processMessage);
+    printDebug("sdCardReadBlocksCommandHandler: Returning early\n");
+    return 0;
+  }
+  printDebug("sdCardReadBlocksCommandHandler: context is *NOT* NULL\n");
+  
+  SdCommandParams *sdCommandParams
+    = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
+  printDebug("sdCardReadBlocksCommandHandler: Got sdCommandParams\n");
+  uint32_t startSdBlock = 0, numSdBlocks = 0;
+  int returnValue = sdCardGetReadWriteParameters(
+    sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
+  printDebug("sdCardReadBlocksCommandHandler: Got read/write parameters\n");
+
+  if (returnValue == 0) {
+    uint8_t *buffer = sdCommandParams->buffer;
+
+    printDebug("sdCardReadBlocksCommandHandler: Calling lseek\n");
+    if (lseek(devFd, sdCardState->blockSize * startSdBlock, SEEK_SET) < 0) {
+      printDebug("sdCardReadBlocksCommandHandler: lseek FAILED\n");
+      returnValue = errno;
+      goto exit;
+    }
+
+    printDebug("sdCardReadBlocksCommandHandler: Calling fread\n");
+    if (read(devFd, buffer, sdCardState->blockSize * numSdBlocks) <= 0) {
+      printDebug("sdCardReadBlocksCommandHandler: read FAILED\n");
+      returnValue = errno;
+    }
+  }
+
+  printDebug("sdCardReadBlocksCommandHandler: Exiting\n");
+exit:
+  nanoOsMessage->data = returnValue;
+  printDebug("sdCardReadBlocksCommandHandler: Setting message to done\n");
+  processMessageSetDone(processMessage);
+
+  printDebug("sdCardReadBlocksCommandHandler: Returning\n");
+  return 0;
+}
+
+/// @fn int sdCardWriteBlocksCommandHandler(
+///   SdCardState *sdCardState, ProcessMessage *processMessage)
+///
+/// @brief Command handler for the SD_CARD_WRITE_BLOCKS command.
+///
+/// @param sdCardState A pointer to the SdCardState object maintained by the
+///   SD card process.
+/// @param processMessage A pointer to the ProcessMessage that was received by
+///   the SD card process.
+///
+/// @return Returns 0 on success, a standard POSIX error code on failure.
+int sdCardWriteBlocksCommandHandler(
+  SdCardState *sdCardState, ProcessMessage *processMessage
+) {
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) processMessageData(processMessage);
+  
+  int devFd = (int) ((intptr_t) sdCardState->context);
+  if (devFd < 0) {
+    // Nothing we can do.
+    nanoOsMessage->data = EIO;
+    processMessageSetDone(processMessage);
+    return 0;
+  }
+  
+  SdCommandParams *sdCommandParams
+    = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
+  uint32_t startSdBlock = 0, numSdBlocks = 0;
+  int returnValue = sdCardGetReadWriteParameters(
+    sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
+
+  if (returnValue == 0) {
+    uint8_t *buffer = sdCommandParams->buffer;
+
+    if (lseek(devFd, sdCardState->blockSize * startSdBlock, SEEK_SET) < 0) {
+      returnValue = errno;
+      goto exit;
+    }
+
+    if (write(devFd, buffer, sdCardState->blockSize * numSdBlocks) <= 0) {
+      returnValue = errno;
+    }
+  }
+
+exit:
+  nanoOsMessage->data = returnValue;
+  processMessageSetDone(processMessage);
+
+  return 0;
+}
+
+/// @var sdCardCommandHandlers
+///
+/// @brief Array of SdCardCommandHandler function pointers to handle commands
+/// received by the runSdCard function.
+SdCardCommandHandler sdCardCommandHandlers[] = {
+  sdCardReadBlocksCommandHandler,  // SD_CARD_READ_BLOCKS
+  sdCardWriteBlocksCommandHandler, // SD_CARD_WRITE_BLOCKS
+};
+
+/// @fn void handleSdCardMessages(SdCardState *sdCardState)
+///
+/// @brief Handle sdCard messages from the process's queue until there are no
+/// more waiting.
+///
+/// @param sdCardState A pointer to the SdCardState structure maintained by the
+///   sdCard process.
+///
+/// @return This function returns no value.
+void handleSdCardMessages(SdCardState *sdCardState) {
+  ProcessMessage *processMessage = processMessageQueuePop();
+  while (processMessage != NULL) {
+    SdCardCommandResponse messageType
+      = (SdCardCommandResponse) processMessageType(processMessage);
+    if (messageType >= NUM_SD_CARD_COMMANDS) {
+      printDebug("handleSdCardMessages: Received invalid messageType %d\n",
+        messageType);
+      processMessage = processMessageQueuePop();
+      continue;
+    }
+    
+    sdCardCommandHandlers[messageType](sdCardState, processMessage);
+    processMessage = processMessageQueuePop();
+  }
+  
+  return;
+}
+
+/// @fn void* runSdCardPosix(void *args)
+///
+/// @brief Process entry-point for the SD card process.  Sets up and
+/// configures access to the SD card reader and then enters an infinite loop
+/// for processing commands.
+///
+/// @param args Any arguments to this function, cast to a void*.  Currently
+///   ignored by this function.
+///
+/// @return This function never returns, but would return NULL if it did.
+void* runSdCardPosix(void *args) {
+  (void) args;
+
+  SdCardState sdCardState;
+  memset(&sdCardState, 0, sizeof(sdCardState));
+  BlockStorageDevice sdDevice = {
+    .context = (void*) ((intptr_t) getRunningProcessId()),
+    .readBlocks = sdReadBlocks,
+    .writeBlocks = sdWriteBlocks,
+    .blockSize = 512,
+    .blockBitShift = 0,
+    .partitionNumber = 0,
+  };
+  sdCardState.bsDevice = &sdDevice;
+  sdCardState.blockSize = 512;
+  sdCardState.numBlocks = 204800; // 100 MB
+  sdCardState.sdCardVersion = 2;
+  sdCardState.context = (void*) ((intptr_t) open(sdCardDevicePath, O_RDWR));
+  int openError = errno;
+
+  coroutineYield(&sdDevice);
+  if (((intptr_t) sdCardState.context) < 0) {
+    fprintf(stderr, "ERROR: Failed to open sdCardDevicePath \"%s\"\n",
+      sdCardDevicePath);
+    fprintf(stderr, "Error returned: %s", strerror(openError));
+  }
+
+  ProcessMessage *schedulerMessage = NULL;
+  while (1) {
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
+    if (schedulerMessage != NULL) {
+      // We have a message from the scheduler that we need to process.  This
+      // is not the expected case, but it's the priority case, so we need to
+      // list it first.
+      SdCardCommandResponse messageType
+        = (SdCardCommandResponse) processMessageType(schedulerMessage);
+      if (messageType < NUM_SD_CARD_COMMANDS) {
+        sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
+      } else {
+        fprintf(stderr,
+          "ERROR: Received unknown sdCard command %d from scheduler.\n",
+          messageType);
+      }
+    } else {
+      handleSdCardMessages(&sdCardState);
+    }
+  }
+
+  return NULL;
+}
+

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+targetDevice="${1}"
+hostname="${2}"
+if [[ "${targetDevice}" = "" || "${hostname}" = "" ]]; then
+	echo "Usage ${0} <target device> <hostname>" >&2
+	exit 1
+fi
+
+if [ ! -e "${targetDevice}" ]; then
+	imageFile="$(mktemp)"
+	trap "rm \"${imageFile}\"" ERR
+	# 100 MB is fine for us for now... honestly, it's excesive
+	dd if=/dev/zero of="${imageFile}" bs=1M count=100 status=progress
+	sudo losetup "${targetDevice}" "${imageFile}"
+fi
+
+echo "Building applications..."
+make -C usr/src clean
+make -C usr/src COMPILE=gcc LINK=ld OBJCOPY=objcopy OBJDUMP=objdump SIZE=size \
+	LINKER_SCRIPT=NanoOsSim.ld
+make -C sim clean
+make -C sim
+
+# Make a temporary mountpoint
+mountDir="$(mktemp -d)"
+trap "rm -rf \"${mountDir}\"" ERR EXIT
+
+echo ""
+echo "Build complete."
+
+sudo mkfs.exfat "${targetDevice}" -L NanoOs
+sudo mount "${targetDevice}" "${mountDir}"
+sudo mkdir -p "${mountDir}/etc"
+sudo mkdir -p "${mountDir}/usr/bin"
+sudo cp usr/bin/* "${mountDir}/usr/bin"
+sudo bash -c "printf \"${hostname}\" >\"${mountDir}/etc/hostname\""
+sudo bash -c "printf '\\s \\\r \\\n \\l\n\n' >\"${mountDir}/etc/issue\""
+sudo umount "${mountDir}"
+
