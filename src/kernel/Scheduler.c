@@ -475,12 +475,12 @@ int schedulerSendProcessMessageToProcess(
   // comessageQueuePush.
   processMessage->msg_sync = &msg_sync_array[MSG_CORO_SAFE];
 
-  void *processReturnValue = coroutineResume(processHandle, processMessage);
-  if (processReturnValue == COROUTINE_CORRUPT) {
+  if (coroutineCorrupted(processHandle)) {
     printString("ERROR: Called process is corrupted:\n");
     returnValue = processError;
     return returnValue;
   }
+  coroutineResume(processHandle, processMessage);
 
   if (processMessageDone(processMessage) != true) {
     // This is our only indication from the called process that something went
@@ -2660,10 +2660,8 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 void runScheduler(SchedulerState *schedulerState) {
   ProcessDescriptor *processDescriptor
     = processQueuePop(&schedulerState->ready);
-  void *processReturnValue
-    = coroutineResume(processDescriptor->processHandle, NULL);
 
-  if (processReturnValue == COROUTINE_CORRUPT) {
+  if (coroutineCorrupted(processDescriptor->processHandle)) {
     printString("ERROR: Process corruption detected:\n");
     printString("       Removing process ");
     printInt(processDescriptor->processId);
@@ -2709,6 +2707,8 @@ void runScheduler(SchedulerState *schedulerState) {
     return;
   }
 
+  coroutineResume(processDescriptor->processHandle, NULL);
+
   if (processRunning(processDescriptor->processHandle) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
       NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
@@ -2748,9 +2748,13 @@ void runScheduler(SchedulerState *schedulerState) {
     coroutineResume(processDescriptor->processHandle, NULL);
   }
 
-  if (processReturnValue == COROUTINE_WAIT) {
+  if (coroutineState(processDescriptor->processHandle)
+    == COROUTINE_STATE_WAIT
+  ) {
     processQueuePush(&schedulerState->waiting, processDescriptor);
-  } else if (processReturnValue == COROUTINE_TIMEDWAIT) {
+  } else if (coroutineState(processDescriptor->processHandle)
+    == COROUTINE_STATE_TIMEDWAIT
+  ) {
     processQueuePush(&schedulerState->timedWaiting, processDescriptor);
   } else if (processFinished(processDescriptor->processHandle)) {
     processQueuePush(&schedulerState->free, processDescriptor);

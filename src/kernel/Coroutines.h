@@ -72,30 +72,11 @@ typedef struct msg_t msg_t;
 #define coroutineNomem    3
 #define coroutineTimedout 4
 
-/// @def COROUTINE_NOT_RESUMABLE
+/// @def COROUTINE_ERROR
 ///
-/// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine cannot be resumed, either because it is blocked or
-/// because it has completed.
-#define COROUTINE_NOT_RESUMABLE ((void*) ((intptr_t) -1))
-
-/// @def COROUTINE_TIMEDWAIT
-///
-/// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine is waiting on a condition or mutex with a timeout.
-#define COROUTINE_TIMEDWAIT ((void*) ((intptr_t) -2))
-
-/// @def COROUTINE_WAIT
-///
-/// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine is waiting on a condition or mutex.
-#define COROUTINE_WAIT ((void*) ((intptr_t) -3))
-
-/// @def COROUTINE_CORRUPT
-///
-/// @brief Special value to indicate to a caller of coroutineResume() that the
-/// provided coroutine's state has been corrupted and is not longer usable.
-#define COROUTINE_CORRUPT ((void*) ((intptr_t) -4))
+/// @brief Special value to indicate an error from coroutine functions that
+/// return a pointer.
+#define COROUTINE_ERROR ((void*) ((intptr_t) -1))
 
 /// @def COROUTINE_GUARD_VALUE
 ///
@@ -181,9 +162,11 @@ typedef struct msg_t msg_t;
 ///
 /// @brief States that a Coroutine can be in.
 typedef enum CoroutineState {
+  COROUTINE_STATE_BLOCKED = 0,
+  COROUTINE_STATE_TIMEDWAIT,
+  COROUTINE_STATE_WAIT,
   COROUTINE_STATE_NOT_RUNNING,
   COROUTINE_STATE_RUNNING,
-  COROUTINE_STATE_BLOCKED,
   NUM_COROUTINE_STATES
 } CoroutineState;
 
@@ -327,6 +310,25 @@ int64_t coroutineGetNanoseconds(const struct timespec *ts);
   (((coroutinePointer) != NULL) \
     && ((coroutinePointer)->state != COROUTINE_STATE_NOT_RUNNING))
 
+/// @defcoroutineCorrupted(coroutinePointer)
+///
+/// @brief Examines a coroutine to see if a corruption in its state metadata
+/// is detected.
+///
+/// @note A return value of false does not mean that the coroutine is *NOT*
+/// corrupted, only that we did not detect a corruption.  It's still possible
+/// for it to be corrupted in a way that this check doesn't detect.
+///
+/// @param coroutinePointer A pointer to the Coroutine to examine.
+///
+/// @return Returns true if a corruption of the coroutine's state metadata is
+/// detected.
+#define coroutineCorrupted(coroutinePointer) \
+  (((coroutinePointer) != NULL) \
+  && (((coroutinePointer)->guard1 != COROUTINE_GUARD_VALUE) \
+    || ((coroutinePointer)->guard2 != COROUTINE_GUARD_VALUE)) \
+  )
+
 /// @def getRunningCoroutineId
 ///
 /// @brief Get the coroutine ID for the currently-running coroutine.
@@ -339,7 +341,8 @@ Coroutine* coroutineInit(Coroutine *userCoroutine,
   CoroutineFunction func, void *arg);
 int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg);
 void* coroutineResume(Coroutine *targetCoroutine, void *arg);
-void* coroutineYield(void *arg);
+void* coroutineYield_(void *arg, CoroutineState state);
+#define coroutineYield(arg, state) coroutineYield_(arg, (CoroutineState) state)
 int coroutineSetId(Coroutine *coroutine, CoroutineId id);
 CoroutineId coroutineId(Coroutine *coroutine);
 CoroutineState coroutineState(Coroutine *coroutine);

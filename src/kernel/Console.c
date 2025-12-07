@@ -1001,7 +1001,7 @@ void* runConsole(void *args) {
       }
     }
 
-    schedulerMessage = (ProcessMessage*) coroutineYield(NULL);
+    schedulerMessage = (ProcessMessage*) coroutineYield(NULL, 0);
 
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to process.  This

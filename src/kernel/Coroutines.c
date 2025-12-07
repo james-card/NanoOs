@@ -613,17 +613,14 @@ CoroutineFuncData coroutinePass(Coroutine *currentCoroutine, CoroutineFuncData a
 ///
 /// @return If the coroutine is resumable, returns the value provided to the
 ///   yield call from within the coroutine or the coroutine's return value if it
-///   has run to completion.  If the coroutine is not resumable, returns the
-///   special value COROUTINE_NOT_RESUMABLE.
+///   has run to completion.  Returns COROUTINE_ERROR on error.
 void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
   if (targetCoroutine == NULL) {
-    return COROUTINE_NOT_RESUMABLE;
+    return COROUTINE_ERROR;
   }
   
-  if ((targetCoroutine->guard1 != COROUTINE_GUARD_VALUE)
-    || (targetCoroutine->guard2 != COROUTINE_GUARD_VALUE)
-  ) {
-    return COROUTINE_CORRUPT;
+  if (coroutineCorrupted(targetCoroutine)) {
+    return COROUTINE_ERROR;
   }
 #ifdef THREAD_SAFE_COROUTINES
   if (_coroutineThreadingSupportEnabled) {
@@ -651,20 +648,26 @@ void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
     return funcData.data;
   }
 
-  return COROUTINE_NOT_RESUMABLE;
+  return COROUTINE_ERROR;
 }
 
-/// @fn void* coroutineYield(void *arg)
+/// @fn void* coroutineYield_(void *arg, CoroutineState state)
 ///
 /// @brief Transfer control back to the coroutine that resumed this one.  A
 /// coroutine that is blocked inside coroutineYield() may be resumed by any
 /// other coroutine.
 ///
 /// @param arg Value that will be returned by coroutineResume().
+/// @param state The state to set the coroutine to before control is returned
+///   to the caller.
+///
+/// @note This function is wrapped by a function macro of the same name (minus
+/// the trailing underscore) that automatically casts the state parameter to
+/// a CoroutineState so that integers may be used for the parameter.
 ///
 /// @return Returns the value passed into the next call to coroutineResume()
 /// for this coroutine.
-void* coroutineYield(void *arg) {
+void* coroutineYield_(void *arg, CoroutineState state) {
   void *returnValue = NULL;
   Coroutine* first = _globalFirst;
 #ifdef THREAD_SAFE_COROUTINES
@@ -686,8 +689,13 @@ void* coroutineYield(void *arg) {
     return NULL;
   }
 
+  if (state >= COROUTINE_STATE_NOT_RUNNING) {
+    // This is not a state that's settable by the user.
+    state = COROUTINE_STATE_BLOCKED;
+  }
+
   Coroutine *currentCoroutine = coroutinePopRunning();
-  currentCoroutine->state = COROUTINE_STATE_BLOCKED;
+  currentCoroutine->state = state;
   CoroutineFuncData funcData;
   funcData.data = arg;
   funcData = coroutinePass(currentCoroutine, funcData);
@@ -956,10 +964,10 @@ void coroutineMain(void *stack) {
     // Return our Coroutine and get the function argument from the constructor.
     // coroutineYield will set our state to BLOCKED on call and RUNNING on
     // return.
-    void* callingArgument = coroutineYield(&me);
+    void* callingArgument = coroutineYield(&me, COROUTINE_STATE_BLOCKED);
 
     // Yield again and wait to be resumed by the caller of coroutineInit.
-    coroutineYield(NULL);
+    coroutineYield(NULL, COROUTINE_STATE_BLOCKED);
 
     // Call the target function with the calling argument.
     void* ret = func(callingArgument);
@@ -1515,7 +1523,7 @@ int comutexLock(Comutex *mtx) {
 
   running->blockingComutex = mtx;
   while (comutexTryLock(mtx) != coroutineSuccess) {
-    mtx->lastYieldValue = coroutineYield(COROUTINE_WAIT);
+    mtx->lastYieldValue = coroutineYield(NULL, COROUTINE_STATE_WAIT);
   }
   running->blockingComutex = NULL;
 
@@ -1677,7 +1685,7 @@ int comutexTimedLock(Comutex *mtx, const struct timespec *ts) {
       returnValue = coroutineTimedout;
       break;
     }
-    mtx->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
+    mtx->lastYieldValue = coroutineYield(NULL, COROUTINE_STATE_TIMEDWAIT);
     returnValue = comutexTryLock(mtx);
   }
   mtx->timeoutTime = 0;
@@ -1951,7 +1959,7 @@ int coconditionTimedWait(Cocondition *cond, Comutex *mtx,
   int returnValue = coroutineSuccess;
   running->blockingCocondition = cond;
   while ((cond->numSignals == 0) || (cond->head != running)) {
-    cond->lastYieldValue = coroutineYield(COROUTINE_TIMEDWAIT);
+    cond->lastYieldValue = coroutineYield(NULL, COROUTINE_STATE_TIMEDWAIT);
 
     if (((cond->numSignals == 0) || (cond->head != running))
       && (coroutineGetNanoseconds(NULL) > cond->timeoutTime)
@@ -2057,7 +2065,7 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
   int returnValue = coroutineSuccess;
   running->blockingCocondition = cond;
   while ((cond->numSignals == 0) || (cond->head != running)) {
-    cond->lastYieldValue = coroutineYield(COROUTINE_WAIT);
+    cond->lastYieldValue = coroutineYield(NULL, COROUTINE_STATE_WAIT);
   }
   running->blockingCocondition = NULL;
   if (cond->numSignals > 0) {
