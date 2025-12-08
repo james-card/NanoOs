@@ -2097,6 +2097,8 @@ int coconditionWait(Cocondition *cond, Comutex *mtx) {
 ///
 /// @brief Retrieve the last value yielded to a condition wait call.
 ///
+/// @param cond A pointer to the condition to interrogate.
+///
 /// @returns The last value yielded on the condition on success, NULL if the
 /// provided condition pointer is NULL.
 void* coconditionLastYieldValue(Cocondition* cond) {
@@ -2104,6 +2106,30 @@ void* coconditionLastYieldValue(Cocondition* cond) {
 
   if (cond != NULL) {
     returnValue = cond->lastYieldValue;
+  }
+
+  return returnValue;
+}
+
+/// @fn bool coroutineDeadlocked(Coroutine *coroutine)
+///
+/// @brief Determine whether or not a coroutine is deadlocked.
+///
+/// @param coroutine A pointer to the coroutine to examine.
+///
+/// @return Returns true if deadlock is detected, false if not.
+bool coroutineDeadlocked(Coroutine *coroutine) {
+  Coroutine *initialCoroutine = coroutine;
+  bool returnValue = false;
+
+  while ((coroutineState(coroutine) == COROUTINE_STATE_WAIT)
+    && (coroutine->blockingComutex != NULL)
+  ) {
+    coroutine = coroutine->blockingComutex->coroutine;
+    if (coroutine == initialCoroutine) {
+      returnValue = true;
+      break;
+    }
   }
 
   return returnValue;

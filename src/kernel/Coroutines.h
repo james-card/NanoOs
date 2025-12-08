@@ -352,6 +352,7 @@ bool coroutineThreadingSupportEnabled();
 #endif
 int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes);
 Coroutine* getRunningCoroutine(void);
+bool coroutineDeadlocked(Coroutine *coroutine);
 
 
 // Message queue functions
