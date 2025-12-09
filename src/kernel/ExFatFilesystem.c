@@ -1624,9 +1624,20 @@ ExFatFileHandle* exFatOpenFile(
     return NULL;
   }
 
+  // Allocate file handle
+  // Because of the way the memory compaction works, the first thing we allocate
+  // needs to be the return value.
+  ExFatFileHandle* handle = (ExFatFileHandle*) malloc(
+    sizeof(ExFatFileHandle)
+  );
+  if (handle == NULL) {
+    return NULL;
+  }
+
   // Allocate filename buffer
   char* fileName = (char*) malloc(EXFAT_MAX_FILENAME_LENGTH + 1);
   if (fileName == NULL) {
+    free(handle);
     return NULL;
   }
 
@@ -1635,6 +1646,7 @@ ExFatFileHandle* exFatOpenFile(
     (ExFatFileDirectoryEntry*) malloc(sizeof(ExFatFileDirectoryEntry));
   if (fileEntry == NULL) {
     free(fileName);
+    free(handle);
     return NULL;
   }
 
@@ -1644,6 +1656,7 @@ ExFatFileHandle* exFatOpenFile(
   if (streamEntry == NULL) {
     free(fileEntry);
     free(fileName);
+    free(handle);
     return NULL;
   }
 
@@ -1658,6 +1671,7 @@ ExFatFileHandle* exFatOpenFile(
     free(streamEntry);
     free(fileEntry);
     free(fileName);
+    free(handle);
     return NULL;
   }
 
@@ -1675,6 +1689,7 @@ ExFatFileHandle* exFatOpenFile(
       free(streamEntry);
       free(fileEntry);
       free(fileName);
+      free(handle);
       return NULL;
     }
 
@@ -1687,12 +1702,14 @@ ExFatFileHandle* exFatOpenFile(
       free(streamEntry);
       free(fileEntry);
       free(fileName);
+      free(handle);
       return NULL;
     }
   } else if (result != EXFAT_SUCCESS) {
     free(streamEntry);
     free(fileEntry);
     free(fileName);
+    free(handle);
     return NULL;
   }
 
@@ -1704,18 +1721,8 @@ ExFatFileHandle* exFatOpenFile(
     free(streamEntry);
     free(fileEntry);
     free(fileName);
+    free(handle);
     return NULL;  // Cannot open read-only file for writing
-  }
-
-  // Allocate file handle
-  ExFatFileHandle* handle = (ExFatFileHandle*) malloc(
-    sizeof(ExFatFileHandle)
-  );
-  if (handle == NULL) {
-    free(streamEntry);
-    free(fileEntry);
-    free(fileName);
-    return NULL;
   }
 
   // Initialize file handle using readBytes for all packed struct accesses
