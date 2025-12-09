@@ -33,7 +33,7 @@
 #ifndef HAL_ARDUINO_NANO_33_IOT_H
 #define HAL_ARDUINO_NANO_33_IOT_H
 
-#include "Hal.h"
+#include "src/kernel/Hal.h"
 
 
 #ifdef __cplusplus

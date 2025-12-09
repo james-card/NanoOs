@@ -30,7 +30,7 @@
 
 // Custom includes
 #include "SdCardSpi.h"
-#include "HalArduinoNano33Iot.h"
+#include "Hal.h"
 #include "NanoOs.h"
 #include "Processes.h"
 
@@ -56,6 +56,16 @@
 #define R1_ERASE_SEQ   0x10
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
+
+// HACK:  SPI DIO pins that are currently defined in HalArduinoNano33Iot.h.
+// Redefined here for now to avoid including the platform-specific header.
+// This is temporary until I create a more-generic way to go about specifying
+// the pins.
+//
+// JBC 2025-12-08
+#define SPI_COPI_DIO 11
+#define SPI_CIPO_DIO 12
+#define SPI_SCK_DIO 13
 
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
