@@ -57,15 +57,20 @@
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
 
-// HACK:  SPI DIO pins that are currently defined in HalArduinoNano33Iot.h.
-// Redefined here for now to avoid including the platform-specific header.
-// This is temporary until I create a more-generic way to go about specifying
-// the pins.
-//
-// JBC 2025-12-08
-#define SPI_COPI_DIO 11
-#define SPI_CIPO_DIO 12
-#define SPI_SCK_DIO 13
+/// @var spiCopiDio
+///
+/// @brief DIO pin to use for COPI.  Set by an external user of this library.
+int spiCopiDio = 0;
+
+/// @var spiCipoDio
+///
+/// @brief DIO pin to use for CIPO.  Set by an external user of this library.
+int spiCipoDio = 0;
+
+/// @var spiSckDio
+///
+/// @brief DIO pin to use for SCK.  Set by an external user of this library.
+int spiSckDio = 0;
 
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
@@ -136,7 +141,7 @@ int sdSpiCardInit(uint8_t chipSelect) {
   
   // Set up SPI at the default speed
   int initStatus = HAL->initSpiDevice(SD_CARD_SPI_DEVICE,
-    chipSelect, SPI_SCK_DIO, SPI_COPI_DIO, SPI_CIPO_DIO);
+    chipSelect, spiSckDio, spiCopiDio, spiCipoDio);
   if (initStatus != 0) {
     // Just pass the error upward.
     return initStatus;

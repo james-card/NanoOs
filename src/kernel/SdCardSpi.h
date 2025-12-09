@@ -44,6 +44,10 @@ extern "C"
 {
 #endif
 
+extern int spiCopiDio;
+extern int spiCipoDio;
+extern int spiSckDio;
+
 void* runSdCardSpi(void *args);
 
 #ifdef __cplusplus
