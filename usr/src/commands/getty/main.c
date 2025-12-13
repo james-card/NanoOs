@@ -214,17 +214,13 @@ int main(int argc, char **argv) {
     input[strlen(input) - 1] = '\0';
   }
   
-  char *loginPath = (char*) malloc(strlen(LOGIN_PATH) + 1);
-  strcpy(loginPath, LOGIN_PATH);
+  char *loginArgv[] = {
+    LOGIN_PATH,
+    buffer,
+    NULL,
+  };
   
-  char **loginArgv = (char**) malloc(3 * sizeof(char*));
-  loginArgv[0] = (char*) malloc(strlen(LOGIN_NAME) + 1);
-  strcpy(loginArgv[0], LOGIN_NAME);
-  loginArgv[1] = (char*) malloc(strlen(buffer) + 1);
-  strcpy(loginArgv[1], buffer);
-  loginArgv[2] = NULL;
-  
-  execve(loginPath, loginArgv, NULL);
+  execve(LOGIN_PATH, loginArgv, NULL);
   // If we get here then the exec failed.  We don't really have to check the
   // return value but we do need to print out what happened as documented by
   // errno.
