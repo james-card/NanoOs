@@ -53,7 +53,12 @@ int main(int argc, char **argv) {
       input[strlen(input) - 1] = '\0';
     }
     
-    if (strcmp(input, "exit") != 0) {
+    if (strcmp(input, "exit") == 0) {
+      // Do nothing.  We'll just exit the loop below.
+    } else if (strcmp(input, "pwd") == 0) {
+      fputs(getenv("PWD"), stdout);
+      fputs("\n", stdout);
+    } else {
       fputs(input, stdout);
       fputs(": command not found\n", stdout);
     }
