@@ -28,23 +28,35 @@
 // Doxygen marker
 /// @file
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+/// @def SHELL_PATH
+///
+/// @brief The absolute path to the shell program on the filesystem.
+#define SHELL_PATH "/usr/bin/mush"
+
+/// @def SHELL_NAME
+///
+/// @brief The desired name to show for the shell program when we exec it.
+/// This will be used as argv[0] in the args we pass in to execve.
+#define SHELL_NAME "mush"
 
 int main(int argc, char **argv) {
-  (void) argc;
-  (void) argv;
-  
   if (argc != 2) {
     fprintf(stderr, "Usage: %s <username>\n", argv[0]);
     return 1;
   }
+  const char *username = argv[1];
   
   char *buffer = (char*) malloc(96);
   if (buffer == NULL) {
-    fputs("ERROR! Could not allocate space for buffer in getty.\n", stderr);
+    fprintf(stderr, "ERROR! Could not allocate space for buffer in %s.\n",
+      argv[0]);
     return 1;
   }
   *buffer = '\0';
@@ -58,15 +70,48 @@ int main(int argc, char **argv) {
   }
   
   int returnValue = 0;
-  if (strcmp(buffer, argv[1]) == 0) {
+  if (strcmp(buffer, username) == 0) {
     fputs("Login successful!\n", stderr);
   } else {
     fputs("Login failed!\n", stderr);
     fprintf(stderr, "Expected \"%s\", got \"%s\"\n", argv[1], buffer);
     returnValue = 1;
   }
-  
   free(buffer);
+  
+  if (returnValue == 0) {
+    // The login succeeded, so exec the shell rather than exiting.
+    char *shellArgv[] = {
+      SHELL_NAME,
+      NULL,
+    };
+    // Maximum user home directory is strlen("/home/") + LOGIN_NAME_MAX.
+    // Environment variable will be strlen("HOME=") plus the above.
+    char envHome[LOGIN_NAME_MAX + 11];
+    strcpy(envHome, "HOME=/home/");
+    strcat(envHome, username);
+    
+    // The PWD variable will be one less than HOME since it's only 3 characters.
+    char envPwd[LOGIN_NAME_MAX + 10];
+    strcpy(envPwd, "PWD=/home/");
+    strcat(envPwd, username);
+    
+    char *shellEnvp[] = {
+      envHome,
+      envPwd,
+      NULL,
+    };
+    
+    execve(SHELL_PATH, shellArgv, shellEnvp);
+    // If we get here then the exec failed.  We don't really have to check the
+    // return value but we do need to print out what happened as documented by
+    // errno.
+    fputs("ERROR! execve failed with status: ", stderr);
+    fputs(strerror(errno), stderr);
+    fputs("\n", stderr);
+  }
+  
+  // Exit.  This will cause the getty program to be reloaded.
   return returnValue;
 }
 
