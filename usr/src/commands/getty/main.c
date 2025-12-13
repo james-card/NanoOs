@@ -28,12 +28,13 @@
 // Doxygen marker
 /// @file
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <errno.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 /// @def LOGIN_PATH
 ///
@@ -193,21 +194,21 @@ int showIssue(void) {
 
 int main(int argc, char **argv) {
   (void) argc;
-  (void) argv;
   
   if (showIssue() != 0) {
     // Error message, if any, was already displayed.
     return 1;
   }
   
-  char *buffer = (char*) malloc(96);
+  char *buffer = (char*) malloc(LOGIN_NAME_MAX);
   if (buffer == NULL) {
-    fputs("ERROR! Could not allocate space for buffer in getty.\n", stderr);
+    fprintf(stderr, "ERROR! Could not allocate space for buffer in %s.\n",
+      argv[0]);
     return 1;
   }
   
   fputs("login: ", stdout);
-  char *input = fgets(buffer, 96, stdin);
+  char *input = fgets(buffer, LOGIN_NAME_MAX, stdin);
   if ((input != NULL) && (strlen(input) > 0)
     && (input[strlen(input) - 1] == '\n')
   ) {
