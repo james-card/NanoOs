@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
   }
   
   char *loginArgv[] = {
-    "login",
+    LOGIN_NAME,
     buffer,
     NULL,
   };
