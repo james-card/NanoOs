@@ -1279,7 +1279,7 @@ int schedulerExecve(const char *pathname,
     return -1;
   }
 
-  if ((pathname == NULL) || (argv == NULL)) {
+  if ((pathname == NULL) || (argv == NULL) || (argv[0] == NULL)) {
     errno = EFAULT;
     return -1;
   }
