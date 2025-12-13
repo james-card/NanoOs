@@ -1273,18 +1273,75 @@ const char* schedulerGetHostname(void) {
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]
 ) {
-  // Don't tell anybody, but all of the parameters passed in are actually not
-  // const... or at least they better not be because we're going to assume
-  // they're in dynamic memory and are going to assign the memory to the new
-  // process if we're successful.
   ExecArgs *execArgs = (ExecArgs*) malloc(sizeof(ExecArgs));
   if (execArgs == NULL) {
     errno = ENOMEM;
     return -1;
   }
-  execArgs->pathname = (char*) pathname;
-  execArgs->argv = (char**) argv;
-  execArgs->envp = (char**) envp;
+
+  if ((pathname == NULL) || (argv == NULL)) {
+    errno = EFAULT;
+    return -1;
+  }
+
+  execArgs->pathname = (char*) malloc(strlen(pathname) + 1);
+  if (execArgs->pathname == NULL) {
+    errno = ENOMEM;
+    goto freeExecArgs;
+  }
+  strcpy(execArgs->pathname, pathname);
+
+  size_t argvLen = 0;
+  for (; argv[argvLen] != NULL; argvLen++);
+  argvLen++; // Account for the terminating NULL element
+  execArgs->argv = (char**) malloc(argvLen * sizeof(char*));
+  if (execArgs->argv == NULL) {
+    errno = ENOMEM;
+    goto freeExecArgs;
+  }
+
+  // argvLen is guaranteed to always be at least 1, so it's safe to run to
+  // (argvLen - 1) here.
+  size_t ii = 0;
+  for (; ii < (argvLen - 1); ii++) {
+    // We know that argv[ii] isn't NULL because of the calculation for argvLen
+    // above, so it's safe to use strlen.
+    execArgs->argv[ii] = (char*) malloc(strlen(argv[ii]) + 1);
+    if (execArgs->argv[ii] == NULL) {
+      errno = ENOMEM;
+      goto freeExecArgs;
+    }
+    strcpy(execArgs->argv[ii], argv[ii]);
+  }
+  execArgs->argv[ii] = NULL; // NULL-terminate the array
+
+  if (envp != NULL) {
+    size_t envpLen = 0;
+    for (; envp[envpLen] != NULL; envpLen++);
+    envpLen++; // Account for the terminating NULL element
+    execArgs->envp = (char**) malloc(envpLen * sizeof(char*));
+    if (execArgs->envp == NULL) {
+      errno = ENOMEM;
+      goto freeExecArgs;
+    }
+
+    // envpLen is guaranteed to always be at least 1, so it's safe to run to
+    // (envpLen - 1) here.
+    for (ii = 0; ii < (envpLen - 1); ii++) {
+      // We know that envp[ii] isn't NULL because of the calculation for envpLen
+      // above, so it's safe to use strlen.
+      execArgs->envp[ii] = (char*) malloc(strlen(envp[ii]) + 1);
+      if (execArgs->envp[ii] == NULL) {
+        errno = ENOMEM;
+        goto freeExecArgs;
+      }
+      strcpy(execArgs->envp[ii], envp[ii]);
+    }
+    execArgs->envp[ii] = NULL; // NULL-terminate the array
+  } else {
+    execArgs->envp = NULL;
+  }
+
   execArgs->schedulerState = NULL; // Set by the scheduler
 
   ProcessMessage *processMessage
@@ -1304,6 +1361,7 @@ int schedulerExecve(const char *pathname,
   // be in the data portion of the message we sent to the scheduler.
   errno = nanoOsMessageDataValue(processMessage, int);
   processMessageRelease(processMessage);
+freeExecArgs:
   execArgs = execArgsDestroy(execArgs);
 
   return -1;
