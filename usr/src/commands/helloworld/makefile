@@ -13,5 +13,6 @@ $(OVERLAYS): ./%:
 
 clean:
 	for overlay in $(OVERLAYS); do \
-		$(MAKE) -C $${overlay} clean TARGET=$${overlay}; \
+		$(MAKE) -C $${overlay} clean TARGET=$(TARGET) \
+			OVERLAY=$${overlay}; \
 	done
