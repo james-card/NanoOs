@@ -45,15 +45,7 @@
 ///
 /// @return Returns 0 on success, negative error code on failure.
 int loadOverlay(const char *overlayPath, char **env) {
-  size_t entrypointLength = strlen(BIN_ENTRYPOINT);
-  char *fullPath = (char*) malloc(strlen(overlayPath) + entrypointLength + 1);
-  if (fullPath == NULL) {
-    return -ENOMEM;
-  }
-  strcpy(fullPath, overlayPath);
-  strcat(fullPath, BIN_ENTRYPOINT);
-  FILE *overlayFile = fopen(fullPath, "r");
-  free(fullPath); fullPath = NULL;
+  FILE *overlayFile = fopen(overlayPath, "r");
   if (overlayFile == NULL) {
     fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
       overlayPath);
@@ -145,7 +137,15 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
 int runOverlayCommand(const char *commandPath,
   int argc, char **argv, char **env
 ) {
-  int loadStatus = loadOverlay(commandPath, env);
+  size_t entrypointLength = strlen(BIN_ENTRYPOINT);
+  char *fullPath = (char*) malloc(strlen(commandPath) + entrypointLength + 1);
+  if (fullPath == NULL) {
+    return COMMAND_CANNOT_EXECUTE;
+  }
+  strcpy(fullPath, commandPath);
+  strcat(fullPath, BIN_ENTRYPOINT);
+  int loadStatus = loadOverlay(fullPath, env);
+  free(fullPath); fullPath = NULL;
   if (loadStatus == -ENOENT) {
     // Error message already printed.
     return COMMAND_NOT_FOUND;
