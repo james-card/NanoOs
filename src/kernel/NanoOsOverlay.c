@@ -45,7 +45,15 @@
 ///
 /// @return Returns 0 on success, negative error code on failure.
 int loadOverlay(const char *overlayPath, char **env) {
-  FILE *overlayFile = fopen(overlayPath, "r");
+  size_t entrypointLength = strlen(BIN_ENTRYPOINT);
+  char *fullPath = (char*) malloc(strlen(overlayPath) + entrypointLength + 1);
+  if (fullPath == NULL) {
+    return -ENOMEM;
+  }
+  strcpy(fullPath, overlayPath);
+  strcat(fullPath, BIN_ENTRYPOINT);
+  FILE *overlayFile = fopen(fullPath, "r");
+  free(fullPath); fullPath = NULL;
   if (overlayFile == NULL) {
     fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
       overlayPath);

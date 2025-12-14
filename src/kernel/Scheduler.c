@@ -34,6 +34,7 @@
 #include "ExFatFilesystem.h"
 #include "ExFatProcess.h"
 #include "NanoOs.h"
+#include "NanoOsOverlay.h"
 #include "Processes.h"
 #include "Scheduler.h"
 #include "SdCard.h"
@@ -1284,12 +1285,15 @@ int schedulerExecve(const char *pathname,
     return -1;
   }
 
-  execArgs->pathname = (char*) malloc(strlen(pathname) + 1);
+  size_t entrypointLength = strlen(BIN_ENTRYPOINT);
+
+  execArgs->pathname = (char*) malloc(strlen(pathname) + entrypointLength + 1);
   if (execArgs->pathname == NULL) {
     errno = ENOMEM;
     goto freeExecArgs;
   }
   strcpy(execArgs->pathname, pathname);
+  strcat(execArgs->pathname, BIN_ENTRYPOINT);
 
   size_t argvLen = 0;
   for (; argv[argvLen] != NULL; argvLen++);

@@ -53,6 +53,11 @@ extern "C"
 /// @brief Value used to validate that an overlay header is valid.
 #define NANO_OS_OVERLAY_MAGIC 0x4c4f734f6f6e614e // "NanoOsOL"
 
+/// @def BIN_ENTRYPOINT
+///
+/// @Entrypoint for a filesystem binary that's broken into overlays.
+#define BIN_ENTRYPOINT "/main.overlay"
+
 /// @type OverlayFunction
 ///
 /// @brief Function pointer for a function that can be called in an overlay from
