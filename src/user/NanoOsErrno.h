@@ -64,7 +64,8 @@ extern "C"
 #define ERANGE          16      /* Parameter or result out of range */
 #define ELOOP           17      /* Infinite loop detected */
 #define ETIMEDOUT       18      /* Operation timed out */
-#define EEND            19      /* End of error codes */
+#define ENOEXEC         19      /* Exec format error */
+#define EEND            20      /* End of error codes */
 
 int* errno_(void);
 #define errno (*errno_())

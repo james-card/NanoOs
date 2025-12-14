@@ -80,6 +80,7 @@ const char *errorStrings[] = {
   "Parameter or result out of range", // ERANGE
   "Infinite loop detected",           // ELOOP
   "Operation timed out",              // ETIMEDOUT
+  "Exec format error",                // ENOEXEC
 };
 
 /// @var NUM_ERRORS
