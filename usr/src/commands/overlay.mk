@@ -15,7 +15,7 @@ BINARY = $(BIN_DIR)/$(TARGET)/$(OVERLAY).overlay
 
 SOURCES = \
     ../../../start.c \
-    main.c \
+    $(shell ls | grep -Ev 'makefile|.*\.mk') \
 
 OBJECTS = \
     $(OBJ_DIR)/start.o \
