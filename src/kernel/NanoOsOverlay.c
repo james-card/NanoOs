@@ -72,7 +72,7 @@ int loadOverlay(const char *overlayPath, char **env) {
   if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
       overlayPath);
-    return -(EEND + 1);
+    return -ENOEXEC;
   }
   printDebugString("Verifying overlay version\n");
   if (HAL->overlayMap->header.version
@@ -80,7 +80,7 @@ int loadOverlay(const char *overlayPath, char **env) {
   ) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
       HAL->overlayMap->header.version, overlayPath);
-    return -(EEND + 2);
+    return -ENOEXEC;
   }
 
   // Set the pieces of the overlay header that the program needs to run.
@@ -141,7 +141,7 @@ int runOverlayCommand(const char *commandPath,
   if (loadStatus == -ENOENT) {
     // Error message already printed.
     return COMMAND_NOT_FOUND;
-  } else if (loadStatus == -EIO) {
+  } else if (loadStatus < 0) {
     // Error message already printed.
     return COMMAND_CANNOT_EXECUTE;
   }
