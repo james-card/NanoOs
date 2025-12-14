@@ -73,7 +73,7 @@ void usage(const char *argv0) {
     programName = argv0;
   }
   
-  fprintf(stderr, "Usage: %s <MMC block device path>\n", programName);
+  fprintf(stderr, "Usage: %s <block device path>\n", programName);
 }
 
 int main(int argc, char **argv) {
