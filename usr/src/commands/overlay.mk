@@ -21,7 +21,7 @@ OBJECTS = \
     $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/main.o \
     $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/OverlayMap.o \
 
-INCLUDES = \
+INCLUDES += \
     -I../../../../../src/kernel \
     -I../../../../../src/user \
     -I../../../../include \
