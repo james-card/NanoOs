@@ -13,8 +13,7 @@ endif
 ELF = $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/overlay.elf
 BINARY = $(BIN_DIR)/$(TARGET)/$(OVERLAY).overlay
 
-SOURCES = \
-    ../../../start.c \
+SOURCES += \
     $(shell ls | grep -Ev 'makefile|.*\.mk') \
 
 OBJECTS = \
