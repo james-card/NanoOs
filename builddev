@@ -11,7 +11,9 @@ fi
 
 echo "Building applications..."
 make -C usr/src clean
-make -C usr/src LINKER_SCRIPT=NanoOs.ld
+make -C usr/src COMPILE=arm-none-eabi-gcc LINK=arm-none-eabi-ld \
+	OBJCOPY=arm-none-eabi-objcopy OBJDUMP=arm-none-eabi-objdump \
+	SIZE=arm-none-eabi-size LINKER_SCRIPT=NanoOs.ld
 
 # Make a temporary mountpoint
 mountDir="$(mktemp -d)"

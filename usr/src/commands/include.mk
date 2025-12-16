@@ -4,33 +4,32 @@ RM    := rm -rf
 
 # Build tools
 ifeq ($(strip $(COMPILE)),)
-    override COMPILE       := arm-none-eabi-gcc
+    override COMPILE       := gcc
 endif
 ifeq ($(strip $(LINK)),)
-    override LINK          := arm-none-eabi-ld
+    override LINK          := ld
 endif
 ifeq ($(strip $(OBJCOPY)),)
-    override OBJCOPY       := arm-none-eabi-objcopy
+    override OBJCOPY       := objcopy
 endif
 ifeq ($(strip $(OBJDUMP)),)
-    override OBJDUMP       := arm-none-eabi-objdump
+    override OBJDUMP       := objdump
 endif
 ifeq ($(strip $(SIZE)),)
-    override SIZE          := arm-none-eabi-size
+    override SIZE          := size
 endif
 
+# Compiler flags
+CFLAGS := -std=c17
 ifeq ($(COMPILE),arm-none-eabi-gcc)
-    CPU := -mcpu=cortex-m0
+    CFLAGS += -mcpu=cortex-m0 -Os -nostdlib -ffreestanding
+    CFLAGS += -fno-pic -fno-pie -static
+    CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
+    CFLAGS += -fno-jump-tables
 endif
 
 # Linker flags
 LDFLAGS = $(LINKER_SCRIPT) --gc-sections -static -no-pie --build-id=none
-
-# Compiler flags
-CFLAGS = $(CPU) -Os -nostdlib -ffreestanding
-CFLAGS += -std=c17 -fno-pic -fno-pie -fno-stack-protector -static
-CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
-CFLAGS += -fno-jump-tables
 
 LINKS = \
 

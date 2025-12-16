@@ -2,6 +2,8 @@
 
 include ../../include.mk
 
+CFLAGS += -fno-stack-protector
+
 OBJ_DIR = ../../../../obj
 BIN_DIR = ../../../../bin
 
