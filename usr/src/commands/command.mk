@@ -10,9 +10,9 @@ OVERLAYS := $(shell ls | grep -Ev 'makefile|.*\.mk')
 all: $(OVERLAYS)
 
 $(OVERLAYS): ./%:
-	$(MAKE) -C $@ OVERLAY=$@ COMPILE=$(COMPILE) LINK=$(LINK) \
+	$(MAKE) -C $@ -f overlay.mk COMPILE=$(COMPILE) LINK=$(LINK) \
 		OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) SIZE=$(SIZE) \
-		TARGET=$(TARGET)
+		TARGET=$(TARGET) OVERLAY=$@
 
 clean:
 	$(RM) $(OBJ_DIR)/$(TARGET)
