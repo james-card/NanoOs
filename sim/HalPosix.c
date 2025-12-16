@@ -210,7 +210,7 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
 ///
 /// @brief This is the offset into the allocated and mapped memory that the
 /// overlays will actually be loaded into.
-#define OVERLAY_OFFSET           0x1800
+#define OVERLAY_OFFSET           0x1400
 
 /// @def OVERLAY_SIZE
 ///
