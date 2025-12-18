@@ -261,6 +261,23 @@ typedef struct Hal {
   /// @return Returns the number of nanoseconds that have elapsed since the
   /// provided start time on success, -1 on failure.
   int64_t (*getElapsedNanoseconds)(int64_t startTime);
+  
+  /// @fn int reset(void)
+  ///
+  /// @brief Cause a hardware reset of the OS.  Everything will be
+  /// re-initialized at startup.
+  ///
+  /// @return This function does not return on success.  On error, -errno will
+  /// be returned.
+  int (*reset)(void);
+  
+  /// @fn int shutdown(void)
+  ///
+  /// @brief Halt the OS and shutdown the hardware (insofar as is possible).
+  ///
+  /// @return This function does not return on success.  On error, -errno will
+  /// be returned.
+  int (*shutdown)(void);
 } Hal;
 
 extern const Hal *HAL;

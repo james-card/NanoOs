@@ -298,6 +298,23 @@ int64_t arduinoNano33IotGetElapsedNanoseconds(int64_t startTime) {
     startTime / ((int64_t) 1000000)) * ((int64_t) 1000000);
 }
 
+int arduinoNano33IotReset(void) {
+  NVIC_SystemReset();
+  return 0;
+}
+
+int arduinoNano33IotShutdown(void) {
+  // Configure for standby mode
+  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+  
+  // Set standby mode in Power Manager
+  PM->SLEEP.reg = PM_SLEEP_IDLE_CPU;
+  
+  __DSB(); // Data Synchronization Barrier
+  __WFI(); // Wait For Interrupt
+  return 0;
+}
+
 /// @var arduinoNano33IotHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -331,6 +348,10 @@ static Hal arduinoNano33IotHal = {
   .getElapsedMilliseconds = arduinoNano33IotGetElapsedMilliseconds,
   .getElapsedMicroseconds = arduinoNano33IotGetElapsedMicroseconds,
   .getElapsedNanoseconds = arduinoNano33IotGetElapsedNanoseconds,
+  
+  // Hardware reset and shutdown.
+  .reset = arduinoNano33IotReset,
+  .shutdown = arduinoNano33IotShutdown,
 };
 
 const Hal* halArduinoNano33IotInit(void) {

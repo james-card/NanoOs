@@ -31,6 +31,7 @@
 #include "../user/NanoOsApi.h"
 #include "Commands.h"
 #include "Console.h"
+#include "Hal.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
 #include "Processes.h"
@@ -248,6 +249,44 @@ int logoutCommandHandler(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int resetCommandHandler(int argc, char **argv)
+///
+/// @brief Issue a hardware reset.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Ignored by this function.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  Ignored by this function.
+///
+/// This function never returns, but would return 0 if it did.
+int resetCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  HAL->reset();
+
+  return 0;
+}
+
+/// @fn int shutdownCommandHandler(int argc, char **argv)
+///
+/// @brief Shutdown the hardware.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Ignored by this function.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  Ignored by this function.
+///
+/// This function never returns, but would return 0 if it did.
+int shutdownCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  HAL->shutdown();
+
+  return 0;
+}
+
 /// @fn const CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
 /// @brief Get the command specified by consoleInput.
@@ -440,6 +479,16 @@ const CommandEntry commands[] = {
     .name = "ps",
     .func = psCommandHandler,
     .help = "List the running processes."
+  },
+  {
+    .name = "reset",
+    .func = resetCommandHandler,
+    .help = "Do a hardware reset on the system."
+  },
+  {
+    .name = "shutdown",
+    .func = shutdownCommandHandler,
+    .help = "Shutdown the system."
   },
 };
 
