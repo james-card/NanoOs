@@ -41,6 +41,25 @@
 
 #include "HalPosix.h"
 
+/// @def OVERLAY_BASE_ADDRESS
+///
+/// @brief This is the base address that we will use in our mmap call.  The
+/// address has to be page aligned on Linux.  The address below should work
+/// fine unless the host is using 1 GB pages.
+#define OVERLAY_BASE_ADDRESS 0x20000000
+
+/// @def OVERLAY_OFFSET
+///
+/// @brief This is the offset into the allocated and mapped memory that the
+/// overlays will actually be loaded into.
+#define OVERLAY_OFFSET           0x1400
+
+/// @def OVERLAY_SIZE
+///
+/// @brief This is the size of the overlay that's permitted by the real
+/// hardware.
+#define OVERLAY_SIZE               8192
+
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
@@ -199,24 +218,28 @@ int64_t posixGetElapsedNanoseconds(int64_t startTime) {
     + ((int64_t) spec.tv_nsec)) - startTime;
 }
 
-/// @def OVERLAY_BASE_ADDRESS
-///
-/// @brief This is the base address that we will use in our mmap call.  The
-/// address has to be page aligned on Linux.  The address below should work
-/// fine unless the host is using 1 GB pages.
-#define OVERLAY_BASE_ADDRESS 0x20000000
+static jmp_buf _resetBuffer;
 
-/// @def OVERLAY_OFFSET
-///
-/// @brief This is the offset into the allocated and mapped memory that the
-/// overlays will actually be loaded into.
-#define OVERLAY_OFFSET           0x1400
+int posixReset(void) {
+  // Unmap the overlay so that we can map it again when we reset.
+  long pageSize = sysconf(_SC_PAGESIZE);
+  size_t overlayBaseSize
+    = ((size_t) (OVERLAY_OFFSET + OVERLAY_SIZE + (pageSize - 1)))
+    & ~((size_t) (pageSize - 1));
+  
+  if (munmap((void*) OVERLAY_BASE_ADDRESS, overlayBaseSize) < 0) {
+    fprintf(stderr, "ERROR: munmap returned: %s\n", strerror(errno));
+    fprintf(stderr, "Exiting.\n");
+    exit(1);
+  }
+  longjmp(_resetBuffer, 1);
+  return 0;
+}
 
-/// @def OVERLAY_SIZE
-///
-/// @brief This is the size of the overlay that's permitted by the real
-/// hardware.
-#define OVERLAY_SIZE               8192
+int posixShutdown(void) {
+  exit(0);
+  return 0;
+}
 
 /// @var posixHal
 ///
@@ -253,7 +276,10 @@ static Hal posixHal = {
   .getElapsedNanoseconds = posixGetElapsedNanoseconds,
 };
 
-const Hal* halPosixInit(void) {
+const Hal* halPosixInit(jmp_buf resetBuffer) {
+  // Saver our reset context for later.
+  memcpy(_resetBuffer, resetBuffer, sizeof(jmp_buf));
+  
   int topOfStack = 0;
   fprintf(stderr, "Top of stack        = %p\n", (void*) &topOfStack);
   

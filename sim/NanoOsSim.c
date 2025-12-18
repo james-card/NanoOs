@@ -83,7 +83,11 @@ int main(int argc, char **argv) {
   }
 
   sdCardDevicePath = argv[1];
-  HAL = halPosixInit();
+
+  jmp_buf resetBuffer;
+  setjmp(resetBuffer);
+
+  HAL = halPosixInit(resetBuffer);
   if (HAL == NULL) {
     // Error message has already been printed.  Bail.
     return 1;

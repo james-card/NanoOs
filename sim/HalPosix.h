@@ -36,6 +36,8 @@
 #ifndef HAL_POSIX_H
 #define HAL_POSIX_H
 
+#include <setjmp.h>
+
 #include "Hal.h"
 
 
@@ -44,7 +46,7 @@ extern "C"
 {
 #endif
 
-const Hal* halPosixInit(void);
+const Hal* halPosixInit(jmp_buf resetBuffer);
 
 #ifdef __cplusplus
 } // extern "C"
