@@ -274,6 +274,10 @@ static Hal posixHal = {
   .getElapsedMilliseconds = posixGetElapsedMilliseconds,
   .getElapsedMicroseconds = posixGetElapsedMicroseconds,
   .getElapsedNanoseconds = posixGetElapsedNanoseconds,
+  
+  // Hardware reset and shutdown.
+  .reset = posixReset,
+  .shutdown = posixShutdown,
 };
 
 const Hal* halPosixInit(jmp_buf resetBuffer) {
