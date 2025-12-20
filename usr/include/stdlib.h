@@ -46,8 +46,14 @@
   overlayMap.header.osApi->malloc(size)
 #define calloc(nmemb, size) \
   overlayMap.header.osApi->calloc(nmemb, size)
+
 #define getenv(s) \
   overlayMap.header.osApi->getenv(s)
+
+#define rand() \
+  overlayMap.header.osApi->rand()
+#define srand(seed) \
+  overlayMap.header.osApi->srand(seed)
 
 #endif // STDLIB_H
 

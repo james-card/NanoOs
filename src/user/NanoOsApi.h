@@ -125,6 +125,8 @@ typedef struct NanoOsApi {
   
   // Other stdlib functions:
   char* (*getenv)(const char *name);
+  int (*rand)(void);
+  void (*srand)(unsigned int seed);
   
   // unistd functions:
   int (*gethostname)(char *name, size_t len);
