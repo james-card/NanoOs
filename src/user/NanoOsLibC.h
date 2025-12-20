@@ -147,6 +147,9 @@ char* nanoOsGetenv(const char *name);
 #endif
 #define getenv(name) nanoOsGetenv(name)
 
+typedef int64_t time_t;
+time_t time(time_t *tloc);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

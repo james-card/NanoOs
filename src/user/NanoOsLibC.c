@@ -145,3 +145,22 @@ char* nanoOsGetenv(const char *name) {
   return value;
 }
 
+/// @fn time_t time(time_t *tloc)
+///
+/// @brief Implementation of standard C time function.
+///
+/// @param tloc Pointer to a time_t to store the current time in.  This
+///   parameter may be NULL.
+///
+/// @return Returns the number of seconds since midnight, Jan 1, 1970 on
+/// success, (time_t) -1 on error.  On error, the value of errno is also set.
+time_t time(time_t *tloc) {
+  time_t now = ((time_t) HAL->getElapsedMilliseconds(0)) / ((time_t) 1000);
+  
+  if (tloc != NULL) {
+    *tloc = now;
+  }
+  
+  return now;
+}
+

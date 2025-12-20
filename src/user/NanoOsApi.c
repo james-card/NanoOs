@@ -142,6 +142,9 @@ NanoOsApi nanoOsApi = {
   // sys/*.h functions:
   .uname = uname,
   
+  // time.h functions:
+  .time = time,
+  
   // NanoOs-specific functionality
   .callOverlayFunction = NULL,
 };

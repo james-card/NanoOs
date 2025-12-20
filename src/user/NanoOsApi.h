@@ -43,6 +43,7 @@
 #define FILE C_FILE
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 #undef FILE
 #undef stdin
 #undef stdout
@@ -52,6 +53,7 @@ typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
 
 #include "NanoOsSys.h"
+typedef int64_t time_t;
 
 #ifdef __cplusplus
 extern "C"
@@ -139,6 +141,9 @@ typedef struct NanoOsApi {
   
   // sys/*.h functions:
   int (*uname)(struct utsname *buf);
+  
+  // time.h functions:
+  time_t (*time)(time_t *tloc);
   
   // NanoOs-specific functionality
   void* (*callOverlayFunction)(void*);
