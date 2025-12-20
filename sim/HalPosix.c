@@ -58,7 +58,7 @@
 ///
 /// @brief This is the size of the overlay that's permitted by the real
 /// hardware.
-#define OVERLAY_SIZE               8192
+#define OVERLAY_SIZE               16384
 
 /// @var serialPorts
 ///
