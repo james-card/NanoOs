@@ -515,7 +515,10 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
     printString("ERROR!!! &__bss_end__ > ");
     printInt((uintptr_t) HAL->overlayMap);
-    printString("\nRunning user programs will corrupt system memory!!!\n");
+    printString("\n");
+    printString("*******************************************************\n");
+    printString("* Running user programs will corrupt system memory!!! *\n");
+    printString("*******************************************************\n");
   }
 #elif defined(__AVR__)
   extern int __heap_start;
