@@ -20,7 +20,7 @@ ifeq ($(strip $(SIZE)),)
 endif
 
 # Compiler flags
-CFLAGS := -std=c17
+CFLAGS := -std=gnu17
 ifeq ($(COMPILE),arm-none-eabi-gcc)
     CFLAGS += -mcpu=cortex-m0
 endif
