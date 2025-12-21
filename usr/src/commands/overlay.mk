@@ -2,6 +2,10 @@
 
 include ../../include.mk
 
+CFLAGS += -Os -nostdlib -ffreestanding
+CFLAGS += -fno-pic -fno-pie -static
+CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
+CFLAGS += -fno-jump-tables
 CFLAGS += -fno-stack-protector
 
 OBJ_DIR = ../../../../obj

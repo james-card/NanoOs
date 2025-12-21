@@ -22,10 +22,7 @@ endif
 # Compiler flags
 CFLAGS := -std=c17
 ifeq ($(COMPILE),arm-none-eabi-gcc)
-    CFLAGS += -mcpu=cortex-m0 -Os -nostdlib -ffreestanding
-    CFLAGS += -fno-pic -fno-pie -static
-    CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
-    CFLAGS += -fno-jump-tables
+    CFLAGS += -mcpu=cortex-m0
 endif
 
 # Linker flags
