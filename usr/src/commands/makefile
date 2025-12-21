@@ -15,6 +15,14 @@ overlays:
 			SIZE=$(SIZE) TARGET=$${command}; \
 	done
 
+app:
+	set -e; \
+	for command in $(COMMANDS); do \
+		$(MAKE) -C $${command} -f app.mk COMPILE=$(COMPILE) \
+			LINK=$(LINK) OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) \
+			SIZE=$(SIZE) TARGET=$${command}; \
+	done
+
 clean:
 	$(RM) $(OBJ_DIR)/start.o
 	for command in $(COMMANDS); do \

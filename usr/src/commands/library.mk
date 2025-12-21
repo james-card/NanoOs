@@ -16,7 +16,6 @@ SOURCES += \
     $(shell ls | grep -Ev 'makefile|.*\.mk|OverlayMap.c') \
 
 OBJECTS := \
-    $(OBJ_DIR)/$(TARGET)/$(LIBRARY)/OverlayMap.o \
     $(addprefix $(OBJ_DIR)/$(TARGET)/$(LIBRARY)/, $(SOURCES:.c=.o)) \
 
 OBJECTS := $(subst $(OBJ_DIR)/$(TARGET)/$(LIBRARY)/../../../start.o,\
@@ -35,7 +34,7 @@ all: $(ELF)
 $(ELF): $(OBJECTS)
 	@echo "Linking: $@"
 	$(MKDIR) "$(OBJ_DIR)/$(TARGET)"
-	$(COMPILE) $(LDFLAGS) $(OBJECTS) $(LINKS) -c -o $@
+	$(LINK) -r $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
 	$(SIZE) $@
 
 # Compile object files
@@ -43,10 +42,6 @@ $(OBJ_DIR)/$(TARGET)/$(LIBRARY)/%.o: %.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)/$(TARGET)/$(LIBRARY)"
 	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
-OverlayMap.c: $(SOURCES)
-	@echo "Creating OverlayMap.c"
-	../../../util/mkOverlayMap.sh OverlayMap.c $(SOURCES)
 
 # Generate disassembly for debugging
 disasm: $(ELF)
@@ -63,11 +58,11 @@ symbols: $(ELF)
 
 # Clean build artifacts
 clean:
-	$(RM) $(OBJECTS) $(ELF) $(TARGET).dis OverlayMap.c
+	$(RM) $(OBJECTS) $(ELF) $(TARGET).dis
 
 # Show help
 help:
-	@echo "NanoOS Overlay Build System"
+	@echo "NanoOS Application Build System"
 	@echo "Usage:"
 	@echo "  make          - Build $(TARGET)"
 	@echo "  make disasm   - Generate disassembly listing"
@@ -80,5 +75,5 @@ help:
 	@$(COMPILE) $(CFLAGS) $(INCLUDES) -E -Wp,-v -x c /dev/null 2>&1 | grep "^ "
 
 # Phony targets
-.PHONY: all clean disasm sections symbols help OverlayMap.c
+.PHONY: all clean disasm sections symbols help
 
