@@ -22,9 +22,11 @@ BINARY = $(BIN_DIR)/$(TARGET)/$(OVERLAY).overlay
 SOURCES += \
     $(shell ls | grep -Ev 'makefile|.*\.mk|OverlayMap.c') \
 
-OBJECTS = \
+OBJECTS := \
     $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/OverlayMap.o \
     $(addprefix $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/, $(SOURCES:.c=.o)) \
+
+OBJECTS := $(subst $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/../../../start.o,$(OBJ_DIR)/start.o,$(OBJECTS))
 
 INCLUDES += \
     -I../../../../../src/kernel \
