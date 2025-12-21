@@ -102,7 +102,7 @@ help:
 	@echo "  make help     - Show this help"
 	@echo ""
 	@echo "Include paths:"
-	@arm-none-eabi-gcc $(CFLAGS) $(INCLUDES) -E -Wp,-v -x c /dev/null 2>&1 | grep "^ "
+	@$(COMPILE) $(CFLAGS) $(INCLUDES) -E -Wp,-v -x c /dev/null 2>&1 | grep "^ "
 
 # Phony targets
 .PHONY: all clean disasm sections symbols help OverlayMap.c
