@@ -20,12 +20,11 @@ ELF = $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/overlay.elf
 BINARY = $(BIN_DIR)/$(TARGET)/$(OVERLAY).overlay
 
 SOURCES += \
-    $(shell ls | grep -Ev 'makefile|.*\.mk') \
+    $(shell ls | grep -Ev 'makefile|.*\.mk|OverlayMap.c') \
 
 OBJECTS = \
-    $(OBJ_DIR)/start.o \
-    $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/main.o \
     $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/OverlayMap.o \
+    $(addprefix $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/, $(SOURCES:.c=.o)) \
 
 INCLUDES += \
     -I../../../../../src/kernel \
