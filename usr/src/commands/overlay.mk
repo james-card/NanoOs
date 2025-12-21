@@ -59,11 +59,6 @@ $(ELF): $(OBJECTS)
 	$(SIZE) $@
 
 # Compile object files
-$(OBJ_DIR)/$(TARGET)/$(OVERLAY)/main.o: main.c
-	@echo "Compiling: $<"
-	$(MKDIR) "$(OBJ_DIR)/$(TARGET)/$(OVERLAY)"
-	$(COMPILE) $(WARNINGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
 $(OBJ_DIR)/start.o: ../../../start.c
 	@echo "Compiling: $<"
 	$(MKDIR) "$(OBJ_DIR)"
