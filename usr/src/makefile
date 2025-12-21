@@ -1,12 +1,15 @@
 SOURCES := commands
 
-.PHONY: all clean $(SOURCES)
+.PHONY: all clean overlays
 
-all: $(SOURCES)
-
-$(SOURCES): ./%:
-	$(MAKE) -C $@ COMPILE=$(COMPILE) LINK=$(LINK) OBJCOPY=$(OBJCOPY) \
-		OBJDUMP=$(OBJDUMP) SIZE=$(SIZE) LINKER_SCRIPT=$(LINKER_SCRIPT)
+overlays:
+	for source in $(SOURCES); do \
+		$(MAKE) -C $${source} COMPILE=$(COMPILE) LINK=$(LINK) \
+			OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) SIZE=$(SIZE) \
+			LINKER_SCRIPT=$(LINKER_SCRIPT) overlays; \
+	done
 
 clean:
-	for command in $(SOURCES); do $(MAKE) -C $${command} clean; done
+	for source in $(SOURCES); do \
+		$(MAKE) -C $${source} clean; \
+	done
