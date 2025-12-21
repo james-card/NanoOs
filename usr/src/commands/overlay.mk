@@ -26,7 +26,9 @@ OBJECTS := \
     $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/OverlayMap.o \
     $(addprefix $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/, $(SOURCES:.c=.o)) \
 
-OBJECTS := $(subst $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/../../../start.o,$(OBJ_DIR)/start.o,$(OBJECTS))
+OBJECTS := $(subst $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/../../../start.o,\
+    $(OBJ_DIR)/start.o,\
+    $(OBJECTS))
 
 INCLUDES += \
     -I../../../../../src/kernel \
