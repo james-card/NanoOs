@@ -14,11 +14,8 @@ CFLAGS += -fno-jump-tables
 CFLAGS += -fno-stack-protector
 
 # Linker flags
-LDFLAGS := $(LINKER_SCRIPT) -Wl,--gc-sections -static -no-pie
+LDFLAGS += $(LINKER_SCRIPT) -Wl,--gc-sections -static -no-pie
 LDFLAGS += -Wl,--build-id=none -nostartfiles
-ifeq ($(COMPILE),arm-none-eabi-gcc)
-    LDFLAGS += -mcpu=cortex-m0
-endif
 
 OBJ_DIR = ../../../../obj
 BIN_DIR = ../../../../bin
