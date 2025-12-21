@@ -2,18 +2,26 @@
 
 include ../../include.mk
 
+ifneq ($(LINKER_SCRIPT),)
+    override LINKER_SCRIPT := -T ../../../$(LINKER_SCRIPT)
+endif
+
+# Compiler flags
 CFLAGS += -Os -nostdlib -ffreestanding
 CFLAGS += -fno-pic -fno-pie -static
 CFLAGS += -ffunction-sections -fdata-sections -fcf-protection=none
 CFLAGS += -fno-jump-tables
 CFLAGS += -fno-stack-protector
 
+# Linker flags
+LDFLAGS := $(LINKER_SCRIPT) -Wl,--gc-sections -static -no-pie
+LDFLAGS += -Wl,--build-id=none -nostartfiles
+ifeq ($(COMPILE),arm-none-eabi-gcc)
+    LDFLAGS += -mcpu=cortex-m0
+endif
+
 OBJ_DIR = ../../../../obj
 BIN_DIR = ../../../../bin
-
-ifneq ($(LINKER_SCRIPT),)
-    override LINKER_SCRIPT := -T ../../../$(LINKER_SCRIPT)
-endif
 
 # Source and target files
 ELF = $(OBJ_DIR)/$(TARGET)/$(OVERLAY)/overlay.elf
@@ -50,7 +58,7 @@ $(BINARY): $(ELF)
 $(ELF): $(OBJECTS)
 	@echo "Linking: $@"
 	$(MKDIR) "$(OBJ_DIR)"
-	$(LINK) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
+	$(COMPILE) $(LDFLAGS) $(OBJECTS) $(LINKS) -o $@
 	$(SIZE) $@
 
 # Compile object files

@@ -25,9 +25,6 @@ ifeq ($(COMPILE),arm-none-eabi-gcc)
     CFLAGS += -mcpu=cortex-m0
 endif
 
-# Linker flags
-LDFLAGS = $(LINKER_SCRIPT) --gc-sections -static -no-pie --build-id=none
-
 LINKS = \
 
 WARNINGS = \
