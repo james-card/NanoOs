@@ -44,9 +44,9 @@
 #define _POSIX_OPEN_MAX 20      // Number of open files
 #define _POSIX_PATH_MAX 256     // Path length
 
-// Actual system values.  Just use the minimums for now.
+// Actual system values.
 #define LOGIN_NAME_MAX _POSIX_LOGIN_NAME_MAX
-#define NAME_MAX       _POSIX_NAME_MAX
+#define NAME_MAX       32
 #define OPEN_MAX       _POSIX_OPEN_MAX
 #define PATH_MAX       _POSIX_PATH_MAX
 
