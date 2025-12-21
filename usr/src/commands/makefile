@@ -10,11 +10,12 @@ BIN_DIR = ../../bin
 all: $(COMMANDS)
 
 $(COMMANDS): ./%:
-	$(MAKE) -C $@ TARGET="$@" COMPILE=$(COMPILE) LINK=$(LINK) \
-		OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) SIZE=$(SIZE)
+	$(MAKE) -C $@ -f overlay.mk COMPILE=$(COMPILE) LINK=$(LINK) \
+		OBJCOPY=$(OBJCOPY) OBJDUMP=$(OBJDUMP) SIZE=$(SIZE) \
+		TARGET="$@"
 
 clean:
 	$(RM) $(OBJ_DIR)/start.o
 	for command in $(COMMANDS); do \
-		$(MAKE) -C $${command} clean TARGET=$${command}; \
+		$(MAKE) -C $${command} -f overlay.mk clean TARGET=$${command}; \
 	done
