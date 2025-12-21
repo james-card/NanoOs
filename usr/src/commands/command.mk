@@ -23,3 +23,6 @@ app:
 clean:
 	$(RM) $(OBJ_DIR)/$(TARGET)
 	$(RM) $(BIN_DIR)/$(TARGET)
+	for overlay in $(OVERLAYS); do \
+		$(MAKE) -C $${overlay} -f overlay.mk clean; \
+	done
