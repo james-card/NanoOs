@@ -22,10 +22,7 @@ OBJECTS := $(subst $(OBJ_DIR)/$(TARGET)/$(LIBRARY)/../../../start.o,\
     $(OBJ_DIR)/start.o,\
     $(OBJECTS))
 
-INCLUDES += \
-    -I../../../../../src/kernel \
-    -I../../../../../src/user \
-    -I../../../../include \
+INCLUDES := \
 
 # Default target
 all: $(ELF)
