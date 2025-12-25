@@ -32,10 +32,6 @@
 // Base Arduino definitions
 #include <Arduino.h>
 
-// Sleep configuration
-#include <avr/sleep.h>
-#include <avr/interrupt.h>
-
 // Basic SPI communication
 #include <SPI.h>
 
@@ -61,6 +57,10 @@
 #define freee   MEMORY_ERROR
 
 #if defined(__AVR__)
+
+// Sleep configuration
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
 
 /// @var serialPorts
 ///
