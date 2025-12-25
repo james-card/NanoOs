@@ -42,7 +42,17 @@
 // Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
 // operational prior to the memory manager and really should be completely
 // independent of it.
+#include "src/kernel/ExFatProcess.h"
+#include "src/kernel/NanoOs.h"
+#include "src/kernel/Processes.h"
+#include "src/kernel/SdCardSpi.h"
 #include "src/user/NanoOsErrno.h"
+#include "src/user/NanoOsStdio.h"
+
+/// @def SD_CARD_PIN_CHIP_SELECT
+///
+/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
+#define SD_CARD_PIN_CHIP_SELECT 4
 
 // The fact that we've included Arduino.h in this file means that the memory
 // management functions from its library are available in this file.  That's a
@@ -343,6 +353,53 @@ int arduinoNanoEveryShutdown(void) {
   return 0;
 }
 
+int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
+  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  
+  // Create the SD card process.
+  SdCardSpiArgs sdCardSpiArgs = {
+    .spiCsDio = SD_CARD_PIN_CHIP_SELECT,
+    .spiCopiDio = SPI_COPI_DIO,
+    .spiCipoDio = SPI_CIPO_DIO,
+    .spiSckDio = SPI_SCK_DIO,
+  };
+
+  ProcessHandle processHandle = 0;
+  if (processCreate(&processHandle, runSdCardSpi, &sdCardSpiArgs)
+    != processSuccess
+  ) {
+    printString("Could not start SD card process.\n");
+  }
+  printDebugString("Started SD card process.\n");
+  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
+    = NANO_OS_SD_CARD_PROCESS_ID;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
+    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+  sdDevice->partitionNumber = 1;
+  printDebugString("Configured SD card process.\n");
+  
+  // Create the filesystem process.
+  processHandle = 0;
+  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+    != processSuccess
+  ) {
+    printString("Could not start filesystem process.\n");
+  }
+  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
+    = NANO_OS_FILESYSTEM_PROCESS_ID;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  printDebugString("Created filesystem process.\n");
+  
+  return 0;
+}
+
 /// @var arduinoNanoEveryHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
@@ -380,6 +437,9 @@ static Hal arduinoNanoEveryHal = {
   // Hardware reset and shutdown.
   .reset = arduinoNanoEveryReset,
   .shutdown = arduinoNanoEveryShutdown,
+  
+  // Root storage configuration.
+  .initRootStorage = arduinoNanoEveryInitRootStorage,
 };
 
 const Hal* halArduinoNanoEveryInit(void) {
