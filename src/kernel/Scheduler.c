@@ -33,6 +33,7 @@
 #include "Console.h"
 #include "ExFatFilesystem.h"
 #include "ExFatProcess.h"
+#include "Hal.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
 #include "Processes.h"
@@ -2938,37 +2939,12 @@ __attribute__((noinline)) void startScheduler(
   printDebugInt(schedulerState.numShells);
   printDebugString(" shells\n");
 
-  // Create the SD card process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runSdCard, NULL) != processSuccess) {
-    printString("Could not start SD card process.\n");
+  int rv = HAL->initRootStorage(&schedulerState);
+  if (rv != 0) {
+    printString("ERROR: initRootStorage returned status ");
+    printInt(rv);
+    printString("\n");
   }
-  printDebugString("Started SD card process.\n");
-  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
-    = NANO_OS_SD_CARD_PROCESS_ID;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
-  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
-  sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card process.\n");
-
-  // Create the filesystem process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
-    != processSuccess
-  ) {
-    printString("Could not start filesystem process.\n");
-  }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
-    = NANO_OS_FILESYSTEM_PROCESS_ID;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
-  printDebugString("Created filesystem process.\n");
 
   // We need to do an initial population of all the processes because we need to
   // get to the end of memory to run the memory manager in whatever is left
@@ -3061,8 +3037,6 @@ __attribute__((noinline)) void startScheduler(
   }
   printDebugString("Set shells for ports.\n");
 
-  // The scheduler will take care of cleaning up the dummy processes.
-
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
@@ -3071,6 +3045,8 @@ __attribute__((noinline)) void startScheduler(
     &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
   processQueuePush(&schedulerState.ready,
     &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
+  // The scheduler will take care of cleaning up the dummy processes in the
+  // ready queue.
   for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
     ii < NANO_OS_NUM_PROCESSES;
     ii++
