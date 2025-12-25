@@ -36,8 +36,8 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "stddef.h"
+#include "stdint.h"
 
 typedef struct BlockStorageDevice BlockStorageDevice;
 typedef struct NanoOsFile FILE;

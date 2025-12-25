@@ -40,7 +40,7 @@
 
 // Standard C includes
 #define FILE C_FILE
-#include <stdio.h>
+#include "stdio.h"
 #undef FILE
 
 #define FILE NanoOsFile

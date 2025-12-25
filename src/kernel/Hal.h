@@ -35,19 +35,21 @@
 #define HAL_H
 
 // Standard C includes
-#include <limits.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include "limits.h"
+#include "setjmp.h"
+#include "stdarg.h"
+#include "stdbool.h"
+#include "stdint.h"
+#include "stdlib.h"
+#include "string.h"
 
 #if defined(__linux__) || defined(__linux) || defined(_WIN32)
 // We're compiling as an application within another OS
-#include <sys/types.h>
+#include "sys/types.h"
 #endif
+
+// NanoOs includes
+#include "NanoOsTypes.h"
 
 #ifdef __cplusplus
 extern "C"

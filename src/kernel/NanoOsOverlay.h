@@ -38,7 +38,7 @@
 #define NANO_OS_OVERLAY_H
 
 // Standard includes.
-#include <stdint.h>
+#include "stdint.h"
 
 // Headers from kernel space.
 #include "../user/NanoOsApi.h"

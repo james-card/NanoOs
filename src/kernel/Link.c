@@ -34,16 +34,16 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
+#include "stddef.h"
+#include "stdint.h"
+#include "string.h"
 
 #if defined(__linux__) || defined(__linux) || defined(_WIN32)
 
 // We're compiling as an application on another OS.
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
+#include "stdio.h"
+#include "stdlib.h"
+#include "errno.h"
 #define MAX_PATH_LENGTH 255
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 

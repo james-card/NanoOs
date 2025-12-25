@@ -36,7 +36,7 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include <stdbool.h>
+#include "stdbool.h"
 
 #ifdef __cplusplus
 extern "C"

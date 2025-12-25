@@ -28,7 +28,7 @@
 // Doxygen marker
 /// @file
 
-#include <stdio.h>
+#include "stdio.h"
 
 #include "Console.h"
 #include "Commands.h"

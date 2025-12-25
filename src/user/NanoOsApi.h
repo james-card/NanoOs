@@ -41,9 +41,10 @@
 #undef FILE
 
 #define FILE C_FILE
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "stdarg.h"
+#include "stddef.h"
+#include "stdint.h"
+#include "time.h"
 #undef FILE
 #undef stdin
 #undef stdout
@@ -53,7 +54,6 @@ typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
 
 #include "NanoOsSys.h"
-typedef int64_t time_t;
 
 #ifdef __cplusplus
 extern "C"

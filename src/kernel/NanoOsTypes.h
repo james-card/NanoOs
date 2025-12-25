@@ -123,6 +123,11 @@ typedef int16_t UserId;
 /// @brief Data type used in a NanoOsMessage.
 typedef unsigned long long int NanoOsMessageData;
 
+/// @typedef ssize_t
+///
+/// @brief Signed, register-width integer.
+typedef intptr_t ssize_t;
+
 // Composite types
 
 /// @struct NanoOsFile

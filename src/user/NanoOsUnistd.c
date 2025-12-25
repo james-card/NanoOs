@@ -28,7 +28,7 @@
 // Doxygen marker
 /// @file
 
-#include <string.h>
+#include "string.h"
 #include "NanoOsUnistd.h"
 #include "../kernel/Console.h"
 #include "../kernel/NanoOs.h"

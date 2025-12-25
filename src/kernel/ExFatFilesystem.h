@@ -37,9 +37,9 @@
 #undef FILE
 
 #define FILE C_FILE
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "stdbool.h"
+#include "stddef.h"
+#include "stdint.h"
 #undef FILE
 
 #define FILE NanoOsFile

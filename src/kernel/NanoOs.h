@@ -36,6 +36,9 @@
 #ifndef NANO_OS_H
 #define NANO_OS_H
 
+// Standard C includes
+#include "time.h"
+
 // Local headers
 #include "MemoryManager.h"
 #include "NanoOsTypes.h"

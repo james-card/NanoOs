@@ -36,8 +36,8 @@
 #ifndef COROUTINE_SYNC_H
 #define COROUTINE_SYNC_H
 
-#include <time.h>
-#include <stdint.h>
+#include "time.h"
+#include "stdint.h"
 
 #include "../user/NanoOsLibC.h"
 

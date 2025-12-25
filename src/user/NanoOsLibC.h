@@ -47,14 +47,14 @@
 #define NANO_OS_LIB_C_H
 
 // Standard C includes
-#include <limits.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include "limits.h"
+#include "setjmp.h"
+#include "stdarg.h"
+#include "stdbool.h"
+#include "stdint.h"
+#include "stdlib.h"
+#include "string.h"
+#include "time.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -83,16 +83,6 @@ extern "C"
 /// for us.  Also, in the MemoryManager library, we use 4 bits to store the ID
 /// of the owner, so this is an appropriate value.
 #define COROUTINE_ID_NOT_SET ((uint8_t) 0x0f)
-
-// Missing from Arduino
-#if defined(__AVR__)
-struct timespec {
-  time_t tv_sec;
-  long   tv_nsec;
-};
-#endif // __arm__
-#define TIME_UTC 1
-int timespec_get(struct timespec* spec, int base);
 
 /// @def MIN
 ///
@@ -146,9 +136,6 @@ char* nanoOsGetenv(const char *name);
 #undef getenv
 #endif
 #define getenv(name) nanoOsGetenv(name)
-
-typedef int64_t time_t;
-time_t time(time_t *tloc);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -36,7 +36,7 @@
 #ifndef SD_CARD_H
 #define SD_CARD_H
 
-#include <stdint.h>
+#include "stdint.h"
 
 #ifdef __cplusplus
 extern "C"
