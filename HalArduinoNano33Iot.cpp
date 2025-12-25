@@ -56,6 +56,8 @@
 #define realloc MEMORY_ERROR
 #define freee   MEMORY_ERROR
 
+#if defined(__arm__)
+
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
@@ -357,4 +359,6 @@ static Hal arduinoNano33IotHal = {
 const Hal* halArduinoNano33IotInit(void) {
   return &arduinoNano33IotHal;
 }
+
+#endif // __arm__
 

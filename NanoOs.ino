@@ -38,7 +38,10 @@ const Hal *HAL = NULL;
 // is to be used for Arduino-specific setup.  *ANYTHING* that requires use of
 // coroutines needs to be done in the loop function.
 void setup() {
+#if defined(__arm__)
   HAL = halArduinoNano33IotInit();
+#endif // __arm__
+
   if (HAL == NULL) {
     // Nothing we can do.  Halt.
     while(1);
