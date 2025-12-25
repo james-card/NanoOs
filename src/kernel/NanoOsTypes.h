@@ -183,6 +183,7 @@ typedef struct FileDescriptor {
 ///   the fileDescriptors array.
 /// @param fileDescriptors Pointer to an array of FileDescriptors that are
 ///   currently in use by the process.
+/// @param overlayDir The base path to the overlays for the process, if any.
 typedef struct ProcessDescriptor {
   const char     *name;
   ProcessHandle   processHandle;
@@ -190,6 +191,7 @@ typedef struct ProcessDescriptor {
   UserId          userId;
   uint8_t         numFileDescriptors;
   FileDescriptor *fileDescriptors;
+  const char     *overlayDir;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement
