@@ -1340,23 +1340,21 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
     stackSize = options->stackSize;
   }
 
-  Coroutine* idle = _globalIdle;
+  // Reset the idle and running stacks.
 #ifdef THREAD_SAFE_COROUTINES
-  if (_coroutineThreadingSupportEnabled) {
+  if (!_coroutineThreadingSupportEnabled) {
+    _globalIdle = NULL;
+  _globalRunning = NULL;
+  } else {
     call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
-    idle = (Coroutine*) tss_get(_tssIdle);
+    tss_set(_tssIdle, NULL);
+    tss_set(_tssRunning, NULL);
   }
+#else
+  _globalIdle = NULL;
+  _globalRunning = NULL;
 #endif // THREAD_SAFE_COROUTINES
 
-  if (idle != NULL) {
-    fprintf(stderr,
-      "coroutineConfig called after coroutine creation.\n");
-    fprintf(stderr, "Cannot execute coroutineConfig.\n");
-    return coroutineError;
-  }
-
-  // If we made it this far, we're allowed to configure coroutines for this
-  // thread.
 #ifdef THREAD_SAFE_COROUTINES
   if (_coroutineThreadingSupportEnabled) {
     if (tss_get(_tssFirst) != NULL) {
@@ -1381,6 +1379,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
         "Could not initialize thread metadata in coroutineConfig.\n");
         return coroutineError;
     }
+
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
     if (options != NULL) {
       tss_set(_tssStateData, options->stateData);
