@@ -348,11 +348,11 @@ int arduinoNanoEveryShutdown(void) {
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
 static Hal arduinoNanoEveryHal = {
   // Memory definitions.
-  .bottomOfStack = (void*) (0x20001400 + 8192),
+  .bottomOfStack = NULL,
   
   // Overlay definitions.
-  .overlayMap = (NanoOsOverlayMap*) 0x20001400,
-  .overlaySize = 8192,
+  .overlayMap = NULL,
+  .overlaySize = 0,
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNanoEveryGetNumSerialPorts,
