@@ -264,6 +264,8 @@ typedef struct Hal {
   /// provided start time on success, -1 on failure.
   int64_t (*getElapsedNanoseconds)(int64_t startTime);
   
+  // Hardware reset and shutdown.
+  
   /// @fn int reset(void)
   ///
   /// @brief Cause a hardware reset of the OS.  Everything will be
@@ -280,6 +282,18 @@ typedef struct Hal {
   /// @return This function does not return on success.  On error, -errno will
   /// be returned.
   int (*shutdown)(void);
+  
+  // Root storage configuration.
+  
+  /// @fn int (*initRootStorage)(SchedulerState *schedulerState)
+  ///
+  /// @brief Initialize the processes that operate the root storage system.
+  ///
+  /// @param schedulerState A pointer to the SchedulerState to use to initialize
+  ///   the processes.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*initRootStorage)(SchedulerState *schedulerState);
 } Hal;
 
 extern const Hal *HAL;
