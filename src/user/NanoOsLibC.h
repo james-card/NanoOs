@@ -37,12 +37,6 @@
 //// #define NANO_OS_DEBUG
 #include "NanoOsErrno.h"
 
-/*
- * This file is included by Coroutines.h to provide functionality missing from
- * the Arduino C implementation and to provide some debugging tools when
- * debugging the Corutines library from NanoOs.
- */
-
 #ifndef NANO_OS_LIB_C_H
 #define NANO_OS_LIB_C_H
 
