@@ -52,6 +52,11 @@ int loadOverlay(const char *overlayPath, char **env) {
     return -ENOENT;
   }
 
+  if ((HAL->overlayMap == NULL) || (HAL->overlaySize == 0)) {
+    fprintf(stderr, "No overlay memory available for use.\n");
+    return -ENOMEM;
+  }
+
   printDebugString(__func__);
   printDebugString(": Reading from overlayFile 0x");
   printDebugHex((uintptr_t) overlayFile);
