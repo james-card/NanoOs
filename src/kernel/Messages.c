@@ -33,6 +33,7 @@ typedef struct msg_t msg_t;
 typedef struct msg_q_t msg_q_t;
 
 #include "Messages.h"
+#include "string.h"
 
 #if LOGGING_ENABLED && CTHREADS_LOGGING_ENABLED
 #include "LoggingLib.h"
