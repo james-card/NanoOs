@@ -31,6 +31,7 @@
 #include "src/kernel/NanoOs.h"
 #include "src/kernel/Scheduler.h"
 #include "src/kernel/SdCardSpi.h"
+#include "src/user/NanoOsLibC.h"
 #include "src/user/NanoOsStdio.h"
 
 const Hal *HAL = NULL;
