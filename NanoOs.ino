@@ -64,11 +64,6 @@ void setup() {
     }
   }
 
-  runSdCard = runSdCardSpi;
-  spiCopiDio = SPI_COPI_DIO;
-  spiCipoDio = SPI_CIPO_DIO;
-  spiSckDio = SPI_SCK_DIO;
-
   // We need a guard at bootup because if the system crashes in a way that makes
   // the processor unresponsive, it will be very difficult to load new firmware.
   // Sleep long enough to begin a firmware upload on reset.

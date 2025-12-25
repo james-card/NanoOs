@@ -49,6 +49,11 @@
 #include "src/user/NanoOsErrno.h"
 #include "src/user/NanoOsStdio.h"
 
+/// @def SD_CARD_PIN_CHIP_SELECT
+///
+/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
+#define SD_CARD_PIN_CHIP_SELECT 4
+
 // The fact that we've included Arduino.h in this file means that the memory
 // management functions from its library are available in this file.  That's a
 // problem.  (a) We can't allow dynamic memory at the HAL level and (b) if we
@@ -326,8 +331,17 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
   ProcessDescriptor *allProcesses = schedulerState->allProcesses;
   
   // Create the SD card process.
+  SdCardSpiArgs sdCardSpiArgs = {
+    .spiCsDio = SD_CARD_PIN_CHIP_SELECT,
+    .spiCopiDio = SPI_COPI_DIO,
+    .spiCipoDio = SPI_CIPO_DIO,
+    .spiSckDio = SPI_SCK_DIO,
+  };
+
   ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runSdCardSpi, NULL) != processSuccess) {
+  if (processCreate(&processHandle, runSdCardSpi, &sdCardSpiArgs)
+    != processSuccess
+  ) {
     printString("Could not start SD card process.\n");
   }
   printDebugString("Started SD card process.\n");

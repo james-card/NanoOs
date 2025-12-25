@@ -97,7 +97,6 @@ typedef struct msg_t ProcessMessage;
 /// @brief Definition of a filesystem command handler function.
 typedef int (*SdCardCommandHandler)(SdCardState*, ProcessMessage*);
 
-extern void* (*runSdCard)(void *args);
 int sdCardGetReadWriteParameters(
   SdCardState *sdCardState, SdCommandParams *sdCommandParams,
   uint32_t *startSdBlock, uint32_t *numSdBlocks);

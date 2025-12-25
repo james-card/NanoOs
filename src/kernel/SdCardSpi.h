@@ -44,9 +44,12 @@ extern "C"
 {
 #endif
 
-extern int spiCopiDio;
-extern int spiCipoDio;
-extern int spiSckDio;
+typedef struct SdCardSpiArgs {
+  int spiCsDio;
+  int spiCopiDio;
+  int spiCipoDio;
+  int spiSckDio;
+} SdCardSpiArgs;
 
 void* runSdCardSpi(void *args);
 

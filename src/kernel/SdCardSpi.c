@@ -57,26 +57,6 @@
 #define R1_ADDR_ERROR  0x20
 #define R1_PARAM_ERROR 0x40
 
-/// @var spiCopiDio
-///
-/// @brief DIO pin to use for COPI.  Set by an external user of this library.
-int spiCopiDio = 0;
-
-/// @var spiCipoDio
-///
-/// @brief DIO pin to use for CIPO.  Set by an external user of this library.
-int spiCipoDio = 0;
-
-/// @var spiSckDio
-///
-/// @brief DIO pin to use for SCK.  Set by an external user of this library.
-int spiSckDio = 0;
-
-/// @def SD_CARD_PIN_CHIP_SELECT
-///
-/// @brief Pin to use for the MicroSD card reader's SPI chip select line.
-#define SD_CARD_PIN_CHIP_SELECT 4
-
 /// @def SD_CARD_SPI_DEVICE
 ///
 /// @brief The SPI device ID to use in SPI calls in the HAL.
@@ -125,23 +105,27 @@ uint8_t sdSpiSendCommand(int sdCardSpiDevice, uint8_t cmd, uint32_t arg) {
   return response;
 }
 
-/// @fn int sdSpiCardInit(uint8_t chipSelect)
+/// @fn int sdSpiCardInit(SdCardSpiArgs *sdCardSpiArgs)
 ///
 /// @brief Initialize the SD card for communication with the OS.
 ///
-/// @param chipSelect The pin tht the SD card's chip select line is connected
-///   to.
+/// @param sdCardSpiArgs A pointer to an SdCardSpiArgs structure that contains
+///   the information needed to initialize the card.
 ///
 /// @return Returns the version of the connected card on success (1 or 2),
 /// 0 on error.
-int sdSpiCardInit(uint8_t chipSelect) {
+int sdSpiCardInit(SdCardSpiArgs *sdCardSpiArgs) {
   uint8_t response;
   uint16_t timeoutCount;
   bool isSDv2 = false;
   
   // Set up SPI at the default speed
   int initStatus = HAL->initSpiDevice(SD_CARD_SPI_DEVICE,
-    chipSelect, spiSckDio, spiCopiDio, spiCipoDio);
+    sdCardSpiArgs->spiCsDio,
+    sdCardSpiArgs->spiSckDio,
+    sdCardSpiArgs->spiCopiDio,
+    sdCardSpiArgs->spiCipoDio
+  );
   if (initStatus != 0) {
     // Just pass the error upward.
     return initStatus;
@@ -586,7 +570,7 @@ void handleSdCardMessages(SdCardState *sdCardState) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCardSpi(void *args) {
-  (void) args;
+  SdCardSpiArgs *sdCardSpiArgs = (SdCardSpiArgs*) args;
 
   SdCardState sdCardState;
   memset(&sdCardState, 0, sizeof(sdCardState));
@@ -600,7 +584,7 @@ void* runSdCardSpi(void *args) {
   };
   sdCardState.bsDevice = &blockStorageDevice;
 
-  sdCardState.sdCardVersion = sdSpiCardInit(SD_CARD_PIN_CHIP_SELECT);
+  sdCardState.sdCardVersion = sdSpiCardInit(sdCardSpiArgs);
   if (sdCardState.sdCardVersion > 0) {
     sdCardState.blockSize = blockStorageDevice.blockSize
       = sdSpiGetBlockSize(SD_CARD_SPI_DEVICE);

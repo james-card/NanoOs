@@ -36,8 +36,6 @@
 // Must come last
 #include "../user/NanoOsStdio.h"
 
-void* (*runSdCard)(void *args);
-
 /// @fn int sdCardGetReadWriteParameters(
 ///   SdCardState *sdCardState, SdCommandParams *sdCommandParams,
 ///   uint32_t *startSdBlock, uint32_t *numSdBlocks)
