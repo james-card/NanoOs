@@ -27,6 +27,7 @@
 
 // Custom includes
 #include "HalArduinoNano33Iot.h"
+#include "HalArduinoNanoEvery.h"
 #include "src/kernel/NanoOs.h"
 #include "src/kernel/Scheduler.h"
 #include "src/kernel/SdCardSpi.h"
@@ -40,6 +41,8 @@ const Hal *HAL = NULL;
 void setup() {
 #if defined(__arm__)
   HAL = halArduinoNano33IotInit();
+#elif defined(__AVR__)
+  HAL = halArduinoNanoEveryInit();
 #endif // __arm__
 
   if (HAL == NULL) {
