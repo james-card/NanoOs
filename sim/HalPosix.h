@@ -46,7 +46,7 @@ extern "C"
 {
 #endif
 
-const Hal* halPosixInit(jmp_buf resetBuffer);
+const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath);
 
 #ifdef __cplusplus
 } // extern "C"

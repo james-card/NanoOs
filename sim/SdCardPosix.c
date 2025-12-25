@@ -41,11 +41,6 @@
 // Simulator includes
 #include "SdCardPosix.h"
 
-/// @var sdCardDevicePath
-///
-/// @brief Full path to the device file to open from the filesystem.
-const char *sdCardDevicePath = NULL;
-
 //// #define printDebug(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 #define printDebug(fmt, ...) {}
 
@@ -213,6 +208,8 @@ void handleSdCardMessages(SdCardState *sdCardState) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runSdCardPosix(void *args) {
+  const char *sdCardDevicePath = (char*) args;
+
   (void) args;
 
   SdCardState sdCardState;

@@ -41,6 +41,10 @@
 #include <unistd.h>
 
 #include "HalPosix.h"
+#include "SdCardPosix.h"
+#include "kernel/ExFatProcess.h"
+#include "kernel/NanoOs.h"
+#include "kernel/Processes.h"
 
 /// @def OVERLAY_BASE_ADDRESS
 ///
@@ -242,6 +246,51 @@ int posixShutdown(void) {
   return 0;
 }
 
+/// @var _sdCardDevicePath
+///
+/// @brief Path to the device node to connect to for the SdCardSim process.
+static const char *_sdCardDevicePath = NULL;
+
+int posixInitRootStorage(SchedulerState *schedulerState) {
+  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  
+  // Create the SD card process.
+  ProcessHandle processHandle = 0;
+  if (processCreate(&processHandle, runSdCardPosix, (void*) _sdCardDevicePath)
+    != processSuccess
+  ) {
+    fputs("Could not start SD card process.\n", stderr);
+  }
+  printDebugString("Started SD card process.\n");
+  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
+    = NANO_OS_SD_CARD_PROCESS_ID;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
+    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+  sdDevice->partitionNumber = 1;
+  printDebugString("Configured SD card process.\n");
+  
+  // Create the filesystem process.
+  processHandle = 0;
+  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+    != processSuccess
+  ) {
+    fputs("Could not start filesystem process.\n", stderr);
+  }
+  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
+    = NANO_OS_FILESYSTEM_PROCESS_ID;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  printDebugString("Created filesystem process.\n");
+  
+  return 0;
+}
+
 /// @var posixHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -279,11 +328,22 @@ static Hal posixHal = {
   // Hardware reset and shutdown.
   .reset = posixReset,
   .shutdown = posixShutdown,
+  
+  // Root storage configuration.
+  .initRootStorage = posixInitRootStorage,
 };
 
-const Hal* halPosixInit(jmp_buf resetBuffer) {
+const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
+  fprintf(stdout, "Setting _sdCardDevicePath.\n");
+  fflush(stdout);
+  _sdCardDevicePath = sdCardDevicePath;
+  fprintf(stdout, "_sdCardDevicePath set.\n");
+  fflush(stdout);
+
   // Saver our reset context for later.
   memcpy(_resetBuffer, resetBuffer, sizeof(jmp_buf));
+  fprintf(stdout, "resetBuffer copied.\n");
+  fflush(stdout);
   
   int topOfStack = 0;
   fprintf(stderr, "Top of stack        = %p\n", (void*) &topOfStack);
