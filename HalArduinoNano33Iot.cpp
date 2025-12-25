@@ -42,7 +42,12 @@
 // Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
 // operational prior to the memory manager and really should be completely
 // independent of it.
+#include "src/kernel/ExFatProcess.h"
+#include "src/kernel/NanoOs.h"
+#include "src/kernel/Processes.h"
+#include "src/kernel/SdCardSpi.h"
 #include "src/user/NanoOsErrno.h"
+#include "src/user/NanoOsStdio.h"
 
 // The fact that we've included Arduino.h in this file means that the memory
 // management functions from its library are available in this file.  That's a
@@ -317,6 +322,44 @@ int arduinoNano33IotShutdown(void) {
   return 0;
 }
 
+int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
+  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  
+  // Create the SD card process.
+  ProcessHandle processHandle = 0;
+  if (processCreate(&processHandle, runSdCardSpi, NULL) != processSuccess) {
+    printString("Could not start SD card process.\n");
+  }
+  printDebugString("Started SD card process.\n");
+  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
+    = NANO_OS_SD_CARD_PROCESS_ID;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
+  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
+    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+  sdDevice->partitionNumber = 1;
+  printDebugString("Configured SD card process.\n");
+  
+  // Create the filesystem process.
+  processHandle = 0;
+  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+    != processSuccess
+  ) {
+    printString("Could not start filesystem process.\n");
+  }
+  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
+    = NANO_OS_FILESYSTEM_PROCESS_ID;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
+  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  printDebugString("Created filesystem process.\n");
+  
+  return 0;
+}
+
 /// @var arduinoNano33IotHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -354,6 +397,9 @@ static Hal arduinoNano33IotHal = {
   // Hardware reset and shutdown.
   .reset = arduinoNano33IotReset,
   .shutdown = arduinoNano33IotShutdown,
+  
+  // Root storage configuration.
+  .initRootStorage = arduinoNano33IotInitRootStorage,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
