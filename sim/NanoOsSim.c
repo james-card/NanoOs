@@ -107,8 +107,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  runSdCard = runSdCardPosix;
-
   // On hardware, we need a "Booting..." message and a delay so that we give
   // ourselves enough time to start a firmware update in case we've loaded
   // something that's resulting in bricking the system.  Since the simulator is

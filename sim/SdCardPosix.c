@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 // NanoOs includes
+#include "NanoOsLibC.h"
 #include "Processes.h"
 
 // Simulator includes
