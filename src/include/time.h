@@ -33,9 +33,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#if !defined(NANO_OS_TIME_H) && !defined(_SYS__TIMESPEC_H_)
+#if !defined(NANO_OS_TIME_H)
 #define NANO_OS_TIME_H
-#define _SYS__TIMESPEC_H_
 
 #include "stddef.h"
 #include "stdint.h"
@@ -49,10 +48,15 @@ typedef int64_t time_t;
 
 time_t time(time_t *tloc);
 
+#if !defined(_SYS__TIMESPEC_H_) && !defined(_STRUCT_TIMESPEC)
+#define _SYS__TIMESPEC_H_
+#define _STRUCT_TIMESPEC 1
 struct timespec {
   time_t tv_sec;
   long   tv_nsec;
 };
+#endif
+
 int timespec_get(struct timespec* spec, int base);
 
 #ifdef __cplusplus
