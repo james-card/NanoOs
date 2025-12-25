@@ -28,6 +28,7 @@
 // Doxygen marker
 /// @file
 
+#include "NanoOsLibC.h"
 #include "../kernel/Console.h"
 #include "../kernel/Hal.h"
 #include "../kernel/NanoOs.h"

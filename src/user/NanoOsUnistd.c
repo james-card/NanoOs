@@ -29,6 +29,7 @@
 /// @file
 
 #include "string.h"
+#include "NanoOsLibC.h"
 #include "NanoOsUnistd.h"
 #include "../kernel/Console.h"
 #include "../kernel/NanoOs.h"

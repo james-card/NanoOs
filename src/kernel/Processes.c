@@ -34,6 +34,7 @@
 #include "NanoOsOverlay.h"
 #include "Processes.h"
 #include "Scheduler.h"
+#include "../user/NanoOsLibC.h"
 
 // Must come last
 #include "../user/NanoOsStdio.h"

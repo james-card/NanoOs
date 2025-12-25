@@ -33,6 +33,7 @@
 #include "NanoOs.h"
 #include "Processes.h"
 #include "Scheduler.h"
+#include "../user/NanoOsLibC.h"
 
 #include "../user/NanoOsStdio.h"
 

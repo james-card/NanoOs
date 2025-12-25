@@ -41,6 +41,7 @@
 #include "SdCard.h"
 
 // User space includes
+#include "../user/NanoOsLibC.h"
 #include "../user/NanoOsUnistd.h"
 
 // Must come last

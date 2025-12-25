@@ -52,6 +52,7 @@
 // We're compiling from within NanoOs.
 #include "Filesystem.h"
 #include "MemoryManager.h"
+#include "../user/NanoOsLibC.h"
 
 #endif // OS-specific imports
 

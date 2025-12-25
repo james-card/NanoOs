@@ -34,6 +34,7 @@
 #include "../kernel/MemoryManager.h"
 #include "../kernel/NanoOs.h"
 #include "../kernel/Scheduler.h"
+#include "NanoOsLibC.h"
 #include "NanoOsUnistd.h"
 
 // Must come last

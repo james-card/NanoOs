@@ -6,6 +6,7 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "../user/NanoOsLibC.h"
 #include "../user/NanoOsStdio.h"
 #include "Filesystem.h"
 #include "NanoOs.h"

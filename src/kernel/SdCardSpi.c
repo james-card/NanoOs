@@ -33,6 +33,7 @@
 #include "Hal.h"
 #include "NanoOs.h"
 #include "Processes.h"
+#include "../user/NanoOsLibC.h"
 
 // Must come last
 #include "../user/NanoOsStdio.h"

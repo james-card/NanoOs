@@ -37,6 +37,7 @@
 #include "NanoOs.h"
 #include "NanoOsTypes.h"
 #include "Processes.h"
+#include "../user/NanoOsLibC.h"
 
 // Must come last
 #include "../user/NanoOsStdio.h"
