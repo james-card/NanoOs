@@ -76,8 +76,8 @@
  * running coroutine calling coroutineYield to yield control back to its caller
  * and a calling function calling coroutineResume to resume execution in the
  * called coroutine from the point at which the coroutine made its last
- * coroutineYield call (or from the beginning of the function if the function has
- * not yet begun execution).
+ * coroutineYield call (or from the beginning of the function if the function
+ * has not yet begun execution).
  *
  * coroutineInit, coroutineMain, coroutineResume, and coroutineYield make use
  * of an internal function called coroutinePass and/or raw setjmp and longjmp
