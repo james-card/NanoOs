@@ -37,19 +37,35 @@
 // Must come last
 #include "../user/NanoOsStdio.h"
 
-/// @fn int loadOverlay(const char *overlayPath, char **envp)
+/// @fn int loadOverlay(const char *overlayDir, const char *overlay,
+///   char **envp)
 ///
 /// @brief Load and configure an overlay into the overlayMap in memory.
 ///
-/// @param overlayPath The full path to the overlay file on the filesystem.
+/// @param overlayDir The full path to the directory of the overlay on the
+///   filesystem.
+/// @param overlay The name of the overlay within the overlayDir to load (minus
+///   the ".overlay" file extension).
 /// @param envp The array of environment variables in "name=value" form.
 ///
 /// @return Returns 0 on success, negative error code on failure.
-int loadOverlay(const char *overlayPath, char **envp) {
-  FILE *overlayFile = fopen(overlayPath, "r");
+int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
+  // We need two extra characters:  One for the '/' that separates the directory
+  // and the file name and one for the terminating NULL byte.
+  char *fullPath = (char*) malloc(
+    strlen(overlayDir) + strlen(overlay) + OVERLAY_EXT_LEN + 2);
+  if (fullPath == NULL) {
+    return -ENOMEM;
+  }
+  strcpy(fullPath, overlayDir);
+  strcat(fullPath, "/");
+  strcat(fullPath, overlay);
+  strcat(fullPath, OVERLAY_EXT);
+  FILE *overlayFile = fopen(fullPath, "r");
   if (overlayFile == NULL) {
     fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
-      overlayPath);
+      fullPath);
+    free(fullPath); fullPath = NULL;
     return -ENOENT;
   }
 
@@ -64,8 +80,9 @@ int loadOverlay(const char *overlayPath, char **envp) {
   printDebugString("\n");
   if (fread(HAL->overlayMap, 1, HAL->overlaySize, overlayFile) == 0) {
     fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
-      overlayPath);
+      fullPath);
     fclose(overlayFile); overlayFile = NULL;
+    free(fullPath); fullPath = NULL;
     return -EIO;
   }
   printDebugString(__func__);
@@ -77,7 +94,8 @@ int loadOverlay(const char *overlayPath, char **envp) {
   printDebugString("Verifying overlay magic\n");
   if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
-      overlayPath);
+      fullPath);
+    free(fullPath); fullPath = NULL;
     return -ENOEXEC;
   }
   printDebugString("Verifying overlay version\n");
@@ -85,9 +103,11 @@ int loadOverlay(const char *overlayPath, char **envp) {
     != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
   ) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
-      HAL->overlayMap->header.version, overlayPath);
+      HAL->overlayMap->header.version, fullPath);
+    free(fullPath); fullPath = NULL;
     return -ENOEXEC;
   }
+  free(fullPath); fullPath = NULL;
 
   // Set the pieces of the overlay header that the program needs to run.
   printDebugString("Configuring overlay environment\n");
@@ -143,15 +163,7 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
 int runOverlayCommand(const char *commandPath,
   int argc, char **argv, char **envp
 ) {
-  char *fullPath = (char*) malloc(
-    strlen(commandPath) + BIN_ENTRYPOINT_LENGTH + 1);
-  if (fullPath == NULL) {
-    return COMMAND_CANNOT_EXECUTE;
-  }
-  strcpy(fullPath, commandPath);
-  strcat(fullPath, BIN_ENTRYPOINT);
-  int loadStatus = loadOverlay(fullPath, envp);
-  free(fullPath); fullPath = NULL;
+  int loadStatus = loadOverlay(commandPath, "main", envp);
   if (loadStatus == -ENOENT) {
     // Error message already printed.
     return COMMAND_NOT_FOUND;

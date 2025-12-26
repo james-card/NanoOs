@@ -53,16 +53,15 @@ extern "C"
 /// @brief Value used to validate that an overlay header is valid.
 #define NANO_OS_OVERLAY_MAGIC 0x4c4f734f6f6e614e // "NanoOsOL"
 
-/// @def BIN_ENTRYPOINT
+/// @def OVERLAY_EXT
 ///
-/// @Entrypoint for a filesystem binary that's broken into overlays.
-#define BIN_ENTRYPOINT "/main.overlay"
+/// @brief The file extension for overlay files.
+#define OVERLAY_EXT ".overlay"
 
-/// @def BIN_ENTRYPOINT_LENGTH
+/// @def OVERLAY_EXT_LEN
 ///
-/// @brief Number of characters consumed by BIN_ENTRYPOINT.  This saves having
-/// to call strlen on the string every time a command is run.
-#define BIN_ENTRYPOINT_LENGTH 13
+/// @brief The number of characters in OVERLAY_EXT.
+#define OVERLAY_EXT_LEN 8
 
 /// @type OverlayFunction
 ///
@@ -128,7 +127,7 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
-int loadOverlay(const char *overlayPath, char **envp);
+int loadOverlay(const char *overlayDir, const char *overlay, char **envp);
 OverlayFunction findOverlayFunction(const char *overlayFunctionName);
 int runOverlayCommand(const char *commandPath,
   int argc, char **argv, char **envp);
