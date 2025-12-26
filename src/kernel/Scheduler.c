@@ -2573,6 +2573,8 @@ int schedulerExecveCommandHandler(
     }
   }
 
+  processDescriptor->overlayDir = pathname;
+  processDescriptor->overlay = "main";
   processDescriptor->name = argv[0];
 
   /*
