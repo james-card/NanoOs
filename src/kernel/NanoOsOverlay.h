@@ -129,6 +129,7 @@ typedef struct MainArgs {
 } MainArgs;
 
 int loadOverlay(const char *overlayPath, char **envp);
+OverlayFunction findOverlayFunction(const char *overlayFunctionName);
 int runOverlayCommand(const char *commandPath,
   int argc, char **argv, char **envp);
 
