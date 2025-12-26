@@ -58,6 +58,12 @@ extern "C"
 /// @Entrypoint for a filesystem binary that's broken into overlays.
 #define BIN_ENTRYPOINT "/main.overlay"
 
+/// @def BIN_ENTRYPOINT_LENGTH
+///
+/// @brief Number of characters consumed by BIN_ENTRYPOINT.  This saves having
+/// to call strlen on the string every time a command is run.
+#define BIN_ENTRYPOINT_LENGTH 13
+
 /// @type OverlayFunction
 ///
 /// @brief Function pointer for a function that can be called in an overlay from
@@ -122,8 +128,9 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
+int loadOverlay(const char *overlayPath, char **envp);
 int runOverlayCommand(const char *commandPath,
-  int argc, char **argv, char **env);
+  int argc, char **argv, char **envp);
 
 #ifdef __cplusplus
 }

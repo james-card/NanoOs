@@ -37,15 +37,15 @@
 // Must come last
 #include "../user/NanoOsStdio.h"
 
-/// @fn int loadOverlay(const char *overlayPath, char **env)
+/// @fn int loadOverlay(const char *overlayPath, char **envp)
 ///
 /// @brief Load and configure an overlay into the overlayMap in memory.
 ///
 /// @param overlayPath The full path to the overlay file on the filesystem.
-/// @param env The array of environment variables in "name=value" form.
+/// @param envp The array of environment variables in "name=value" form.
 ///
 /// @return Returns 0 on success, negative error code on failure.
-int loadOverlay(const char *overlayPath, char **env) {
+int loadOverlay(const char *overlayPath, char **envp) {
   FILE *overlayFile = fopen(overlayPath, "r");
   if (overlayFile == NULL) {
     fprintf(stderr, "Could not open file \"%s\" from the filesystem.\n",
@@ -92,7 +92,7 @@ int loadOverlay(const char *overlayPath, char **env) {
   // Set the pieces of the overlay header that the program needs to run.
   printDebugString("Configuring overlay environment\n");
   HAL->overlayMap->header.osApi = &nanoOsApi;
-  HAL->overlayMap->header.env = env;
+  HAL->overlayMap->header.env = envp;
   
   return 0;
 }
@@ -128,7 +128,7 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
 }
 
 /// @fn int runOverlayCommand(const char *commandPath,
-///   int argc, char **argv, char **env)
+///   int argc, char **argv, char **envp)
 ///
 /// @brief Run a command that's in overlay format on the filesystem.
 ///
@@ -136,21 +136,21 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
 ///   filesystem.
 /// @param argc The number of arguments from the command line.
 /// @param argv The of arguments from the command line as an array of C strings.
-/// @param env The array of environment variable strings where each element is
+/// @param envp The array of environment variable strings where each element is
 ///   in "name=value" form.
 ///
 /// @return Returns 0 on success, a valid SUS value on failure.
 int runOverlayCommand(const char *commandPath,
-  int argc, char **argv, char **env
+  int argc, char **argv, char **envp
 ) {
-  size_t entrypointLength = strlen(BIN_ENTRYPOINT);
-  char *fullPath = (char*) malloc(strlen(commandPath) + entrypointLength + 1);
+  char *fullPath = (char*) malloc(
+    strlen(commandPath) + BIN_ENTRYPOINT_LENGTH + 1);
   if (fullPath == NULL) {
     return COMMAND_CANNOT_EXECUTE;
   }
   strcpy(fullPath, commandPath);
   strcat(fullPath, BIN_ENTRYPOINT);
-  int loadStatus = loadOverlay(fullPath, env);
+  int loadStatus = loadOverlay(fullPath, envp);
   free(fullPath); fullPath = NULL;
   if (loadStatus == -ENOENT) {
     // Error message already printed.
