@@ -264,8 +264,8 @@ typedef struct ProcessQueue {
 /// @param hostname The contents of the /etc/hostname file read at startup.
 /// @param numShells The number of shell processes that the scheduler is
 ///   running.
-/// @param preemptive Whether or not the scheduler is running in preemptive
-///   mode.  If this is false then the processes run in cooperative mode.
+/// @param preemptionTimer The index of the timer used for preemptive
+///   multitasking.  If this is < 0 then the processes run in cooperative mode.
 typedef struct SchedulerState {
   ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
   ProcessQueue ready;
@@ -274,7 +274,7 @@ typedef struct SchedulerState {
   ProcessQueue free;
   char *hostname;
   uint8_t numShells;
-  bool preemptive;
+  bool preemptionTimer;
 } SchedulerState;
 
 /// @struct CommandDescriptor

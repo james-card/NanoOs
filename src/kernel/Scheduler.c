@@ -302,6 +302,8 @@ void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
     return;
   }
 
+  HAL->cancelTimer(schedulerState->preemptionTimer);
+
   return;
 }
 
@@ -2882,7 +2884,7 @@ __attribute__((noinline)) void startScheduler(
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
-  schedulerState.preemptive = (HAL->getNumTimers() > 0);
+  schedulerState.preemptionTimer = (HAL->getNumTimers() > 0) ? 0 : -1;
   printDebugString("Set scheduler state.\n");
 
   // Initialize the pointer that was used to configure coroutines.
