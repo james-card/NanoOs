@@ -90,7 +90,7 @@ int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
   if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
     return -ERANGE;
   } else if (numSerialPorts < -ELAST) {
-    return -ERANGE;
+    return -EINVAL;
   }
   
   _numSerialPorts = numSerialPorts;
@@ -389,7 +389,9 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
 }
 
 typedef struct HardwareTimer {
-  Tc *timer;
+  Tc *tc;
+  IRQn_Type irqType;
+  bool initialized;
   void (*callback)(void);
   bool active;
   uint32_t microseconds;
@@ -398,14 +400,18 @@ typedef struct HardwareTimer {
 
 static HardwareTimer hardwareTimers[] = {
   {
-    .timer = TC4,
+    .tc = TC4,
+    .irqType = TC4_IRQn,
+    .initialized = false,
     .callback = NULL,
     .active = false,
     .microseconds = 0,
     .startTime = 0,
   },
   {
-    .timer = TC5,
+    .tc = TC5,
+    .irqType = TC5_IRQn,
+    .initialized = false,
     .callback = NULL,
     .active = false,
     .microseconds = 0,
@@ -421,29 +427,160 @@ int arduinoNano33IotGetNumTimers(void) {
 }
 
 int arduinoNano33IotSetNumTimers(int numTimers) {
-  (void) numTimers;
+  if (numTimers > (sizeof(hardwareTimers) / sizeof(hardwareTimers[0]))) {
+    return -ERANGE;
+  } else if (numTimers < -ELAST) {
+    return -EINVAL;
+  }
   
-  return -ENOTSUP;
+  _numTimers = numTimers;
+  
+  return 0;
 }
 
 int arduinoNano33IotInitTimer(int timer) {
-  (void) timer;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
   
-  return -ENOTSUP;
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  
+  // Enable GCLK for the TC timer (48MHz)
+  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN |
+                      GCLK_CLKCTRL_GEN_GCLK0 |
+                      GCLK_CLKCTRL_ID_TC4_TC5;
+  while (GCLK->STATUS.bit.SYNCBUSY);
+
+  // Reset the TC timer
+  hwTimer->tc->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+
+  // Configure the TC timer in one-shot mode
+  hwTimer->tc->COUNT16.CTRLA.reg
+    = TC_CTRLA_MODE_COUNT16        // 16-bit counter
+    | TC_CTRLA_WAVEGEN_MFRQ        // Match frequency mode
+    | TC_CTRLA_PRESCALER_DIV1;     // No prescaling (48MHz)
+  
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+
+  // Enable one-shot mode via CTRLBSET
+  hwTimer->tc->COUNT16.CTRLBSET.reg = TC_CTRLBSET_ONESHOT;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+
+  // Enable compare match interrupt
+  hwTimer->tc->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+  
+  // Enable the TC timer interrupt in NVIC
+  NVIC_SetPriority(hwTimer->irqType, 0);
+  NVIC_EnableIRQ(hwTimer->irqType);
+  
+  return 0;
 }
 
 int arduinoNano33IotConfigTimer(int timer,
     uint32_t microseconds, void (*callback)(void)
 ) {
-  return -ENOTSUP;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
+  
+  // Cancel any existing timer
+  int arduinoNano33IotCancelTimer(int);
+  arduinoNano33IotCancelTimer(timer);
+  
+  // Make sure we don't overflow
+  if (microseconds > 89478485) {
+    microseconds = 89478485; // 0xffffffff / 48
+  }
+  
+  // Calculate ticks (48 ticks per microsecond)
+  uint32_t ticks = microseconds * 48;
+  
+  // Check if we need prescaling for longer delays
+  uint16_t prescaler = TC_CTRLA_PRESCALER_DIV1;
+  uint8_t divider = 1;
+  
+  if (ticks > 65535) {
+    // Use DIV8 for up to ~10.9ms
+    prescaler = TC_CTRLA_PRESCALER_DIV8;
+    divider = 8;
+    ticks = (microseconds * 48) / 8;
+    
+    if (ticks > 65535) {
+      // Use DIV64 for up to ~87ms
+      prescaler = TC_CTRLA_PRESCALER_DIV64;
+      divider = 64;
+      ticks = (microseconds * 48) / 64;
+      
+      if (ticks > 65535) {
+        // Use DIV256 for up to ~349ms
+        prescaler = TC_CTRLA_PRESCALER_DIV256;
+        divider = 256;
+        ticks = (microseconds * 48) / 256;
+        
+        if (ticks > 65535) {
+          ticks = 65535; // Clamp to max
+        }
+      }
+    }
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  hwTimer->callback = callback;
+  hwTimer->active = true;
+  
+  // Disable timer
+  hwTimer->tc->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Update prescaler
+  hwTimer->tc->COUNT16.CTRLA.bit.PRESCALER = prescaler;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Set counter value (counts down to 0)
+  hwTimer->tc->COUNT16.COUNT.reg = ticks;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Clear any pending interrupts
+  hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  // Enable timer
+  hwTimer->tc->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  return 0;
 }
 
 bool arduinoNano33IotIsTimerActive(int timer) {
-  return false;
+  if (timer >= _numTimers) {
+    return false;
+  }
+  
+  return hardwareTimers[timer].active;
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
-  return -ENOTSUP;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (!hwTimer->active) {
+    // Not an error but nothing to do.
+    return 0;
+  }
+  
+  // Disable timer
+  hwTimer->tc->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Clear interrupt flag
+  hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  hwTimer->active = false;
+  hwTimer->callback = nullptr;
+  
+  return 0;
 }
 
 /// @var arduinoNano33IotHal
