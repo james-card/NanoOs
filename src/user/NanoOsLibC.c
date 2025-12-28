@@ -81,6 +81,7 @@ const char *errorStrings[] = {
   "Infinite loop detected",           // ELOOP
   "Operation timed out",              // ETIMEDOUT
   "Exec format error",                // ENOEXEC
+  "Operation not supported",          // ENOTSUP
 };
 
 /// @var NUM_ERRORS
