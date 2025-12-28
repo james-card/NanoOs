@@ -98,7 +98,7 @@ int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int arduinoNano33IotInitializeSerialPort(int port, int baud) {
+int arduinoNano33IotInitSerialPort(int port, int baud) {
   int returnValue = -ERANGE;
   
   if ((port >= 0) && (port < _numSerialPorts)) {
@@ -454,7 +454,7 @@ static Hal arduinoNano33IotHal = {
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,
   .setNumSerialPorts = arduinoNano33IotSetNumSerialPorts,
-  .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
+  .initSerialPort = arduinoNano33IotInitSerialPort,
   .pollSerialPort = arduinoNano33IotPollSerialPort,
   .writeSerialPort = arduinoNano33IotWriteSerialPort,
   

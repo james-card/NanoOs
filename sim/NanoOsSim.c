@@ -99,14 +99,14 @@ int main(int argc, char **argv) {
   }
   
   // Set all the serial ports to run at 1000000 baud.
-  if (HAL->initializeSerialPort(0, 1000000) < 0) {
+  if (HAL->initSerialPort(0, 1000000) < 0) {
     // Nothing we can do.  Bail.
     fprintf(stderr, "Initializing serial port 0 failed.\n");
     return 1;
   }
   int ii = 0;
   for (ii = 1; ii < numSerialPorts; ii++) {
-    if (HAL->initializeSerialPort(ii, 1000000) < 0) {
+    if (HAL->initSerialPort(ii, 1000000) < 0) {
       // We can't support more than the last serial port that was successfully
       // initialized.
       fprintf(stderr, "WARNING: Initializing serial port %d failed.\n", ii);

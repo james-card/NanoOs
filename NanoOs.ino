@@ -58,13 +58,13 @@ void setup() {
   }
   
   // Set all the serial ports to run at 1000000 baud.
-  if (HAL->initializeSerialPort(0, 1000000) < 0) {
+  if (HAL->initSerialPort(0, 1000000) < 0) {
     // Nothing we can do.  Halt.
     while(1);
   }
   int ii = 0;
   for (ii = 1; ii < numSerialPorts; ii++) {
-    if (HAL->initializeSerialPort(ii, 1000000) < 0) {
+    if (HAL->initSerialPort(ii, 1000000) < 0) {
       // We can't support more than the last serial port that was successfully
       // initialized.
       break;

@@ -100,7 +100,7 @@ int posixSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int posixInitializeSerialPort(int port, int baud) {
+int posixInitSerialPort(int port, int baud) {
   (void) baud;
   
   if (port != 0) {
@@ -357,7 +357,7 @@ static Hal posixHal = {
   // Serial port functionality.
   .getNumSerialPorts = posixGetNumSerialPorts,
   .setNumSerialPorts = posixSetNumSerialPorts,
-  .initializeSerialPort = posixInitializeSerialPort,
+  .initSerialPort = posixInitSerialPort,
   .pollSerialPort = posixPollSerialPort,
   .writeSerialPort = posixWriteSerialPort,
   
