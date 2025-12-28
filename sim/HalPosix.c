@@ -309,14 +309,14 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
-static int _numHardwareTimers = 0;
+static int _numTimers = 0;
 
-int posixGetNumHardwareTimers(void) {
-  return _numHardwareTimers;
+int posixGetNumTimers(void) {
+  return _numTimers;
 }
 
-int posixSetNumHardwareTimers(int numHardwareTimers) {
-  (void) numHardwareTimers;
+int posixSetNumTimers(int numTimers) {
+  (void) numTimers;
   
   return -ENOTSUP;
 }
@@ -386,8 +386,8 @@ static Hal posixHal = {
   .initRootStorage = posixInitRootStorage,
   
   // Hardware timers.
-  .getNumHardwareTimers = posixGetNumHardwareTimers,
-  .setNumHardwareTimers = posixSetNumHardwareTimers,
+  .getNumTimers = posixGetNumTimers,
+  .setNumTimers = posixSetNumTimers,
   .configTimer = posixConfigTimer,
   .isTimerActive = posixIsTimerActive,
   .cancelTimer = posixCancelTimer,

@@ -413,15 +413,15 @@ static HardwareTimer hardwareTimers[] = {
   },
 };
 
-static int _numHardwareTimers
+static int _numTimers
   = sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
 
-int arduinoNano33IotGetNumHardwareTimers(void) {
-  return _numHardwareTimers;
+int arduinoNano33IotGetNumTimers(void) {
+  return _numTimers;
 }
 
-int arduinoNano33IotSetNumHardwareTimers(int numHardwareTimers) {
-  (void) numHardwareTimers;
+int arduinoNano33IotSetNumTimers(int numTimers) {
+  (void) numTimers;
   
   return -ENOTSUP;
 }
@@ -483,8 +483,8 @@ static Hal arduinoNano33IotHal = {
   .initRootStorage = arduinoNano33IotInitRootStorage,
   
   // Hardware timers.
-  .getNumHardwareTimers = arduinoNano33IotGetNumHardwareTimers,
-  .setNumHardwareTimers = arduinoNano33IotSetNumHardwareTimers,
+  .getNumTimers = arduinoNano33IotGetNumTimers,
+  .setNumTimers = arduinoNano33IotSetNumTimers,
   .configTimer = arduinoNano33IotConfigTimer,
   .isTimerActive = arduinoNano33IotIsTimerActive,
   .cancelTimer = arduinoNano33IotCancelTimer,

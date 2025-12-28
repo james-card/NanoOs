@@ -412,12 +412,12 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
-int arduinoNanoEveryGetNumHardwareTimers(void) {
+int arduinoNanoEveryGetNumTimers(void) {
   return 0;
 }
  
-int arduinoNanoEverySetNumHardwareTimers(int numHardwareTimers) {
-  (void) numHardwareTimers;
+int arduinoNanoEverySetNumTimers(int numTimers) {
+  (void) numTimers;
   
   return -ENOTSUP;
 }
@@ -487,8 +487,8 @@ static Hal arduinoNanoEveryHal = {
   .initRootStorage = arduinoNanoEveryInitRootStorage,
   
   // Hardware timers.
-  .getNumHardwareTimers = arduinoNanoEveryGetNumHardwareTimers,
-  .setNumHardwareTimers = arduinoNanoEverySetNumHardwareTimers,
+  .getNumTimers = arduinoNanoEveryGetNumTimers,
+  .setNumTimers = arduinoNanoEverySetNumTimers,
   .configTimer = arduinoNanoEveryConfigTimer,
   .isTimerActive = arduinoNanoEveryIsTimerActive,
   .cancelTimer = arduinoNanoEveryCancelTimer,

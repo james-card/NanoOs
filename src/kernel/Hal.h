@@ -310,26 +310,26 @@ typedef struct Hal {
   
   // Hardware timers.
   
-  /// @fn int getNumHardwareTimers(void)
+  /// @fn int getNumTimers(void)
   ///
   /// @brief Get the number of available hardware timers on the system.
   ///
   /// @return Returns the number of available hardware timers on success,
   /// -errno on failure.
-  int (*getNumHardwareTimers)(void);
+  int (*getNumTimers)(void);
   
-  /// @fn int setNumHardwareTimers(int numHardwareTimers)
+  /// @fn int setNumTimers(int numTimers)
   ///
   /// @brief Set the number of hardware timers that is to be returned by
-  /// getNumHardwareTimers.
+  /// getNumTimers.
   ///
-  /// @param numHardwareTimers The value to be returned by getNumHardwareTimers.
+  /// @param numTimers The value to be returned by getNumTimers.
   ///   This may be a non-negative value that is less-than or equal-to the
-  ///   value initially returned by getNumHardwareTimers or a -errno value that
+  ///   value initially returned by getNumTimers or a -errno value that
   ///   the function is to return.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*setNumHardwareTimers)(int numHardwareTimers);
+  int (*setNumTimers)(int numTimers);
   
   /// @fn int configTimer(int timerId,
   ///   uint32_t microseconds, void (*callback)(void))
