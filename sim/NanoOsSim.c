@@ -94,16 +94,26 @@ int main(int argc, char **argv) {
   int numSerialPorts = HAL->getNumSerialPorts();
   if (numSerialPorts <= 0) {
     // Nothing we can do.  Bail.
+    fprintf(stderr, "HAL->getNumSerialPorts() returned %d.\n", numSerialPorts);
     return 1;
   }
   
   // Set all the serial ports to run at 1000000 baud.
-  for (int ii = 0; ii < numSerialPorts; ii++) {
+  if (HAL->initializeSerialPort(0, 1000000) < 0) {
+    // Nothing we can do.  Bail.
+    fprintf(stderr, "Initializing serial port 0 failed.\n");
+    return 1;
+  }
+  int ii = 0;
+  for (ii = 1; ii < numSerialPorts; ii++) {
     if (HAL->initializeSerialPort(ii, 1000000) < 0) {
-      // Nothing we can do.  Bail.
-      return 1;
+      // We can't support more than the last serial port that was successfully
+      // initialized.
+      fprintf(stderr, "WARNING: Initializing serial port %d failed.\n", ii);
+      break;
     }
   }
+  HAL->setNumSerialPorts(ii);
 
   // On hardware, we need a "Booting..." message and a delay so that we give
   // ourselves enough time to start a firmware update in case we've loaded
