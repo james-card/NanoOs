@@ -81,19 +81,31 @@ static HardwareSerial *serialPorts[] = {
   &Serial1,
 };
 
-/// @var numSerialPorts
+/// @var _numSerialPorts
 ///
 /// @brief The number of serial ports we support on the Arduino Nano Every.
-static const int numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
+static int _numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
 
 int arduinoNanoEveryGetNumSerialPorts(void) {
-  return numSerialPorts;
+  return _numSerialPorts;
+}
+
+int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
+  if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
+    return -ERANGE;
+  } else if (numSerialPorts <= -EEND) {
+    return -ERANGE;
+  }
+  
+  _numSerialPorts = numSerialPorts;
+  
+  return 0;
 }
 
 int arduinoNanoEveryInitializeSerialPort(int port, int baud) {
   int returnValue = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts)) {
+  if ((port >= 0) && (port < _numSerialPorts)) {
     serialPorts[port]->begin(baud);
     // wait for serial port to connect.
     while (!(*serialPorts[port]));
@@ -106,7 +118,7 @@ int arduinoNanoEveryInitializeSerialPort(int port, int baud) {
 int arduinoNanoEveryPollSerialPort(int port) {
   int serialData = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts)) {
+  if ((port >= 0) && (port < _numSerialPorts)) {
     serialData = serialPorts[port]->read();
   }
   
@@ -118,7 +130,7 @@ ssize_t arduinoNanoEveryWriteSerialPort(int port,
 ) {
   ssize_t numBytesWritten = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts) && (length >= 0)) {
+  if ((port >= 0) && (port < _numSerialPorts) && (length >= 0)) {
     numBytesWritten = serialPorts[port]->write(data, length);
   }
   
@@ -439,6 +451,7 @@ static Hal arduinoNanoEveryHal = {
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNanoEveryGetNumSerialPorts,
+  .setNumSerialPorts = arduinoNanoEverySetNumSerialPorts,
   .initializeSerialPort = arduinoNanoEveryInitializeSerialPort,
   .pollSerialPort = arduinoNanoEveryPollSerialPort,
   .writeSerialPort = arduinoNanoEveryWriteSerialPort,

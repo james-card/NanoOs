@@ -77,19 +77,31 @@ static HardwareSerial *serialPorts[] = {
   &Serial1,
 };
 
-/// @var numSerialPorts
+/// @var _numSerialPorts
 ///
 /// @brief The number of serial ports we support on the Arduino Nano 33 IoT.
-static const int numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
+static int _numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
 
 int arduinoNano33IotGetNumSerialPorts(void) {
-  return numSerialPorts;
+  return _numSerialPorts;
+}
+
+int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
+  if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
+    return -ERANGE;
+  } else if (numSerialPorts <= -EEND) {
+    return -ERANGE;
+  }
+  
+  _numSerialPorts = numSerialPorts;
+  
+  return 0;
 }
 
 int arduinoNano33IotInitializeSerialPort(int port, int baud) {
   int returnValue = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts)) {
+  if ((port >= 0) && (port < _numSerialPorts)) {
     serialPorts[port]->begin(baud);
     // wait for serial port to connect.
     while (!(*serialPorts[port]));
@@ -102,7 +114,7 @@ int arduinoNano33IotInitializeSerialPort(int port, int baud) {
 int arduinoNano33IotPollSerialPort(int port) {
   int serialData = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts)) {
+  if ((port >= 0) && (port < _numSerialPorts)) {
     serialData = serialPorts[port]->read();
   }
   
@@ -114,7 +126,7 @@ ssize_t arduinoNano33IotWriteSerialPort(int port,
 ) {
   ssize_t numBytesWritten = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts) && (length >= 0)) {
+  if ((port >= 0) && (port < _numSerialPorts) && (length >= 0)) {
     numBytesWritten = serialPorts[port]->write(data, length);
   }
   
@@ -432,6 +444,7 @@ static Hal arduinoNano33IotHal = {
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,
+  .setNumSerialPorts = arduinoNanoEverySetNumSerialPorts,
   .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
   .pollSerialPort = arduinoNano33IotPollSerialPort,
   .writeSerialPort = arduinoNano33IotWriteSerialPort,

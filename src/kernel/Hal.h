@@ -82,7 +82,7 @@ typedef struct Hal {
   
   // Serial port functionality.
   
-  /// @fn int getNumSerialPorts(void);
+  /// @fn int getNumSerialPorts(void)
   ///
   /// @brief Get the number of addressable and configurable serial ports on the
   /// system.
@@ -90,6 +90,19 @@ typedef struct Hal {
   /// @return Returns the number of serial ports on the system (which may be 0)
   /// on success, -errno on failure.
   int (*getNumSerialPorts)(void);
+  
+  /// @fn int setNumSerialPorts(int numSerialPorts)
+  ///
+  /// @brief Set the number of serial ports that is to be returned by
+  /// getNumSerialPorts.
+  ///
+  /// @param numSerialPorts The value to be returned by getNumSerialPorts.
+  ///   This may be a non-negative value that is less-than or equal-to the
+  ///   value initially returned by getNumSerialPorts or a -errno value that
+  ///   the function is to return.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*setNumSerialPorts)(int numSerialPorts);
   
   /// @fn initializeSerialPort(int port, int baud)
   ///
