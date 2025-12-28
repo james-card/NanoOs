@@ -2853,6 +2853,7 @@ __attribute__((noinline)) void startScheduler(
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
+  schedulerState.preemptive = (HAL->getNumTimers() > 0);
   printDebugString("Set scheduler state.\n");
 
   // Initialize the pointer that was used to configure coroutines.
