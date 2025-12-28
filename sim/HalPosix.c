@@ -65,6 +65,12 @@
 /// hardware.
 #define OVERLAY_SIZE               16384
 
+/// @def ELAST
+///
+/// @brief The highest errno value defined.  Missing from Linux's implementation
+/// of errno.h.  (It's a BSD thing...)
+#define ELAST                  EHWPOISON
+
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
@@ -73,13 +79,25 @@ static FILE **serialPorts[] = {
   &stderr,
 };
 
-/// @var numSerialPorts
+/// @var _numSerialPorts
 ///
 /// @brief The number of serial ports we support on the Arduino Nano 33 IoT.
-static const int numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
+static int _numSerialPorts = sizeof(serialPorts) / sizeof(serialPorts[0]);
 
 int posixGetNumSerialPorts(void) {
-  return numSerialPorts;
+  return _numSerialPorts;
+}
+
+int posixSetNumSerialPorts(int numSerialPorts) {
+  if (numSerialPorts > ((int) (sizeof(serialPorts) / sizeof(serialPorts[0])))) {
+    return -ERANGE;
+  } else if (numSerialPorts < -ELAST) {
+    return -ERANGE;
+  }
+  
+  _numSerialPorts = numSerialPorts;
+  
+  return 0;
 }
 
 int posixInitializeSerialPort(int port, int baud) {
@@ -139,7 +157,7 @@ ssize_t posixWriteSerialPort(int port,
 ) {
   ssize_t numBytesWritten = -ERANGE;
   
-  if ((port >= 0) && (port < numSerialPorts) && (length >= 0)) {
+  if ((port >= 0) && (port < _numSerialPorts) && (length >= 0)) {
     numBytesWritten = fwrite(data, 1, length, *serialPorts[port]);
   }
   
@@ -330,6 +348,7 @@ static Hal posixHal = {
   
   // Serial port functionality.
   .getNumSerialPorts = posixGetNumSerialPorts,
+  .setNumSerialPorts = posixSetNumSerialPorts,
   .initializeSerialPort = posixInitializeSerialPort,
   .pollSerialPort = posixPollSerialPort,
   .writeSerialPort = posixWriteSerialPort,
