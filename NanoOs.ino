@@ -58,12 +58,19 @@ void setup() {
   }
   
   // Set all the serial ports to run at 1000000 baud.
-  for (int ii = 0; ii < numSerialPorts; ii++) {
+  if (HAL->initializeSerialPort(0, 1000000) < 0) {
+    // Nothing we can do.  Halt.
+    while(1);
+  }
+  int ii = 0;
+  for (ii = 1; ii < numSerialPorts; ii++) {
     if (HAL->initializeSerialPort(ii, 1000000) < 0) {
-      // Nothing we can do.  Halt.
-      while(1);
+      // We can't support more than the last serial port that was successfully
+      // initialized.
+      break;
     }
   }
+  HAL->setNumSerialPorts(ii);
 
   // We need a guard at bootup because if the system crashes in a way that makes
   // the processor unresponsive, it will be very difficult to load new firmware.
