@@ -400,6 +400,24 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
+int arduinoNanoEveryGetNumHardwareTimers(void) {
+  return 0;
+}
+  
+int arduinoNanoEveryTimerConfig(int timerId,
+    uint32_t microseconds, void (*callback)(void)
+) {
+  return -ENOTSUP;
+}
+  
+bool arduinoNanoEveryTimerIsActive(int timerId) {
+  return false;
+}
+  
+int arduinoNanoEveryTimerCancel(int timerId) {
+  return -ENOTSUP;
+}
+
 /// @var arduinoNanoEveryHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
@@ -440,6 +458,12 @@ static Hal arduinoNanoEveryHal = {
   
   // Root storage configuration.
   .initRootStorage = arduinoNanoEveryInitRootStorage,
+  
+  // Hardware timers.
+  .getNumHardwareTimers = arduinoNanoEveryGetNumHardwareTimers,
+  .timerConfig = arduinoNanoEveryTimerConfig,
+  .timerIsActive = arduinoNanoEveryTimerIsActive,
+  .timerCancel = arduinoNanoEveryTimerCancel,
 };
 
 const Hal* halArduinoNanoEveryInit(void) {

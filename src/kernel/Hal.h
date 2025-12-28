@@ -285,7 +285,7 @@ typedef struct Hal {
   
   // Root storage configuration.
   
-  /// @fn int (*initRootStorage)(SchedulerState *schedulerState)
+  /// @fn int initRootStorage(SchedulerState *schedulerState)
   ///
   /// @brief Initialize the processes that operate the root storage system.
   ///
@@ -294,6 +294,51 @@ typedef struct Hal {
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*initRootStorage)(SchedulerState *schedulerState);
+  
+  // Hardware timers.
+  
+  /// @fn int getNumHardwareTimers(void)
+  ///
+  /// @brief Get the number of available hardware timers on the system.
+  ///
+  /// @return Returns the number of available hardware timers on success,
+  /// -errno on failure.
+  int (*getNumHardwareTimers)(void);
+  
+  /// @fn int timerConfig(int timerId,
+  ///   uint32_t microseconds, void (*callback)(void))
+  ///
+  /// @brief Configure a hardware timer to fire at some point in the future and
+  /// call a callback.
+  ///
+  /// @param timerId The zero-based index of the timer to configure.
+  /// @param microseconds The number of microseconds in the future the timer
+  ///   should fire.
+  /// @param callback The function to call when the timer fires.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*timerConfig)(int timerId,
+    uint32_t microseconds, void (*callback)(void));
+  
+  /// @fn bool timerIsActive(int timerId)
+  ///
+  /// @brief Determine whether a given hardware timer is currently configured
+  /// and set to fire.
+  ///
+  /// @param timerId The zero-based index of the timer to interrogate.
+  ///
+  /// @return Returns true if the specified timer is currently configured,
+  /// false if not.
+  bool (*timerIsActive)(int timerId);
+  
+  /// @fn int timerCancel(int timerId)
+  ///
+  /// @brief Cancel a timer that's currently configured.
+  ///
+  /// @param timerId The zero-based index of the timer to cancel.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*timerCancel)(int timerId);
 } Hal;
 
 extern const Hal *HAL;

@@ -374,6 +374,24 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
+int arduinoNano33IotGetNumHardwareTimers(void) {
+  return 0;
+}
+  
+int arduinoNano33IotTimerConfig(int timerId,
+    uint32_t microseconds, void (*callback)(void)
+) {
+  return -ENOTSUP;
+}
+  
+bool arduinoNano33IotTimerIsActive(int timerId) {
+  return false;
+}
+  
+int arduinoNano33IotTimerCancel(int timerId) {
+  return -ENOTSUP;
+}
+
 /// @var arduinoNano33IotHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -414,6 +432,12 @@ static Hal arduinoNano33IotHal = {
   
   // Root storage configuration.
   .initRootStorage = arduinoNano33IotInitRootStorage,
+  
+  // Hardware timers.
+  .getNumHardwareTimers = arduinoNano33IotGetNumHardwareTimers,
+  .timerConfig = arduinoNano33IotTimerConfig,
+  .timerIsActive = arduinoNano33IotTimerIsActive,
+  .timerCancel = arduinoNano33IotTimerCancel,
 };
 
 const Hal* halArduinoNano33IotInit(void) {
