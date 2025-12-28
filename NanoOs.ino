@@ -129,6 +129,9 @@ void loop() {
     .comutexUnlockCallback = comutexUnlockCallback,
     .coconditionSignalCallback = coconditionSignalCallback,
   };
+  if (HAL->getNumTimers() > 0) {
+    coroutineConfigOptions.coroutineYieldCallback = coroutineYieldCallback;
+  }
   if (coroutineConfig(&_mainCoroutine, &coroutineConfigOptions)
     != coroutineSuccess
   ) {
