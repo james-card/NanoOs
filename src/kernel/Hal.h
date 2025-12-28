@@ -305,7 +305,7 @@ typedef struct Hal {
   /// -errno on failure.
   int (*getNumHardwareTimers)(void);
   
-  /// @fn int timerConfig(int timerId,
+  /// @fn int configTimer(int timerId,
   ///   uint32_t microseconds, void (*callback)(void))
   ///
   /// @brief Configure a hardware timer to fire at some point in the future and
@@ -317,10 +317,10 @@ typedef struct Hal {
   /// @param callback The function to call when the timer fires.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*timerConfig)(int timerId,
+  int (*configTimer)(int timerId,
     uint32_t microseconds, void (*callback)(void));
   
-  /// @fn bool timerIsActive(int timerId)
+  /// @fn bool isTimerActive(int timerId)
   ///
   /// @brief Determine whether a given hardware timer is currently configured
   /// and set to fire.
@@ -329,16 +329,16 @@ typedef struct Hal {
   ///
   /// @return Returns true if the specified timer is currently configured,
   /// false if not.
-  bool (*timerIsActive)(int timerId);
+  bool (*isTimerActive)(int timerId);
   
-  /// @fn int timerCancel(int timerId)
+  /// @fn int cancelTimer(int timerId)
   ///
   /// @brief Cancel a timer that's currently configured.
   ///
   /// @param timerId The zero-based index of the timer to cancel.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*timerCancel)(int timerId);
+  int (*cancelTimer)(int timerId);
 } Hal;
 
 extern const Hal *HAL;

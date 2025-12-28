@@ -374,21 +374,46 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
+typedef struct HardwareTimer {
+  Tc *timer;
+  void (*callback)(void);
+  bool active;
+  uint32_t microseconds;
+  int64_t startTime;
+} HardwareTimer;
+
+static HardwareTimer hardwareTimers[] = {
+  {
+    .timer = TC4,
+    .callback = NULL,
+    .active = false,
+    .microseconds = 0,
+    .startTime = 0,
+  },
+  {
+    .timer = TC5,
+    .callback = NULL,
+    .active = false,
+    .microseconds = 0,
+    .startTime = 0,
+  },
+};
+
 int arduinoNano33IotGetNumHardwareTimers(void) {
-  return 0;
+  return sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
 }
   
-int arduinoNano33IotTimerConfig(int timerId,
+int arduinoNano33IotConfigTimer(int timerId,
     uint32_t microseconds, void (*callback)(void)
 ) {
   return -ENOTSUP;
 }
   
-bool arduinoNano33IotTimerIsActive(int timerId) {
+bool arduinoNano33IotIsTimerActive(int timerId) {
   return false;
 }
   
-int arduinoNano33IotTimerCancel(int timerId) {
+int arduinoNano33IotCancelTimer(int timerId) {
   return -ENOTSUP;
 }
 
@@ -435,9 +460,9 @@ static Hal arduinoNano33IotHal = {
   
   // Hardware timers.
   .getNumHardwareTimers = arduinoNano33IotGetNumHardwareTimers,
-  .timerConfig = arduinoNano33IotTimerConfig,
-  .timerIsActive = arduinoNano33IotTimerIsActive,
-  .timerCancel = arduinoNano33IotTimerCancel,
+  .configTimer = arduinoNano33IotConfigTimer,
+  .isTimerActive = arduinoNano33IotIsTimerActive,
+  .cancelTimer = arduinoNano33IotCancelTimer,
 };
 
 const Hal* halArduinoNano33IotInit(void) {

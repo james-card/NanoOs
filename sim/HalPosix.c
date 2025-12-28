@@ -295,7 +295,7 @@ int posixGetNumHardwareTimers(void) {
   return 0;
 }
   
-int posixTimerConfig(int timerId,
+int posixConfigTimer(int timerId,
     uint32_t microseconds, void (*callback)(void)
 ) {
   (void) timerId;
@@ -305,13 +305,13 @@ int posixTimerConfig(int timerId,
   return -ENOTSUP;
 }
   
-bool posixTimerIsActive(int timerId) {
+bool posixIsTimerActive(int timerId) {
   (void) timerId;
   
   return false;
 }
   
-int posixTimerCancel(int timerId) {
+int posixCancelTimer(int timerId) {
   (void) timerId;
   
   return -ENOTSUP;
@@ -360,9 +360,9 @@ static Hal posixHal = {
   
   // Hardware timers.
   .getNumHardwareTimers = posixGetNumHardwareTimers,
-  .timerConfig = posixTimerConfig,
-  .timerIsActive = posixTimerIsActive,
-  .timerCancel = posixTimerCancel,
+  .configTimer = posixConfigTimer,
+  .isTimerActive = posixIsTimerActive,
+  .cancelTimer = posixCancelTimer,
 };
 
 const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
