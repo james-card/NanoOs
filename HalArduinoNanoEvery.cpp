@@ -93,7 +93,7 @@ int arduinoNanoEveryGetNumSerialPorts(void) {
 int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
   if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
     return -ERANGE;
-  } else if (numSerialPorts <= -EEND) {
+  } else if (numSerialPorts < -ELAST) {
     return -ERANGE;
   }
   
