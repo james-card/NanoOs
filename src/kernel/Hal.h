@@ -318,6 +318,19 @@ typedef struct Hal {
   /// -errno on failure.
   int (*getNumHardwareTimers)(void);
   
+  /// @fn int setNumHardwareTimers(int numHardwareTimers)
+  ///
+  /// @brief Set the number of hardware timers that is to be returned by
+  /// getNumHardwareTimers.
+  ///
+  /// @param numHardwareTimers The value to be returned by getNumHardwareTimers.
+  ///   This may be a non-negative value that is less-than or equal-to the
+  ///   value initially returned by getNumHardwareTimers or a -errno value that
+  ///   the function is to return.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*setNumHardwareTimers)(int numHardwareTimers);
+  
   /// @fn int configTimer(int timerId,
   ///   uint32_t microseconds, void (*callback)(void))
   ///

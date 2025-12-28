@@ -86,7 +86,7 @@ int arduinoNano33IotGetNumSerialPorts(void) {
   return _numSerialPorts;
 }
 
-int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
+int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
   if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
     return -ERANGE;
   } else if (numSerialPorts < -ELAST) {
@@ -413,20 +413,29 @@ static HardwareTimer hardwareTimers[] = {
   },
 };
 
+static int _numHardwareTimers
+  = sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
+
 int arduinoNano33IotGetNumHardwareTimers(void) {
-  return sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
+  return _numHardwareTimers;
 }
+
+int arduinoNano33IotSetNumHardwareTimers(int numHardwareTimers) {
+  (void) numHardwareTimers;
   
+  return -ENOTSUP;
+}
+
 int arduinoNano33IotConfigTimer(int timerId,
     uint32_t microseconds, void (*callback)(void)
 ) {
   return -ENOTSUP;
 }
-  
+
 bool arduinoNano33IotIsTimerActive(int timerId) {
   return false;
 }
-  
+
 int arduinoNano33IotCancelTimer(int timerId) {
   return -ENOTSUP;
 }
@@ -444,7 +453,7 @@ static Hal arduinoNano33IotHal = {
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,
-  .setNumSerialPorts = arduinoNanoEverySetNumSerialPorts,
+  .setNumSerialPorts = arduinoNano33IotSetNumSerialPorts,
   .initializeSerialPort = arduinoNano33IotInitializeSerialPort,
   .pollSerialPort = arduinoNano33IotPollSerialPort,
   .writeSerialPort = arduinoNano33IotWriteSerialPort,
@@ -475,6 +484,7 @@ static Hal arduinoNano33IotHal = {
   
   // Hardware timers.
   .getNumHardwareTimers = arduinoNano33IotGetNumHardwareTimers,
+  .setNumHardwareTimers = arduinoNano33IotSetNumHardwareTimers,
   .configTimer = arduinoNano33IotConfigTimer,
   .isTimerActive = arduinoNano33IotIsTimerActive,
   .cancelTimer = arduinoNano33IotCancelTimer,
