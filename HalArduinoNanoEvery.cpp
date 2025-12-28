@@ -422,24 +422,30 @@ int arduinoNanoEverySetNumTimers(int numTimers) {
   return -ENOTSUP;
 }
 
-int arduinoNanoEveryConfigTimer(int timerId,
+int arduinoNanoEveryInitTimer(int timer) {
+  (void) timer;
+  
+  return -ENOTSUP;
+}
+
+int arduinoNanoEveryConfigTimer(int timer,
     uint32_t microseconds, void (*callback)(void)
 ) {
-  (void) timerId;
+  (void) timer;
   (void) microseconds;
   (void) callback;
   
   return -ENOTSUP;
 }
 
-bool arduinoNanoEveryIsTimerActive(int timerId) {
-  (void) timerId;
+bool arduinoNanoEveryIsTimerActive(int timer) {
+  (void) timer;
   
   return false;
 }
 
-int arduinoNanoEveryCancelTimer(int timerId) {
-  (void) timerId;
+int arduinoNanoEveryCancelTimer(int timer) {
+  (void) timer;
   
   return -ENOTSUP;
 }
@@ -489,6 +495,7 @@ static Hal arduinoNanoEveryHal = {
   // Hardware timers.
   .getNumTimers = arduinoNanoEveryGetNumTimers,
   .setNumTimers = arduinoNanoEverySetNumTimers,
+  .initTimer = arduinoNanoEveryInitTimer,
   .configTimer = arduinoNanoEveryConfigTimer,
   .isTimerActive = arduinoNanoEveryIsTimerActive,
   .cancelTimer = arduinoNanoEveryCancelTimer,

@@ -321,24 +321,30 @@ int posixSetNumTimers(int numTimers) {
   return -ENOTSUP;
 }
 
-int posixConfigTimer(int timerId,
+int posixInitTimer(int timer) {
+  (void) timer;
+  
+  return -ENOTSUP;
+}
+
+int posixConfigTimer(int timer,
     uint32_t microseconds, void (*callback)(void)
 ) {
-  (void) timerId;
+  (void) timer;
   (void) microseconds;
   (void) callback;
   
   return -ENOTSUP;
 }
 
-bool posixIsTimerActive(int timerId) {
-  (void) timerId;
+bool posixIsTimerActive(int timer) {
+  (void) timer;
   
   return false;
 }
 
-int posixCancelTimer(int timerId) {
-  (void) timerId;
+int posixCancelTimer(int timer) {
+  (void) timer;
   
   return -ENOTSUP;
 }
@@ -388,6 +394,7 @@ static Hal posixHal = {
   // Hardware timers.
   .getNumTimers = posixGetNumTimers,
   .setNumTimers = posixSetNumTimers,
+  .initTimer = posixInitTimer,
   .configTimer = posixConfigTimer,
   .isTimerActive = posixIsTimerActive,
   .cancelTimer = posixCancelTimer,

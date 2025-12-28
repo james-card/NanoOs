@@ -426,17 +426,23 @@ int arduinoNano33IotSetNumTimers(int numTimers) {
   return -ENOTSUP;
 }
 
-int arduinoNano33IotConfigTimer(int timerId,
+int arduinoNano33IotInitTimer(int timer) {
+  (void) timer;
+  
+  return -ENOTSUP;
+}
+
+int arduinoNano33IotConfigTimer(int timer,
     uint32_t microseconds, void (*callback)(void)
 ) {
   return -ENOTSUP;
 }
 
-bool arduinoNano33IotIsTimerActive(int timerId) {
+bool arduinoNano33IotIsTimerActive(int timer) {
   return false;
 }
 
-int arduinoNano33IotCancelTimer(int timerId) {
+int arduinoNano33IotCancelTimer(int timer) {
   return -ENOTSUP;
 }
 
@@ -485,6 +491,7 @@ static Hal arduinoNano33IotHal = {
   // Hardware timers.
   .getNumTimers = arduinoNano33IotGetNumTimers,
   .setNumTimers = arduinoNano33IotSetNumTimers,
+  .initTimer = arduinoNano33IotInitTimer,
   .configTimer = arduinoNano33IotConfigTimer,
   .isTimerActive = arduinoNano33IotIsTimerActive,
   .cancelTimer = arduinoNano33IotCancelTimer,

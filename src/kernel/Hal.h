@@ -331,40 +331,49 @@ typedef struct Hal {
   /// @return Returns 0 on success, -errno on failure.
   int (*setNumTimers)(int numTimers);
   
-  /// @fn int configTimer(int timerId,
+  /// @fn int initTimer(int timer)
+  ///
+  /// @brief Initialize one of the system timers.
+  ///
+  /// @param timer The zero-based index of the timer to initialize.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*initTimer)(int timer);
+  
+  /// @fn int configTimer(int timer,
   ///   uint32_t microseconds, void (*callback)(void))
   ///
   /// @brief Configure a hardware timer to fire at some point in the future and
   /// call a callback.
   ///
-  /// @param timerId The zero-based index of the timer to configure.
+  /// @param timer The zero-based index of the timer to configure.
   /// @param microseconds The number of microseconds in the future the timer
   ///   should fire.
   /// @param callback The function to call when the timer fires.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*configTimer)(int timerId,
+  int (*configTimer)(int timer,
     uint32_t microseconds, void (*callback)(void));
   
-  /// @fn bool isTimerActive(int timerId)
+  /// @fn bool isTimerActive(int timer)
   ///
   /// @brief Determine whether a given hardware timer is currently configured
   /// and set to fire.
   ///
-  /// @param timerId The zero-based index of the timer to interrogate.
+  /// @param timer The zero-based index of the timer to interrogate.
   ///
   /// @return Returns true if the specified timer is currently configured,
   /// false if not.
-  bool (*isTimerActive)(int timerId);
+  bool (*isTimerActive)(int timer);
   
-  /// @fn int cancelTimer(int timerId)
+  /// @fn int cancelTimer(int timer)
   ///
   /// @brief Cancel a timer that's currently configured.
   ///
-  /// @param timerId The zero-based index of the timer to cancel.
+  /// @param timer The zero-based index of the timer to cancel.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*cancelTimer)(int timerId);
+  int (*cancelTimer)(int timer);
 } Hal;
 
 extern const Hal *HAL;
