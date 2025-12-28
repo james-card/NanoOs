@@ -272,26 +272,33 @@ int arduinoNano33IotSpiTransfer8(int spi, uint8_t data) {
   return (int) SPI.transfer(data);
 }
 
-/// @var baseSystemTimeMs
+/// @var baseSystemTimeUs
 ///
 /// @brief The time provided by the user or some other process as a baseline
 /// time for the system.
-static int64_t baseSystemTimeMs = 0;
+static int64_t baseSystemTimeUs = 0;
 
 int arduinoNano33IotSetSystemTime(struct timespec *now) {
   if (now == NULL) {
     return -EINVAL;
   }
   
-  baseSystemTimeMs
-    = (((int64_t) now->tv_sec) * ((int64_t) 1000))
-    + (((int64_t) now->tv_nsec) / ((int64_t) 1000000));
+  baseSystemTimeUs
+    = (((int64_t) now->tv_sec) * ((int64_t) 1000000))
+    + (((int64_t) now->tv_nsec) / ((int64_t) 1000));
   
   return 0;
 }
 
+int64_t arduinoNano33IotGetElapsedMicroseconds(int64_t startTime);
+
 int64_t arduinoNano33IotGetElapsedMilliseconds(int64_t startTime) {
-  int64_t now = baseSystemTimeMs + millis();
+  return arduinoNano33IotGetElapsedMicroseconds(
+    startTime * ((int64_t) 1000)) / ((int64_t) 1000);
+}
+
+int64_t arduinoNano33IotGetElapsedMicroseconds(int64_t startTime) {
+  int64_t now = baseSystemTimeUs + micros();
 
   if (now < startTime) {
     return -1;
@@ -300,14 +307,9 @@ int64_t arduinoNano33IotGetElapsedMilliseconds(int64_t startTime) {
   return now - startTime;
 }
 
-int64_t arduinoNano33IotGetElapsedMicroseconds(int64_t startTime) {
-  return arduinoNano33IotGetElapsedMilliseconds(
-    startTime / ((int64_t) 1000)) * ((int64_t) 1000);
-}
-
 int64_t arduinoNano33IotGetElapsedNanoseconds(int64_t startTime) {
-  return arduinoNano33IotGetElapsedMilliseconds(
-    startTime / ((int64_t) 1000000)) * ((int64_t) 1000000);
+  return arduinoNano33IotGetElapsedMicroseconds(
+    startTime / ((int64_t) 1000)) * ((int64_t) 1000);
 }
 
 int arduinoNano33IotReset(void) {
