@@ -439,7 +439,7 @@ int arduinoNano33IotSetNumTimers(int numTimers) {
 }
 
 int arduinoNano33IotInitTimer(int timer) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
   }
   
@@ -480,7 +480,7 @@ int arduinoNano33IotInitTimer(int timer) {
 int arduinoNano33IotConfigTimer(int timer,
     uint32_t microseconds, void (*callback)(void)
 ) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
   }
   
@@ -552,7 +552,7 @@ int arduinoNano33IotConfigTimer(int timer,
 }
 
 bool arduinoNano33IotIsTimerActive(int timer) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return false;
   }
   
@@ -560,7 +560,7 @@ bool arduinoNano33IotIsTimerActive(int timer) {
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
   }
   
