@@ -291,6 +291,32 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
+int posixGetNumHardwareTimers(void) {
+  return 0;
+}
+  
+int posixTimerConfig(int timerId,
+    uint32_t microseconds, void (*callback)(void)
+) {
+  (void) timerId;
+  (void) microseconds;
+  (void) callback;
+  
+  return -ENOTSUP;
+}
+  
+bool posixTimerIsActive(int timerId) {
+  (void) timerId;
+  
+  return false;
+}
+  
+int posixTimerCancel(int timerId) {
+  (void) timerId;
+  
+  return -ENOTSUP;
+}
+
 /// @var posixHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -331,6 +357,12 @@ static Hal posixHal = {
   
   // Root storage configuration.
   .initRootStorage = posixInitRootStorage,
+  
+  // Hardware timers.
+  .getNumHardwareTimers = posixGetNumHardwareTimers,
+  .timerConfig = posixTimerConfig,
+  .timerIsActive = posixTimerIsActive,
+  .timerCancel = posixTimerCancel,
 };
 
 const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
