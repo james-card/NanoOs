@@ -86,8 +86,9 @@ int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]);
 
 // Coroutine setup functions used in the loader.
-void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
+void coroutineYieldCallback(void *stateData, Coroutine *coroutine);
 void comutexUnlockCallback(void *stateData, Comutex *comutex);
+void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
 void* dummyProcess(void *args);
 
 // ProcessHandle that will be used to represent the scheduler.

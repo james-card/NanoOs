@@ -276,6 +276,35 @@ int processQueueRemove(
   return returnValue;
 }
 
+/// @fn void coroutineYieldCallback(void *stateData, Coroutine *coroutine)
+///
+/// @brief Function to be called right before a coroutine yields.
+///
+/// @param stateData The coroutine state pointer provided when coroutineConfig
+///   was called.
+/// @param coroutine A pointer to the Coroutine structure representing the
+///   coroutine that's about to yield.  This parameter is unused by this
+///   function.
+///
+/// @Return This function returns no value.
+void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
+  (void) coroutine;
+  SchedulerState *schedulerState = NULL;
+
+  if (stateData == NULL) {
+    // We can't work like this.  Bail.
+    return;
+  }
+
+  schedulerState = *((SchedulerState**) stateData);
+  if (schedulerState == NULL) {
+    // This won't fly either.  Bail.
+    return;
+  }
+
+  return;
+}
+
 /// @fn void comutexUnlockCallback(void *stateData, Comutex *comutex)
 ///
 /// @brief Function to be called when a mutex (Comutex) is unlocked.
