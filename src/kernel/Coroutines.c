@@ -1344,7 +1344,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
 #ifdef THREAD_SAFE_COROUTINES
   if (!_coroutineThreadingSupportEnabled) {
     _globalIdle = NULL;
-  _globalRunning = NULL;
+    _globalRunning = NULL;
   } else {
     call_once(&_threadMetadataSetup, coroutineSetupThreadMetadata);
     tss_set(_tssIdle, NULL);
@@ -1384,6 +1384,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
     if (options != NULL) {
       tss_set(_tssStateData, options->stateData);
       if (options->comutexUnlockCallback != NULL) {
+        free(tss_get(_tssComutexUnlockCallback));
         ComutexUnlockCallback *comutexUnlockCallbackPointer
           = (ComutexUnlockCallback*) malloc(sizeof(ComutexUnlockCallback));
         *comutexUnlockCallbackPointer = options->comutexUnlockCallback;
@@ -1392,6 +1393,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
         tss_set(_tssComutexUnlockCallback, NULL);
       }
       if (options->coconditionSignalCallback != NULL) {
+        free(tss_get(_tssCoconditionSignalCallback));
         CoconditionSignalCallback *coconditionSignalCallbackPointer
           = (CoconditionSignalCallback*)
             malloc(sizeof(CoconditionSignalCallback));
@@ -1403,7 +1405,9 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
       }
     } else {
       tss_set(_tssStateData, NULL);
+      free(tss_get(_tssComutexUnlockCallback));
       tss_set(_tssComutexUnlockCallback, NULL);
+      free(tss_get(_tssCoconditionSignalCallback));
       tss_set(_tssCoconditionSignalCallback, NULL);
     }
   }
