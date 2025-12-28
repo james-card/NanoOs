@@ -407,14 +407,22 @@ int arduinoNanoEveryGetNumHardwareTimers(void) {
 int arduinoNanoEveryTimerConfig(int timerId,
     uint32_t microseconds, void (*callback)(void)
 ) {
+  (void) timerId;
+  (void) microseconds;
+  (void) callback;
+  
   return -ENOTSUP;
 }
   
 bool arduinoNanoEveryTimerIsActive(int timerId) {
+  (void) timerId;
+  
   return false;
 }
   
 int arduinoNanoEveryTimerCancel(int timerId) {
+  (void) timerId;
+  
   return -ENOTSUP;
 }
 
