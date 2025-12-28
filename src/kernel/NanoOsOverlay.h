@@ -84,22 +84,25 @@ typedef struct NanoOsOverlayExport {
 ///
 /// @brief The header used to export functionality within an overlay.
 ///
-/// @param magic The value of NANO_OS_OVERLAY_MAGIC to identify that this is a
-///   valid NanoOs overlay header.
-/// @param version The version of the overlay header.  Format will be:
-///   (major << 24) | (minor << 16) | (revision << 8) | (build << 0).
 /// @param osApi A pointer to the NanoOsApi structure in the kernel that
 ///   manages all the standard C API interfaces.
-/// @param callOverlayFunction A pointer to the function that allows a function
-///   in a different overlay to be called.
-/// @param numExports The number of functions exported by the overlay.
 /// @param env The array of NULL-terminated environment variables for the
 ///   running program.
+/// @param overlayDir The directory on the filesystem where the overlay is
+///   stored.
+/// @param overlay The name of the overlay within the overlayDir, minus the
+///   ".overlay" file extension.
+/// @param version The version of the overlay header.  Format will be:
+///   (major << 24) | (minor << 16) | (revision << 8) | (build << 0).
+/// @param magic The value of NANO_OS_OVERLAY_MAGIC to identify that this is a
+///   valid NanoOs overlay header.  This parameter must come last.
 typedef struct NanoOsOverlayHeader {
-  uint64_t magic;         // Must be NANO_OS_OVERLAY_MAGIC
-  uint32_t version;
   NanoOsApi *osApi;
   char **env;
+  const char *overlayDir;
+  const char *overlay;
+  uint32_t version;
+  uint64_t magic;
 } NanoOsOverlayHeader;
 
 /// @struct NanoOsOverlayMap

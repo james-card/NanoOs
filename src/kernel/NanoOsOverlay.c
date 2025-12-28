@@ -50,6 +50,21 @@
 ///
 /// @return Returns 0 on success, negative error code on failure.
 int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
+  if ((overlayDir == NULL) || (overlay == NULL)) {
+    // There's no overlay to load.  This isn't really an error, but there's
+    // nothing to do.  Just return 0.
+    return 0;
+  }
+
+  NanoOsOverlayHeader *overlayHeader = &HAL->overlayMap->header;
+  if ((overlayHeader->overlayDir != NULL) && (overlayHeader->overlay != NULL)) {
+    if ((strcmp(overlayHeader->overlayDir, overlayDir) == 0)
+      && (strcmp(overlayHeader->overlay, overlay) == 0)
+    ) {
+      // Overlay is already loaded.  Do nothing.
+    }
+  }
+
   // We need two extra characters:  One for the '/' that separates the directory
   // and the file name and one for the terminating NULL byte.
   char *fullPath = (char*) malloc(
@@ -111,8 +126,10 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
 
   // Set the pieces of the overlay header that the program needs to run.
   printDebugString("Configuring overlay environment\n");
-  HAL->overlayMap->header.osApi = &nanoOsApi;
-  HAL->overlayMap->header.env = envp;
+  overlayHeader->osApi = &nanoOsApi;
+  overlayHeader->env = envp;
+  overlayHeader->overlayDir = overlayDir;
+  overlayHeader->overlay = overlay;
   
   return 0;
 }
