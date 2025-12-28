@@ -71,12 +71,30 @@ void setup() {
     }
   }
   HAL->setNumSerialPorts(ii);
+  if (ii != numSerialPorts) {
+    printString("WARNING: Only initialized ");
+    printInt(ii);
+    printString(" serial ports\n");
+  }
 
   // We need a guard at bootup because if the system crashes in a way that makes
   // the processor unresponsive, it will be very difficult to load new firmware.
   // Sleep long enough to begin a firmware upload on reset.
   printString("\nBooting...\n");
   msleep(7000);
+  
+  int numTimers = HAL->getNumTimers();
+  for (ii = 0; ii < numTimers; ii++) {
+    if (HAL->initTimer(ii) < 0) {
+      break;
+    }
+  }
+  HAL->setNumTimers(ii);
+  if (ii != numTimers) {
+    printString("WARNING: Only initialized ");
+    printInt(ii);
+    printString(" timers\n");
+  }
 }
 
 // In a normal Arduino sketch, the loop function runs over and over again
