@@ -186,15 +186,18 @@ typedef struct FileDescriptor {
 /// @param overlayDir The base path to the overlays for the process, if any.
 /// @param overlay The name of the current overlay within the overlayDir being
 ///   used (minus the ".overaly" extension).
+/// @param envp A pointer to the array of NULL-terminated environment variable
+///   strings.
 typedef struct ProcessDescriptor {
-  const char     *name;
-  ProcessHandle   processHandle;
-  ProcessId       processId;
-  UserId          userId;
-  uint8_t         numFileDescriptors;
-  FileDescriptor *fileDescriptors;
-  const char     *overlayDir;
-  const char     *overlay;
+  const char      *name;
+  ProcessHandle    processHandle;
+  ProcessId        processId;
+  UserId           userId;
+  uint8_t          numFileDescriptors;
+  FileDescriptor  *fileDescriptors;
+  const char      *overlayDir;
+  const char      *overlay;
+  const char     **envp;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement

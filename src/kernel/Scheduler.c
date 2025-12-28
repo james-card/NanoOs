@@ -2575,6 +2575,7 @@ int schedulerExecveCommandHandler(
 
   processDescriptor->overlayDir = pathname;
   processDescriptor->overlay = "main";
+  processDescriptor->envp = (const char**) envp;
   processDescriptor->name = argv[0];
 
   /*
@@ -2793,6 +2794,12 @@ void runScheduler(SchedulerState *schedulerState) {
       return;
     }
 
+    if (allProcesses[processDescriptor->processId].userId == NO_USER_ID) {
+      // Login failed.  Re-launch getty.
+    } else {
+      // User process exited.  Re-launch the shell.
+    }
+    
     // Restart the shell.
     allProcesses[processDescriptor->processId].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
