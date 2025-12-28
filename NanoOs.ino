@@ -125,6 +125,7 @@ void loop() {
   CoroutineConfigOptions coroutineConfigOptions = {
     .stackSize = NANO_OS_STACK_SIZE,
     .stateData = &coroutineStatePointer,
+    .coroutineYieldCallback = NULL,
     .comutexUnlockCallback = comutexUnlockCallback,
     .coconditionSignalCallback = coconditionSignalCallback,
   };

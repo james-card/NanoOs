@@ -189,6 +189,11 @@ static int _globalStackSize = COROUTINE_DEFAULT_STACK_SIZE;
 /// @brief Global state data provided to the global callbacks.
 static void *_globalStateData = NULL;
 
+/// @var static CoroutineYieldCallback _globalCoroutineYieldCallback
+///
+/// @brief Global callback to call when a comutex is unlocked.
+static CoroutineYieldCallback _globalCoroutineYieldCallback = NULL;
+
 /// @var static ComutexUnlockCallback _globalComutexUnlockCallback
 ///
 /// @brief Global callback to call when a comutex is unlocked.
@@ -300,6 +305,11 @@ ZEROINIT(static tss_t _tssStackSize);
 /// @brief Thread-specific state data provided to the thread-specific callbacks.
 ZEROINIT(static tss_t _tssStateData);
 
+/// @var static tss_t _tssCoroutineYieldCallback
+///
+/// @brief Thread-specific callback to call when a cocondition is signalled.
+ZEROINIT(static tss_t _tssCoroutineYieldCallback);
+
 /// @var static tss_t _tssComutexUnlockCallback
 ///
 /// @brief Thread-specific callback to call when a cocondition is signalled.
@@ -341,6 +351,10 @@ void coroutineSetupThreadMetadata(void) {
   status = tss_create(&_tssStateData, NULL);
   if (status != thrd_success) {
     fprintf(stderr, "Could not initialize _tssStateData.\n");
+  }
+  status = tss_create(&_tssCoroutineYieldCallback, free);
+  if (status != thrd_success) {
+    fprintf(stderr, "Could not initialize _tssCoroutineYieldCallback.\n");
   }
   status = tss_create(&_tssComutexUnlockCallback, free);
   if (status != thrd_success) {
@@ -409,14 +423,23 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
     return false;
   }
   status = tss_set(
+    _tssCoroutineYieldCallback,
+    NULL
+  );
+  if (status != thrd_success) {
+    fprintf(stderr,
+      "Could not set _tssCoroutineYieldCallback to NULL in "
+      "coroutineInitializeThreadMetadata.\n");
+    return false;
+  }
+  status = tss_set(
     _tssComutexUnlockCallback,
     NULL
   );
   if (status != thrd_success) {
     fprintf(stderr,
-      "Could not set _tssComutexUnlockCallback to %p in "
-      "coroutineInitializeThreadMetadata.\n",
-      (void*) &_globalComutexUnlockCallback);
+      "Could not set _tssComutexUnlockCallback to NULL in "
+      "coroutineInitializeThreadMetadata.\n");
     return false;
   }
   status = tss_set(
@@ -425,9 +448,8 @@ bool coroutineInitializeThreadMetadata(Coroutine *first) {
   );
   if (status != thrd_success) {
     fprintf(stderr,
-      "Could not set _tssCoconditionSignalCallback to %p in "
-      "coroutineInitializeThreadMetadata.\n",
-      (void*) &_globalCoconditionSignalCallback);
+      "Could not set _tssCoconditionSignalCallback to NULL in "
+      "coroutineInitializeThreadMetadata.\n");
     return false;
   }
 
@@ -687,6 +709,29 @@ void* coroutineYield_(void *arg, CoroutineState state) {
   } else if (running == NULL) {
     // The running stack hasn't been setup yet.  Bail.
     return NULL;
+  }
+
+  CoroutineYieldCallback coroutineYieldCallback
+    = _globalCoroutineYieldCallback;
+#ifdef THREAD_SAFE_COROUTINES
+  if (_coroutineThreadingSupportEnabled) {
+    // No need to call coroutineSetupThreadMetadata or
+    // coroutineInitializeThreadMetadata this time since we did that above.
+    CoroutineYieldCallback *possibleCallback
+      = (CoroutineYieldCallback*) tss_get(_tssCoroutineYieldCallback);
+    if (possibleCallback != NULL) {
+      coroutineYieldCallback = *possibleCallback;
+    }
+  }
+#endif
+  if (coroutineYieldCallback != NULL) {
+    // coroutineYield is in the critical path of everything, so we only want to
+    // get the state data if there's a function to call.
+    void *stateData = _globalStateData;
+#ifdef THREAD_SAFE_COROUTINES
+    stateData = tss_get(_tssStateData);
+#endif
+    coroutineYieldCallback(stateData, running);
   }
 
   if (state >= COROUTINE_STATE_NOT_RUNNING) {
@@ -1383,6 +1428,16 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
     tss_set(_tssStackSize, (void*) ((intptr_t) stackSize));
     if (options != NULL) {
       tss_set(_tssStateData, options->stateData);
+      if (options->coroutineYieldCallback != NULL) {
+        free(tss_get(_tssCoroutineYieldCallback));
+        CoroutineYieldCallback *coroutineYieldCallbackPointer
+          = (CoroutineYieldCallback*) malloc(sizeof(CoroutineYieldCallback));
+        *coroutineYieldCallbackPointer = options->coroutineYieldCallback;
+        tss_set(_tssCoroutineYieldCallback, coroutineYieldCallbackPointer);
+      } else {
+        tss_set(_tssCoroutineYieldCallback, NULL);
+      }
+
       if (options->comutexUnlockCallback != NULL) {
         free(tss_get(_tssComutexUnlockCallback));
         ComutexUnlockCallback *comutexUnlockCallbackPointer
@@ -1392,6 +1447,7 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
       } else {
         tss_set(_tssComutexUnlockCallback, NULL);
       }
+
       if (options->coconditionSignalCallback != NULL) {
         free(tss_get(_tssCoconditionSignalCallback));
         CoconditionSignalCallback *coconditionSignalCallbackPointer
@@ -1405,8 +1461,13 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
       }
     } else {
       tss_set(_tssStateData, NULL);
+
+      free(tss_get(_tssCoroutineYieldCallback));
+      tss_set(_tssCoroutineYieldCallback, NULL);
+
       free(tss_get(_tssComutexUnlockCallback));
       tss_set(_tssComutexUnlockCallback, NULL);
+
       free(tss_get(_tssCoconditionSignalCallback));
       tss_set(_tssCoconditionSignalCallback, NULL);
     }
@@ -1426,26 +1487,20 @@ int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options) {
   // such.
   first->state = COROUTINE_STATE_RUNNING;
 
-  if (_globalFirst == NULL) {
-    _globalFirst = first;
-  }
-  if (_globalRunning == NULL) {
-    _globalRunning = first;
-  }
+  _globalFirst = first;
+  _globalRunning = first;
 
-  if (_globalStackSize == COROUTINE_DEFAULT_STACK_SIZE) {
-    _globalStackSize = stackSize;
-  }
+  _globalStackSize = stackSize;
   if (options != NULL) {
-    if (_globalStateData == NULL) {
-      _globalStateData = options->stateData;
-    }
-    if (_globalComutexUnlockCallback == NULL) {
-      _globalComutexUnlockCallback = options->comutexUnlockCallback;
-    }
-    if (_globalCoconditionSignalCallback == NULL) {
-      _globalCoconditionSignalCallback = options->coconditionSignalCallback;
-    }
+    _globalStateData = options->stateData;
+    _globalCoroutineYieldCallback = options->coroutineYieldCallback;
+    _globalComutexUnlockCallback = options->comutexUnlockCallback;
+    _globalCoconditionSignalCallback = options->coconditionSignalCallback;
+  } else {
+    _globalStateData = NULL;
+    _globalCoroutineYieldCallback = NULL;
+    _globalComutexUnlockCallback = NULL;
+    _globalCoconditionSignalCallback = NULL;
   }
 
   return coroutineSuccess;
