@@ -600,7 +600,6 @@ void arduinoNano33IotTimerInterruptHandler(int timer) {
     // Call callback if set
     if (hwTimer->callback) {
       hwTimer->callback();
-      hwTimer->callback = nullptr;
     }
   }
 }
