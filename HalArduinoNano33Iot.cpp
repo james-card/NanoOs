@@ -458,7 +458,7 @@ int arduinoNano33IotInitTimer(int timer) {
   // Configure the TC timer in one-shot mode
   hwTimer->tc->COUNT16.CTRLA.reg
     = TC_CTRLA_MODE_COUNT16        // 16-bit counter
-    | TC_CTRLA_WAVEGEN_MFRQ        // Match frequency mode
+    | TC_CTRLA_WAVEGEN_NFRQ        // Normal frequency mode
     | TC_CTRLA_PRESCALER_DIV1;     // No prescaling (48MHz)
   
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
@@ -468,7 +468,7 @@ int arduinoNano33IotInitTimer(int timer) {
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
 
   // Enable compare match interrupt
-  hwTimer->tc->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+  hwTimer->tc->COUNT16.INTENSET.reg = TC_INTENSET_OVF;
   
   // Enable the TC timer interrupt in NVIC
   NVIC_SetPriority(hwTimer->irqType, 0);
@@ -498,24 +498,20 @@ int arduinoNano33IotConfigTimer(int timer,
   
   // Check if we need prescaling for longer delays
   uint16_t prescaler = TC_CTRLA_PRESCALER_DIV1;
-  uint8_t divider = 1;
   
   if (ticks > 65535) {
     // Use DIV8 for up to ~10.9ms
     prescaler = TC_CTRLA_PRESCALER_DIV8;
-    divider = 8;
     ticks = (microseconds * 48) / 8;
     
     if (ticks > 65535) {
       // Use DIV64 for up to ~87ms
       prescaler = TC_CTRLA_PRESCALER_DIV64;
-      divider = 64;
       ticks = (microseconds * 48) / 64;
       
       if (ticks > 65535) {
         // Use DIV256 for up to ~349ms
         prescaler = TC_CTRLA_PRESCALER_DIV256;
-        divider = 256;
         ticks = (microseconds * 48) / 256;
         
         if (ticks > 65535) {
@@ -537,8 +533,8 @@ int arduinoNano33IotConfigTimer(int timer,
   hwTimer->tc->COUNT16.CTRLA.bit.PRESCALER = prescaler;
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
   
-  // Set counter value (counts down to 0)
-  hwTimer->tc->COUNT16.COUNT.reg = ticks;
+  // Load counter with (65535 - ticks) so it overflows after ticks counts
+  hwTimer->tc->COUNT16.COUNT.reg = 65535 - ticks;
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
   
   // Clear any pending interrupts
@@ -679,6 +675,7 @@ static Hal arduinoNano33IotHal = {
 };
 
 const Hal* halArduinoNano33IotInit(void) {
+  __enable_irq();  // Ensure global interrupts are enabled
   return &arduinoNano33IotHal;
 }
 
