@@ -249,6 +249,25 @@ int logoutCommandHandler(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int looseLoopCommandHandler(int argc, char **argv)
+///
+/// @brief Run a loop WITH yielding to test cooperative multitasking.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Ignored by this function.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  Ignored by this function.
+///
+/// @return This function always returns 0.
+int looseLoopCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  while (1) processYield();
+
+  return 0;
+}
+
 /// @fn int resetCommandHandler(int argc, char **argv)
 ///
 /// @brief Issue a hardware reset.
@@ -289,7 +308,7 @@ int shutdownCommandHandler(int argc, char **argv) {
 
 /// @fn int tightLoopCommandHandler(int argc, char **argv)
 ///
-/// @brief Shutdown the hardware.
+/// @brief Run a loop WITHOUT yielding to test preemptive multitasking.
 ///
 /// @param argc The number or arguments parsed from the command line, including
 ///   the name of the command.  Ignored by this function.
@@ -495,6 +514,11 @@ const CommandEntry commands[] = {
     .help = "Logout of the system."
   },
   {
+    .name = "looseLoop",
+    .func = looseLoopCommandHandler,
+    .help = "Run a process in a loop that does yield."
+  },
+  {
     .name = "ps",
     .func = psCommandHandler,
     .help = "List the running processes."
@@ -512,7 +536,7 @@ const CommandEntry commands[] = {
   {
     .name = "tightLoop",
     .func = tightLoopCommandHandler,
-    .help = "Run a process in a tight loop that does not yield."
+    .help = "Run a process in a loop that does not yield."
   },
 };
 
