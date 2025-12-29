@@ -583,6 +583,50 @@ int arduinoNano33IotCancelTimer(int timer) {
   return 0;
 }
 
+/// @fn void arduinoNano33IotTimerInterruptHandler(int timer)
+///
+/// @brief Base implementation for the Timer/Counter interrupt handlers.
+///
+/// @param timer The zero-based index of the timer to handle.
+///
+/// @return This function returns no value.
+void arduinoNano33IotTimerInterruptHandler(int timer) {
+  // This function is only called from one of the real interrupt handlers, so
+  // we're guaranteed that the timer parameter is good.  Skip validation.
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  
+  if (hwTimer->tc->COUNT16.INTFLAG.bit.OVF) {
+    // Clear interrupt flag
+    hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+    
+    hwTimer->active = false;
+    
+    // Call callback if set
+    if (hwTimer->callback) {
+      hwTimer->callback();
+      hwTimer->callback = nullptr;
+    }
+  }
+}
+
+/// @fn void TC4_Handler(void)
+///
+/// @brief Interrupt handler for Timer/Counter 4.
+///
+/// @return This function returns no value.
+void TC4_Handler(void) {
+  arduinoNano33IotTimerInterruptHandler(0);
+}
+
+/// @fn void TC5_Handler(void)
+///
+/// @brief Interrupt handler for Timer/Counter 5.
+///
+/// @return This function returns no value.
+void TC5_Handler(void) {
+  arduinoNano33IotTimerInterruptHandler(1);
+}
+
 /// @var arduinoNano33IotHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
