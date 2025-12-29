@@ -274,7 +274,7 @@ typedef struct SchedulerState {
   ProcessQueue free;
   char *hostname;
   uint8_t numShells;
-  bool preemptionTimer;
+  int preemptionTimer;
 } SchedulerState;
 
 /// @struct CommandDescriptor
