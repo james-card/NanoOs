@@ -2744,6 +2744,17 @@ void checkForTimeouts(SchedulerState *schedulerState) {
   return;
 }
 
+/// @fn void forceYield(void)
+///
+/// @brief Callback that's invoked when the preemption timer fires.  Wrapper
+///   for processYield.  Does nothing else.
+///
+/// @return This function returns no value.
+void forceYield(void) {
+  printString("Forcing yield\n");
+  processYield();
+}
+
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
 /// @brief Run one (1) iteration of the main scheduler loop.
@@ -2802,6 +2813,11 @@ void runScheduler(SchedulerState *schedulerState) {
     return;
   }
 
+  // Configure the preemption timer to force the process to yield if it doesn't
+  // voluntarily give up control within a reasonable amount of time.
+  if (processDescriptor->processId >= NANO_OS_FIRST_USER_PROCESS_ID) {
+    HAL->configTimer(schedulerState->preemptionTimer, 10000, forceYield);
+  }
   coroutineResume(processDescriptor->processHandle, NULL);
 
   if (processRunning(processDescriptor->processHandle) == false) {
@@ -2885,6 +2901,9 @@ __attribute__((noinline)) void startScheduler(
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
   schedulerState.preemptionTimer = (HAL->getNumTimers() > 0) ? 0 : -1;
+  printString("preemptionTimer = ");
+  printInt(schedulerState.preemptionTimer);
+  printString("\n");
   printDebugString("Set scheduler state.\n");
 
   // Initialize the pointer that was used to configure coroutines.
