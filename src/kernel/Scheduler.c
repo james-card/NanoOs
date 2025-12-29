@@ -2751,7 +2751,6 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 ///
 /// @return This function returns no value.
 void forceYield(void) {
-  printString("Forcing yield\n");
   processYield();
 }
 
