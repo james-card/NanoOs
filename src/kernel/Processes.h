@@ -100,7 +100,7 @@ extern "C"
 ///
 /// @brief Call to yield the processor to another process.
 #define processYield() \
-  ((void) coroutineYield(NULL, COROUTINE_STATE_BLOCKED))
+  coroutineYield(NULL, COROUTINE_STATE_BLOCKED)
 
 /// @def processTerminate
 ///

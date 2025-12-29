@@ -321,7 +321,7 @@ static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runExFatFilesystem(void *args) {
-  coroutineYield(NULL, 0);
+  processYield();
   printDebugString("runExFatFilesystem: Allocating FilesystemState\n");
   FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
   printDebugString("runExFatFilesystem: Allocating ExFatDriverState\n");
@@ -340,7 +340,7 @@ void* runExFatFilesystem(void *args) {
   
   ProcessMessage *msg = NULL;
   while (1) {
-    msg = (ProcessMessage*) coroutineYield(NULL, 0);
+    msg = (ProcessMessage*) processYield();
     if (msg) {
       FilesystemCommandResponse type = 
         (FilesystemCommandResponse) processMessageType(msg);

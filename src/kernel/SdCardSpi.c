@@ -613,7 +613,7 @@ void* runSdCardSpi(void *args) {
 
   ProcessMessage *schedulerMessage = NULL;
   while (1) {
-    schedulerMessage = (ProcessMessage*) coroutineYield(NULL, 0);
+    schedulerMessage = (ProcessMessage*) processYield();
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to process.  This
       // is not the expected case, but it's the priority case, so we need to
