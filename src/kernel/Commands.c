@@ -287,6 +287,25 @@ int shutdownCommandHandler(int argc, char **argv) {
   return 0;
 }
 
+/// @fn int tightLoopCommandHandler(int argc, char **argv)
+///
+/// @brief Shutdown the hardware.
+///
+/// @param argc The number or arguments parsed from the command line, including
+///   the name of the command.  Ignored by this function.
+/// @param argv The array of arguments parsed from the command line with one
+///   argument per array element.  Ignored by this function.
+///
+/// This function never returns, but would return 0 if it did.
+int tightLoopCommandHandler(int argc, char **argv) {
+  (void) argc;
+  (void) argv;
+
+  while (1);
+
+  return 0;
+}
+
 /// @fn const CommandEntry* getCommandEntryFromInput(char *consoleInput)
 ///
 /// @brief Get the command specified by consoleInput.
@@ -489,6 +508,11 @@ const CommandEntry commands[] = {
     .name = "shutdown",
     .func = shutdownCommandHandler,
     .help = "Shutdown the system."
+  },
+  {
+    .name = "tightLoop",
+    .func = tightLoopCommandHandler,
+    .help = "Run a process in a tight loop that does not yield."
   },
 };
 
