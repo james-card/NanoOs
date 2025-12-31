@@ -105,8 +105,15 @@ extern "C"
 /// @def processTerminate
 ///
 /// @brief Function macro to terminate a running process.
-#define processTerminate(processHandle) \
-  coroutineTerminate(processHandle, NULL)
+#define processTerminate(processDescriptor) \
+  coroutineTerminate((processDescriptor)->processHandle, NULL)
+
+/// @def processLazyTerminate
+///
+/// @brief Function macro to terminate a running process.
+#define processLazyTerminate(processDescriptor) \
+  processDescriptor->terminating = true; \
+  coroutineLazyTerminate((processDescriptor)->processHandle)
 
 /// @def processMessageInit
 ///
@@ -173,6 +180,14 @@ extern "C"
 #define getRunningProcessId() \
   getRunningCoroutineId()
 
+/// @def processResume
+///
+/// @brief Resume a process and update the currentProcess state correctly.
+#define processResume(processDescriptor, processMessage) \
+  currentProcess = processDescriptor; \
+  coroutineResume((processDescriptor)->processHandle, processMessage); \
+  currentProcess = schedulerProcess; \
+
 // Process message accessors
 #define processMessageType(processMessagePointer) \
   msg_type(processMessagePointer)
@@ -229,7 +244,7 @@ extern "C"
 void* startCommand(void *args);
 void* execCommand(void *args);
 int sendProcessMessageToProcess(
-  ProcessHandle processHandle, ProcessMessage *processMessage);
+  ProcessDescriptor *processDescriptor, ProcessMessage *processMessage);
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage);
 ProcessMessage* getAvailableMessage(void);
 ProcessMessage* sendNanoOsMessageToPid(int pid, int type,

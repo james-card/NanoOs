@@ -380,28 +380,31 @@ void* execCommand(void *args) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @fn int sendProcessMessageToProcess(
-///   ProcessHandle processHandle, ProcessMessage *processMessage)
+///   ProcessDescriptor *processDescriptor, ProcessMessage *processMessage)
 ///
 /// @brief Get an available ProcessMessage, populate it with the specified data,
 /// and push it onto a destination process's queue.
 ///
-/// @param processHandle A handle to the destination process to send the message
-///   to.
+/// @param processDescriptor A pointer to the destination process to send the
+///   message to.
 /// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
 /// @return Returns processSuccess on success, processError on failure.
 int sendProcessMessageToProcess(
-  ProcessHandle processHandle, ProcessMessage *processMessage
+  ProcessDescriptor *processDescriptor, ProcessMessage *processMessage
 ) {
   int returnValue = processSuccess;
-  if ((processHandle == NULL) || (processMessage == NULL)) {
+  if ((processDescriptor == NULL) || (processDescriptor->processHandle == NULL)
+    || (processMessage == NULL)
+  ) {
     // Invalid.
     returnValue = processError;
     return returnValue;
   }
 
-  returnValue = processMessageQueuePush(processHandle, processMessage);
+  returnValue = processMessageQueuePush(
+    processDescriptor->processHandle, processMessage);
 
   return returnValue;
 }
@@ -416,12 +419,12 @@ int sendProcessMessageToProcess(
 ///
 /// @return Returns processSuccess on success, processError on failure.
 int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage) {
-  ProcessHandle processHandle = schedulerGetProcessByPid(pid);
+  ProcessDescriptor *processDescriptor = schedulerGetProcessByPid(pid);
 
-  // If processHandle is NULL, it will be detected as not running by
+  // If processDescriptoris NULL, it will be detected as not running by
   // sendProcessMessageToProcess, so there's no real point in checking for NULL
   // here.
-  return sendProcessMessageToProcess(processHandle, processMessage);
+  return sendProcessMessageToProcess(processDescriptor, processMessage);
 }
 
 /// ProcessMessage* getAvailableMessage(void)
@@ -446,7 +449,7 @@ ProcessMessage* getAvailableMessage(void) {
 }
 
 /// @fn ProcessMessage* sendNanoOsMessageToProcess(
-///   ProcessHandle processHandle, int type,
+///   ProcessDescriptor *processDescriptor, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
@@ -462,22 +465,24 @@ ProcessMessage* getAvailableMessage(void) {
 ///
 /// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
 ProcessMessage* sendNanoOsMessageToProcess(
-  ProcessHandle processHandle, int type,
+  ProcessDescriptor *processDescriptor, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   ProcessMessage *processMessage = NULL;
-  if (!processRunning(processHandle)) {
+  if (processDescriptor == NULL) {
+    return processMessage; // NULL
+  } else if (!processRunning(processDescriptor->processHandle)) {
     // Can't send to a non-running process.
     printString("ERROR: Could not send message from process ");
     printInt(processId(getRunningProcess()));
     printString("\n");
-    if (processHandle == NULL) {
+    if (processDescriptor->processHandle == NULL) {
       printString("ERROR: processHandle is NULL\n");
     } else {
       printString("ERROR: Process ");
-      printInt(processId(processHandle));
+      printInt(processId(processDescriptor->processHandle));
       printString(" is in state ");
-      printInt(processState(processHandle));
+      printInt(processState(processDescriptor->processHandle));
       printString("\n");
     }
     return processMessage; // NULL
@@ -497,7 +502,7 @@ ProcessMessage* sendNanoOsMessageToProcess(
   processMessageInit(processMessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendProcessMessageToProcess(processHandle, processMessage)
+  if (sendProcessMessageToProcess(processDescriptor, processMessage)
     != processSuccess
   ) {
     if (processMessageRelease(processMessage) != processSuccess) {
@@ -539,7 +544,7 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
     return processMessage; // NULL
   }
 
-  ProcessHandle process = schedulerGetProcessByPid(pid);
+  ProcessDescriptor *process = schedulerGetProcessByPid(pid);
   processMessage
     = sendNanoOsMessageToProcess(process, type, func, data, waiting);
   if (processMessage == NULL) {
