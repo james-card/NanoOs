@@ -108,13 +108,6 @@ extern "C"
 #define processTerminate(processDescriptor) \
   coroutineTerminate((processDescriptor)->processHandle, NULL)
 
-/// @def processLazyTerminate
-///
-/// @brief Function macro to terminate a running process.
-#define processLazyTerminate(processDescriptor) \
-  processDescriptor->terminating = true; \
-  coroutineLazyTerminate((processDescriptor)->processHandle)
-
 /// @def processMessageInit
 ///
 /// @brief Function macro to initialize a process message.
