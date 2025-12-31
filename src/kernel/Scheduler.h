@@ -69,7 +69,7 @@ typedef enum SchedulerCommandResponse {
 
 // Exported functionality
 void startScheduler(SchedulerState **coroutineStatePointer);
-ProcessHandle schedulerGetProcessByPid(unsigned int pid);
+ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid);
 int schedulerNotifyProcessComplete(ProcessId processId);
 int schedulerWaitForProcessComplete(void);
 ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout);
@@ -84,6 +84,7 @@ int schedulerCloseAllFileDescriptors(void);
 const char* schedulerGetHostname(void);
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]);
+bool currentProcessTerminating(void);
 
 // Coroutine setup functions used in the loader.
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine);

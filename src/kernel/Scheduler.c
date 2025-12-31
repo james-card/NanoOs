@@ -79,6 +79,11 @@ void runScheduler(SchedulerState *schedulerState);
 /// function.
 ProcessHandle schedulerProcess = NULL;
 
+/// @var currentProcess
+///
+/// @brief Pointer to the process that is currently executing.
+static ProcessDescriptor *currentProcess = NULL;
+
 /// @var allProcesses
 ///
 /// @brief Pointer to the allProcesses array that is part of the
@@ -188,6 +193,17 @@ static const char* const shellNames[NANO_OS_MAX_NUM_SHELLS] = {
   "shell 0",
   "shell 1",
 };
+
+/// @fn bool currentProcessTerminating(void)
+///
+/// @brief Determine whether or not the process that's curently running is
+/// being terminated.
+///
+/// @return Returns true if the currently-running process is being terminated,
+/// false otherwise.
+bool currentProcessTerminating(void) {
+  return currentProcess->terminating;
+}
 
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
@@ -441,22 +457,22 @@ endOfLoop:
   return;
 }
 
-/// @fn ProcessHandle schedulerGetProcessByPid(unsigned int pid)
+/// @fn ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid)
 ///
-/// @brief Look up a croutine for a running command given its process ID.
+/// @brief Look up a process for a running command given its process ID.
 ///
 /// @param pid The integer ID for the process.
 ///
-/// @return Returns the found process handle on success, NULL on failure.
-ProcessHandle schedulerGetProcessByPid(unsigned int pid) {
-  ProcessHandle process = NULL;
+/// @return Returns the found process descriptor on success, NULL on failure.
+ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid) {
+  ProcessDescriptor *processDescriptor = NULL;
   if (pid < NANO_OS_NUM_PROCESSES) {
-    process = allProcesses[pid].processHandle;
+    processDescriptor = &allProcesses[pid];
   }
 
   //// printDebugStackDepth();
 
-  return process;
+  return processDescriptor;
 }
 
 /// @fn void* dummyProcess(void *args)
@@ -473,29 +489,31 @@ void* dummyProcess(void *args) {
 }
 
 /// @fn int schedulerSendProcessMessageToProcess(
-///   ProcessHandle processHandle, ProcessMessage *processMessage)
+///   ProcessDescriptor *processDescriptor, ProcessMessage *processMessage)
 ///
 /// @brief Get an available ProcessMessage, populate it with the specified data,
 /// and push it onto a destination process's queue.
 ///
-/// @param processHandle A ProcessHandle to the destination process to send the
-///   message to.
+/// @param processDescriptor A pointer to the ProcessDescriptor that manages
+///   the process to send a message to.
 /// @param processMessage A pointer to the message to send to the destination
 ///   process.
 ///
 /// @return Returns processSuccess on success, processError on failure.
 int schedulerSendProcessMessageToProcess(
-  ProcessHandle processHandle, ProcessMessage *processMessage
+  ProcessDescriptor *processDescriptor, ProcessMessage *processMessage
 ) {
   int returnValue = processSuccess;
-  if (processHandle == NULL) {
+  if ((processDescriptor == NULL)
+    || (processDescriptor->processHandle == NULL)
+  ) {
     printString(
-      "ERROR: Attempt to send scheduler processMessage to NULL process handle.\n");
+      "ERROR: Attempt to send scheduler processMessage to NULL process.\n");
     returnValue = processError;
     return returnValue;
   } else if (processMessage == NULL) {
     printString(
-      "ERROR: Attempt to send NULL scheduler processMessage to process handle.\n");
+      "ERROR: Attempt to send NULL scheduler processMessage to process.\n");
     returnValue = processError;
     return returnValue;
   }
@@ -509,12 +527,12 @@ int schedulerSendProcessMessageToProcess(
   // comessageQueuePush.
   processMessage->msg_sync = &msg_sync_array[MSG_CORO_SAFE];
 
-  if (coroutineCorrupted(processHandle)) {
+  if (coroutineCorrupted(processDescriptor->processHandle)) {
     printString("ERROR: Called process is corrupted:\n");
     returnValue = processError;
     return returnValue;
   }
-  coroutineResume(processHandle, processMessage);
+  processResume(processDescriptor, processMessage);
 
   if (processMessageDone(processMessage) != true) {
     // This is our only indication from the called process that something went
@@ -543,20 +561,22 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 ) {
   (void) schedulerState;
 
-  ProcessHandle processHandle = schedulerGetProcessByPid(pid);
-  // If processHandle is NULL, it will be detected as not running by
+  ProcessDescriptor *processDescriptor = schedulerGetProcessByPid(pid);
+  // If processDescriptor is NULL, it will be detected as not running by
   // schedulerSendProcessMessageToProcess, so there's no real point in
   //  checking for NULL here.
-  return schedulerSendProcessMessageToProcess(processHandle, processMessage);
+  return schedulerSendProcessMessageToProcess(
+    processDescriptor, processMessage);
 }
 
 /// @fn int schedulerSendNanoOsMessageToProcess(
-///   ProcessHandle processHandle, int type,
+///   ProcessDescriptor *processDescriptor, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
 ///
 /// @brief Send a NanoOsMessage to another process identified by its Coroutine.
 ///
-/// @param pid The process ID of the destination process.
+/// @param processDescriptor A pointer to the ProcesDescriptor that holds the
+///   metadata for the process.
 /// @param type The type of the message to send to the destination process.
 /// @param func The function information to send to the destination process,
 ///   cast to a NanoOsMessageData.
@@ -567,7 +587,7 @@ int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
 ///
 /// @return Returns processSuccess on success, a different process status
 /// on failure.
-int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
+int schedulerSendNanoOsMessageToProcess(ProcessDescriptor *processDescriptor,
   int type, NanoOsMessageData func, NanoOsMessageData data
 ) {
   ProcessMessage processMessage;
@@ -583,7 +603,7 @@ int schedulerSendNanoOsMessageToProcess(ProcessHandle processHandle,
     &processMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
   int returnValue = schedulerSendProcessMessageToProcess(
-    processHandle, &processMessage);
+    processDescriptor, &processMessage);
 
   return returnValue;
 }
@@ -622,9 +642,9 @@ int schedulerSendNanoOsMessageToPid(
     return returnValue; // processError
   }
 
-  ProcessHandle processHandle = schedulerState->allProcesses[pid].processHandle;
+  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[pid];
   returnValue = schedulerSendNanoOsMessageToProcess(
-    processHandle, type, func, data);
+    processDescriptor, type, func, data);
   return returnValue;
 }
 
@@ -661,9 +681,7 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   // get messed up if we don't.
   msg_from(sent).coro = schedulerProcess;
 
-  coroutineResume(
-    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-    sent);
+  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == true) {
     // The handler set the pointer back in the structure we sent it, so grab it
     // out of the structure we already have.
@@ -755,9 +773,7 @@ void kfree(void *ptr) {
   // get messed up if we don't.
   msg_from(sent).coro = schedulerProcess;
 
-  coroutineResume(
-    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-    sent);
+  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == false) {
     printString(
       "Warning:  Memory manager did not mark free message done.\n");
@@ -1100,7 +1116,7 @@ int schedulerKillProcess(ProcessId processId) {
       = (NanoOsMessage*) processMessageData(processMessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
-      printf("Process terminated.\n");
+      printf("Termination successful.\n");
     } else {
       printf("Process termination returned status \"%s\".\n",
         strerror(returnValue));
@@ -1504,7 +1520,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
 
     // Resume the coroutine so that it picks up all the pointers it needs
     // before we release the message we were sent.
-    coroutineResume(processDescriptor->processHandle, NULL);
+    processResume(processDescriptor, NULL);
 
     // Put the process on the ready queue.
     processQueuePush(&schedulerState->ready, processDescriptor);
@@ -1562,8 +1578,11 @@ static inline ProcessDescriptor* launchForegroundProcess(
     printString("Undefined behavior.\n");
   }
 
-  // Kill and clear out the calling process.
-  processTerminate(processMessageFrom(processMessage));
+  // Kill and clear out the calling process.  It's not possible for the calling
+  // process to be in a preempted state here because it had to send us a
+  // message in order for us to be processing this action and sending a message
+  // voluntarily yields.  No need to check processDescriptor->preempted.
+  processTerminate(processDescriptor);
   processSetId(
     processDescriptor->processHandle, processDescriptor->processId);
 
@@ -1654,7 +1673,7 @@ int closeProcessFileDescriptors(
         processMessageQueuePush(
           waitingProcessDescriptor->processHandle, messageToSend);
         // Give the process a chance to unblock.
-        coroutineResume(waitingProcessDescriptor->processHandle, NULL);
+        processResume(waitingProcessDescriptor, NULL);
 
         // The function that was waiting should have released the message we
         // sent it.  Get another one.
@@ -1686,7 +1705,7 @@ int closeProcessFileDescriptors(
         processMessageQueuePush(
           waitingProcessDescriptor->processHandle, messageToSend);
         // Give the process a chance to unblock.
-        coroutineResume(waitingProcessDescriptor->processHandle, NULL);
+        processResume(waitingProcessDescriptor, NULL);
 
         // The function that was waiting should have released the message we
         // sent it.  Get another one.
@@ -1779,8 +1798,8 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
   nanoOsMessage->data = (intptr_t) &fcloseParameters;
   processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+  processResume(
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1818,8 +1837,8 @@ int kremove(SchedulerState *schedulerState, const char *pathname) {
   nanoOsMessage->data = (intptr_t) pathname;
   processMessageInit(processMessage, FILESYSTEM_REMOVE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+  processResume(
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1871,8 +1890,8 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
   nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
   processMessageInit(processMessage, FILESYSTEM_READ_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+  processResume(
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -1919,8 +1938,8 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
   nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
   processMessageInit(processMessage, FILESYSTEM_WRITE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  coroutineResume(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+  processResume(
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   while (processMessageDone(processMessage) == false) {
@@ -2168,8 +2187,7 @@ int schedulerKillProcessCommandHandler(
       processMessageInit(processMessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
       sendProcessMessageToProcess(
-        schedulerState->allProcesses[
-          NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+        &schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID],
         processMessage);
 
       // Close the file descriptors before we terminate the process so that
@@ -2177,9 +2195,25 @@ int schedulerKillProcessCommandHandler(
       // we terminate it.
       closeProcessFileDescriptors(schedulerState, processDescriptor);
 
-      if (processTerminate(processDescriptor->processHandle)
-        == processSuccess
-      ) {
+      // There are two possibilities for the state of the process we're about
+      // to terminate:  Either it's in a preempted state or it voluntarily
+      // called yield.  The fact we're forcibly terminating a process here
+      // makes it likely that the process being terminated is unresponsive.
+      // That, in turn, makes it more likely that the process has been
+      // than it having voluntarily yielded.  Handle the preempted case first
+      // as an optimization.
+      if (processDescriptor->preempted == true) {
+        // Mark the process as terminating.
+        processLazyTerminate(processDescriptor);
+        // We now need to resume the process so that it processes the
+        // termination.
+        processResume(processDescriptor, NULL);
+        // Process is dead.  Clear the terminating flag.
+        processDescriptor->terminating = false;
+      } else {
+        returnValue = processTerminate(processDescriptor);
+      }
+      if (returnValue == processSuccess) {
         processSetId(
           processDescriptor->processHandle, processDescriptor->processId);
         processDescriptor->name = NULL;
@@ -2208,6 +2242,10 @@ int schedulerKillProcessCommandHandler(
         // If we couldn't terminate it, it's not valid to try and reuse it for
         // another process.
       }
+
+      // Reset the returnValue since it's used as the exit status of this
+      // function.
+      returnValue = 0;
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
@@ -2540,8 +2578,11 @@ int schedulerExecveCommandHandler(
     }
   }
 
-  // Kill and clear out the calling process.
-  processTerminate(processMessageFrom(processMessage));
+  // Kill and clear out the calling process.  It's not possible for the calling
+  // process to be in a preempted state here because it had to send us a
+  // message in order for us to be processing this action and sending a message
+  // voluntarily yields.  No need to check processDescriptor->preempted.
+  processTerminate(processDescriptor);
   processSetId(
     processDescriptor->processHandle, processDescriptor->processId);
 
@@ -2631,7 +2672,7 @@ int schedulerExecveCommandHandler(
 
   // Resume the coroutine so that it picks up all the pointers it needs before
   // we release the message we were sent.
-  coroutineResume(processDescriptor->processHandle, NULL);
+  processResume(processDescriptor, NULL);
 
   // Put the process on the ready queue.
   processQueuePush(&schedulerState->ready, processDescriptor);
@@ -2751,7 +2792,9 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 ///
 /// @return This function returns no value.
 void forceYield(void) {
+  currentProcess->preempted = true;
   processYield();
+  currentProcess->preempted = false;
 }
 
 /// @fn void runScheduler(SchedulerState *schedulerState)
@@ -2801,8 +2844,7 @@ void runScheduler(SchedulerState *schedulerState) {
         MEMORY_MANAGER_FREE_PROCESS_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
       sendProcessMessageToProcess(
-        schedulerState->allProcesses[
-          NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
+        &schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID],
         freeProcessMemoryMessage);
     } else {
       printString("WARNING: Could not allocate "
@@ -2815,9 +2857,10 @@ void runScheduler(SchedulerState *schedulerState) {
   // Configure the preemption timer to force the process to yield if it doesn't
   // voluntarily give up control within a reasonable amount of time.
   if (processDescriptor->processId >= NANO_OS_FIRST_USER_PROCESS_ID) {
-    HAL->configTimer(schedulerState->preemptionTimer, 10000, forceYield);
+    HAL->configTimer(schedulerState->preemptionTimer, 2000, forceYield);
   }
-  coroutineResume(processDescriptor->processHandle, NULL);
+  processResume(processDescriptor, NULL);
+  HAL->cancelTimer(schedulerState->preemptionTimer);
 
   if (processRunning(processDescriptor->processHandle) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
@@ -2861,7 +2904,7 @@ void runScheduler(SchedulerState *schedulerState) {
       printString(processDescriptor->name);
       printString("\n");
     }
-    coroutineResume(processDescriptor->processHandle, NULL);
+    processResume(processDescriptor, NULL);
   }
 
   if (coroutineState(processDescriptor->processHandle)
@@ -2892,6 +2935,11 @@ void runScheduler(SchedulerState *schedulerState) {
 __attribute__((noinline)) void startScheduler(
   SchedulerState **coroutineStatePointer
 ) {
+  printString("Starting scheduler...\n");
+  printDebugString("Starting scheduler in debug mode...\n");
+  // We are not officially running the first process, so make it current.
+  currentProcess = schedulerProcess;
+
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {0};
   schedulerState.hostname = NULL;
@@ -2916,7 +2964,8 @@ __attribute__((noinline)) void startScheduler(
   nanoOsMessages = nanoOsMessagesStorage;
   printDebugString("Allocated messages storage.\n");
 
-  // Initialize the allProcesses pointer.
+  // Initialize the allProcesses pointer.  The processes are all zeroed because
+  // we zeroed the entire schedulerState when we declared it.
   allProcesses = schedulerState.allProcesses;
 
   // Initialize ourself in the array of running commands.
@@ -2949,9 +2998,8 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
   printDebugString("Created console process.\n");
 
-  // Start the console by calling coroutineResume.
-  coroutineResume(
-    allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle, NULL);
+  // Start the console by calling processResume.
+  processResume(&allProcesses[NANO_OS_CONSOLE_PROCESS_ID], NULL);
   printDebugString("Started console process.\n");
 
   printDebugString("\n");
@@ -3065,9 +3113,8 @@ __attribute__((noinline)) void startScheduler(
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId = ROOT_USER_ID;
   printDebugString("Created memory manager.\n");
 
-  // Start the memory manager by calling coroutineResume.
-  coroutineResume(
-    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle, NULL);
+  // Start the memory manager by calling processResume.
+  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], NULL);
   printDebugString("Started memory manager.\n");
 
   // Assign the console ports to it.
@@ -3113,12 +3160,8 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("Populated ready queue.\n");
 
   // Get the memory manager and filesystem up and running.
-  coroutineResume(
-    allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle,
-    NULL);
-  coroutineResume(
-    allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
-    NULL);
+  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], NULL);
+  processResume(&allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID], NULL);
   printDebugString("Started memory manager and filesystem.\n");
 
   // Allocate memory for the hostname.
