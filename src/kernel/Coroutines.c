@@ -730,7 +730,9 @@ void* coroutineYield_(void *arg, CoroutineState state) {
     // get the state data if there's a function to call.
     void *stateData = _globalStateData;
 #ifdef THREAD_SAFE_COROUTINES
-    stateData = tss_get(_tssStateData);
+    if (_coroutineThreadingSupportEnabled) {
+      stateData = tss_get(_tssStateData);
+    }
 #endif
     coroutineYieldCallback(stateData, running);
   }
