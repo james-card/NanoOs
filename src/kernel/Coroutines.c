@@ -667,6 +667,17 @@ void* coroutineResume(Coroutine *targetCoroutine, void *arg) {
     CoroutineFuncData funcData;
     funcData.data = arg;
     funcData = coroutinePass(currentCoroutine, funcData);
+
+    if (targetCoroutine->terminateOnResume) {
+      // We've been instructed to terminate the target.  We need to do this
+      // after having returned from the context switch because the target may
+      // have done (and probably did do) some cleanup work.  The argument we
+      // were passed is the array of mutexes to provide to coroutineTerminate.
+      coroutineTerminate(targetCoroutine, (Comutex**) arg);
+      // The target is now dead, so return NULL.
+      funcData.data = NULL;
+    }
+
     return funcData.data;
   }
 
@@ -1160,7 +1171,7 @@ void coroutineAllocateStack(int stackSize) {
 ///
 /// @brief Kill a coroutine that's currently in progress.
 ///
-/// @param targetCoroutine A pointer to the Coroutine to kill.
+/// @param targetCoroutine A pointer to the Coroutine to terminate.
 /// @param mutextes A one-dimensional, NULL-terminated array of mutexes to check
 ///   and unlock if they're locked by the Coroutine.
 ///
@@ -1173,6 +1184,11 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   if (targetCoroutine == NULL) {
     return coroutineError;
   }
+
+  // Irrespective of whether or not this coroutine is currently running, we
+  // need to clear terminateOnResume so that we don't accidentally kill
+  // ourselves again when we resume next time.
+  targetCoroutine->terminateOnResume = false;
 
   if (targetCoroutine->state == COROUTINE_STATE_NOT_RUNNING) {
     // It's not possible to take any action on this coroutine.  This is not an
@@ -1279,6 +1295,36 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
 
   return coroutineSuccess;
 }
+
+/// @fn int coroutineLazyTerminate(Coroutine *targetCoroutine)
+///
+/// @brief Lazily terminate a coroutine.  That is, mark it for termination the
+/// next time it's resumed.
+///
+/// @note coroutineTerminate takes a list of mutexes to unlock as its second
+/// parameter.  This will have to be provided as the data parameter to
+/// coroutineResume after coroutineLazyTerminate is called.  It will be picked
+/// up when the coroutine resumes and passed to coroutineTerminate.
+///
+/// @param targetCoroutine A pointer to the Coroutine to terminate.
+///
+/// @return Returns coroutineSuccess on success, coroutineError on error.
+int coroutineLazyTerminate(Coroutine *targetCoroutine) {
+  if (targetCoroutine == NULL) {
+    return coroutineError;
+  }
+
+  if (targetCoroutine->state == COROUTINE_STATE_NOT_RUNNING) {
+    // It's not possible to take any action on this coroutine.  This is not an
+    // error condition because the desired state is achieved.
+    return coroutineSuccess;
+  }
+
+  targetCoroutine->terminateOnResume = true;
+
+  return coroutineSuccess;
+}
+
 
 /// @fn int coroutineSetId(Coroutine* coroutine, CoroutineId id)
 ///

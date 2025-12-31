@@ -222,6 +222,8 @@ typedef union CoroutineFuncData {
 /// @param context The jmp_buf to hold the context of the coroutine.
 /// @param id The ID of the coroutine.
 /// @param state The state of the coroutine.  (See enum above.)
+/// @param terminateOnResume Whether or not the coroutine should terminate
+///   itself on its next resume.
 /// @param nextToLock The next coroutine to allow to lock a mutex.
 /// @param prevToLock The previous coroutine to allow to lock a mutex.
 /// @param nextToSignal The next coroutine to signal when waiting on a signal.
@@ -245,6 +247,7 @@ typedef struct Coroutine {
   jmp_buf context;
   CoroutineId id;
   CoroutineState state;
+  bool terminateOnResume;
   struct Coroutine *nextToLock;
   struct Coroutine *prevToLock;
   struct Coroutine *nextToSignal;
