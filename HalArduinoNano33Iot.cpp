@@ -45,6 +45,7 @@
 #include "src/kernel/ExFatProcess.h"
 #include "src/kernel/NanoOs.h"
 #include "src/kernel/Processes.h"
+#include "src/kernel/Scheduler.h"
 #include "src/kernel/SdCardSpi.h"
 #include "src/user/NanoOsErrno.h"
 #include "src/user/NanoOsStdio.h"
@@ -391,31 +392,34 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
 typedef struct HardwareTimer {
   Tc *tc;
   IRQn_Type irqType;
+  unsigned long clockId;
   bool initialized;
   void (*callback)(void);
   bool active;
-  uint32_t microseconds;
   int64_t startTime;
+  int64_t deadline;
 } HardwareTimer;
 
 static HardwareTimer hardwareTimers[] = {
   {
-    .tc = TC4,
-    .irqType = TC4_IRQn,
+    .tc = TC3,
+    .irqType = TC3_IRQn,
+    .clockId = GCLK_CLKCTRL_ID_TCC2_TC3,
     .initialized = false,
     .callback = NULL,
     .active = false,
-    .microseconds = 0,
     .startTime = 0,
+    .deadline = 0,
   },
   {
-    .tc = TC5,
-    .irqType = TC5_IRQn,
+    .tc = TC4,
+    .irqType = TC4_IRQn,
+    .clockId = GCLK_CLKCTRL_ID_TC4_TC5,
     .initialized = false,
     .callback = NULL,
     .active = false,
-    .microseconds = 0,
     .startTime = 0,
+    .deadline = 0,
   },
 };
 
@@ -448,7 +452,7 @@ int arduinoNano33IotInitTimer(int timer) {
   // Enable GCLK for the TC timer (48MHz)
   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN |
                       GCLK_CLKCTRL_GEN_GCLK0 |
-                      GCLK_CLKCTRL_ID_TC4_TC5;
+                      hwTimer->clockId;
   while (GCLK->STATUS.bit.SYNCBUSY);
 
   // Reset the TC timer
@@ -543,6 +547,8 @@ int arduinoNano33IotConfigTimer(int timer,
   // Enable timer
   hwTimer->tc->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  hwTimer->startTime = arduinoNano33IotGetElapsedMicroseconds(0);
+  hwTimer->deadline = hwTimer->startTime + microseconds;
   
   return 0;
 }
@@ -574,6 +580,8 @@ int arduinoNano33IotCancelTimer(int timer) {
   hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
   
   hwTimer->active = false;
+  hwTimer->startTime = 0;
+  hwTimer->deadline = 0;
   hwTimer->callback = nullptr;
   
   return 0;
@@ -596,6 +604,8 @@ void arduinoNano33IotTimerInterruptHandler(int timer) {
     hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
     
     hwTimer->active = false;
+    hwTimer->startTime = 0;
+    hwTimer->deadline = 0;
     
     // Call callback if set
     if (hwTimer->callback) {
@@ -604,23 +614,83 @@ void arduinoNano33IotTimerInterruptHandler(int timer) {
   }
 }
 
+/// @fn void arduinoNano33IotTerminationHandler(void)
+///
+/// @brief Handler to be called when returning from TC3_Handler and the process
+/// is being terminated.
+///
+/// @return This function returns no value and, in fact, never returns at all.
+/// Control will be passed back to the caller, which should be the scheduler
+/// that's in the middle of terminating the process.
+void arduinoNano33IotTerminationHandler(void) {
+  processYield();
+}
+
+/// @def RETURN_ADDRESS_FRAME_INDEX
+///
+/// @brief The index within the stack frame that holds the return address.
+#define RETURN_ADDRESS_FRAME_INDEX 10 
+
+/// @def HANDLE_PROCESS_TERMINATING
+///
+/// @brief Handle the case where the current process has been instructed to
+/// terminate itself.  The assumption is that this would be done when the
+/// process has become unresponsive, so we don't want to return to the main
+/// routine when we exit the timer handler.  This macro will modify the return
+/// address so that arduinoNano33IotTerminationHandler is called instead.  This
+/// will yield AFTER the return.  This is critical.  On the Cortex M0, the only
+/// way to clear the timer interrupt is by returning from it, so we can't
+/// blindly kill the process while it's within the interrupt handler.  It's
+/// also critical that this is defined as an inline macro and NOT a function.
+/// We *MUST* return from the top-level handler to clear the interrupt.  We
+/// have to modify the return address of that level, no other.
+#define HANDLE_PROCESS_TERMINATING() \
+  do { \
+    if (currentProcessTerminating()) { \
+      printString("Attempting to modify return address.\n"); \
+      uint32_t *stackFrame; \
+      asm volatile("mov %0, sp" : "=r" (stackFrame)); \
+       \
+      for (int i = 0; i < 20; i++) { \
+        printString("stackFrame["); \
+        printInt(i); \
+        printString("] = 0x"); \
+        printHex(stackFrame[i]); \
+        printString("\n"); \
+      } \
+       \
+      printString("Old return address: 0x"); \
+      printHex(stackFrame[RETURN_ADDRESS_FRAME_INDEX]); \
+      printString("\n"); \
+      stackFrame[RETURN_ADDRESS_FRAME_INDEX] \
+        = (uint32_t) arduinoNano33IotTerminationHandler; \
+       \
+      printString("New return address: 0x"); \
+      printHex(stackFrame[RETURN_ADDRESS_FRAME_INDEX]); \
+      printString("\n"); \
+    } \
+  } while (0)
+
+/// @fn void TC3_Handler(void)
+///
+/// @brief Interrupt handler for Timer/Counter 3.
+///
+/// @return This function returns no value.
+void TC3_Handler(void) {
+  arduinoNano33IotTimerInterruptHandler(0);
+  HANDLE_PROCESS_TERMINATING();
+}
+
 /// @fn void TC4_Handler(void)
 ///
 /// @brief Interrupt handler for Timer/Counter 4.
 ///
 /// @return This function returns no value.
 void TC4_Handler(void) {
-  arduinoNano33IotTimerInterruptHandler(0);
+  arduinoNano33IotTimerInterruptHandler(1);
+  HANDLE_PROCESS_TERMINATING();
 }
 
-/// @fn void TC5_Handler(void)
-///
-/// @brief Interrupt handler for Timer/Counter 5.
-///
-/// @return This function returns no value.
-void TC5_Handler(void) {
-  arduinoNano33IotTimerInterruptHandler(1);
-}
 
 /// @var arduinoNano33IotHal
 ///
@@ -679,4 +749,3 @@ const Hal* halArduinoNano33IotInit(void) {
 }
 
 #endif // __arm__
-
