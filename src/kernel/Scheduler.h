@@ -84,7 +84,6 @@ int schedulerCloseAllFileDescriptors(void);
 const char* schedulerGetHostname(void);
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]);
-bool currentProcessTerminating(void);
 
 // Coroutine setup functions used in the loader.
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine);

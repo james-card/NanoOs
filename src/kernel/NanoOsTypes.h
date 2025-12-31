@@ -190,7 +190,6 @@ typedef struct FileDescriptor {
 ///   strings.
 /// @param preempted Whether or not the process was forcibly preempted by a
 ///   hardware timer.
-/// @param terminating Whether or not the process is currently being terminated.
 typedef struct ProcessDescriptor {
   const char      *name;
   ProcessHandle    processHandle;
@@ -202,7 +201,6 @@ typedef struct ProcessDescriptor {
   const char      *overlay;
   const char     **envp;
   bool             preempted;
-  bool             terminating;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement

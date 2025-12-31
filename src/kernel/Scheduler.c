@@ -194,17 +194,6 @@ static const char* const shellNames[NANO_OS_MAX_NUM_SHELLS] = {
   "shell 1",
 };
 
-/// @fn bool currentProcessTerminating(void)
-///
-/// @brief Determine whether or not the process that's curently running is
-/// being terminated.
-///
-/// @return Returns true if the currently-running process is being terminated,
-/// false otherwise.
-bool currentProcessTerminating(void) {
-  return currentProcess->terminating;
-}
-
 /// @fn int processQueuePush(
 ///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
 ///
