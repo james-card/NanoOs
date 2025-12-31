@@ -626,10 +626,15 @@ void arduinoNano33IotTerminationHandler(void) {
   processYield();
 }
 
-/// @def RETURN_ADDRESS_FRAME_INDEX
+/// @def THUMB_BIT
 ///
-/// @brief The index within the stack frame that holds the return address.
-#define RETURN_ADDRESS_FRAME_INDEX 10 
+/// @brief A value that corresponds to the thumb bit in xPSR (bit 24).
+#define THUMB_BIT 0x01000000
+
+/// @def THUMB_BIT_MASK
+///
+/// @brief A mask of the 24 bits of xPSR.
+#define THUMB_BIT_MASK 0x00ffffff
 
 /// @def HANDLE_PROCESS_TERMINATING
 ///
@@ -647,27 +652,21 @@ void arduinoNano33IotTerminationHandler(void) {
 #define HANDLE_PROCESS_TERMINATING() \
   do { \
     if (currentProcessTerminating()) { \
-      printString("Attempting to modify return address.\n"); \
       uint32_t *stackFrame; \
       asm volatile("mov %0, sp" : "=r" (stackFrame)); \
        \
-      for (int i = 0; i < 20; i++) { \
-        printString("stackFrame["); \
-        printInt(i); \
-        printString("] = 0x"); \
-        printHex(stackFrame[i]); \
-        printString("\n"); \
+      while (true) { \
+        if (((*stackFrame & THUMB_BIT_MASK) == 0) \
+          && (*stackFrame & THUMB_BIT) \
+        ) { \
+          break; \
+        } \
+        stackFrame++; \
       } \
-       \
-      printString("Old return address: 0x"); \
-      printHex(stackFrame[RETURN_ADDRESS_FRAME_INDEX]); \
-      printString("\n"); \
-      stackFrame[RETURN_ADDRESS_FRAME_INDEX] \
-        = (uint32_t) arduinoNano33IotTerminationHandler; \
-       \
-      printString("New return address: 0x"); \
-      printHex(stackFrame[RETURN_ADDRESS_FRAME_INDEX]); \
-      printString("\n"); \
+      /* The return address should be immediately before the XPSR_VALUE on */ \
+      /* the stack, so back up one index and we should be good. */ \
+      stackFrame--; \
+      *stackFrame = (uint32_t) arduinoNano33IotTerminationHandler; \
     } \
   } while (0)
 
