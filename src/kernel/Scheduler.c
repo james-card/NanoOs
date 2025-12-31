@@ -1567,10 +1567,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
     printString("Undefined behavior.\n");
   }
 
-  // Kill and clear out the calling process.  It's not possible for the calling
-  // process to be in a preempted state here because it had to send us a
-  // message in order for us to be processing this action and sending a message
-  // voluntarily yields.  No need to check processDescriptor->preempted.
+  // Kill and clear out the calling process.
   processTerminate(processDescriptor);
   processSetId(
     processDescriptor->processHandle, processDescriptor->processId);
@@ -2184,15 +2181,7 @@ int schedulerKillProcessCommandHandler(
       // we terminate it.
       closeProcessFileDescriptors(schedulerState, processDescriptor);
 
-      // There are two possibilities for the state of the process we're about
-      // to terminate:  Either it's in a preempted state or it voluntarily
-      // called yield.  The fact we're forcibly terminating a process here
-      // makes it likely that the process being terminated is unresponsive.
-      // That, in turn, makes it more likely that the process has been
-      // than it having voluntarily yielded.  Handle the preempted case first
-      // as an optimization.
-      returnValue = processTerminate(processDescriptor);
-      if (returnValue == processSuccess) {
+      if (processTerminate(processDescriptor) == processSuccess) {
         processSetId(
           processDescriptor->processHandle, processDescriptor->processId);
         processDescriptor->name = NULL;
@@ -2221,10 +2210,6 @@ int schedulerKillProcessCommandHandler(
         // If we couldn't terminate it, it's not valid to try and reuse it for
         // another process.
       }
-
-      // Reset the returnValue since it's used as the exit status of this
-      // function.
-      returnValue = 0;
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
@@ -2557,10 +2542,7 @@ int schedulerExecveCommandHandler(
     }
   }
 
-  // Kill and clear out the calling process.  It's not possible for the calling
-  // process to be in a preempted state here because it had to send us a
-  // message in order for us to be processing this action and sending a message
-  // voluntarily yields.  No need to check processDescriptor->preempted.
+  // Kill and clear out the calling process.
   processTerminate(processDescriptor);
   processSetId(
     processDescriptor->processHandle, processDescriptor->processId);
@@ -2771,9 +2753,7 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 ///
 /// @return This function returns no value.
 void forceYield(void) {
-  currentProcess->preempted = true;
   processYield();
-  currentProcess->preempted = false;
 }
 
 /// @fn void runScheduler(SchedulerState *schedulerState)
