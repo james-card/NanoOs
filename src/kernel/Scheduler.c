@@ -2202,17 +2202,7 @@ int schedulerKillProcessCommandHandler(
       // That, in turn, makes it more likely that the process has been
       // than it having voluntarily yielded.  Handle the preempted case first
       // as an optimization.
-      if (processDescriptor->preempted == true) {
-        // Mark the process as terminating.
-        processLazyTerminate(processDescriptor);
-        // We now need to resume the process so that it processes the
-        // termination.
-        processResume(processDescriptor, NULL);
-        // Process is dead.  Clear the terminating flag.
-        processDescriptor->terminating = false;
-      } else {
-        returnValue = processTerminate(processDescriptor);
-      }
+      returnValue = processTerminate(processDescriptor);
       if (returnValue == processSuccess) {
         processSetId(
           processDescriptor->processHandle, processDescriptor->processId);
