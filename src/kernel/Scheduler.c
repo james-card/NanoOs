@@ -281,6 +281,13 @@ int processQueueRemove(
   return returnValue;
 }
 
+// Coroutine callbacks.  ***DO NOT** do parameter validation.  These callbacks
+// are set when coroutineConfig is called.  If these callbacks are called at
+// all (which they should be), then we should assume that things are configured
+// correctly.  This is in kernel space code, which we have full control over,
+// so we should assume that things are setup correctly.  If they're not setup
+// correctly, we should fix the configuration, not do parameter validation.
+
 /// @fn void coroutineYieldCallback(void *stateData, Coroutine *coroutine)
 ///
 /// @brief Function to be called right before a coroutine yields.
@@ -294,18 +301,7 @@ int processQueueRemove(
 /// @Return This function returns no value.
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
   (void) coroutine;
-  SchedulerState *schedulerState = NULL;
-
-  if (stateData == NULL) {
-    // We can't work like this.  Bail.
-    return;
-  }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
 
   HAL->cancelTimer(schedulerState->preemptionTimer);
 
@@ -326,26 +322,10 @@ void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
-  SchedulerState *schedulerState = NULL;
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
   ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = NULL;
+  ProcessQueue *processQueue = &schedulerState->waiting;
   
-  if ((stateData == NULL) || (comutex == NULL)) {
-    // We can't work like this.  Bail.
-    return;
-  } else if (comutex->head == NULL) {
-    // This should be impossible.  If it happens, though, there's no point in
-    // the rest of the function, so bail.
-    return;
-  }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
-
-  processQueue = &schedulerState->waiting;
   while (1) {
     // NOTE:  It's bad practice to use a member element that's being updated
     // in the loop in the stop condition of a for loop.  But, (a) we're in a
@@ -393,27 +373,11 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
-  SchedulerState *schedulerState = NULL;
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
   ProcessDescriptor *poppedDescriptor = NULL;
   ProcessQueue *processQueue = NULL;
-  ProcessHandle cur = NULL;
+  ProcessHandle cur = cocondition->head;
 
-  if ((stateData == NULL) || (cocondition == NULL)) {
-    // We can't work like this.  Bail.
-    return;
-  } else if (cocondition->head == NULL) {
-    // This should be impossible.  If it happens, though, there's no point in
-    // the rest of the function, so bail.
-    return;
-  }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
-
-  cur = cocondition->head;
   for (int ii = 0; (ii < cocondition->numSignals) && (cur != NULL); ii++) {
     processQueue = &schedulerState->waiting;
     while (1) {
