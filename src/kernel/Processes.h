@@ -81,8 +81,8 @@ extern "C"
 /// @def processId
 ///
 /// @brief Function macro to get the numeric ProcessId given its descriptor.
-#define processId(descriptor) \
-  (descriptor)->processId
+#define processId(processDescriptor) \
+  (processDescriptor)->processId
 
 /// @def processState
 ///
