@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
   // configure it, and then create and run one before we ever enter the
   // scheduler.
   Coroutine _mainCoroutine;
-  schedulerProcess = &_mainCoroutine;
+  schedulerProcessHandle = &_mainCoroutine;
   CoroutineConfigOptions coroutineConfigOptions = {
     .stackSize = NANO_OS_STACK_SIZE,
     .stateData = &coroutineStatePointer,

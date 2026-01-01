@@ -73,11 +73,16 @@ void runScheduler(SchedulerState *schedulerState);
 /// FileDescriptor object that maps to the process's stderr FILE stream.
 #define STDERR_FILE_DESCRIPTOR_INDEX 2
 
+/// @var schedulerProcessHandle
+///
+/// @brief Pointer to the main process handle that's allocated before the
+/// scheduler is started.
+ProcessHandle schedulerProcessHandle = NULL;
+
 /// @var schedulerProcess
 ///
-/// @brief Pointer to the main process object that's allocated in the main loop
-/// function.
-ProcessHandle schedulerProcess = NULL;
+/// @brief Pointer to the scheduler process.
+static ProcessDescriptor *schedulerProcess = NULL;
 
 /// @var currentProcess
 ///
@@ -476,7 +481,7 @@ int schedulerSendProcessMessageToProcess(
   // processMessageQueuePush. We're not using that mechanism here, so we have
   // to do it manually.  If we don't do this, then commands that validate that
   // the message came from the scheduler will fail.
-  msg_from(processMessage).coro = schedulerProcess;
+  msg_from(processMessage).coro = schedulerProcessHandle;
 
   // Have to set the endpoint type manually since we're not using
   // comessageQueuePush.
@@ -634,7 +639,7 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcess;
+  msg_from(sent).coro = schedulerProcessHandle;
 
   processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == true) {
@@ -726,7 +731,7 @@ void kfree(void *ptr) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcess;
+  msg_from(sent).coro = schedulerProcessHandle;
 
   processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == false) {
@@ -2859,10 +2864,7 @@ void runScheduler(SchedulerState *schedulerState) {
 __attribute__((noinline)) void startScheduler(
   SchedulerState **coroutineStatePointer
 ) {
-  printString("Starting scheduler...\n");
   printDebugString("Starting scheduler in debug mode...\n");
-  // We are not officially running the first process, so make it current.
-  currentProcess = schedulerProcess;
 
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {0};
@@ -2893,12 +2895,17 @@ __attribute__((noinline)) void startScheduler(
   allProcesses = schedulerState.allProcesses;
 
   // Initialize ourself in the array of running commands.
-  processSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
+  processSetId(schedulerProcessHandle, NANO_OS_SCHEDULER_PROCESS_ID);
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
+  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle
+    = schedulerProcessHandle;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
+  schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
+
+  // We are not officially running the first process, so make it current.
+  currentProcess = schedulerProcess;
   printDebugString("Configured scheduler process.\n");
 
   // Initialize all the kernel process file descriptors.
@@ -2935,7 +2942,7 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("\n");
   printDebugString("Main stack size = ");
   printDebugInt(ABS_DIFF(
-    ((intptr_t) schedulerProcess),
+    ((intptr_t) schedulerProcessHandle),
     ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
   ));
   printDebugString(" bytes\n");
