@@ -75,8 +75,8 @@ extern "C"
 ///
 /// @brief Function macro to determine whether or not a given process has
 /// finished
-#define processFinished(processHandle) \
-  coroutineFinished(processHandle)
+#define processFinished(processDescriptor) \
+  coroutineFinished((processDescriptor)->processHandle)
 
 /// @def processId
 ///

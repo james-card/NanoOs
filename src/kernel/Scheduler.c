@@ -2839,7 +2839,7 @@ void runScheduler(SchedulerState *schedulerState) {
     == COROUTINE_STATE_TIMEDWAIT
   ) {
     processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-  } else if (processFinished(processDescriptor->processHandle)) {
+  } else if (processFinished(processDescriptor)) {
     processQueuePush(&schedulerState->free, processDescriptor);
   } else { // Process is still running.
     processQueuePush(&schedulerState->ready, processDescriptor);
