@@ -54,4 +54,4 @@ This work started out as an experiment to see if I could implement an operating 
 
 [2025-10-26: Getting Closer](2025-10-26_Getting-Closer.md)
 
-[2025-11-30: "Open the Pod Bay Doors, HAL."](2025-11-30-HAL.md)
+[2025-11-30: "Open the Pod Bay Doors, HAL."](2025-11-30_HAL.md)
