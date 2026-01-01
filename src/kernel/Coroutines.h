@@ -278,11 +278,11 @@ int64_t coroutineGetNanoseconds(const struct timespec *ts);
     || ((coroutinePointer)->guard2 != COROUTINE_GUARD_VALUE)) \
   )
 
-/// @def getRunningCoroutineId
+/// @def getRunningCoroutineContext
 ///
-/// @brief Get the coroutine ID for the currently-running coroutine.
-#define getRunningCoroutineId() \
-  coroutineId(getRunningCoroutine())
+/// @brief Get the private context for the currently-running coroutine.
+#define getRunningCoroutineContext() \
+  coroutineContext(getRunningCoroutine())
 
 // Coroutine function prototypes.  Doxygen inline in source file.
 int coroutineConfig(Coroutine *first, CoroutineConfigOptions *options);
