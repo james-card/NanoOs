@@ -1448,7 +1448,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     processDescriptor->fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
 
-    if (processCreate(&processDescriptor->processHandle,
+    if (processHandleCreate(&processDescriptor->processHandle,
       startCommand, processMessage) == processError
     ) {
       printString(
@@ -2527,7 +2527,7 @@ int schedulerExecveCommandHandler(
   }
 
   execArgs->schedulerState = schedulerState;
-  if (processCreate(&processDescriptor->processHandle,
+  if (processHandleCreate(&processDescriptor->processHandle,
     execCommand, processMessage) == processError
   ) {
     printString(
@@ -2820,7 +2820,7 @@ void runScheduler(SchedulerState *schedulerState) {
       = (FileDescriptor*) standardUserFileDescriptors;
     processDescriptor->name
       = shellNames[processDescriptor->processId - NANO_OS_FIRST_SHELL_PID];
-    if (processCreate(&processDescriptor->processHandle,
+    if (processHandleCreate(&processDescriptor->processHandle,
         runShell, schedulerState->hostname
       ) == processError
     ) {
@@ -2914,7 +2914,7 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the console process.
   ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
+  if (processHandleCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
   processHandleSetContext(processHandle,
@@ -2987,7 +2987,7 @@ __attribute__((noinline)) void startScheduler(
     ii++
   ) {
     processHandle = 0;
-    if (processCreate(&processHandle,
+    if (processHandleCreate(&processHandle,
       dummyProcess, NULL) != processSuccess
     ) {
       printString("Could not create process ");
@@ -3028,7 +3028,7 @@ __attribute__((noinline)) void startScheduler(
   // Create the memory manager process.  : THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT :
   processHandle = 0;
-  if (processCreate(&processHandle,
+  if (processHandleCreate(&processHandle,
     runMemoryManager, NULL) != processSuccess
   ) {
     printString("Could not create memory manager process.\n");

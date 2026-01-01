@@ -274,7 +274,8 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   
   // Create the SD card process.
   ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runSdCardPosix, (void*) _sdCardDevicePath)
+  if (processHandleCreate(
+    &processHandle, runSdCardPosix, (void*) _sdCardDevicePath)
     != processSuccess
   ) {
     fputs("Could not start SD card process.\n", stderr);
@@ -294,7 +295,7 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+  if (processHandleCreate(&processHandle, runExFatFilesystem, sdDevice)
     != processSuccess
   ) {
     fputs("Could not start filesystem process.\n", stderr);

@@ -377,7 +377,7 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
   };
 
   ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runSdCardSpi, &sdCardSpiArgs)
+  if (processHandleCreate(&processHandle, runSdCardSpi, &sdCardSpiArgs)
     != processSuccess
   ) {
     printString("Could not start SD card process.\n");
@@ -397,7 +397,7 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
   
   // Create the filesystem process.
   processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+  if (processHandleCreate(&processHandle, runExFatFilesystem, sdDevice)
     != processSuccess
   ) {
     printString("Could not start filesystem process.\n");
