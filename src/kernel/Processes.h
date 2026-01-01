@@ -87,8 +87,8 @@ extern "C"
 /// @def processState
 ///
 /// @brief Function macro to get the state of a process given its handle.
-#define processState(processHandle) \
-  coroutineState(processHandle)
+#define processState(processDescriptor) \
+  coroutineState((processDescriptor)->processHandle)
 
 /// @def processSetContext
 ///

@@ -481,7 +481,7 @@ ProcessMessage* sendNanoOsMessageToProcess(
       printString("ERROR: Process ");
       printInt(processId(processDescriptor));
       printString(" is in state ");
-      printInt(processState(processDescriptor->processHandle));
+      printInt(processState(processDescriptor));
       printString("\n");
     }
     return processMessage; // NULL
