@@ -56,7 +56,7 @@ extern "C"
 /// @brief Function macro to get the pointer to the currently running Process
 /// object.
 #define getRunningProcess() \
-  ((ProcessDescriptor*) coroutineContext(getRunningCoroutine()))
+  ((ProcessDescriptor*) getRunningCoroutineContext())
 
 /// @def processCreate
 ///
