@@ -2099,7 +2099,7 @@ int schedulerKillProcessCommandHandler(
 
   if ((processId >= NANO_OS_FIRST_USER_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
-    && (processRunning(allProcesses[processId].processHandle))
+    && (processRunning(&allProcesses[processId]))
   ) {
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
@@ -2233,7 +2233,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
+    if (processRunning(&schedulerState->allProcesses[ii])) {
       numProcessDescriptors++;
     }
   }
@@ -2269,7 +2269,7 @@ int schedulerGetProcessInfoCommandHandler(
   ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
+    if (processRunning(&schedulerState->allProcesses[ii])) {
       processes[idx].pid = (int) schedulerState->allProcesses[ii].processId;
       processes[idx].name = schedulerState->allProcesses[ii].name;
       processes[idx].userId = schedulerState->allProcesses[ii].userId;
@@ -2786,7 +2786,7 @@ void runScheduler(SchedulerState *schedulerState) {
   }
   processResume(processDescriptor, NULL);
 
-  if (processRunning(processDescriptor->processHandle) == false) {
+  if (processRunning(processDescriptor) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
       NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
       /* func= */ 0, /* data= */ processDescriptor->processId);
@@ -2796,7 +2796,7 @@ void runScheduler(SchedulerState *schedulerState) {
   if ((processDescriptor->processId >= NANO_OS_FIRST_SHELL_PID)
     && (processDescriptor->processId
       < (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells))
-    && (processRunning(processDescriptor->processHandle) == false)
+    && (processRunning(processDescriptor) == false)
   ) {
     if ((schedulerState->hostname == NULL)
       || (*schedulerState->hostname == '\0')

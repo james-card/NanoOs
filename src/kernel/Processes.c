@@ -470,7 +470,7 @@ ProcessMessage* sendNanoOsMessageToProcess(
   ProcessMessage *processMessage = NULL;
   if (processDescriptor == NULL) {
     return processMessage; // NULL
-  } else if (!processRunning(processDescriptor->processHandle)) {
+  } else if (!processRunning(processDescriptor)) {
     // Can't send to a non-running process.
     printString("ERROR: Could not send message from process ");
     printInt(processId(getRunningProcess()));

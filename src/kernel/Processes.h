@@ -68,8 +68,8 @@ extern "C"
 ///
 /// @brief Function macro to determine whether or not a given process is
 /// currently running.
-#define processRunning(processHandle) \
-  coroutineRunning(processHandle)
+#define processRunning(processDescriptor) \
+  coroutineRunning((processDescriptor)->processHandle)
 
 /// @def processFinished
 ///
