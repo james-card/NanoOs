@@ -287,6 +287,8 @@ int processQueueRemove(
 // correctly.  This is in kernel space code, which we have full control over,
 // so we should assume that things are setup correctly.  If they're not setup
 // correctly, we should fix the configuration, not do parameter validation.
+// These callbacks - especially coroutineYieldCallback - are in the critical
+// path.  Single cycles matter.  Don't waste more time than we need to.
 
 /// @fn void coroutineYieldCallback(void *stateData, Coroutine *coroutine)
 ///
