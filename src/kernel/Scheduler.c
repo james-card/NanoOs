@@ -1448,7 +1448,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     processDescriptor->fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
 
-    if (processHandleCreate(&processDescriptor->processHandle,
+    if (processCreate(processDescriptor,
       startCommand, processMessage) == processError
     ) {
       printString(
@@ -2527,7 +2527,7 @@ int schedulerExecveCommandHandler(
   }
 
   execArgs->schedulerState = schedulerState;
-  if (processHandleCreate(&processDescriptor->processHandle,
+  if (processCreate(processDescriptor,
     execCommand, processMessage) == processError
   ) {
     printString(
@@ -2820,8 +2820,7 @@ void runScheduler(SchedulerState *schedulerState) {
       = (FileDescriptor*) standardUserFileDescriptors;
     processDescriptor->name
       = shellNames[processDescriptor->processId - NANO_OS_FIRST_SHELL_PID];
-    if (processHandleCreate(&processDescriptor->processHandle,
-        runShell, schedulerState->hostname
+    if (processCreate(processDescriptor, runShell, schedulerState->hostname
       ) == processError
     ) {
       printString("ERROR: Could not configure process for ");
@@ -2888,17 +2887,15 @@ __attribute__((noinline)) void startScheduler(
   // Initialize the allProcesses pointer.  The processes are all zeroed because
   // we zeroed the entire schedulerState when we declared it.
   allProcesses = schedulerState.allProcesses;
+
+  // Initialize the scheduler in the array of running commands.
   schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
   schedulerProcess->processHandle = schedulerProcessHandle;
-
-  // Initialize ourself in the array of running commands.
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
+  schedulerProcess->processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
-  processHandleSetContext(
-    schedulerProcessHandle,
-    &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID]);
+  schedulerProcess->name = "scheduler";
+  schedulerProcess->userId = ROOT_USER_ID;
+  processHandleSetContext(schedulerProcess->processHandle, schedulerProcess);
 
   // We are not officially running the first process, so make it current.
   currentProcess = schedulerProcess;
@@ -2913,17 +2910,15 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("Initialized kernel process file descriptors.\n");
 
   // Create the console process.
-  ProcessHandle processHandle = 0;
-  if (processHandleCreate(&processHandle, runConsole, NULL) != processSuccess) {
+  ProcessDescriptor *processDescriptor
+    = &allProcesses[NANO_OS_CONSOLE_PROCESS_ID];
+  if (processCreate(processDescriptor, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
-  processHandleSetContext(processHandle,
-    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
-    = NANO_OS_CONSOLE_PROCESS_ID;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_CONSOLE_PROCESS_ID;
+  processDescriptor->name = "console";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created console process.\n");
 
   // Start the console by calling processResume.
@@ -2986,18 +2981,18 @@ __attribute__((noinline)) void startScheduler(
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    processHandle = 0;
-    if (processHandleCreate(&processHandle,
+    processDescriptor = &allProcesses[ii];
+    if (processCreate(processDescriptor,
       dummyProcess, NULL) != processSuccess
     ) {
       printString("Could not create process ");
       printInt(ii);
       printString(".\n");
     }
-    processHandleSetContext(processHandle, &allProcesses[ii]);
-    allProcesses[ii].processId = ii;
-    allProcesses[ii].processHandle = processHandle;
-    allProcesses[ii].userId = NO_USER_ID;
+    processHandleSetContext(
+      processDescriptor->processHandle, processDescriptor);
+    processDescriptor->processId = ii;
+    processDescriptor->userId = NO_USER_ID;
   }
   printDebugString("Created all processes.\n");
 
@@ -3027,19 +3022,16 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the memory manager process.  : THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT :
-  processHandle = 0;
-  if (processHandleCreate(&processHandle,
+  processDescriptor = &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID];
+  if (processCreate(processDescriptor,
     runMemoryManager, NULL) != processSuccess
   ) {
     printString("Could not create memory manager process.\n");
   }
-  processHandleSetContext(processHandle,
-    &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
-    = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
+  processDescriptor->name = "memory manager";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created memory manager.\n");
 
   // Start the memory manager by calling processResume.

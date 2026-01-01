@@ -58,11 +58,11 @@ extern "C"
 #define getRunningProcess() \
   ((ProcessDescriptor*) getRunningCoroutineContext())
 
-/// @def processHandleCreate
+/// @def processCreate
 ///
-/// @brief Function macro to create a new process handle.
-#define processHandleCreate(processHandle, func, arg) \
-  coroutineCreate(processHandle, func, arg)
+/// @brief Function macro to create a new process.
+#define processCreate(processDescriptor, func, arg) \
+  coroutineCreate(&(processDescriptor)->processHandle, func, arg)
 
 /// @def processRunning
 ///
