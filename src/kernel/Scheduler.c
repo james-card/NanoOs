@@ -2819,7 +2819,6 @@ void runScheduler(SchedulerState *schedulerState) {
     HAL->configTimer(schedulerState->preemptionTimer, 2000, forceYield);
   }
   processResume(processDescriptor, NULL);
-  HAL->cancelTimer(schedulerState->preemptionTimer);
 
   if (processRunning(processDescriptor->processHandle) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
