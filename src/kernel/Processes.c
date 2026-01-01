@@ -403,8 +403,7 @@ int sendProcessMessageToProcess(
     return returnValue;
   }
 
-  returnValue = processMessageQueuePush(
-    processDescriptor->processHandle, processMessage);
+  returnValue = processMessageQueuePush(processDescriptor, processMessage);
 
   return returnValue;
 }
@@ -480,7 +479,7 @@ ProcessMessage* sendNanoOsMessageToProcess(
       printString("ERROR: processHandle is NULL\n");
     } else {
       printString("ERROR: Process ");
-      printInt(processId(processDescriptor->processHandle));
+      printInt(processId(processDescriptor));
       printString(" is in state ");
       printInt(processState(processDescriptor->processHandle));
       printString("\n");

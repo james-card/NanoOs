@@ -98,66 +98,6 @@ typedef struct msg_t msg_t;
 #define COROUTINE_DEFAULT_STACK_SIZE 16384
 #endif
 
-/// @def CoroutineId
-///
-/// @brief The integer type to use for coroutine IDs.  Defaults to 64-bit IDs
-/// if none is provided.
-#ifndef CoroutineId
-#define CoroutineId uint64_t
-#endif
-
-/// @def COROUTINE_ID_TYPE_int64_t_int64_t
-///
-/// @brief Define that gets matched when CoroutineId is an uint64_t.
-#define COROUTINE_ID_TYPE_uint64_t_uint64_t 1
-
-/// @def COROUTINE_ID_TYPE_int32_t_int32_t
-///
-/// @brief Define that gets matched when CoroutineId is an uint32_t.
-#define COROUTINE_ID_TYPE_uint32_t_uint32_t 1
-
-/// @def COROUTINE_ID_TYPE_int16_t_int16_t
-///
-/// @brief Define that gets matched when CoroutineId is an uint16_t.
-#define COROUTINE_ID_TYPE_uint16_t_uint16_t 1
-
-/// @def COROUTINE_ID_TYPE_int8_t_int8_t
-///
-/// @brief Define that gets matched when CoroutineId is an uint8_t.
-#define COROUTINE_ID_TYPE_uint8_t_uint8_t   1
-
-/// @def EXPAND_COROUTINE_ID_TYPE
-///
-/// @brief Second-level macro to fully expand the types passed into
-/// TEST_COROUTINE_ID_TYPE.
-#define EXPAND_COROUTINE_ID_TYPE(type1, type2) \
-  COROUTINE_ID_TYPE_##type1##_##type2
-
-/// @def TEST_COROUTINE_ID_TYPE
-///
-/// @brief Determine if the type specified by type1 matches the type specified
-/// by type2.
-#define TEST_COROUTINE_ID_TYPE(type1, type2) \
-  EXPAND_COROUTINE_ID_TYPE(type1, type2)
-
-/// @def COROUTINE_ID_NOT_SET
-///
-/// @brief Special value to indicate that a coroutine's ID value is not set.
-/// This is the initial value just after the coroutine constructor completes.
-#ifndef COROUTINE_ID_NOT_SET
-#if TEST_COROUTINE_ID_TYPE(CoroutineId, uint64_t)
-#define COROUTINE_ID_NOT_SET ((uint64_t) 0xffffffffffffffff)
-#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint32_t)
-#define COROUTINE_ID_NOT_SET ((uint32_t) 0xffffffff)
-#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint16_t)
-#define COROUTINE_ID_NOT_SET ((uint16_t) 0xffff)
-#elif TEST_COROUTINE_ID_TYPE(CoroutineId, uint8_t)
-#define COROUTINE_ID_NOT_SET ((uint8_t) 0xff)
-#else
-#error "Invalid type for CoroutineId."
-#endif // CoroutineId
-#endif // COROUTINE_ID_NOT_SET
-
 /// @enum CoroutineState
 ///
 /// @brief States that a Coroutine can be in.
@@ -220,7 +160,7 @@ typedef union CoroutineFuncData {
 ///   overflow).
 /// @param nextInList Pointer to the next Coroutine in the list.
 /// @param context The jmp_buf to hold the context of the coroutine.
-/// @param id The ID of the coroutine.
+/// @param priv Any private context for the Coroutine.
 /// @param state The state of the coroutine.  (See enum above.)
 /// @param nextToLock The next coroutine to allow to lock a mutex.
 /// @param prevToLock The previous coroutine to allow to lock a mutex.
@@ -243,7 +183,7 @@ typedef struct Coroutine {
   uint32_t guard1;
   struct Coroutine *nextInList;
   jmp_buf context;
-  CoroutineId id;
+  void *priv;
   CoroutineState state;
   struct Coroutine *nextToLock;
   struct Coroutine *prevToLock;
@@ -352,8 +292,8 @@ int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg);
 void* coroutineResume(Coroutine *targetCoroutine, void *arg);
 void* coroutineYield_(void *arg, CoroutineState state);
 #define coroutineYield(arg, state) coroutineYield_(arg, (CoroutineState) state)
-int coroutineSetId(Coroutine *coroutine, CoroutineId id);
-CoroutineId coroutineId(Coroutine *coroutine);
+int coroutineSetContext(Coroutine *coroutine, void *context);
+void* coroutineContext(Coroutine *coroutine);
 CoroutineState coroutineState(Coroutine *coroutine);
 #ifdef THREAD_SAFE_COROUTINES
 void coroutineSetThreadingSupportEnabled(bool state);

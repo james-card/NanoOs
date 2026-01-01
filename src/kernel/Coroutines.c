@@ -950,7 +950,6 @@ int coroutineCreate(Coroutine **coroutine, CoroutineFunction func, void *arg) {
 /// @return This function returns no value and, in fact, never returns.
 void coroutineMain(void *stack) {
   ZEROINIT(Coroutine me);
-  me.id = COROUTINE_ID_NOT_SET;
   me.guard1 = COROUTINE_GUARD_VALUE;
   me.guard2 = COROUTINE_GUARD_VALUE;
   coroutinePushIdle(&me);
@@ -1205,7 +1204,7 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   }
 
   // Halt the coroutine.
-  targetCoroutine->id = COROUTINE_ID_NOT_SET;
+  targetCoroutine->priv = NULL;
   targetCoroutine->state = COROUTINE_STATE_NOT_RUNNING;
   memcpy(&targetCoroutine->context,
     &targetCoroutine->resetContext, sizeof(jmp_buf));
@@ -1283,41 +1282,41 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   return coroutineSuccess;
 }
 
-/// @fn int coroutineSetId(Coroutine* coroutine, CoroutineId id)
+/// @fn int coroutineSetContext(Coroutine* coroutine, void *context)
 ///
-/// @brief Set the ID associated with a coroutine.
+/// @brief Set private context associated with a coroutine.
 ///
 /// @param coroutine A pointer to the coroutine whose ID is to be set.  If this
 ///   value is NULL then the ID of the currently running coroutine will be set.
 /// @param id An unsigned integer to set as the coroutine's ID.
 ///
 /// @return This function always returns coroutineSuccess.
-int coroutineSetId(Coroutine* coroutine, CoroutineId id) {
+int coroutineSetContext(Coroutine* coroutine, void *context) {
   if (coroutine == NULL) {
     return coroutineError;
   }
 
-  coroutine->id = id;
+  coroutine->priv = context;
 
   return coroutineSuccess;
 }
 
-/// @fn CoroutineId coroutineId(Coroutine* coroutine)
+/// @fn void* coroutineContext(Coroutine* coroutine)
 ///
-/// @brief Get the ID associated with a coroutine.
+/// @brief Get the private context associated with a coroutine.
 ///
 /// @param coroutine A pointer to the coroutine of interest.  If this value is
-///   NULL then the ID of the currently running coroutine will be returned.
+///   NULL then NULL will be returned.
 ///
-/// @return Returns the ID of the specified or current coroutine.  The ID
-/// returned will be COROUTINE_ID_NOT_SET if the ID of the coroutine has not
-/// been previously set with a call to coroutineSetId.
-CoroutineId coroutineId(Coroutine* coroutine) {
+/// @return Returns the private context of the specified or current coroutine.
+/// NULL will be returned if the private context of the coroutine has not been
+/// previously set with a call to coroutineSetContext.
+void* coroutineContext(Coroutine* coroutine) {
   if (coroutine == NULL) {
-    return COROUTINE_ID_NOT_SET;
+    return NULL;
   }
 
-  return coroutine->id;
+  return coroutine->priv;
 }
 
 /// @fn CoroutineState coroutineState(Coroutine* coroutine)

@@ -53,9 +53,9 @@ extern "C"
 ///
 /// @note If this value is increased beyond 15, the number of bits used to store
 /// the owner in a MemNode in MemoryManager.cpp must be extended and the value
-/// of COROUTINE_ID_NOT_SET must be changed in NanoOsLibC.h.  If this value is
-/// increased beyond 255, then the type defined by CoroutineId in
-/// NanoOsLibC.h must also be extended.
+/// of PROCESS_ID_NOT_SET must be changed in Processes.h.  If this value is
+/// increased beyond 255, then the type defined by ProcessId below m ust also
+/// be extended.
 #define NANO_OS_NUM_PROCESSES                             9
 
 /// @def SCHEDULER_NUM_PROCESSES
@@ -99,7 +99,7 @@ typedef Coroutine* ProcessHandle;
 /// @typedef ProcessId
 ///
 /// @brief Definition of the type to use for a process ID.
-typedef CoroutineId ProcessId;
+typedef uint8_t ProcessId;
 
 /// @typedef ProcessMessage
 ///

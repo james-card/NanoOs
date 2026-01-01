@@ -1540,8 +1540,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
 
   // Kill and clear out the calling process.
   processTerminate(processDescriptor);
-  processSetId(
-    processDescriptor->processHandle, processDescriptor->processId);
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
@@ -1627,8 +1626,7 @@ int closeProcessFileDescriptors(
         processMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(
-          waitingProcessDescriptor->processHandle, messageToSend);
+        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
         // Give the process a chance to unblock.
         processResume(waitingProcessDescriptor, NULL);
 
@@ -1659,8 +1657,7 @@ int closeProcessFileDescriptors(
         processMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(
-          waitingProcessDescriptor->processHandle, messageToSend);
+        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
         // Give the process a chance to unblock.
         processResume(waitingProcessDescriptor, NULL);
 
@@ -1715,7 +1712,7 @@ FILE* kfopen(SchedulerState *schedulerState,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   printDebugString("kfopen: Pushing message\n");
   processMessageQueuePush(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   printDebugString("kfopen: Resuming filesystem\n");
@@ -2153,8 +2150,8 @@ int schedulerKillProcessCommandHandler(
       closeProcessFileDescriptors(schedulerState, processDescriptor);
 
       if (processTerminate(processDescriptor) == processSuccess) {
-        processSetId(
-          processDescriptor->processHandle, processDescriptor->processId);
+        processHandleSetContext(processDescriptor->processHandle,
+          processDescriptor);
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
@@ -2273,8 +2270,7 @@ int schedulerGetProcessInfoCommandHandler(
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
     if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
-      processes[idx].pid
-        = (int) processId(schedulerState->allProcesses[ii].processHandle);
+      processes[idx].pid = (int) schedulerState->allProcesses[ii].processId;
       processes[idx].name = schedulerState->allProcesses[ii].name;
       processes[idx].userId = schedulerState->allProcesses[ii].userId;
       idx++;
@@ -2515,8 +2511,7 @@ int schedulerExecveCommandHandler(
 
   // Kill and clear out the calling process.
   processTerminate(processDescriptor);
-  processSetId(
-    processDescriptor->processHandle, processDescriptor->processId);
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
@@ -2893,16 +2888,17 @@ __attribute__((noinline)) void startScheduler(
   // Initialize the allProcesses pointer.  The processes are all zeroed because
   // we zeroed the entire schedulerState when we declared it.
   allProcesses = schedulerState.allProcesses;
+  schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
+  schedulerProcess->processHandle = schedulerProcessHandle;
 
   // Initialize ourself in the array of running commands.
-  processSetId(schedulerProcessHandle, NANO_OS_SCHEDULER_PROCESS_ID);
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle
-    = schedulerProcessHandle;
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
   allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
-  schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
+  processHandleSetContext(
+    schedulerProcessHandle,
+    &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID]);
 
   // We are not officially running the first process, so make it current.
   currentProcess = schedulerProcess;
@@ -2921,7 +2917,8 @@ __attribute__((noinline)) void startScheduler(
   if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
-  processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
+  processHandleSetContext(processHandle,
+    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
     = NANO_OS_CONSOLE_PROCESS_ID;
   allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
@@ -2997,7 +2994,7 @@ __attribute__((noinline)) void startScheduler(
       printInt(ii);
       printString(".\n");
     }
-    processSetId(processHandle, ii);
+    processHandleSetContext(processHandle, &allProcesses[ii]);
     allProcesses[ii].processId = ii;
     allProcesses[ii].processHandle = processHandle;
     allProcesses[ii].userId = NO_USER_ID;
@@ -3036,7 +3033,8 @@ __attribute__((noinline)) void startScheduler(
   ) {
     printString("Could not create memory manager process.\n");
   }
-  processSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
+  processHandleSetContext(processHandle,
+    &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
   allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
     = NANO_OS_MEMORY_MANAGER_PROCESS_ID;

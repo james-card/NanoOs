@@ -383,7 +383,8 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
     printString("Could not start SD card process.\n");
   }
   printDebugString("Started SD card process.\n");
-  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
+  processHandleSetContext(processHandle,
+    &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
     = NANO_OS_SD_CARD_PROCESS_ID;
   allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
@@ -401,7 +402,8 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
   ) {
     printString("Could not start filesystem process.\n");
   }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
+  processHandleSetContext(processHandle,
+    &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
     = NANO_OS_FILESYSTEM_PROCESS_ID;
   allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
