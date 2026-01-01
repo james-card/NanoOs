@@ -149,14 +149,13 @@ static SavedContext _savedContext;
 /// clear the interrupt.  We have to modify the return address of that level,
 /// no other.
 #define RETURN_TO_HANDLER(handlerIndex) \
-  uint32_t *returnAddressAt = NULL; \
+  uint32_t *returnAddressAt = (uint32_t*) &returnAddressAt; \
   HardwareTimer *hwTimer = &hardwareTimers[handlerIndex]; \
   if (hwTimer->tc->COUNT16.INTFLAG.bit.OVF) { \
     /* Clear interrupt flag */ \
     hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF; \
   } \
    \
-  asm volatile("mov %0, sp" : "=r" (returnAddressAt)); \
   while (true) { \
     if (((*returnAddressAt & THUMB_BIT_MASK) == 0) \
       && (*returnAddressAt & THUMB_BIT) \
