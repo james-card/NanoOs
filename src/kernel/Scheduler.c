@@ -227,6 +227,7 @@ int processQueuePush(
   processQueue->tail++;
   processQueue->tail %= SCHEDULER_NUM_PROCESSES;
   processQueue->numElements++;
+  processDescriptor->processQueue = processQueue;
 
   return 0;
 }
@@ -249,6 +250,7 @@ ProcessDescriptor* processQueuePop(ProcessQueue *processQueue) {
   processQueue->head++;
   processQueue->head %= SCHEDULER_NUM_PROCESSES;
   processQueue->numElements--;
+  processDescriptor->processQueue = NULL;
 
   return processDescriptor;
 }
@@ -277,6 +279,7 @@ int processQueueRemove(
     poppedDescriptor = processQueuePop(processQueue);
     if (poppedDescriptor == processDescriptor) {
       returnValue = ENOERR;
+      processDescriptor->processQueue = NULL;
       break;
     }
     // This is not what we're looking for.  Put it back.
@@ -330,37 +333,13 @@ void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
   SchedulerState *schedulerState = *((SchedulerState**) stateData);
-  ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = &schedulerState->waiting;
-  
-  while (1) {
-    // NOTE:  It's bad practice to use a member element that's being updated
-    // in the loop in the stop condition of a for loop.  But, (a) we're in a
-    // very memory constrained environment and we need to avoid using any
-    // variables we don't need and (b) the value remains constant between
-    // iterations of the loop until we find what we're looking for.  However,
-    // once we find what we're looking for, we exit the loop anyway, so it's
-    // irrelevant.
-    for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-      poppedDescriptor = processQueuePop(processQueue);
-      if (poppedDescriptor->processHandle == comutex->head) {
-        // We found the process that will get the lock next.  Push it onto the
-        // ready queue and exit.
-        processQueuePush(&schedulerState->ready, poppedDescriptor);
-        return;
-      }
-      processQueuePush(processQueue, poppedDescriptor);
-    }
-
-    if (processQueue == &schedulerState->waiting) {
-      // We searched the entire waiting queue and found nothing.  Try the timed
-      // waiting queue.
-      processQueue = &schedulerState->timedWaiting;
-    } else {
-      // We've searched all the queues and found nothing.  We're done.
-      break;
-    }
+  ProcessDescriptor *processDescriptor = coroutineContext(comutex->head);
+  if (processDescriptor == NULL) {
+    // Nothing is waiting on this mutex.  Just return.
+    return;
   }
+  processQueueRemove(processDescriptor->processQueue, processDescriptor);
+  processQueuePush(&schedulerState->ready, processDescriptor);
 
   return;
 }
@@ -381,36 +360,15 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
   SchedulerState *schedulerState = *((SchedulerState**) stateData);
-  ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = NULL;
   ProcessHandle cur = cocondition->head;
 
   for (int ii = 0; (ii < cocondition->numSignals) && (cur != NULL); ii++) {
-    processQueue = &schedulerState->waiting;
-    while (1) {
-      // See note above about using a member element in a for loop.
-      for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-        poppedDescriptor = processQueuePop(processQueue);
-        if (poppedDescriptor->processHandle == cur) {
-          // We found the process that will get the lock next.  Push it onto the
-          // ready queue and exit.
-          processQueuePush(&schedulerState->ready, poppedDescriptor);
-          goto endOfLoop;
-        }
-        processQueuePush(processQueue, poppedDescriptor);
-      }
-
-      if (processQueue == &schedulerState->waiting) {
-        // We searched the entire waiting queue and found nothing.  Try the
-        // timed waiting queue.
-        processQueue = &schedulerState->timedWaiting;
-      } else {
-        // We've searched all the queues and found nothing.  We're done.
-        break;
-      }
-    }
-
-endOfLoop:
+    ProcessDescriptor *processDescriptor = coroutineContext(cur);
+    // It's not possible for processDescriptor to be NULL.  We only enter this
+    // loop if cocondition->numSignals > 0, so there MUST be something waiting
+    // on this condition.
+    processQueueRemove(processDescriptor->processQueue, processDescriptor);
+    processQueuePush(&schedulerState->ready, processDescriptor);
     cur = cur->nextToSignal;
   }
 
@@ -429,8 +387,6 @@ ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid) {
   if (pid < NANO_OS_NUM_PROCESSES) {
     processDescriptor = &allProcesses[pid];
   }
-
-  //// printDebugStackDepth();
 
   return processDescriptor;
 }

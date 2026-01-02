@@ -169,6 +169,9 @@ typedef struct FileDescriptor {
   IoPipe outputPipe;
 } FileDescriptor;
 
+// Forward declaration.  Definition below.
+typedef struct ProcessQueue ProcessQueue;
+
 /// @struct ProcessDescriptor
 ///
 /// @brief Descriptor for a running process.
@@ -198,6 +201,7 @@ typedef struct ProcessDescriptor {
   const char      *overlayDir;
   const char      *overlay;
   const char     **envp;
+  ProcessQueue    *processQueue;
 } ProcessDescriptor;
 
 /// @struct ProcessInfoElement
