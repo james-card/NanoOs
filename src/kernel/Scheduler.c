@@ -73,11 +73,16 @@ void runScheduler(SchedulerState *schedulerState);
 /// FileDescriptor object that maps to the process's stderr FILE stream.
 #define STDERR_FILE_DESCRIPTOR_INDEX 2
 
+/// @var schedulerProcessHandle
+///
+/// @brief Pointer to the main process handle that's allocated before the
+/// scheduler is started.
+ProcessHandle schedulerProcessHandle = NULL;
+
 /// @var schedulerProcess
 ///
-/// @brief Pointer to the main process object that's allocated in the main loop
-/// function.
-ProcessHandle schedulerProcess = NULL;
+/// @brief Pointer to the scheduler process.
+static ProcessDescriptor *schedulerProcess = NULL;
 
 /// @var currentProcess
 ///
@@ -222,6 +227,7 @@ int processQueuePush(
   processQueue->tail++;
   processQueue->tail %= SCHEDULER_NUM_PROCESSES;
   processQueue->numElements++;
+  processDescriptor->processQueue = processQueue;
 
   return 0;
 }
@@ -244,6 +250,7 @@ ProcessDescriptor* processQueuePop(ProcessQueue *processQueue) {
   processQueue->head++;
   processQueue->head %= SCHEDULER_NUM_PROCESSES;
   processQueue->numElements--;
+  processDescriptor->processQueue = NULL;
 
   return processDescriptor;
 }
@@ -272,6 +279,7 @@ int processQueueRemove(
     poppedDescriptor = processQueuePop(processQueue);
     if (poppedDescriptor == processDescriptor) {
       returnValue = ENOERR;
+      processDescriptor->processQueue = NULL;
       break;
     }
     // This is not what we're looking for.  Put it back.
@@ -280,6 +288,15 @@ int processQueueRemove(
 
   return returnValue;
 }
+
+// Coroutine callbacks.  ***DO NOT** do parameter validation.  These callbacks
+// are set when coroutineConfig is called.  If these callbacks are called at
+// all (which they should be), then we should assume that things are configured
+// correctly.  This is in kernel space code, which we have full control over,
+// so we should assume that things are setup correctly.  If they're not setup
+// correctly, we should fix the configuration, not do parameter validation.
+// These callbacks - especially coroutineYieldCallback - are in the critical
+// path.  Single cycles matter.  Don't waste more time than we need to.
 
 /// @fn void coroutineYieldCallback(void *stateData, Coroutine *coroutine)
 ///
@@ -294,18 +311,7 @@ int processQueueRemove(
 /// @Return This function returns no value.
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
   (void) coroutine;
-  SchedulerState *schedulerState = NULL;
-
-  if (stateData == NULL) {
-    // We can't work like this.  Bail.
-    return;
-  }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
 
   HAL->cancelTimer(schedulerState->preemptionTimer);
 
@@ -326,54 +332,14 @@ void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
 /// lock queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
-  SchedulerState *schedulerState = NULL;
-  ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = NULL;
-  
-  if ((stateData == NULL) || (comutex == NULL)) {
-    // We can't work like this.  Bail.
-    return;
-  } else if (comutex->head == NULL) {
-    // This should be impossible.  If it happens, though, there's no point in
-    // the rest of the function, so bail.
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
+  ProcessDescriptor *processDescriptor = coroutineContext(comutex->head);
+  if (processDescriptor == NULL) {
+    // Nothing is waiting on this mutex.  Just return.
     return;
   }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
-
-  processQueue = &schedulerState->waiting;
-  while (1) {
-    // NOTE:  It's bad practice to use a member element that's being updated
-    // in the loop in the stop condition of a for loop.  But, (a) we're in a
-    // very memory constrained environment and we need to avoid using any
-    // variables we don't need and (b) the value remains constant between
-    // iterations of the loop until we find what we're looking for.  However,
-    // once we find what we're looking for, we exit the loop anyway, so it's
-    // irrelevant.
-    for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-      poppedDescriptor = processQueuePop(processQueue);
-      if (poppedDescriptor->processHandle == comutex->head) {
-        // We found the process that will get the lock next.  Push it onto the
-        // ready queue and exit.
-        processQueuePush(&schedulerState->ready, poppedDescriptor);
-        return;
-      }
-      processQueuePush(processQueue, poppedDescriptor);
-    }
-
-    if (processQueue == &schedulerState->waiting) {
-      // We searched the entire waiting queue and found nothing.  Try the timed
-      // waiting queue.
-      processQueue = &schedulerState->timedWaiting;
-    } else {
-      // We've searched all the queues and found nothing.  We're done.
-      break;
-    }
-  }
+  processQueueRemove(processDescriptor->processQueue, processDescriptor);
+  processQueuePush(&schedulerState->ready, processDescriptor);
 
   return;
 }
@@ -393,53 +359,16 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
 /// signal queue is found in one of the waiting queues, it is removed from the
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
-  SchedulerState *schedulerState = NULL;
-  ProcessDescriptor *poppedDescriptor = NULL;
-  ProcessQueue *processQueue = NULL;
-  ProcessHandle cur = NULL;
+  SchedulerState *schedulerState = *((SchedulerState**) stateData);
+  ProcessHandle cur = cocondition->head;
 
-  if ((stateData == NULL) || (cocondition == NULL)) {
-    // We can't work like this.  Bail.
-    return;
-  } else if (cocondition->head == NULL) {
-    // This should be impossible.  If it happens, though, there's no point in
-    // the rest of the function, so bail.
-    return;
-  }
-
-  schedulerState = *((SchedulerState**) stateData);
-  if (schedulerState == NULL) {
-    // This won't fly either.  Bail.
-    return;
-  }
-
-  cur = cocondition->head;
   for (int ii = 0; (ii < cocondition->numSignals) && (cur != NULL); ii++) {
-    processQueue = &schedulerState->waiting;
-    while (1) {
-      // See note above about using a member element in a for loop.
-      for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-        poppedDescriptor = processQueuePop(processQueue);
-        if (poppedDescriptor->processHandle == cur) {
-          // We found the process that will get the lock next.  Push it onto the
-          // ready queue and exit.
-          processQueuePush(&schedulerState->ready, poppedDescriptor);
-          goto endOfLoop;
-        }
-        processQueuePush(processQueue, poppedDescriptor);
-      }
-
-      if (processQueue == &schedulerState->waiting) {
-        // We searched the entire waiting queue and found nothing.  Try the
-        // timed waiting queue.
-        processQueue = &schedulerState->timedWaiting;
-      } else {
-        // We've searched all the queues and found nothing.  We're done.
-        break;
-      }
-    }
-
-endOfLoop:
+    ProcessDescriptor *processDescriptor = coroutineContext(cur);
+    // It's not possible for processDescriptor to be NULL.  We only enter this
+    // loop if cocondition->numSignals > 0, so there MUST be something waiting
+    // on this condition.
+    processQueueRemove(processDescriptor->processQueue, processDescriptor);
+    processQueuePush(&schedulerState->ready, processDescriptor);
     cur = cur->nextToSignal;
   }
 
@@ -458,8 +387,6 @@ ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid) {
   if (pid < NANO_OS_NUM_PROCESSES) {
     processDescriptor = &allProcesses[pid];
   }
-
-  //// printDebugStackDepth();
 
   return processDescriptor;
 }
@@ -510,7 +437,7 @@ int schedulerSendProcessMessageToProcess(
   // processMessageQueuePush. We're not using that mechanism here, so we have
   // to do it manually.  If we don't do this, then commands that validate that
   // the message came from the scheduler will fail.
-  msg_from(processMessage).coro = schedulerProcess;
+  msg_from(processMessage).coro = schedulerProcessHandle;
 
   // Have to set the endpoint type manually since we're not using
   // comessageQueuePush.
@@ -668,7 +595,7 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcess;
+  msg_from(sent).coro = schedulerProcessHandle;
 
   processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == true) {
@@ -760,7 +687,7 @@ void kfree(void *ptr) {
   // sent->from would normally be set during processMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcess;
+  msg_from(sent).coro = schedulerProcessHandle;
 
   processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
   if (processMessageDone(sent) == false) {
@@ -1477,7 +1404,7 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
     processDescriptor->fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
 
-    if (processCreate(&processDescriptor->processHandle,
+    if (processCreate(processDescriptor,
       startCommand, processMessage) == processError
     ) {
       printString(
@@ -1569,8 +1496,7 @@ static inline ProcessDescriptor* launchForegroundProcess(
 
   // Kill and clear out the calling process.
   processTerminate(processDescriptor);
-  processSetId(
-    processDescriptor->processHandle, processDescriptor->processId);
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
@@ -1656,8 +1582,7 @@ int closeProcessFileDescriptors(
         processMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(
-          waitingProcessDescriptor->processHandle, messageToSend);
+        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
         // Give the process a chance to unblock.
         processResume(waitingProcessDescriptor, NULL);
 
@@ -1688,8 +1613,7 @@ int closeProcessFileDescriptors(
         processMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(
-          waitingProcessDescriptor->processHandle, messageToSend);
+        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
         // Give the process a chance to unblock.
         processResume(waitingProcessDescriptor, NULL);
 
@@ -1744,7 +1668,7 @@ FILE* kfopen(SchedulerState *schedulerState,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   printDebugString("kfopen: Pushing message\n");
   processMessageQueuePush(
-    schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle,
+    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
     processMessage);
 
   printDebugString("kfopen: Resuming filesystem\n");
@@ -2131,7 +2055,7 @@ int schedulerKillProcessCommandHandler(
 
   if ((processId >= NANO_OS_FIRST_USER_PROCESS_ID)
     && (processId < NANO_OS_NUM_PROCESSES)
-    && (processRunning(allProcesses[processId].processHandle))
+    && (processRunning(&allProcesses[processId]))
   ) {
     if ((allProcesses[processId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
@@ -2182,8 +2106,8 @@ int schedulerKillProcessCommandHandler(
       closeProcessFileDescriptors(schedulerState, processDescriptor);
 
       if (processTerminate(processDescriptor) == processSuccess) {
-        processSetId(
-          processDescriptor->processHandle, processDescriptor->processId);
+        processHandleSetContext(processDescriptor->processHandle,
+          processDescriptor);
         processDescriptor->name = NULL;
         processDescriptor->userId = NO_USER_ID;
 
@@ -2265,7 +2189,7 @@ int schedulerGetNumProcessDescriptorsCommandHandler(
 
   uint8_t numProcessDescriptors = 0;
   for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
+    if (processRunning(&schedulerState->allProcesses[ii])) {
       numProcessDescriptors++;
     }
   }
@@ -2301,9 +2225,8 @@ int schedulerGetProcessInfoCommandHandler(
   ProcessInfoElement *processes = processInfo->processes;
   int idx = 0;
   for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (processRunning(schedulerState->allProcesses[ii].processHandle)) {
-      processes[idx].pid
-        = (int) processId(schedulerState->allProcesses[ii].processHandle);
+    if (processRunning(&schedulerState->allProcesses[ii])) {
+      processes[idx].pid = (int) schedulerState->allProcesses[ii].processId;
       processes[idx].name = schedulerState->allProcesses[ii].name;
       processes[idx].userId = schedulerState->allProcesses[ii].userId;
       idx++;
@@ -2544,8 +2467,7 @@ int schedulerExecveCommandHandler(
 
   // Kill and clear out the calling process.
   processTerminate(processDescriptor);
-  processSetId(
-    processDescriptor->processHandle, processDescriptor->processId);
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
@@ -2561,7 +2483,7 @@ int schedulerExecveCommandHandler(
   }
 
   execArgs->schedulerState = schedulerState;
-  if (processCreate(&processDescriptor->processHandle,
+  if (processCreate(processDescriptor,
     execCommand, processMessage) == processError
   ) {
     printString(
@@ -2820,7 +2742,7 @@ void runScheduler(SchedulerState *schedulerState) {
   }
   processResume(processDescriptor, NULL);
 
-  if (processRunning(processDescriptor->processHandle) == false) {
+  if (processRunning(processDescriptor) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
       NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
       /* func= */ 0, /* data= */ processDescriptor->processId);
@@ -2830,7 +2752,7 @@ void runScheduler(SchedulerState *schedulerState) {
   if ((processDescriptor->processId >= NANO_OS_FIRST_SHELL_PID)
     && (processDescriptor->processId
       < (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells))
-    && (processRunning(processDescriptor->processHandle) == false)
+    && (processRunning(processDescriptor) == false)
   ) {
     if ((schedulerState->hostname == NULL)
       || (*schedulerState->hostname == '\0')
@@ -2854,8 +2776,7 @@ void runScheduler(SchedulerState *schedulerState) {
       = (FileDescriptor*) standardUserFileDescriptors;
     processDescriptor->name
       = shellNames[processDescriptor->processId - NANO_OS_FIRST_SHELL_PID];
-    if (processCreate(&processDescriptor->processHandle,
-        runShell, schedulerState->hostname
+    if (processCreate(processDescriptor, runShell, schedulerState->hostname
       ) == processError
     ) {
       printString("ERROR: Could not configure process for ");
@@ -2873,7 +2794,7 @@ void runScheduler(SchedulerState *schedulerState) {
     == COROUTINE_STATE_TIMEDWAIT
   ) {
     processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-  } else if (processFinished(processDescriptor->processHandle)) {
+  } else if (processFinished(processDescriptor)) {
     processQueuePush(&schedulerState->free, processDescriptor);
   } else { // Process is still running.
     processQueuePush(&schedulerState->ready, processDescriptor);
@@ -2893,10 +2814,7 @@ void runScheduler(SchedulerState *schedulerState) {
 __attribute__((noinline)) void startScheduler(
   SchedulerState **coroutineStatePointer
 ) {
-  printString("Starting scheduler...\n");
   printDebugString("Starting scheduler in debug mode...\n");
-  // We are not officially running the first process, so make it current.
-  currentProcess = schedulerProcess;
 
   // Initialize the scheduler's state.
   SchedulerState schedulerState = {0};
@@ -2926,13 +2844,17 @@ __attribute__((noinline)) void startScheduler(
   // we zeroed the entire schedulerState when we declared it.
   allProcesses = schedulerState.allProcesses;
 
-  // Initialize ourself in the array of running commands.
-  processSetId(schedulerProcess, NANO_OS_SCHEDULER_PROCESS_ID);
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processId
+  // Initialize the scheduler in the array of running commands.
+  schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
+  schedulerProcess->processHandle = schedulerProcessHandle;
+  schedulerProcess->processId
     = NANO_OS_SCHEDULER_PROCESS_ID;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].processHandle = schedulerProcess;
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].name = "scheduler";
-  allProcesses[NANO_OS_SCHEDULER_PROCESS_ID].userId = ROOT_USER_ID;
+  schedulerProcess->name = "scheduler";
+  schedulerProcess->userId = ROOT_USER_ID;
+  processHandleSetContext(schedulerProcess->processHandle, schedulerProcess);
+
+  // We are not officially running the first process, so make it current.
+  currentProcess = schedulerProcess;
   printDebugString("Configured scheduler process.\n");
 
   // Initialize all the kernel process file descriptors.
@@ -2944,16 +2866,15 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("Initialized kernel process file descriptors.\n");
 
   // Create the console process.
-  ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runConsole, NULL) != processSuccess) {
+  ProcessDescriptor *processDescriptor
+    = &allProcesses[NANO_OS_CONSOLE_PROCESS_ID];
+  if (processCreate(processDescriptor, runConsole, NULL) != processSuccess) {
     printString("Could not create console process.\n");
   }
-  processSetId(processHandle, NANO_OS_CONSOLE_PROCESS_ID);
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processId
-    = NANO_OS_CONSOLE_PROCESS_ID;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].name = "console";
-  allProcesses[NANO_OS_CONSOLE_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_CONSOLE_PROCESS_ID;
+  processDescriptor->name = "console";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created console process.\n");
 
   // Start the console by calling processResume.
@@ -2969,7 +2890,7 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("\n");
   printDebugString("Main stack size = ");
   printDebugInt(ABS_DIFF(
-    ((intptr_t) schedulerProcess),
+    ((intptr_t) schedulerProcessHandle),
     ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
   ));
   printDebugString(" bytes\n");
@@ -3016,18 +2937,18 @@ __attribute__((noinline)) void startScheduler(
     ii < NANO_OS_NUM_PROCESSES;
     ii++
   ) {
-    processHandle = 0;
-    if (processCreate(&processHandle,
+    processDescriptor = &allProcesses[ii];
+    if (processCreate(processDescriptor,
       dummyProcess, NULL) != processSuccess
     ) {
       printString("Could not create process ");
       printInt(ii);
       printString(".\n");
     }
-    processSetId(processHandle, ii);
-    allProcesses[ii].processId = ii;
-    allProcesses[ii].processHandle = processHandle;
-    allProcesses[ii].userId = NO_USER_ID;
+    processHandleSetContext(
+      processDescriptor->processHandle, processDescriptor);
+    processDescriptor->processId = ii;
+    processDescriptor->userId = NO_USER_ID;
   }
   printDebugString("Created all processes.\n");
 
@@ -3057,18 +2978,16 @@ __attribute__((noinline)) void startScheduler(
 
   // Create the memory manager process.  : THIS MUST BE THE LAST PROCESS
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT :
-  processHandle = 0;
-  if (processCreate(&processHandle,
+  processDescriptor = &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID];
+  if (processCreate(processDescriptor,
     runMemoryManager, NULL) != processSuccess
   ) {
     printString("Could not create memory manager process.\n");
   }
-  processSetId(processHandle, NANO_OS_MEMORY_MANAGER_PROCESS_ID);
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].processId
-    = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].name = "memory manager";
-  allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
+  processDescriptor->name = "memory manager";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created memory manager.\n");
 
   // Start the memory manager by calling processResume.

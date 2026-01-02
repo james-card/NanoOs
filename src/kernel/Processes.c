@@ -403,8 +403,7 @@ int sendProcessMessageToProcess(
     return returnValue;
   }
 
-  returnValue = processMessageQueuePush(
-    processDescriptor->processHandle, processMessage);
+  returnValue = processMessageQueuePush(processDescriptor, processMessage);
 
   return returnValue;
 }
@@ -471,7 +470,7 @@ ProcessMessage* sendNanoOsMessageToProcess(
   ProcessMessage *processMessage = NULL;
   if (processDescriptor == NULL) {
     return processMessage; // NULL
-  } else if (!processRunning(processDescriptor->processHandle)) {
+  } else if (!processRunning(processDescriptor)) {
     // Can't send to a non-running process.
     printString("ERROR: Could not send message from process ");
     printInt(processId(getRunningProcess()));
@@ -480,9 +479,9 @@ ProcessMessage* sendNanoOsMessageToProcess(
       printString("ERROR: processHandle is NULL\n");
     } else {
       printString("ERROR: Process ");
-      printInt(processId(processDescriptor->processHandle));
+      printInt(processId(processDescriptor));
       printString(" is in state ");
-      printInt(processState(processDescriptor->processHandle));
+      printInt(processState(processDescriptor));
       printString("\n");
     }
     return processMessage; // NULL

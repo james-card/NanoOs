@@ -92,7 +92,7 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
 void* dummyProcess(void *args);
 
 // ProcessHandle that will be used to represent the scheduler.
-extern ProcessHandle schedulerProcess;
+extern ProcessHandle schedulerProcessHandle;
 
 #ifdef __cplusplus
 } // extern "C"

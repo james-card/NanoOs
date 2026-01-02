@@ -149,14 +149,13 @@ static SavedContext _savedContext;
 /// clear the interrupt.  We have to modify the return address of that level,
 /// no other.
 #define RETURN_TO_HANDLER(handlerIndex) \
-  uint32_t *returnAddressAt = NULL; \
+  uint32_t *returnAddressAt = (uint32_t*) &returnAddressAt; \
   HardwareTimer *hwTimer = &hardwareTimers[handlerIndex]; \
   if (hwTimer->tc->COUNT16.INTFLAG.bit.OVF) { \
     /* Clear interrupt flag */ \
     hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF; \
   } \
    \
-  asm volatile("mov %0, sp" : "=r" (returnAddressAt)); \
   while (true) { \
     if (((*returnAddressAt & THUMB_BIT_MASK) == 0) \
       && (*returnAddressAt & THUMB_BIT) \
@@ -465,37 +464,36 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
     .spiSckDio = SPI_SCK_DIO,
   };
 
-  ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runSdCardSpi, &sdCardSpiArgs)
+  // Create the SD card process.
+  ProcessDescriptor *processDescriptor
+    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
+  if (processCreate(
+    processDescriptor, runSdCardSpi, &sdCardSpiArgs)
     != processSuccess
   ) {
-    printString("Could not start SD card process.\n");
+    fputs("Could not start SD card process.\n", stderr);
   }
   printDebugString("Started SD card process.\n");
-  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
-    = NANO_OS_SD_CARD_PROCESS_ID;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
+  processDescriptor->name = "SD card";
+  processDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
     allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
   sdDevice->partitionNumber = 1;
   printDebugString("Configured SD card process.\n");
   
   // Create the filesystem process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
+  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
     != processSuccess
   ) {
-    printString("Could not start filesystem process.\n");
+    fputs("Could not start filesystem process.\n", stderr);
   }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
-    = NANO_OS_FILESYSTEM_PROCESS_ID;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
+  processDescriptor->name = "filesystem";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created filesystem process.\n");
   
   return 0;

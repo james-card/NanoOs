@@ -292,7 +292,7 @@ int memoryManagerReallocCommandHandler(
     reallocMessage->size = memNode(clientReturnValue)->size;
   }
   
-  ProcessHandle from = processMessageFrom(incoming);
+  ProcessDescriptor *from = processMessageFrom(incoming);
   NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(incoming);
   
   // We need to mark waiting as true here so that processMessageSetDone signals
@@ -362,7 +362,7 @@ int memoryManagerGetFreeMemoryCommandHandler(
 
   int returnValue = 0;
   
-  ProcessHandle from = processMessageFrom(incoming);
+  ProcessDescriptor *from = processMessageFrom(incoming);
   uintptr_t dynamicMemorySize = (uintptr_t) memoryManagerState->mallocNext
     - memoryManagerState->mallocEnd + sizeof(void*);
   

@@ -49,52 +49,52 @@ extern "C"
 /// @brief Value to be used to indicate that a process ID has not been set for
 /// a ProcessDescriptor object.
 #define PROCESS_ID_NOT_SET \
-  COROUTINE_ID_NOT_SET
+  ((uint8_t) 0x0f)
 
 /// @def getRunningProcess
 ///
 /// @brief Function macro to get the pointer to the currently running Process
 /// object.
 #define getRunningProcess() \
-  getRunningCoroutine()
+  ((ProcessDescriptor*) getRunningCoroutineContext())
 
 /// @def processCreate
 ///
-/// @brief Function macro to launch a new process.
-#define processCreate(processHandle, func, arg) \
-  coroutineCreate(processHandle, func, arg)
+/// @brief Function macro to create a new process.
+#define processCreate(processDescriptor, func, arg) \
+  coroutineCreate(&(processDescriptor)->processHandle, func, arg)
 
 /// @def processRunning
 ///
 /// @brief Function macro to determine whether or not a given process is
 /// currently running.
-#define processRunning(processHandle) \
-  coroutineRunning(processHandle)
+#define processRunning(processDescriptor) \
+  coroutineRunning((processDescriptor)->processHandle)
 
 /// @def processFinished
 ///
 /// @brief Function macro to determine whether or not a given process has
 /// finished
-#define processFinished(processHandle) \
-  coroutineFinished(processHandle)
+#define processFinished(processDescriptor) \
+  coroutineFinished((processDescriptor)->processHandle)
 
 /// @def processId
 ///
-/// @brief Function macro to get the numeric ProcessId given its handle.
-#define processId(processHandle) \
-  coroutineId(processHandle)
+/// @brief Function macro to get the numeric ProcessId given its descriptor.
+#define processId(processDescriptor) \
+  (processDescriptor)->processId
 
 /// @def processState
 ///
 /// @brief Function macro to get the state of a process given its handle.
-#define processState(processHandle) \
-  coroutineState(processHandle)
+#define processState(processDescriptor) \
+  coroutineState((processDescriptor)->processHandle)
 
-/// @def processSetId
+/// @def processSetContext
 ///
-/// @brief Function macro to set the ID of a created process.
-#define processSetId(processHandle, id) \
-  coroutineSetId(processHandle, id)
+/// @brief Function macro to set the context of a process handle.
+#define processHandleSetContext(processHandle, context) \
+  coroutineSetContext(processHandle, context)
 
 /// @def processYield
 ///
@@ -157,8 +157,8 @@ extern "C"
 ///
 /// @brief Function macro to push a process message on to a process's message
 /// queue.
-#define processMessageQueuePush(process, message) \
-  comessageQueuePush(process, message)
+#define processMessageQueuePush(processDescriptor, message) \
+  comessageQueuePush((processDescriptor)->processHandle, message)
 
 /// @def processMessageQueuePop
 ///
@@ -171,7 +171,7 @@ extern "C"
 ///
 /// @brief Get the process ID for the currently-running process.
 #define getRunningProcessId() \
-  getRunningCoroutineId()
+  (getRunningProcess()->processId)
 
 /// @def processResume
 ///
@@ -195,7 +195,7 @@ extern "C"
 #define processMessageInUse(processMessagePointer) \
   msg_in_use(processMessagePointer)
 #define processMessageFrom(processMessagePointer) \
-  msg_from(processMessagePointer).coro
+  ((ProcessDescriptor*) coroutineContext(msg_from(processMessagePointer).coro))
 #define processMessageTo(processMessagePointer) \
   msg_to(processMessagePointer).coro
 #define processMessageConfigured(processMessagePointer) \

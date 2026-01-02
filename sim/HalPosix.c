@@ -273,37 +273,35 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   ProcessDescriptor *allProcesses = schedulerState->allProcesses;
   
   // Create the SD card process.
-  ProcessHandle processHandle = 0;
-  if (processCreate(&processHandle, runSdCardPosix, (void*) _sdCardDevicePath)
+  ProcessDescriptor *processDescriptor
+    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
+  if (processCreate(
+    processDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
     != processSuccess
   ) {
     fputs("Could not start SD card process.\n", stderr);
   }
   printDebugString("Started SD card process.\n");
-  processSetId(processHandle, NANO_OS_SD_CARD_PROCESS_ID);
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processId
-    = NANO_OS_SD_CARD_PROCESS_ID;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].name = "SD card";
-  allProcesses[NANO_OS_SD_CARD_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
+  processDescriptor->name = "SD card";
+  processDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
     allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
   sdDevice->partitionNumber = 1;
   printDebugString("Configured SD card process.\n");
   
   // Create the filesystem process.
-  processHandle = 0;
-  if (processCreate(&processHandle, runExFatFilesystem, sdDevice)
+  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
+  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
     != processSuccess
   ) {
     fputs("Could not start filesystem process.\n", stderr);
   }
-  processSetId(processHandle, NANO_OS_FILESYSTEM_PROCESS_ID);
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processId
-    = NANO_OS_FILESYSTEM_PROCESS_ID;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].processHandle = processHandle;
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].name = "filesystem";
-  allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID].userId = ROOT_USER_ID;
+  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
+  processDescriptor->name = "filesystem";
+  processDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created filesystem process.\n");
   
   return 0;
