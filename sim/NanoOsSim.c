@@ -115,6 +115,19 @@ int main(int argc, char **argv) {
   }
   HAL->setNumSerialPorts(ii);
 
+  int numTimers = HAL->getNumTimers();
+  for (ii = 0; ii < numTimers; ii++) {
+    if (HAL->initTimer(ii) < 0) {
+      break;
+    }
+  }
+  HAL->setNumTimers(ii);
+  if (ii != numTimers) {
+    printString("WARNING: Only initialized ");
+    printInt(ii);
+    printString(" timers\n");
+  }
+
   // On hardware, we need a "Booting..." message and a delay so that we give
   // ourselves enough time to start a firmware update in case we've loaded
   // something that's resulting in bricking the system.  Since the simulator is
