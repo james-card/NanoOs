@@ -592,7 +592,7 @@ int arduinoNano33IotInitTimer(int timer) {
 }
 
 int arduinoNano33IotConfigTimer(int timer,
-    uint32_t microseconds, void (*callback)(void)
+    uint64_t nanoseconds, void (*callback)(void)
 ) {
   if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
@@ -601,6 +601,10 @@ int arduinoNano33IotConfigTimer(int timer,
   // Cancel any existing timer
   int arduinoNano33IotCancelTimer(int);
   arduinoNano33IotCancelTimer(timer);
+  
+  // We take a number of nanoseconds for HAL compatibility, but our timers
+  // don't support that resolution.  Convert to microseconds.
+  uint64_t microseconds = nanoseconds / ((uint64_t) 1000);
   
   // Make sure we don't overflow
   if (microseconds > 89478485) {

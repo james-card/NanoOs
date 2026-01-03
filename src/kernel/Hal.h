@@ -341,19 +341,19 @@ typedef struct Hal {
   int (*initTimer)(int timer);
   
   /// @fn int configTimer(int timer,
-  ///   uint32_t microseconds, void (*callback)(void))
+  ///   uint64_t nanoseconds, void (*callback)(void))
   ///
   /// @brief Configure a hardware timer to fire at some point in the future and
   /// call a callback.
   ///
   /// @param timer The zero-based index of the timer to configure.
-  /// @param microseconds The number of microseconds in the future the timer
+  /// @param nanoseconds The number of nanoseconds in the future the timer
   ///   should fire.
   /// @param callback The function to call when the timer fires.
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*configTimer)(int timer,
-    uint32_t microseconds, void (*callback)(void));
+    uint64_t nanoseconds, void (*callback)(void));
   
   /// @fn bool isTimerActive(int timer)
   ///

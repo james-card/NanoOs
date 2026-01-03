@@ -326,10 +326,10 @@ int posixInitTimer(int timer) {
 }
 
 int posixConfigTimer(int timer,
-    uint32_t microseconds, void (*callback)(void)
+    uint64_t nanoseconds, void (*callback)(void)
 ) {
   (void) timer;
-  (void) microseconds;
+  (void) nanoseconds;
   (void) callback;
   
   return -ENOTSUP;
