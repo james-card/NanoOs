@@ -499,6 +499,18 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
   return 0;
 }
 
+/// @struct HardwareTimer
+///
+/// @brief Collection of variables needed to manage a single hardware timer.
+///
+/// @param tc A pointer to the timer/counter structure used for the tiemr.
+/// @param irqType The IRQ used to manage the timer.
+/// @param clockId The global clock identifier used to manage the timer.
+/// @param initialized Whether or not the timer has been initialized yet.
+/// @param callback The callback to call when the timer fires, if any.
+/// @param active Whether or not the timer is currently active.
+/// @param startTime The time, in nanoseconds, when the timer was configured.
+/// @param deadline The time, in nanoseconds, when the timer expires.
 typedef struct HardwareTimer {
   Tc *tc;
   IRQn_Type irqType;
@@ -510,6 +522,9 @@ typedef struct HardwareTimer {
   int64_t deadline;
 } HardwareTimer;
 
+/// @var hardwareTimers
+///
+/// @brief Array of HardwareTimer objects managed by the HAL.
 static HardwareTimer hardwareTimers[] = {
   {
     .tc = TC3,
@@ -661,8 +676,8 @@ int arduinoNano33IotConfigTimer(int timer,
   // Enable timer
   hwTimer->tc->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
-  hwTimer->startTime = arduinoNano33IotGetElapsedMicroseconds(0);
-  hwTimer->deadline = hwTimer->startTime + microseconds;
+  hwTimer->startTime = arduinoNano33IotGetElapsedNanoseconds(0);
+  hwTimer->deadline = hwTimer->startTime + (microseconds * ((uint64_t) 1000));
   
   return 0;
 }
