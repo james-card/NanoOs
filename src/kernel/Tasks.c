@@ -32,7 +32,7 @@
 #include "Console.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "Scheduler.h"
 #include "../user/NanoOsLibC.h"
 
@@ -41,9 +41,9 @@
 
 /// @var messages
 ///
-/// @brief Pointer to the array of process messages that will be stored in the
+/// @brief Pointer to the array of task messages that will be stored in the
 /// scheduler function's stack.
-ProcessMessage *messages = NULL;
+TaskMessage *messages = NULL;
 
 /// @var nanoOsMessages
 ///
@@ -216,32 +216,32 @@ char** parseArgs(char *consoleInput, int *argc) {
 
 /// @fn void* startCommand(void *args)
 ///
-/// @brief Wrapper process function that calls a command function.
+/// @brief Wrapper task function that calls a command function.
 ///
-/// @param args The message received from the console process that describes
+/// @param args The message received from the console task that describes
 ///   the command to run, cast to a void*.
 ///
 /// @return If the comamnd is run, returns the result of the command cast to a
 /// void*.  If the command is not run, returns -1 cast to a void*.
 void* startCommand(void *args) {
-  // The scheduler may be suspended because of launching this process.
-  // Immediately call processYield as a best practice to make sure the scheduler
+  // The scheduler may be suspended because of launching this task.
+  // Immediately call taskYield as a best practice to make sure the scheduler
   // goes back to its work.
-  ProcessMessage *processMessage = (ProcessMessage*) args;
-  if (processMessage == NULL) {
+  TaskMessage *taskMessage = (TaskMessage*) args;
+  if (taskMessage == NULL) {
     printString("ERROR: No arguments message provided to startCommand.\n");
     releaseConsole();
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
   CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
+    = nanoOsMessageFuncPointer(taskMessage, CommandEntry*);
   CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
+    = nanoOsMessageDataPointer(taskMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
-  ProcessId callingProcessId = commandDescriptor->callingProcess;
+  TaskId callingTaskId = commandDescriptor->callingTask;
   SchedulerState *schedulerState = commandDescriptor->schedulerState;
-  processYield();
+  taskYield();
 
   int argc = 0;
   char **argv = NULL;
@@ -260,33 +260,33 @@ void* startCommand(void *args) {
   }
   consoleInput = stringDestroy(consoleInput);
 
-  bool backgroundProcess = false;
+  bool backgroundTask = false;
   char *ampersandAt = strchr(argv[argc - 1], '&');
   if (ampersandAt != NULL) {
     ampersandAt++;
     if (ampersandAt[strspn(ampersandAt, " \t\r\n")] == '\0') {
-      backgroundProcess = true;
+      backgroundTask = true;
       releaseConsole();
-      schedulerNotifyProcessComplete(callingProcessId);
+      schedulerNotifyTaskComplete(callingTaskId);
     }
   }
 
-  // Call the process function.
+  // Call the task function.
   int returnValue = commandEntry->func(argc, argv);
   free(argv); argv = NULL;
 
-  if (callingProcessId != getRunningProcessId()) {
-    // This command did NOT replace a shell process.
+  if (callingTaskId != getRunningTaskId()) {
+    // This command did NOT replace a shell task.
     releaseConsole();
-    if (backgroundProcess == false) {
+    if (backgroundTask == false) {
       // The caller is still running and waiting to be told it can resume.
       // Notify it via a message.
-      schedulerNotifyProcessComplete(callingProcessId);
+      schedulerNotifyTaskComplete(callingTaskId);
     }
-    schedulerState->allProcesses[
-      processId(getRunningProcess())].userId = NO_USER_ID;
+    schedulerState->allTasks[
+      taskId(getRunningTask())].userId = NO_USER_ID;
   } else {
-    // This is a foreground process that replaced the shell.  Just release the
+    // This is a foreground task that replaced the shell.  Just release the
     // console.
     releaseConsole();
   }
@@ -294,13 +294,13 @@ void* startCommand(void *args) {
   schedulerCloseAllFileDescriptors();
 
   // Gracefully clear out our message queue.  We have to do this after closing
-  // our file descriptors (which is a blocking call) because some other process
+  // our file descriptors (which is a blocking call) because some other task
   // may be in the middle of sending us data and if we were to do this first,
   // it could turn around and send us more data again.
-  msg_t *msg = processMessageQueuePop();
+  msg_t *msg = taskMessageQueuePop();
   while (msg != NULL) {
-    processMessageSetDone(msg);
-    msg = processMessageQueuePop();
+    taskMessageSetDone(msg);
+    msg = taskMessageQueuePop();
   }
 
   return (void*) ((intptr_t) returnValue);
@@ -308,29 +308,29 @@ void* startCommand(void *args) {
 
 /// @fn void* execCommand(void *args)
 ///
-/// @brief Wrapper process function that calls a command function.
+/// @brief Wrapper task function that calls a command function.
 ///
-/// @param args The message received from the console process that describes
+/// @param args The message received from the console task that describes
 ///   the command to run, cast to a void*.
 ///
 /// @return If the comamnd is run, returns the result of the command cast to a
 /// void*.  If the command is not run, returns -1 cast to a void*.
 void* execCommand(void *args) {
-  // The scheduler may be suspended because of launching this process.
-  // Immediately call processYield as a best practice to make sure the scheduler
+  // The scheduler may be suspended because of launching this task.
+  // Immediately call taskYield as a best practice to make sure the scheduler
   // goes back to its work.
-  ProcessMessage *processMessage = (ProcessMessage*) args;
-  if (processMessage == NULL) {
+  TaskMessage *taskMessage = (TaskMessage*) args;
+  if (taskMessage == NULL) {
     printString("ERROR: No arguments message provided to startCommand.\n");
     releaseConsole();
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
-  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
+  TaskId callingTaskId = taskId(taskMessageFrom(taskMessage));
   ExecArgs *execArgs
-    = nanoOsMessageDataPointer(processMessage, ExecArgs*);
-  // processMessage will be released by the scheduler when we yield.
-  processYield();
+    = nanoOsMessageDataPointer(taskMessage, ExecArgs*);
+  // taskMessage will be released by the scheduler when we yield.
+  taskYield();
   char *pathname = execArgs->pathname;
   char **argv = execArgs->argv;
   char **envp = execArgs->envp;
@@ -346,28 +346,28 @@ void* execCommand(void *args) {
   int argc = 0;
   for (; argv[argc] != NULL; argc++);
 
-  // Call the process function.
+  // Call the task function.
   int returnValue = runOverlayCommand(pathname, argc, argv, envp);
   execArgs = execArgsDestroy(execArgs);
 
-  if (callingProcessId != getRunningProcessId()) {
-    // This command did NOT replace a shell process.  Mark its slot in the
-    // process table as unowned.
-    schedulerState->allProcesses[
-      processId(getRunningProcess())].userId = NO_USER_ID;
+  if (callingTaskId != getRunningTaskId()) {
+    // This command did NOT replace a shell task.  Mark its slot in the
+    // task table as unowned.
+    schedulerState->allTasks[
+      taskId(getRunningTask())].userId = NO_USER_ID;
   }
   releaseConsole();
 
   schedulerCloseAllFileDescriptors();
 
   // Gracefully clear out our message queue.  We have to do this after closing
-  // our file descriptors (which is a blocking call) because some other process
+  // our file descriptors (which is a blocking call) because some other task
   // may be in the middle of sending us data and if we were to do this first,
   // it could turn around and send us more data again.
-  msg_t *msg = processMessageQueuePop();
+  msg_t *msg = taskMessageQueuePop();
   while (msg != NULL) {
-    processMessageSetDone(msg);
-    msg = processMessageQueuePop();
+    taskMessageSetDone(msg);
+    msg = taskMessageQueuePop();
   }
 
   return (void*) ((intptr_t) returnValue);
@@ -379,66 +379,66 @@ void* execCommand(void *args) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/// @fn int sendProcessMessageToProcess(
-///   ProcessDescriptor *processDescriptor, ProcessMessage *processMessage)
+/// @fn int sendTaskMessageToTask(
+///   TaskDescriptor *taskDescriptor, TaskMessage *taskMessage)
 ///
-/// @brief Get an available ProcessMessage, populate it with the specified data,
-/// and push it onto a destination process's queue.
+/// @brief Get an available TaskMessage, populate it with the specified data,
+/// and push it onto a destination task's queue.
 ///
-/// @param processDescriptor A pointer to the destination process to send the
+/// @param taskDescriptor A pointer to the destination task to send the
 ///   message to.
-/// @param processMessage A pointer to the message to send to the destination
-///   process.
+/// @param taskMessage A pointer to the message to send to the destination
+///   task.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int sendProcessMessageToProcess(
-  ProcessDescriptor *processDescriptor, ProcessMessage *processMessage
+/// @return Returns taskSuccess on success, taskError on failure.
+int sendTaskMessageToTask(
+  TaskDescriptor *taskDescriptor, TaskMessage *taskMessage
 ) {
-  int returnValue = processSuccess;
-  if ((processDescriptor == NULL) || (processDescriptor->processHandle == NULL)
-    || (processMessage == NULL)
+  int returnValue = taskSuccess;
+  if ((taskDescriptor == NULL) || (taskDescriptor->taskHandle == NULL)
+    || (taskMessage == NULL)
   ) {
     // Invalid.
-    returnValue = processError;
+    returnValue = taskError;
     return returnValue;
   }
 
-  returnValue = processMessageQueuePush(processDescriptor, processMessage);
+  returnValue = taskMessageQueuePush(taskDescriptor, taskMessage);
 
   return returnValue;
 }
 
-/// @fn int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage)
+/// @fn int sendTaskMessageToPid(unsigned int pid, TaskMessage *taskMessage)
 ///
-/// @brief Look up a process by its PID and send a message to it.
+/// @brief Look up a task by its PID and send a message to it.
 ///
-/// @param pid The ID of the process to send the message to.
-/// @param processMessage A pointer to the message to send to the destination
-///   process.
+/// @param pid The ID of the task to send the message to.
+/// @param taskMessage A pointer to the message to send to the destination
+///   task.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int sendProcessMessageToPid(unsigned int pid, ProcessMessage *processMessage) {
-  ProcessDescriptor *processDescriptor = schedulerGetProcessByPid(pid);
+/// @return Returns taskSuccess on success, taskError on failure.
+int sendTaskMessageToPid(unsigned int pid, TaskMessage *taskMessage) {
+  TaskDescriptor *taskDescriptor = schedulerGetTaskByPid(pid);
 
-  // If processDescriptoris NULL, it will be detected as not running by
-  // sendProcessMessageToProcess, so there's no real point in checking for NULL
+  // If taskDescriptoris NULL, it will be detected as not running by
+  // sendTaskMessageToTask, so there's no real point in checking for NULL
   // here.
-  return sendProcessMessageToProcess(processDescriptor, processMessage);
+  return sendTaskMessageToTask(taskDescriptor, taskMessage);
 }
 
-/// ProcessMessage* getAvailableMessage(void)
+/// TaskMessage* getAvailableMessage(void)
 ///
 /// @brief Get a message from the messages array that is not in use.
 ///
 /// @return Returns a pointer to the available message on success, NULL if there
 /// was no available message in the array.
-ProcessMessage* getAvailableMessage(void) {
-  ProcessMessage *availableMessage = NULL;
+TaskMessage* getAvailableMessage(void) {
+  TaskMessage *availableMessage = NULL;
 
   for (int ii = 0; ii < NANO_OS_NUM_MESSAGES; ii++) {
     if (msg_in_use(&messages[ii]) == false) {
       availableMessage = &messages[ii];
-      processMessageInit(availableMessage, 0,
+      taskMessageInit(availableMessage, 0,
         &nanoOsMessages[ii], sizeof(nanoOsMessages[ii]), false);
       break;
     }
@@ -447,120 +447,120 @@ ProcessMessage* getAvailableMessage(void) {
   return availableMessage;
 }
 
-/// @fn ProcessMessage* sendNanoOsMessageToProcess(
-///   ProcessDescriptor *processDescriptor, int type,
+/// @fn TaskMessage* sendNanoOsMessageToTask(
+///   TaskDescriptor *taskDescriptor, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a NanoOsMessage to another process identified by its Coroutine.
+/// @brief Send a NanoOsMessage to another task identified by its Coroutine.
 ///
-/// @param pid The process ID of the destination process.
-/// @param type The type of the message to send to the destination process.
-/// @param func The function information to send to the destination process,
+/// @param pid The task ID of the destination task.
+/// @param type The type of the message to send to the destination task.
+/// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
-/// @param data The data to send to the destination process, cast to a
+/// @param data The data to send to the destination task, cast to a
 ///   NanoOsMessageData.
 /// @param waiting Whether or not the sender is waiting on a response from the
-///   destination process.
+///   destination task.
 ///
-/// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
-ProcessMessage* sendNanoOsMessageToProcess(
-  ProcessDescriptor *processDescriptor, int type,
+/// @return Returns a pointer to the sent TaskMessage on success, NULL on failure.
+TaskMessage* sendNanoOsMessageToTask(
+  TaskDescriptor *taskDescriptor, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  ProcessMessage *processMessage = NULL;
-  if (processDescriptor == NULL) {
-    return processMessage; // NULL
-  } else if (!processRunning(processDescriptor)) {
-    // Can't send to a non-running process.
-    printString("ERROR: Could not send message from process ");
-    printInt(processId(getRunningProcess()));
+  TaskMessage *taskMessage = NULL;
+  if (taskDescriptor == NULL) {
+    return taskMessage; // NULL
+  } else if (!taskRunning(taskDescriptor)) {
+    // Can't send to a non-running task.
+    printString("ERROR: Could not send message from task ");
+    printInt(taskId(getRunningTask()));
     printString("\n");
-    if (processDescriptor->processHandle == NULL) {
-      printString("ERROR: processHandle is NULL\n");
+    if (taskDescriptor->taskHandle == NULL) {
+      printString("ERROR: taskHandle is NULL\n");
     } else {
-      printString("ERROR: Process ");
-      printInt(processId(processDescriptor));
+      printString("ERROR: Task ");
+      printInt(taskId(taskDescriptor));
       printString(" is in state ");
-      printInt(processState(processDescriptor));
+      printInt(taskState(taskDescriptor));
       printString("\n");
     }
-    return processMessage; // NULL
+    return taskMessage; // NULL
   }
 
-  processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
-    processYield();
-    processMessage = getAvailableMessage();
+  taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
+    taskYield();
+    taskMessage = getAvailableMessage();
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->func = func;
   nanoOsMessage->data = data;
 
-  processMessageInit(processMessage, type,
+  taskMessageInit(taskMessage, type,
     nanoOsMessage, sizeof(*nanoOsMessage), waiting);
 
-  if (sendProcessMessageToProcess(processDescriptor, processMessage)
-    != processSuccess
+  if (sendTaskMessageToTask(taskDescriptor, taskMessage)
+    != taskSuccess
   ) {
-    if (processMessageRelease(processMessage) != processSuccess) {
+    if (taskMessageRelease(taskMessage) != taskSuccess) {
       printString("ERROR: "
-        "Could not release message from sendNanoOsMessageToProcess.\n");
+        "Could not release message from sendNanoOsMessageToTask.\n");
     }
-    processMessage = NULL;
+    taskMessage = NULL;
   }
 
-  return processMessage;
+  return taskMessage;
 }
 
-/// @fn ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
+/// @fn TaskMessage* sendNanoOsMessageToPid(int pid, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a NanoOsMessage to another process identified by its PID. Looks
-/// up the process's Coroutine by its PID and then calls
-/// sendNanoOsMessageToProcess.
+/// @brief Send a NanoOsMessage to another task identified by its PID. Looks
+/// up the task's Coroutine by its PID and then calls
+/// sendNanoOsMessageToTask.
 ///
-/// @param pid The process ID of the destination process.
-/// @param type The type of the message to send to the destination process.
-/// @param func The function information to send to the destination process,
+/// @param pid The task ID of the destination task.
+/// @param type The type of the message to send to the destination task.
+/// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
-/// @param data The data to send to the destination process, cast to a
+/// @param data The data to send to the destination task, cast to a
 ///   NanoOsMessageData.
 /// @param waiting Whether or not the sender is waiting on a response from the
-///   destination process.
+///   destination task.
 ///
-/// @return Returns a pointer to the sent ProcessMessage on success, NULL on failure.
-ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
+/// @return Returns a pointer to the sent TaskMessage on success, NULL on failure.
+TaskMessage* sendNanoOsMessageToPid(int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
-  ProcessMessage *processMessage = NULL;
-  if (pid >= NANO_OS_NUM_PROCESSES) {
+  TaskMessage *taskMessage = NULL;
+  if (pid >= NANO_OS_NUM_TASKS) {
     // Not a valid PID.  Fail.
     printString("ERROR: ");
     printInt(pid);
     printString(" is not a valid PID.\n");
-    return processMessage; // NULL
+    return taskMessage; // NULL
   }
 
-  ProcessDescriptor *process = schedulerGetProcessByPid(pid);
-  processMessage
-    = sendNanoOsMessageToProcess(process, type, func, data, waiting);
-  if (processMessage == NULL) {
-    printString("ERROR: Could not send NanoOs message to process ");
+  TaskDescriptor *task = schedulerGetTaskByPid(pid);
+  taskMessage
+    = sendNanoOsMessageToTask(task, type, func, data, waiting);
+  if (taskMessage == NULL) {
+    printString("ERROR: Could not send NanoOs message to task ");
     printInt(pid);
     printString("\n");
   }
-  return processMessage;
+  return taskMessage;
 }
 
 /// @fn void* waitForDataMessage(
-///   ProcessMessage *sent, int type, const struct timespec *ts)
+///   TaskMessage *sent, int type, const struct timespec *ts)
 ///
 /// @brief Wait for a reply to a previously-sent message and get the data from
 /// it.  The provided message will be released when the reply is received.
 ///
-/// @param sent A pointer to a previously-sent ProcessMessage the calling function is
+/// @param sent A pointer to a previously-sent TaskMessage the calling function is
 ///   waiting on a reply to.
 /// @param type The type of message expected to be sent as a response.
 /// @param ts A pointer to a struct timespec with the future time at which to
@@ -569,13 +569,13 @@ ProcessMessage* sendNanoOsMessageToPid(int pid, int type,
 ///
 /// @return Returns a pointer to the data member of the received message on
 /// success, NULL on failure.
-void* waitForDataMessage(ProcessMessage *sent, int type, const struct timespec *ts) {
+void* waitForDataMessage(TaskMessage *sent, int type, const struct timespec *ts) {
   void *returnValue = NULL;
 
-  ProcessMessage *incoming = processMessageWaitForReplyWithType(sent, true, type, ts);
+  TaskMessage *incoming = taskMessageWaitForReplyWithType(sent, true, type, ts);
   if (incoming != NULL)  {
     returnValue = nanoOsMessageDataPointer(incoming, void*);
-    if (processMessageRelease(incoming) != processSuccess) {
+    if (taskMessageRelease(incoming) != taskSuccess) {
       printString("ERROR: "
         "Could not release incoming message from waitForDataMessage.\n");
     }

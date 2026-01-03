@@ -1,8 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              ExFatProcess.h
+/// @file              ExFatTask.h
 ///
-/// @brief             exFAT process for NanoOs.
+/// @brief             exFAT task for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -31,8 +31,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef EXFAT_PROCESS_H
-#define EXFAT_PROCESS_H
+#ifndef EXFAT_TASK_H
+#define EXFAT_TASK_H
 
 #ifdef __cplusplus
 extern "C"
@@ -45,5 +45,5 @@ void* runExFatFilesystem(void *args);
 } // extern "C"
 #endif
 
-#endif // EXFAT_PROCESS_H
+#endif // EXFAT_TASK_H
 

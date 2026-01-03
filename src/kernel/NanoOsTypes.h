@@ -46,24 +46,24 @@ extern "C"
 
 // Constants
 
-/// @def NANO_OS_NUM_PROCESSES
+/// @def NANO_OS_NUM_TASKS
 ///
-/// @brief The total number of concurrent processes that can be run by the OS,
+/// @brief The total number of concurrent tasks that can be run by the OS,
 /// including the scheduler.
 ///
 /// @note If this value is increased beyond 15, the number of bits used to store
 /// the owner in a MemNode in MemoryManager.cpp must be extended and the value
-/// of PROCESS_ID_NOT_SET must be changed in Processes.h.  If this value is
-/// increased beyond 255, then the type defined by ProcessId below m ust also
+/// of TASK_ID_NOT_SET must be changed in Tasks.h.  If this value is
+/// increased beyond 255, then the type defined by TaskId below m ust also
 /// be extended.
-#define NANO_OS_NUM_PROCESSES                             9
+#define NANO_OS_NUM_TASKS                             9
 
-/// @def SCHEDULER_NUM_PROCESSES
+/// @def SCHEDULER_NUM_TASKS
 ///
-/// @brief The number of processes managed by the scheduler.  This is one fewer
-/// than the total number of processes managed by NanoOs since the scheduler is
-/// a process.
-#define SCHEDULER_NUM_PROCESSES (NANO_OS_NUM_PROCESSES - 1)
+/// @brief The number of tasks managed by the scheduler.  This is one fewer
+/// than the total number of tasks managed by NanoOs since the scheduler is
+/// a task.
+#define SCHEDULER_NUM_TASKS (NANO_OS_NUM_TASKS - 1)
 
 /// @def CONSOLE_BUFFER_SIZE
 ///
@@ -79,33 +79,33 @@ extern "C"
 /// @def CONSOLE_NUM_BUFFERS
 ///
 /// @brief The number of console buffers that will be allocated within the main
-/// console process's stack.
+/// console task's stack.
 #define CONSOLE_NUM_BUFFERS CONSOLE_NUM_PORTS
 
-// Process status values
-#define processSuccess  coroutineSuccess
-#define processBusy     coroutineBusy
-#define processError    coroutineError
-#define processNomem    coroutineNomem
-#define processTimedout coroutineTimedout
+// Task status values
+#define taskSuccess  coroutineSuccess
+#define taskBusy     coroutineBusy
+#define taskError    coroutineError
+#define taskNomem    coroutineNomem
+#define taskTimedout coroutineTimedout
 
 // Primitive types
 
-/// @typedef Process
+/// @typedef Task
 ///
-/// @brief Definition of the Process object used by the OS.
-typedef Coroutine* ProcessHandle;
+/// @brief Definition of the Task object used by the OS.
+typedef Coroutine* TaskHandle;
 
-/// @typedef ProcessId
+/// @typedef TaskId
 ///
-/// @brief Definition of the type to use for a process ID.
-typedef uint8_t ProcessId;
+/// @brief Definition of the type to use for a task ID.
+typedef uint8_t TaskId;
 
-/// @typedef ProcessMessage
+/// @typedef TaskMessage
 ///
-/// @brief Definition of the ProcessMessage object that processes will use for
-/// inter-process communication.
-typedef msg_t ProcessMessage;
+/// @brief Definition of the TaskMessage object that tasks will use for
+/// inter-task communication.
+typedef msg_t TaskMessage;
 
 /// @typedef CommandFunction
 ///
@@ -145,19 +145,19 @@ typedef struct NanoOsFile {
 
 /// @struct IoPipe
 ///
-/// @brief Information that can be used to direct the output of one process
+/// @brief Information that can be used to direct the output of one task
 /// into the input of another one.
 ///
-/// @param processId The process ID (PID) of the destination process.
-/// @param messageType The type of message to send to the process.
+/// @param taskId The task ID (PID) of the destination task.
+/// @param messageType The type of message to send to the task.
 typedef struct IoPipe {
-  ProcessId processId;
+  TaskId taskId;
   uint8_t messageType;
 } IoPipe;
 
 /// @struct FileDescriptor
 ///
-/// @brief Definition of a file descriptor that a process can use for input
+/// @brief Definition of a file descriptor that a task can use for input
 /// and/or output.
 ///
 /// @param inputPipe An IoPipe object that describes where the file descriptor
@@ -170,112 +170,112 @@ typedef struct FileDescriptor {
 } FileDescriptor;
 
 // Forward declaration.  Definition below.
-typedef struct ProcessQueue ProcessQueue;
+typedef struct TaskQueue TaskQueue;
 
-/// @struct ProcessDescriptor
+/// @struct TaskDescriptor
 ///
-/// @brief Descriptor for a running process.
+/// @brief Descriptor for a running task.
 ///
 /// @param name The name of the command as stored in its CommandEntry or as
 ///   set by the scheduler at launch.
-/// @param process A ProcessHandle that manages the running command's execution
+/// @param task A TaskHandle that manages the running command's execution
 ///   state.
 /// @param 
-/// @param userId The numerical ID of the user that is running the process.
+/// @param userId The numerical ID of the user that is running the task.
 /// @param numFileDescriptors The number of FileDescriptor objects contained by
 ///   the fileDescriptors array.
 /// @param fileDescriptors Pointer to an array of FileDescriptors that are
-///   currently in use by the process.
-/// @param overlayDir The base path to the overlays for the process, if any.
+///   currently in use by the task.
+/// @param overlayDir The base path to the overlays for the task, if any.
 /// @param overlay The name of the current overlay within the overlayDir being
 ///   used (minus the ".overaly" extension).
 /// @param envp A pointer to the array of NULL-terminated environment variable
 ///   strings.
-typedef struct ProcessDescriptor {
+typedef struct TaskDescriptor {
   const char      *name;
-  ProcessHandle    processHandle;
-  ProcessId        processId;
+  TaskHandle       taskHandle;
+  TaskId           taskId;
   UserId           userId;
   uint8_t          numFileDescriptors;
   FileDescriptor  *fileDescriptors;
   const char      *overlayDir;
   const char      *overlay;
   const char     **envp;
-  ProcessQueue    *processQueue;
-} ProcessDescriptor;
+  TaskQueue       *taskQueue;
+} TaskDescriptor;
 
-/// @struct ProcessInfoElement
+/// @struct TaskInfoElement
 ///
-/// @brief Information about a running process that is exportable to a user
-/// process.
+/// @brief Information about a running task that is exportable to a user
+/// task.
 ///
-/// @param pid The numerical ID of the process.
-/// @param name The name of the process.
-/// @param userId The UserId of the user that owns the process.
-typedef struct ProcessInfoElement {
+/// @param pid The numerical ID of the task.
+/// @param name The name of the task.
+/// @param userId The UserId of the user that owns the task.
+typedef struct TaskInfoElement {
   int pid;
   const char *name;
   UserId userId;
-} ProcessInfoElement;
+} TaskInfoElement;
 
-/// @struct ProcessInfo
+/// @struct TaskInfo
 ///
-/// @brief The object that's populated and returned by a getProcessInfo call.
+/// @brief The object that's populated and returned by a getTaskInfo call.
 ///
-/// @param numProcesses The number of elements in the processes array.
-/// @param processes The array of ProcessInfoElements that describe the
-///   processes.
-typedef struct ProcessInfo {
-  uint8_t numProcesses;
-  ProcessInfoElement processes[1];
-} ProcessInfo;
+/// @param numTasks The number of elements in the tasks array.
+/// @param tasks The array of TaskInfoElements that describe the
+///   tasks.
+typedef struct TaskInfo {
+  uint8_t numTasks;
+  TaskInfoElement tasks[1];
+} TaskInfo;
 
-/// @struct ProcessQueue
+/// @struct TaskQueue
 ///
-/// @brief Structure to manage an individual process queue
+/// @brief Structure to manage an individual task queue
 ///
 /// @param name The string name of the queue for use in error messages.
-/// @param processes The array of pointers to ProcessDescriptors from the
-///   allProcesses array.
+/// @param tasks The array of pointers to TaskDescriptors from the
+///   allTasks array.
 /// @param head The index of the head of the queue.
 /// @param tail The index of the tail of the queue.
 /// @param numElements The number of elements currently in the queue.
-typedef struct ProcessQueue {
+typedef struct TaskQueue {
   const char *name;
-  ProcessDescriptor *processes[SCHEDULER_NUM_PROCESSES];
+  TaskDescriptor *tasks[SCHEDULER_NUM_TASKS];
   uint8_t head:4;
   uint8_t tail:4;
   uint8_t numElements:4;
-} ProcessQueue;
+} TaskQueue;
 
 /// @struct SchedulerState
 ///
 /// @brief State data used by the scheduler.
 ///
-/// @param allProcesses Array that will hold the metadata for every process,
+/// @param allTasks Array that will hold the metadata for every task,
 ///   including the scheduler.
-/// @param ready Queue of processes that are allocated and not waiting on
+/// @param ready Queue of tasks that are allocated and not waiting on
 ///   anything but not currently running.  This queue never includes the
-///   scheduler process.
-/// @param waiting Queue of processes that are waiting on a mutex or condition
+///   scheduler task.
+/// @param waiting Queue of tasks that are waiting on a mutex or condition
 ///   with an infinite timeout.  This queue never includes the scheduler
-///   process.
-/// @param timedWaiting Queue of processes that are waiting on a mutex or
+///   task.
+/// @param timedWaiting Queue of tasks that are waiting on a mutex or
 ///   condition with a defined timeout.  This queue never includes the scheduler
-///   process.
-/// @param free Queue of processes that are free within the allProcesses
+///   task.
+/// @param free Queue of tasks that are free within the allTasks
 ///   array.
 /// @param hostname The contents of the /etc/hostname file read at startup.
-/// @param numShells The number of shell processes that the scheduler is
+/// @param numShells The number of shell tasks that the scheduler is
 ///   running.
 /// @param preemptionTimer The index of the timer used for preemptive
-///   multitasking.  If this is < 0 then the processes run in cooperative mode.
+///   multitasking.  If this is < 0 then the tasks run in cooperative mode.
 typedef struct SchedulerState {
-  ProcessDescriptor allProcesses[NANO_OS_NUM_PROCESSES];
-  ProcessQueue ready;
-  ProcessQueue waiting;
-  ProcessQueue timedWaiting;
-  ProcessQueue free;
+  TaskDescriptor allTasks[NANO_OS_NUM_TASKS];
+  TaskQueue ready;
+  TaskQueue waiting;
+  TaskQueue timedWaiting;
+  TaskQueue free;
   char *hostname;
   uint8_t numShells;
   int preemptionTimer;
@@ -283,18 +283,18 @@ typedef struct SchedulerState {
 
 /// @struct CommandDescriptor
 ///
-/// @brief Container of information for launching a process.
+/// @brief Container of information for launching a task.
 ///
 /// @param consolePort The index of the ConsolePort the input came from.
 /// @param consoleInput The input as provided by the console.
-/// @param callingProcess The process ID of the process that is launching the
+/// @param callingTask The task ID of the task that is launching the
 ///   command.
 /// @param schedulerState A pointer to the SchedulerState structure maintained
 ///   by the scheduler.
 typedef struct CommandDescriptor {
   int                consolePort;
   char              *consoleInput;
-  ProcessId         callingProcess;
+  TaskId             callingTask;
   SchedulerState    *schedulerState;
 } CommandDescriptor;
 
@@ -304,7 +304,7 @@ typedef struct CommandDescriptor {
 /// handleCommand function.
 ///
 /// @param name The textual name of the command.
-/// @param func A function pointer to the process that will be spawned to
+/// @param func A function pointer to the task that will be spawned to
 ///   execute the command.
 /// @param help A one-line summary of what this command does.
 typedef struct CommandEntry {
@@ -319,11 +319,11 @@ typedef struct CommandEntry {
 /// sender of a CONSOLE_GET_BUFFER command via a CONSOLE_RETURNING_BUFFER
 /// response.
 ///
-/// @param inUse Whether or not this buffer is in use by a process.  Set by the
+/// @param inUse Whether or not this buffer is in use by a task.  Set by the
 ///   consoleGetBuffer function when getting a buffer for a caller and cleared
 ///   by the caller when no longer being used.
 /// @param buffer The array of CONSOLE_BUFFER_SIZE characters that the calling
-///   process can use.
+///   task can use.
 typedef struct ConsoleBuffer {
   bool inUse;
   char buffer[CONSOLE_BUFFER_SIZE];
@@ -339,12 +339,12 @@ typedef struct ConsoleBuffer {
 ///   from the user.
 /// @param consoleBufferIndex An index into the buffer provided by consoleBuffer
 ///   of the next position to read a byte into.
-/// @param outputOwner The ID of the process that currently has the ability to
+/// @param outputOwner The ID of the task that currently has the ability to
 ///   write output to the port.
-/// @param inputOwner The ID of the process that currently has the ability to
+/// @param inputOwner The ID of the task that currently has the ability to
 ///   read input from the port.
-/// @param shell The ID of the process that serves as the console port's shell.
-/// @param waitingForInput Whether or not the owning process is currently
+/// @param shell The ID of the task that serves as the console port's shell.
+/// @param waitingForInput Whether or not the owning task is currently
 ///   waiting for input from the user.
 /// @param readByte A pointer to the non-blocking function that will attempt to
 ///   read a byte of input from the user.
@@ -356,9 +356,9 @@ typedef struct ConsolePort {
   unsigned char       portId;
   ConsoleBuffer      *consoleBuffer;
   unsigned char       consoleBufferIndex;
-  ProcessId           outputOwner;
-  ProcessId           inputOwner;
-  ProcessId           shell;
+  TaskId              outputOwner;
+  TaskId              inputOwner;
+  TaskId              shell;
   bool                waitingForInput;
   int               (*readByte)(struct ConsolePort *consolePort);
   bool                echo;
@@ -368,13 +368,13 @@ typedef struct ConsolePort {
 
 /// @struct ConsoleState
 ///
-/// @brief State maintained by the main console process and passed to the inter-
-/// process command handlers.
+/// @brief State maintained by the main console task and passed to the inter-
+/// task command handlers.
 ///
 /// @param consolePorts The array of ConsolePorts that will be polled for input
 ///   from the user.
 /// @param consoleBuffers The array of ConsoleBuffers that can be used by
-///   the console ports for input and by processes for output.
+///   the console ports for input and by tasks for output.
 /// @param numConsolePorts The number of active console ports.
 typedef struct ConsoleState {
   ConsolePort consolePorts[CONSOLE_NUM_PORTS];
@@ -385,15 +385,15 @@ typedef struct ConsoleState {
 
 /// @struct ConsolePortPidAssociation
 ///
-/// @brief Structure to associate a console port with a process ID.  This
+/// @brief Structure to associate a console port with a task ID.  This
 /// information is used in a CONSOLE_ASSIGN_PORT command.
 ///
 /// @param consolePort The index into the consolePorts array of a ConsoleState
 ///   object.
-/// @param processId The process ID associated with the port.
+/// @param taskId The task ID associated with the port.
 typedef struct ConsolePortPidAssociation {
-  uint8_t           consolePort;
-  ProcessId         processId;
+  uint8_t        consolePort;
+  TaskId         taskId;
 } ConsolePortPidAssociation;
 
 /// @union ConsolePortPidUnion
@@ -426,7 +426,7 @@ typedef struct ReallocMessage {
 
 /// @struct MemoryManagerState
 ///
-/// @brief State metadata the memory manager process uses for allocations and
+/// @brief State metadata the memory manager task uses for allocations and
 /// deallocations.
 ///
 /// @param mallocNext A pointer to the next free piece of memory.
@@ -453,7 +453,7 @@ typedef struct User {
 
 /// @struct NanoOsMessage
 ///
-/// @brief A generic message that can be exchanged between processes.
+/// @brief A generic message that can be exchanged between tasks.
 ///
 /// @param func Information about the function to run, cast to an unsigned long
 ///   long int.

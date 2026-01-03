@@ -49,36 +49,36 @@ typedef struct NanoOsFile NanoOsFile;
 
 /// @enum SchedulerCommandResponse
 ///
-/// @brief Commands and responses understood by the scheduler inter-process
+/// @brief Commands and responses understood by the scheduler inter-task
 /// message handler.
 typedef enum SchedulerCommandResponse {
   // Commands:
-  SCHEDULER_RUN_PROCESS,
-  SCHEDULER_KILL_PROCESS,
-  SCHEDULER_GET_NUM_RUNNING_PROCESSES,
-  SCHEDULER_GET_PROCESS_INFO,
-  SCHEDULER_GET_PROCESS_USER,
-  SCHEDULER_SET_PROCESS_USER,
+  SCHEDULER_RUN_TASK,
+  SCHEDULER_KILL_TASK,
+  SCHEDULER_GET_NUM_RUNNING_TASKS,
+  SCHEDULER_GET_TASK_INFO,
+  SCHEDULER_GET_TASK_USER,
+  SCHEDULER_SET_TASK_USER,
   SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
   SCHEDULER_GET_HOSTNAME,
   SCHEDULER_EXECVE,
   NUM_SCHEDULER_COMMANDS,
   // Responses:
-  SCHEDULER_PROCESS_COMPLETE,
+  SCHEDULER_TASK_COMPLETE,
 } SchedulerCommand;
 
 // Exported functionality
 void startScheduler(SchedulerState **coroutineStatePointer);
-ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid);
-int schedulerNotifyProcessComplete(ProcessId processId);
-int schedulerWaitForProcessComplete(void);
-ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout);
-ProcessInfo* schedulerGetProcessInfo(void);
-int schedulerKillProcess(ProcessId processId);
-int schedulerRunProcess(
+TaskDescriptor* schedulerGetTaskByPid(unsigned int pid);
+int schedulerNotifyTaskComplete(TaskId taskId);
+int schedulerWaitForTaskComplete(void);
+TaskId schedulerGetNumRunningTasks(struct timespec *timeout);
+TaskInfo* schedulerGetTaskInfo(void);
+int schedulerKillTask(TaskId taskId);
+int schedulerRunTask(
   const CommandEntry *commandEntry, char *consoleInput, int consolePort);
-UserId schedulerGetProcessUser(void);
-int schedulerSetProcessUser(UserId userId);
+UserId schedulerGetTaskUser(void);
+int schedulerSetTaskUser(UserId userId);
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream);
 int schedulerCloseAllFileDescriptors(void);
 const char* schedulerGetHostname(void);
@@ -89,10 +89,10 @@ int schedulerExecve(const char *pathname,
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine);
 void comutexUnlockCallback(void *stateData, Comutex *comutex);
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition);
-void* dummyProcess(void *args);
+void* dummyTask(void *args);
 
-// ProcessHandle that will be used to represent the scheduler.
-extern ProcessHandle schedulerProcessHandle;
+// TaskHandle that will be used to represent the scheduler.
+extern TaskHandle schedulerTaskHandle;
 
 #ifdef __cplusplus
 } // extern "C"

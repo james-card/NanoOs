@@ -34,7 +34,7 @@
 #include "Hal.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "Scheduler.h"
 
 // Must come last
@@ -63,17 +63,17 @@ int psCommandHandler(int argc, char **argv) {
 
   printf("- Dynamic memory left: %d\n", getFreeMemory());
 
-  ProcessInfo *processInfo = schedulerGetProcessInfo();
-  if (processInfo != NULL) {
-    uint8_t numRunningProcesses = processInfo->numProcesses;
-    ProcessInfoElement *processes = processInfo->processes;
-    for (uint8_t ii = 0; ii < numRunningProcesses; ii++) {
+  TaskInfo *taskInfo = schedulerGetTaskInfo();
+  if (taskInfo != NULL) {
+    uint8_t numRunningTasks = taskInfo->numTasks;
+    TaskInfoElement *tasks = taskInfo->tasks;
+    for (uint8_t ii = 0; ii < numRunningTasks; ii++) {
       printf("%d  %s %s\n",
-        processes[ii].pid,
-        getUsernameByUserId(processes[ii].userId),
-        processes[ii].name);
+        tasks[ii].pid,
+        getUsernameByUserId(tasks[ii].userId),
+        tasks[ii].name);
     }
-    free(processInfo); processInfo = NULL;
+    free(taskInfo); taskInfo = NULL;
   } else {
     printf("ERROR: Could not get process information from scheduler.\n");
   }
@@ -102,9 +102,9 @@ int killCommandHandler(int argc, char **argv) {
     printf("\n");
     return 1;
   }
-  ProcessId processId = (ProcessId) strtol(argv[1], NULL, 10);
+  TaskId processId = (TaskId) strtol(argv[1], NULL, 10);
 
-  int returnValue = schedulerKillProcess(processId);
+  int returnValue = schedulerKillTask(processId);
 
   return returnValue;
 }
@@ -242,7 +242,7 @@ int logoutCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  if (schedulerSetProcessUser(NO_USER_ID) != 0) {
+  if (schedulerSetTaskUser(NO_USER_ID) != 0) {
     fputs("WARNING: Could not clear owner of current process.\n", stderr);
   }
 
@@ -263,7 +263,7 @@ int looseLoopCommandHandler(int argc, char **argv) {
   (void) argc;
   (void) argv;
 
-  while (1) processYield();
+  while (1) taskYield();
 
   return 0;
 }
@@ -379,7 +379,7 @@ const CommandEntry* getCommandEntryFromInput(char *consoleInput) {
 ///
 /// @brief Parse the command name out of the console input and run the command
 /// using the rest of the input as an argument to the command.  The command will
-/// be launched as a separate process, not run inline.
+/// be launched as a separate task, not run inline.
 ///
 /// @param consolePort The index of the console port the input came from.
 /// @param consoleInput A pointer to the beginning of the buffer that contains
@@ -387,11 +387,11 @@ const CommandEntry* getCommandEntryFromInput(char *consoleInput) {
 ///
 /// @return This function returns no value.
 int handleCommand(int consolePort, char *consoleInput) {
-  int returnValue = processSuccess;
+  int returnValue = taskSuccess;
   const CommandEntry *commandEntry = getCommandEntryFromInput(consoleInput);
   if (commandEntry != NULL) {
     // Send the found entry over to the scheduler.
-    if (schedulerRunProcess(commandEntry, consoleInput, consolePort) != 0) {
+    if (schedulerRunTask(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
       releaseConsole();
     }
@@ -400,7 +400,7 @@ int handleCommand(int consolePort, char *consoleInput) {
     // we can't use a blocking call here.  Use the non-blocking printString
     // instead.
     free(consoleInput); consoleInput = NULL;
-    returnValue = processError;
+    returnValue = taskError;
   }
 
   return returnValue;
@@ -408,7 +408,7 @@ int handleCommand(int consolePort, char *consoleInput) {
 
 /// @fn void* runShell(void *args)
 ///
-/// @brief Process function for interactive user shell.
+/// @brief Task function for interactive user shell.
 ///
 /// @param args Any arguments passed by the scheduler.  Ignored by this
 ///   function.
@@ -419,24 +419,24 @@ void* runShell(void *args) {
   char commandBuffer[CONSOLE_BUFFER_SIZE];
   int consolePort = getOwnedConsolePort();
   while (consolePort < 0) {
-    processYield();
+    taskYield();
     consolePort = getOwnedConsolePort();
   }
 
-  if (schedulerGetProcessUser() < 0) {
+  if (schedulerGetTaskUser() < 0) {
     printf("\nNanoOs " NANO_OS_VERSION " %s console %d\n\n",
       hostname, consolePort);
     login();
   }
 
-  UserId processUserId = schedulerGetProcessUser();
+  UserId taskUserId = schedulerGetTaskUser();
   const char *prompt = "$";
-  if (processUserId == ROOT_USER_ID) {
+  if (taskUserId == ROOT_USER_ID) {
     prompt = "#";
   }
-  const char *processUsername = getUsernameByUserId(processUserId);
+  const char *taskUsername = getUsernameByUserId(taskUserId);
   while (1) {
-    printf("%s@%s%s ", processUsername, hostname, prompt);
+    printf("%s@%s%s ", taskUsername, hostname, prompt);
     fgets(commandBuffer, sizeof(commandBuffer), stdin);
     const CommandEntry *commandEntry = getCommandEntryFromInput(commandBuffer);
     if (commandEntry == NULL) {
@@ -455,7 +455,7 @@ void* runShell(void *args) {
     size_t bufferLength = strlen(commandBuffer);
     char *consoleInput = (char*) malloc(bufferLength + 1);
     strcpy(consoleInput, commandBuffer);
-    if (schedulerRunProcess(commandEntry, consoleInput, consolePort) != 0) {
+    if (schedulerRunTask(commandEntry, consoleInput, consolePort) != 0) {
       consoleInput = stringDestroy(consoleInput);
     }
   }
@@ -466,8 +466,8 @@ void* runShell(void *args) {
 /// @var commands
 ///
 /// @brief Array of CommandEntry values that contain the names of the commands,
-/// a pointer to the command handler functions, and information about whether
-/// the command is a user process or a system process.
+/// a pointer to the command handler functions, and a help string that
+/// summarizes the command.
 ///
 /// @details
 /// REMINDER:  These commands have to be in alphabetical order so that the

@@ -50,7 +50,7 @@ extern "C"
 
 /// @def NANO_OS_STACK_SIZE
 ///
-/// @brief The minimum size for an individual process's stack.  Actual size will
+/// @brief The minimum size for an individual task's stack.  Actual size will
 /// be slightly larger than this.
 #if defined(__arm__)
 #define NANO_OS_STACK_SIZE 720
@@ -67,51 +67,51 @@ extern "C"
 
 /// @def NANO_OS_NUM_MESSAGES
 ///
-/// @brief The total number of inter-process messages that will be available
-/// for use by processes.
+/// @brief The total number of inter-task messages that will be available
+/// for use by tasks.
 #define NANO_OS_NUM_MESSAGES                              6
 
-/// @def NANO_OS_SCHEDULER_PROCESS_ID
+/// @def NANO_OS_SCHEDULER_TASK_ID
 ///
-/// @brief The process ID (PID) of the process that is reserved for the
+/// @brief The task ID (PID) of the task that is reserved for the
 /// scheduler.
-#define NANO_OS_SCHEDULER_PROCESS_ID                      0
+#define NANO_OS_SCHEDULER_TASK_ID                         0
 
-/// @def NANO_OS_CONSOLE_PROCESS_ID
+/// @def NANO_OS_CONSOLE_TASK_ID
 ///
-/// @brief The process ID (PID) of the process that will run the console.  This
-/// must be the lowest value after the scheduler process (i.e. 1).
-#define NANO_OS_CONSOLE_PROCESS_ID                        1
+/// @brief The task ID (PID) of the task that will run the console.  This
+/// must be the lowest value after the scheduler task (i.e. 1).
+#define NANO_OS_CONSOLE_TASK_ID                           1
 
-/// @def NANO_OS_MEMORY_MANAGER_PROCESS_ID
+/// @def NANO_OS_MEMORY_MANAGER_TASK_ID
 ///
-/// @brief The process ID (PID) of the process that will manage memory.
-#define NANO_OS_MEMORY_MANAGER_PROCESS_ID                 2
+/// @brief The task ID (PID) of the task that will manage memory.
+#define NANO_OS_MEMORY_MANAGER_TASK_ID                    2
 
-/// @def NANO_OS_SD_CARD_PROCESS_ID
+/// @def NANO_OS_SD_CARD_TASK_ID
 ///
-/// @brief The process ID (PID) of the process that will manage the SD card.
-#define NANO_OS_SD_CARD_PROCESS_ID                        3
+/// @brief The task ID (PID) of the task that will manage the SD card.
+#define NANO_OS_SD_CARD_TASK_ID                           3
 
-/// @def NANO_OS_FILESYSTEM_PROCESS_ID
+/// @def NANO_OS_FILESYSTEM_TASK_ID
 ///
-/// @brief The process ID (PID) of the process that will manage the filesystem.
-#define NANO_OS_FILESYSTEM_PROCESS_ID                     4
+/// @brief The task ID (PID) of the task that will manage the filesystem.
+#define NANO_OS_FILESYSTEM_TASK_ID                        4
 
-/// @def NANO_OS_FIRST_USER_PROCESS_ID
+/// @def NANO_OS_FIRST_USER_TASK_ID
 ///
-/// @brief The process ID (PID) of the first user process, i.e. the first ID
-/// after the last system process ID.
-#define NANO_OS_FIRST_USER_PROCESS_ID                     5
+/// @brief The task ID (PID) of the first user task, i.e. the first ID
+/// after the last system task ID.
+#define NANO_OS_FIRST_USER_TASK_ID                        5
 
 /// @def NANO_OS_FIRST_SHELL_PID
 ///
-/// @brief The process ID of the first shell on the system.
+/// @brief The task ID of the first shell on the system.
 #define NANO_OS_FIRST_SHELL_PID                           5
 
 /// @def NANO_OS_MAX_NUM_SHELLS
 ///
-/// @brief The maximum number of shell processes the system can run.
+/// @brief The maximum number of shell tasks the system can run.
 #define NANO_OS_MAX_NUM_SHELLS                            2
 
 /// @def NANO_OS_VERSION
@@ -126,17 +126,17 @@ extern "C"
 
 /// @def NO_USER_ID
 ///
-/// @brief The numerical value that indicates that a process is not owned.
+/// @brief The numerical value that indicates that a task is not owned.
 #define NO_USER_ID                                       -1
 
-/// @def NUM_PROCESS_STORAGE_KEYS
+/// @def NUM_TASK_STORAGE_KEYS
 ///
-/// @brief The total number of keys supported by the per-process storage.
-#define NUM_PROCESS_STORAGE_KEYS                          1
+/// @brief The total number of keys supported by the per-task storage.
+#define NUM_TASK_STORAGE_KEYS                             1
 
 /// @def FGETS_CONSOLE_BUFFER_KEY
 ///
-/// @brief Per-process storage key for the consoleBufer pointer in consoleFGets.
+/// @brief Per-task storage key for the consoleBufer pointer in consoleFGets.
 #define FGETS_CONSOLE_BUFFER_KEY                          0
 
 /// @def floatToInts
@@ -182,10 +182,10 @@ extern "C"
   variableName, type, funcValue, dataValue, waiting \
 ) \
   NanoOsMessage __nanoOsMessage; \
-  ProcessMessage variableName = {}; \
+  TaskMessage variableName = {}; \
   __nanoOsMessage.func = funcValue; \
   __nanoOsMessage.data = dataValue; \
-  processMessageInit( \
+  taskMessageInit( \
     &variableName, type, &__nanoOsMessage, sizeof(__nanoOsMessage), waiting)
 
 /// @def copyBytes
@@ -226,16 +226,16 @@ extern "C"
 #define writeBytes(dst, src) copyBytes(dst, src, sizeof(*(src)))
 
 // Support functions
-ProcessId getNumPipes(const char *commandLine);
+TaskId getNumPipes(const char *commandLine);
 void timespecFromDelay(struct timespec *ts, long int delayMs);
 unsigned int raiseUInt(unsigned int x, unsigned int y);
 const char* getUsernameByUserId(UserId userId);
 UserId getUserIdByUsername(const char *username);
 void login(void);
-void *getProcessStorage(uint8_t key);
-int setProcessStorage_(uint8_t key, void *val, int processId, ...);
-#define setProcessStorage(key, val, ...) \
-  setProcessStorage_(key, val, ##__VA_ARGS__, -1)
+void *getTaskStorage(uint8_t key);
+int setTaskStorage_(uint8_t key, void *val, int taskId, ...);
+#define setTaskStorage(key, val, ...) \
+  setTaskStorage_(key, val, ##__VA_ARGS__, -1)
 
 #ifdef __cplusplus
 } // extern "C"

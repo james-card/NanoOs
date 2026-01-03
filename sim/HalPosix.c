@@ -42,9 +42,9 @@
 
 #include "HalPosix.h"
 #include "SdCardPosix.h"
-#include "kernel/ExFatProcess.h"
+#include "kernel/ExFatTask.h"
 #include "kernel/NanoOs.h"
-#include "kernel/Processes.h"
+#include "kernel/Tasks.h"
 
 /// @def OVERLAY_BASE_ADDRESS
 ///
@@ -266,43 +266,43 @@ int posixShutdown(void) {
 
 /// @var _sdCardDevicePath
 ///
-/// @brief Path to the device node to connect to for the SdCardSim process.
+/// @brief Path to the device node to connect to for the SdCardSim task.
 static const char *_sdCardDevicePath = NULL;
 
 int posixInitRootStorage(SchedulerState *schedulerState) {
-  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  TaskDescriptor *allTasks = schedulerState->allTasks;
   
-  // Create the SD card process.
-  ProcessDescriptor *processDescriptor
-    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
-  if (processCreate(
-    processDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
-    != processSuccess
+  // Create the SD card task.
+  TaskDescriptor *taskDescriptor
+    = &allTasks[NANO_OS_SD_CARD_TASK_ID];
+  if (taskCreate(
+    taskDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
+    != taskSuccess
   ) {
-    fputs("Could not start SD card process.\n", stderr);
+    fputs("Could not start SD card task.\n", stderr);
   }
-  printDebugString("Started SD card process.\n");
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
-  processDescriptor->name = "SD card";
-  processDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Started SD card task.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_SD_CARD_TASK_ID;
+  taskDescriptor->name = "SD card";
+  taskDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+    allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card process.\n");
+  printDebugString("Configured SD card task.\n");
   
-  // Create the filesystem process.
-  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
-  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
-    != processSuccess
+  // Create the filesystem task.
+  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID];
+  if (taskCreate(taskDescriptor, runExFatFilesystem, sdDevice)
+    != taskSuccess
   ) {
-    fputs("Could not start filesystem process.\n", stderr);
+    fputs("Could not start filesystem task.\n", stderr);
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
-  processDescriptor->name = "filesystem";
-  processDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created filesystem process.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_FILESYSTEM_TASK_ID;
+  taskDescriptor->name = "filesystem";
+  taskDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Created filesystem task.\n");
   
   return 0;
 }

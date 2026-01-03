@@ -54,14 +54,14 @@ OS_OBJECTS := \
     $(OBJ_DIR)/Console.o \
     $(OBJ_DIR)/Coroutines.o \
     $(OBJ_DIR)/ExFatFilesystem.o \
-    $(OBJ_DIR)/ExFatProcess.o \
+    $(OBJ_DIR)/ExFatTask.o \
     $(OBJ_DIR)/Filesystem.o \
     $(OBJ_DIR)/Link.o \
     $(OBJ_DIR)/MemoryManager.o \
     $(OBJ_DIR)/Messages.o \
     $(OBJ_DIR)/NanoOs.o \
     $(OBJ_DIR)/NanoOsOverlay.o \
-    $(OBJ_DIR)/Processes.o \
+    $(OBJ_DIR)/Tasks.o \
     $(OBJ_DIR)/Scheduler.o \
     $(OBJ_DIR)/SdCard.o \
     $(OBJ_DIR)/NanoOsApi.o \

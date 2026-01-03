@@ -121,7 +121,7 @@ void loop() {
   // configure it, and then create and run one before we ever enter the
   // scheduler.
   Coroutine _mainCoroutine;
-  schedulerProcessHandle = &_mainCoroutine;
+  schedulerTaskHandle = &_mainCoroutine;
   CoroutineConfigOptions coroutineConfigOptions = {
     .stackSize = NANO_OS_STACK_SIZE,
     .stateData = &coroutineStatePointer,
@@ -138,10 +138,10 @@ void loop() {
     printString("coroutineConfig failed.\n");
     while(1);
   }
-  // Create but *DO NOT* resume one dummy process.  This will set the size of
+  // Create but *DO NOT* resume one dummy task.  This will set the size of
   // the main stack.
-  if (coroutineInit(NULL, dummyProcess, NULL) == NULL) {
-    printString("Could not set scheduler process's stack size.\n");
+  if (coroutineInit(NULL, dummyTask, NULL) == NULL) {
+    printString("Could not set scheduler task's stack size.\n");
   }
 
   // Enter the scheduler.  This never returns.

@@ -30,31 +30,31 @@
 
 #include "NanoOsErrno.h"
 #include "../kernel/NanoOsTypes.h"
-#include "../kernel/Processes.h"
+#include "../kernel/Tasks.h"
 
-/// @var processErrorNumbers
+/// @var taskErrorNumbers
 ///
-/// @brief Process-specific storage for each process's errno value.
-static int processErrorNumbers[NANO_OS_NUM_PROCESSES + 1];
+/// @brief Task-specific storage for each task's errno value.
+static int taskErrorNumbers[NANO_OS_NUM_TASKS + 1];
 
 /// @fn in* errno_(void)
 ///
-/// @brief Get a pointer to the element of the internal processErrorNumbers
-/// array that corresponds to the current process.
+/// @brief Get a pointer to the element of the internal taskErrorNumbers
+/// array that corresponds to the current task.
 ///
 /// @return This function always succeeds and always returns a valid pointer.
 /// HOWEVER, if there is a system problem that prevents accurate retrieval of
-/// the current process ID, a pointer to a default "scratch" storage space will
-/// be returned instead of the pointer to the current process's storage.
+/// the current task ID, a pointer to a default "scratch" storage space will
+/// be returned instead of the pointer to the current task's storage.
 int* errno_(void) {
-  ProcessId currentProcessId = getRunningProcessId();
-  if (currentProcessId > NANO_OS_NUM_PROCESSES) {
+  TaskId currentTaskId = getRunningTaskId();
+  if (currentTaskId > NANO_OS_NUM_TASKS) {
     // This isn't valid.  This shouldn't happen but that doesn't mean it won't.
     // Use the last index of the array as scratch storage.  This will prevent
     // a segfault as would happen if we returned NULL.
-    currentProcessId = NANO_OS_NUM_PROCESSES;
+    currentTaskId = NANO_OS_NUM_TASKS;
   }
   
-  return &processErrorNumbers[currentProcessId];
+  return &taskErrorNumbers[currentTaskId];
 }
 

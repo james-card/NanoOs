@@ -36,7 +36,7 @@
 #include "ExFatFilesystem.h"
 #include "NanoOs.h"
 #include "NanoOsTypes.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "../user/NanoOsLibC.h"
 
 // Must come last
@@ -1277,7 +1277,7 @@ static int searchDirectory(
     uint32_t entriesPerCluster =
       entriesPerSector * driverState->sectorsPerCluster;
 
-    // Process entries in this cluster
+    // Task entries in this cluster
     for (uint32_t entryIndex = 0; entryIndex < entriesPerCluster;
          entryIndex++) {
       // Calculate sector and offset for this entry

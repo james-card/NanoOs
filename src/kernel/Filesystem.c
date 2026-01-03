@@ -10,7 +10,7 @@
 #include "../user/NanoOsStdio.h"
 #include "Filesystem.h"
 #include "NanoOs.h"
-#include "Processes.h"
+#include "Tasks.h"
 
 // Partition table constants
 #define PARTITION_TABLE_OFFSET 0x1BE
@@ -29,7 +29,7 @@
 /// @brief Get information about the partition for the provided filesystem.
 ///
 /// @param fs Pointer to the filesystem state structure maintained by the
-///   filesystem process.
+///   filesystem task.
 ///
 /// @return Returns 0 on success, negative error code on failure.
 int getPartitionInfo(FilesystemState *fs) {
@@ -97,12 +97,12 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
     return NULL;
   }
 
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_OPEN_FILE,
+  TaskMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_OPEN_FILE,
     (intptr_t) mode, (intptr_t) pathname, true);
-  processMessageWaitForDone(msg, NULL);
+  taskMessageWaitForDone(msg, NULL);
   FILE *file = nanoOsMessageDataPointer(msg, FILE*);
-  processMessageRelease(msg);
+  taskMessageRelease(msg);
   return file;
 }
 
@@ -121,17 +121,17 @@ int filesystemFClose(FILE *stream) {
     fcloseParameters.stream = stream;
     fcloseParameters.returnValue = 0;
 
-    ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_CLOSE_FILE,
+    TaskMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_CLOSE_FILE,
       0, (intptr_t) &fcloseParameters, true);
-    processMessageWaitForDone(msg, NULL);
+    taskMessageWaitForDone(msg, NULL);
 
     if (fcloseParameters.returnValue != 0) {
       errno = -fcloseParameters.returnValue;
       returnValue = EOF;
     }
 
-    processMessageRelease(msg);
+    taskMessageRelease(msg);
   }
 
   return returnValue;
@@ -149,18 +149,18 @@ int filesystemFClose(FILE *stream) {
 int filesystemRemove(const char *pathname) {
   int returnValue = 0;
   if ((pathname != NULL) && (*pathname != '\0')) {
-    ProcessMessage *msg = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+    TaskMessage *msg = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_REMOVE_FILE,
       /* func= */ 0, (intptr_t) pathname, true);
-    processMessageWaitForDone(msg, NULL);
+    taskMessageWaitForDone(msg, NULL);
     returnValue = nanoOsMessageDataValue(msg, int);
     if (returnValue != 0) {
-      // returnValue holds a negative errno.  Set errno for the current process
+      // returnValue holds a negative errno.  Set errno for the current task
       // and return -1 like we're supposed to.
       errno = -returnValue;
       returnValue = -1;
     }
-    processMessageRelease(msg);
+    taskMessageRelease(msg);
   }
   return returnValue;
 }
@@ -187,12 +187,12 @@ int filesystemFSeek(FILE *stream, long offset, int whence) {
     .offset = offset,
     .whence = whence,
   };
-  ProcessMessage *msg = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID, FILESYSTEM_REMOVE_FILE,
+  TaskMessage *msg = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_REMOVE_FILE,
     /* func= */ 0, (intptr_t) &filesystemSeekParameters, true);
-  processMessageWaitForDone(msg, NULL);
+  taskMessageWaitForDone(msg, NULL);
   int returnValue = nanoOsMessageDataValue(msg, int);
-  processMessageRelease(msg);
+  taskMessageRelease(msg);
   return returnValue;
 }
 
@@ -223,7 +223,7 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   };
 
   printDebugString(__func__);
-  printDebugString(": Sending message to filesystem process to read ");
+  printDebugString(": Sending message to filesystem task to read ");
   printDebugInt(nmemb);
   printDebugString(" elements ");
   printDebugInt(size);
@@ -233,15 +233,15 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   printDebugHex((uintptr_t) ptr);
   printDebugString("\n");
 
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_TASK_ID,
     FILESYSTEM_READ_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &filesystemIoCommandParameters,
     true);
-  processMessageWaitForDone(processMessage, NULL);
+  taskMessageWaitForDone(taskMessage, NULL);
   returnValue = (filesystemIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
 
   printDebugString(__func__);
   printDebugString(": Returning ");
@@ -281,15 +281,15 @@ size_t filesystemFWrite(
     .buffer = (void*) ptr,
     .length = (uint32_t) (size * nmemb)
   };
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_FILESYSTEM_PROCESS_ID,
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    NANO_OS_FILESYSTEM_TASK_ID,
     FILESYSTEM_WRITE_FILE,
     /* func= */ 0,
     /* data= */ (intptr_t) &filesystemIoCommandParameters,
     true);
-  processMessageWaitForDone(processMessage, NULL);
+  taskMessageWaitForDone(taskMessage, NULL);
   returnValue = (filesystemIoCommandParameters.length / size);
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
 
   return returnValue;
 }

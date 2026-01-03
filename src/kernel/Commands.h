@@ -53,7 +53,7 @@ extern "C"
 const CommandEntry* getCommandEntryFromInput(char *consoleInput);
 int handleCommand(int consolePort, char *consoleInput);
 
-// Exported processes
+// Exported tasks
 void* runShell(void *args);
 
 #ifdef __cplusplus

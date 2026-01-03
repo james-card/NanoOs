@@ -10,7 +10,7 @@ My first priority was getting a system that would support multiple concurrent pr
 
 ## Environmental Considerations
 
-Stacks for the processes have to be tiny.  In the current implementation, each process has a 720-byte stack configured for it on hardware.  The first version was written for the Arduino Nano Every which has an 8-bit processor.  In that version stacks were only 32 bytes in size.  The increased data width of the stack required a significant increase to the stack size.
+Stacks for the processes have to be tiny.  In the current implementation, each process has a 720-byte stack configured for it on hardware.  The first version was written for the Arduino Nano Every which has an 8-bit processor.  In that version stacks were only 320 bytes in size.  The increased data width of the stack required a significant increase to the stack size.
 
 The Coroutines library works by segmenting the main stack.  Coroutines are allocated by putting a Coroutine object at the top of each process's stack, so the total size consumed between processes is larger than the size of the stack that's configured.  There's also some additional space allocated due to the way the requested amount of space is broken into chunks.  As of the time of this writing (30-Nov-2025), the stack plus Coroutine object size is 808 bytes when a 720-byte stack is specified.  With this configuration, in 32 KB of RAM and an 8 KB overlay, NanoOs can support 9 processes.  However, some kernel processes are configured to use two conjoined stacks.
 
@@ -18,7 +18,7 @@ The Coroutines library works by segmenting the main stack.  Coroutines are alloc
 
 NanoOs is a nanokernel architecture.  There is no distinction between user space and kernel space; everything is kernel space.  There's no way to have any kind of memory protection in this kind of environment.
 
-Processes in NanoOs use cooperative multitasking.  That means that each process runs until it either needs something from another process or it's done with its current work.  Preemptive multitasking is not feasible with the current libraries and hardware.
+Kernel processes in NanoOs use cooperative multitasking.  The justification for this was two-fold:  (1) It's assumed that only the kernel process knows when it's safe to yield and (2) cooperative multitasking is generally more performant than preemptive multitasking.  User processes are hybrids between cooperative and preemptive.  Strictly speaking, they are designed to be cooperative tasks.  However, on systems where a hardware timer is available, they are preempted if they run too long without yielding.  This prevents a badly-behaving process from hanging the entire system just because it doesn't yield properly.
 
 ## Processes
 
@@ -64,7 +64,7 @@ When the shells are started, they are unowned.  When a user logs in, the user ta
 
 ## Message Passing
 
-NanoOs processes are coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All kernel processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
+NanoOs processes are "tasks" built on top of coroutines.  As such, they use the primitives defined in the Coroutines library.  This includes using the library's message passing infrastructure to send and receive messages among them.  All kernel processes have well-known process IDs and handle incoming messages at least once for every iteration of their main loop.
 
 When a user process needs something from one of the kernel processes, it prepares and sends a command message to the process.  If the command is asynchronous, the user process can immediately return to its other work.  If the command is synchronous, the user process can block waiting for a response from the kernel process.  All system operations are handled this way.
 
