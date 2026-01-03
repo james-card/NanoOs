@@ -607,6 +607,8 @@ int arduinoNano33IotInitTimer(int timer) {
   NVIC_SetPriority(hwTimer->irqType, 0);
   NVIC_EnableIRQ(hwTimer->irqType);
   
+  hwTimer->initialized = true;
+  
   return 0;
 }
 
@@ -615,6 +617,11 @@ int arduinoNano33IotConfigTimer(int timer,
 ) {
   if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (!hwTimer->initialized) {
+    return -EINVAL;
   }
   
   // Cancel any existing timer
@@ -658,7 +665,6 @@ int arduinoNano33IotConfigTimer(int timer,
     }
   }
   
-  HardwareTimer *hwTimer = &hardwareTimers[timer];
   hwTimer->callback = callback;
   hwTimer->active = true;
   
@@ -691,7 +697,12 @@ bool arduinoNano33IotIsTimerActive(int timer) {
     return false;
   }
   
-  return hardwareTimers[timer].active;
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (!hwTimer->initialized) {
+    return false;
+  }
+  
+  return hwTimer->active;
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
@@ -700,7 +711,9 @@ int arduinoNano33IotCancelTimer(int timer) {
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
-  if (!hwTimer->active) {
+  if (!hwTimer->initialized) {
+    return -EINVAL;
+  } else if (!hwTimer->active) {
     // Not an error but nothing to do.
     return 0;
   }
