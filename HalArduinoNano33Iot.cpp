@@ -698,11 +698,7 @@ bool arduinoNano33IotIsTimerActive(int timer) {
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
-  if (!hwTimer->initialized) {
-    return false;
-  }
-  
-  return hwTimer->active;
+  return (hwTimer->initialized) && (hwTimer->active);
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
