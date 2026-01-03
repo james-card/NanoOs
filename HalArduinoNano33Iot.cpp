@@ -548,6 +548,11 @@ static HardwareTimer hardwareTimers[] = {
   },
 };
 
+/// @var _numTimers
+///
+/// @brief The number of timers returned by arduinoNano33IotGetNumTimers.  This
+/// is initialized to the number of timers supported, but may be overridden by
+/// a call to arduinoNano33IotSetNumTimers.
 static int _numTimers
   = sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
 
