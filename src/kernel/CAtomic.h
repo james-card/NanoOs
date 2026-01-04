@@ -509,6 +509,7 @@ inline void atomic_flag_clear_explicit(volatile atomic_flag* object,
 
 #define _Atomic(type) type
 #define atomic_load(pointer) *(pointer)
+#define atomic_store(pointer, value) *(pointer) = value
 static inline bool atomic_compare_exchange_strong(
   volatile void **ptr, void **expected, void *desired
 ) {
