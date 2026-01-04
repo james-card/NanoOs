@@ -577,6 +577,10 @@ int arduinoNano33IotInitTimer(int timer) {
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (hwTimer->initialized) {
+    // Nothing to do
+    return 0;
+  }
   
   // Enable GCLK for the TC timer (48MHz)
   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN |
