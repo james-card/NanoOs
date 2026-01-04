@@ -697,7 +697,7 @@ int arduinoNano33IotConfigTimer(int timer,
 }
 
 uint64_t arduinoNano33IotConfiguredTimerNanoseconds(int timer) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return 0;
   }
   
@@ -710,7 +710,7 @@ uint64_t arduinoNano33IotConfiguredTimerNanoseconds(int timer) {
 }
 
 uint64_t arduinoNano33IotRemainingTimerNanoseconds(int timer) {
-  if (timer >= _numTimers) {
+  if ((timer < 0) || (timer >= _numTimers)) {
     return 0;
   }
   
@@ -746,6 +746,50 @@ int arduinoNano33IotCancelTimer(int timer) {
   
   // Clear interrupt flag
   hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  hwTimer->active = false;
+  hwTimer->startTime = 0;
+  hwTimer->deadline = 0;
+  hwTimer->callback = nullptr;
+  
+  return 0;
+}
+
+int arduinoNano33IotCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void)
+) {
+  if ((timer < 0) || (timer >= _numTimers)) {
+    return -ERANGE;
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if ((!hwTimer->initialized) || (!hwTimer->active)
+    || (remainingNanoseconds == NULL) || (callback == NULL)
+  ) {
+    // We cannot populate the provided pointers, so we will error here.  This
+    // also signals to the caller that there's no need to call configTimer
+    // later.
+    return -EINVAL;
+  }
+  
+  // ***DO NOT*** call arduinoNano33IotCancelTimer.  It's expected that this
+  // function is in the critical path.  Time is of the essence, so inline the
+  // logic.
+  
+  // Disable timer
+  hwTimer->tc->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Clear interrupt flag
+  hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  // Don't call arduinoNano33IotGetElapsedNanoseconds, just compute directly.
+  int64_t now = micros() * 1000;
+  if (now < hwTimer->deadline) {
+    *remainingNanoseconds = hwTimer->deadline - now;
+  }
+  
+  *callback = hwTimer->callback;
   
   hwTimer->active = false;
   hwTimer->startTime = 0;
@@ -870,6 +914,7 @@ static Hal arduinoNano33IotHal = {
   .configuredTimerNanoseconds = arduinoNano33IotConfiguredTimerNanoseconds,
   .remainingTimerNanoseconds = arduinoNano33IotRemainingTimerNanoseconds,
   .cancelTimer = arduinoNano33IotCancelTimer,
+  .cancelAndGetTimer = arduinoNano33IotCancelAndGetTimer,
 };
 
 const Hal* halArduinoNano33IotInit(void) {

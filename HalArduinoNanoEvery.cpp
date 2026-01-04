@@ -455,6 +455,16 @@ int arduinoNanoEveryCancelTimer(int timer) {
   return -ENOTSUP;
 }
 
+int arduinoNanoEveryCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void)
+) {
+  (void) timer;
+  (void) remainingNanoseconds;
+  (void) callback;
+  
+  return -ENOTSUP;
+}
+
 /// @var arduinoNanoEveryHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
@@ -505,6 +515,7 @@ static Hal arduinoNanoEveryHal = {
   .configuredTimerNanoseconds = arduinoNanoEveryConfiguredTimerNanoseconds,
   .remainingTimerNanoseconds = arduinoNanoEveryRemainingTimerNanoseconds,
   .cancelTimer = arduinoNanoEveryCancelTimer,
+  .cancelAndGetTimer = arduinoNanoEveryCancelAndGetTimer,
 };
 
 const Hal* halArduinoNanoEveryInit(void) {
