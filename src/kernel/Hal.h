@@ -381,6 +381,23 @@ typedef struct Hal {
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*cancelTimer)(int timer);
+  
+  /// @fn int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+  ///   void (**callback)(void))
+  ///
+  /// @brief Cancel a timer and get its configuration.  It's expected that this
+  /// is to be called in order to make sure that an operation is atomic and
+  /// that the caller will call configTimer after doing its work.
+  ///
+  /// @param timer The zero-based index of the timer to cancel and retrieve.
+  /// @param remainingNanoseconds A pointer to a uint64_t that will hold the
+  ///   number of nanoseconds remaining for the timer, if any.
+  /// @param callback A pointer to a callback function pointer that will be
+  ///   populated with the callback that the timer was going to call, if any.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void));
 } Hal;
 
 extern const Hal *HAL;
