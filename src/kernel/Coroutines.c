@@ -2185,7 +2185,7 @@ bool coroutineDeadlocked(Coroutine *coroutine) {
   while ((coroutineState(coroutine) == COROUTINE_STATE_WAIT)
     && (coroutine->blockingComutex != NULL)
   ) {
-    coroutine = coroutine->blockingComutex->coroutine;
+    coroutine = atomic_load(&coroutine->blockingComutex->coroutine);
     if (coroutine == initialCoroutine) {
       returnValue = true;
       break;
