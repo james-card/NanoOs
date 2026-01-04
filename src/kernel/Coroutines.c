@@ -1523,7 +1523,7 @@ int comutexInit(Comutex *mtx, int type) {
   if (mtx != NULL) {
     mtx->lastYieldValue = NULL;
     mtx->type = type;
-    atomic_store(&mtx->coroutine, NULL);
+    atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     mtx->recursionLevel = 0;
     mtx->head = NULL;
     mtx->timeoutTime = 0;
@@ -1653,7 +1653,7 @@ int comutexUnlock(Comutex *mtx) {
         comutexUnlockCallback(stateData, mtx);
       }
 
-      atomic_store(&mtx->coroutine, NULL);
+      atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     }
   } else {
     returnValue = coroutineError;
@@ -1673,7 +1673,7 @@ void comutexDestroy(Comutex *mtx) {
   if (mtx != NULL) {
     mtx->lastYieldValue = NULL;
     mtx->type = 0;
-    atomic_store(&mtx->coroutine, NULL);
+    atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     mtx->recursionLevel = 0;
     mtx->head = NULL;
     mtx->timeoutTime = 0;
