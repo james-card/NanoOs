@@ -355,16 +355,14 @@ typedef struct Hal {
   int (*configTimer)(int timer,
     uint64_t nanoseconds, void (*callback)(void));
   
-  /// @fn bool isTimerActive(int timer)
+  /// @fn uint64_t remainingTimerNanoseconds(int timer)
   ///
-  /// @brief Determine whether a given hardware timer is currently configured
-  /// and set to fire.
+  /// @brief Get the remaining number of nanoseconds before a timer fires.
   ///
   /// @param timer The zero-based index of the timer to interrogate.
   ///
-  /// @return Returns true if the specified timer is currently configured,
-  /// false if not.
-  bool (*isTimerActive)(int timer);
+  /// @return Returns the number of nanoseconds remaining for a timer.
+  uint64_t (*remainingTimerNanoseconds)(int timer);
   
   /// @fn int cancelTimer(int timer)
   ///

@@ -517,13 +517,22 @@ int posixConfigTimer(int timer,
   return -ENOTSUP;
 }
 
-bool posixIsTimerActive(int timer) {
+uint64_t posixRemainingTimerNanoseconds(int timer) {
   if (timer >= _numTimers) {
-    return false;
+    return 0;
   }
   
   SoftwareTimer *swTimer = &softwareTimers[timer];
-  return (swTimer->initialized) && (swTimer->active);
+  if ((!swTimer->initialized) || (!swTimer->active)) {
+    return 0;
+  }
+  
+  int64_t now = posixGetElapsedNanoseconds(0);
+  if (now > swTimer->deadline) {
+    return 0;
+  }
+  
+  return swTimer->deadline - now;
 }
 
 int posixCancelTimer(int timer) {
@@ -598,7 +607,7 @@ static Hal posixHal = {
   .setNumTimers = posixSetNumTimers,
   .initTimer = posixInitTimer,
   .configTimer = posixConfigTimer,
-  .isTimerActive = posixIsTimerActive,
+  .remainingTimerNanoseconds = posixRemainingTimerNanoseconds,
   .cancelTimer = posixCancelTimer,
 };
 

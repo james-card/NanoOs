@@ -696,13 +696,22 @@ int arduinoNano33IotConfigTimer(int timer,
   return 0;
 }
 
-bool arduinoNano33IotIsTimerActive(int timer) {
-  if ((timer < 0) || (timer >= _numTimers)) {
-    return false;
+uint64_t arduinoNano33IoTRemainingTimerNanoseconds(int timer) {
+  if (timer >= _numTimers) {
+    return 0;
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
-  return (hwTimer->initialized) && (hwTimer->active);
+  if ((!hwTimer->initialized) || (!hwTimer->active)) {
+    return 0;
+  }
+  
+  int64_t now = arduinoNano33IotGetElapsedNanoseconds(0);
+  if (now > hwTimer->deadline) {
+    return 0;
+  }
+  
+  return hwTimer->deadline - now;
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
@@ -845,7 +854,7 @@ static Hal arduinoNano33IotHal = {
   .setNumTimers = arduinoNano33IotSetNumTimers,
   .initTimer = arduinoNano33IotInitTimer,
   .configTimer = arduinoNano33IotConfigTimer,
-  .isTimerActive = arduinoNano33IotIsTimerActive,
+  .remainingTimerNanoseconds = arduinoNano33IoTRemainingTimerNanoseconds,
   .cancelTimer = arduinoNano33IotCancelTimer,
 };
 
