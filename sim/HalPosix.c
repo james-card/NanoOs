@@ -411,6 +411,21 @@ void timer0SignalHandler(int signal) {
   timerSignalHandler(0);
 }
 
+/// @fn void timer1SignalHandler(int signal)
+///
+/// @brief signal-compliant function to handle a signal serving as a timer
+/// interrupt callback.
+///
+/// @param signal Integer value of the signal being raised.  Always SIGUSR2 in
+///   this case.  The parameter is ignored by this function.
+///
+/// @return This function returns no value but invokes timerSignalHandler for
+/// timer 1.
+void timer1SignalHandler(int signal) {
+  (void) signal; // We know this is SIGUSR2, so no need to check it.
+  timerSignalHandler(1);
+}
+
 /// @var softwareTimers
 ///
 /// @brief Array of SoftwareTimer objects managed by the HAL.
@@ -419,6 +434,16 @@ SoftwareTimer softwareTimers[] = {
     .timerThread = 0,
     .signal = SIGUSR1,
     .signalHandler = timer0SignalHandler,
+    .initialized = false,
+    .callback = NULL,
+    .active = false,
+    .startTime = 0,
+    .deadline = 0,
+  },
+  {
+    .timerThread = 1,
+    .signal = SIGUSR2,
+    .signalHandler = timer1SignalHandler,
     .initialized = false,
     .callback = NULL,
     .active = false,
