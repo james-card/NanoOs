@@ -458,6 +458,12 @@ int posixInitTimer(int timer) {
   }
   
   SoftwareTimer *swTimer = &softwareTimers[timer];
+  if (swTimer->initialized) {
+    // Nothing to do
+    return 0;
+  }
+  
+  signal(swTimer->signal, swTimer->signalHandler);
   swTimer->initialized = true;
   
   return 0;
@@ -617,10 +623,6 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   fprintf(stderr, "\n");
   
   _mainThreadId = pthread_self();
-  int numTimers = sizeof(softwareTimers) / sizeof(softwareTimers[0]);
-  for (int ii = 0; ii < numTimers; ii++) {
-    signal(softwareTimers[ii].signal, softwareTimers[ii].signalHandler);
-  }
   
   return &posixHal;
 }
