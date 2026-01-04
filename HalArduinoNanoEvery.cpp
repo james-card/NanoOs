@@ -437,6 +437,12 @@ int arduinoNanoEveryConfigTimer(int timer,
   return -ENOTSUP;
 }
 
+uint64_t arduinoNanoEveryConfiguredTimerNanoseconds(int timer) {
+  (void) timer;
+  
+  return 0;
+}
+
 uint64_t arduinoNanoEveryRemainingTimerNanoseconds(int timer) {
   (void) timer;
   
@@ -496,6 +502,7 @@ static Hal arduinoNanoEveryHal = {
   .setNumTimers = arduinoNanoEverySetNumTimers,
   .initTimer = arduinoNanoEveryInitTimer,
   .configTimer = arduinoNanoEveryConfigTimer,
+  .configuredTimerNanoseconds = arduinoNanoEveryConfiguredTimerNanoseconds,
   .remainingTimerNanoseconds = arduinoNanoEveryRemainingTimerNanoseconds,
   .cancelTimer = arduinoNanoEveryCancelTimer,
 };

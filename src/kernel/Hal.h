@@ -355,6 +355,15 @@ typedef struct Hal {
   int (*configTimer)(int timer,
     uint64_t nanoseconds, void (*callback)(void));
   
+  /// @fn uint64_t configuredTimerNanoseconds(int timer)
+  ///
+  /// @brief Get the number of nanoseconds a timer is configured to wait.
+  ///
+  /// @param timer The zero-based index of the timer to interrogate.
+  ///
+  /// @return Returns the number of nanoseconds configured for a timer.
+  uint64_t (*configuredTimerNanoseconds)(int timer);
+  
   /// @fn uint64_t remainingTimerNanoseconds(int timer)
   ///
   /// @brief Get the remaining number of nanoseconds before a timer fires.
