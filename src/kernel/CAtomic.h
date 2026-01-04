@@ -505,6 +505,8 @@ inline void atomic_flag_clear_explicit(volatile atomic_flag* object,
 
 #if !C11_ATOMIC_OK
 
+#if defined(__GNUC__) || defined(__clang__)
+
 /*
  * Non-atomic implementations of C11 stdatomic.h for backward compatibility
  * with compilers that don't support C11 atomics.
@@ -731,6 +733,12 @@ static inline void atomic_signal_fence(memory_order order) {
 #endif
 
 #warning "Using non-atomic compatibility layer for stdatomic.h - NOT THREAD-SAFE!"
+
+#else // defined(__GNUC__) || defined(__clang__)
+
+#warning "No compatibility with C11 atomics is possible."
+
+#endif // defined(__GNUC__) || defined(__clang__)
 
 #endif // !C11_ATOMIC_OK
 
