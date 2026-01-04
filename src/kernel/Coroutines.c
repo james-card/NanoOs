@@ -1793,7 +1793,7 @@ int comutexTryLock(Comutex *mtx) {
   }
 #endif
 
-  Coroutine* running = getRunningCoroutine();
+  Coroutine *running = getRunningCoroutine();
   if (running == NULL) {
     // running stack not setup yet.  Bail.
     return coroutineError;
@@ -1801,14 +1801,15 @@ int comutexTryLock(Comutex *mtx) {
     return coroutineBusy;
   }
 
-  if (mtx->coroutine == NULL) {
-    mtx->coroutine = running;
+  Coroutine *cur = NULL;
+  atomic_compare_exchange_strong(&mtx->coroutine, &cur, running);
+  if (cur == NULL) {
     mtx->recursionLevel = 1;
     returnValue = coroutineSuccess;
-  } else if ((mtx->coroutine == running) && (mtx->type & comutexRecursive)) {
+  } else if ((cur == running) && (mtx->type & comutexRecursive)) {
     mtx->recursionLevel++;
     returnValue = coroutineSuccess;
-  } else if (mtx->coroutine != running) {
+  } else if (cur != running) {
     returnValue = coroutineBusy;
   } // else any other situation is an error, which is the value of returnValue
 
