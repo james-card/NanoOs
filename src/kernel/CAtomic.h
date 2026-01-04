@@ -504,23 +504,233 @@ inline void atomic_flag_clear_explicit(volatile atomic_flag* object,
 #endif // HAS_CXX_ATOMIC
 
 #if !C11_ATOMIC_OK
-// There is no way for us to do anything atomic.  Just use standard variables
-// and operations.
 
-#define _Atomic(type) type
-#define atomic_load(pointer) *(pointer)
-#define atomic_store(pointer, value) *(pointer) = value
-static inline bool atomic_compare_exchange_strong(
-  volatile void **ptr, void **expected, void *desired
-) {
-  if (*ptr == *expected) {
-    *ptr = desired;
-    return true;
-  } else {
-    *expected = *ptr;
-    return false;
-  }
+/*
+ * Non-atomic implementations of C11 stdatomic.h for backward compatibility
+ * with compilers that don't support C11 atomics.
+ * 
+ * WARNING: These are NOT thread-safe implementations. They provide API
+ * compatibility only. For multi-threaded code, you must either:
+ *   1. Use a compiler with real atomic support, or
+ *   2. Wrap critical sections with your own locking mechanism
+ * 
+ * For single-threaded embedded systems, these provide the API without
+ * the overhead of atomic operations.
+ */
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Memory order enumeration (ignored in non-atomic implementation) */
+typedef enum {
+    memory_order_relaxed,
+    memory_order_consume,
+    memory_order_acquire,
+    memory_order_release,
+    memory_order_acq_rel,
+    memory_order_seq_cst
+} memory_order;
+
+/* Atomic flag type */
+typedef struct {
+    bool value;
+} atomic_flag;
+
+#define ATOMIC_FLAG_INIT { false }
+
+/* Atomic types - just wrap the regular types */
+typedef struct { bool value; } atomic_bool;
+typedef struct { char value; } atomic_char;
+typedef struct { signed char value; } atomic_schar;
+typedef struct { unsigned char value; } atomic_uchar;
+typedef struct { short value; } atomic_short;
+typedef struct { unsigned short value; } atomic_ushort;
+typedef struct { int value; } atomic_int;
+typedef struct { unsigned int value; } atomic_uint;
+typedef struct { long value; } atomic_long;
+typedef struct { unsigned long value; } atomic_ulong;
+typedef struct { long long value; } atomic_llong;
+typedef struct { unsigned long long value; } atomic_ullong;
+typedef struct { uint_least16_t value; } atomic_uint_least16_t;
+typedef struct { int_least16_t value; } atomic_int_least16_t;
+typedef struct { uint_least32_t value; } atomic_uint_least32_t;
+typedef struct { int_least32_t value; } atomic_int_least32_t;
+typedef struct { uint_least64_t value; } atomic_uint_least64_t;
+typedef struct { int_least64_t value; } atomic_int_least64_t;
+typedef struct { uint_fast16_t value; } atomic_uint_fast16_t;
+typedef struct { int_fast16_t value; } atomic_int_fast16_t;
+typedef struct { uint_fast32_t value; } atomic_uint_fast32_t;
+typedef struct { int_fast32_t value; } atomic_int_fast32_t;
+typedef struct { uint_fast64_t value; } atomic_uint_fast64_t;
+typedef struct { int_fast64_t value; } atomic_int_fast64_t;
+typedef struct { intptr_t value; } atomic_intptr_t;
+typedef struct { uintptr_t value; } atomic_uintptr_t;
+typedef struct { size_t value; } atomic_size_t;
+typedef struct { ptrdiff_t value; } atomic_ptrdiff_t;
+typedef struct { intmax_t value; } atomic_intmax_t;
+typedef struct { uintmax_t value; } atomic_uintmax_t;
+
+/* Generic atomic type pointer (for compatibility) */
+#define _Atomic(T) struct { T value; }
+
+/* Initialization macros */
+#define ATOMIC_VAR_INIT(value) { (value) }
+
+/* Atomic flag operations */
+static inline bool atomic_flag_test_and_set(volatile atomic_flag *obj) {
+    bool old = obj->value;
+    obj->value = true;
+    return old;
 }
+
+static inline bool atomic_flag_test_and_set_explicit(volatile atomic_flag *obj, 
+                                                      memory_order order) {
+    (void)order;
+    return atomic_flag_test_and_set(obj);
+}
+
+static inline void atomic_flag_clear(volatile atomic_flag *obj) {
+    obj->value = false;
+}
+
+static inline void atomic_flag_clear_explicit(volatile atomic_flag *obj, 
+                                               memory_order order) {
+    (void)order;
+    atomic_flag_clear(obj);
+}
+
+/* Generic atomic operations - macros for type-generic interface */
+#define atomic_init(obj, value) ((obj)->value = (value))
+
+#define atomic_store(obj, desired) \
+    ((obj)->value = (desired))
+
+#define atomic_store_explicit(obj, desired, order) \
+    ((void)(order), atomic_store(obj, desired))
+
+#define atomic_load(obj) \
+    ((obj)->value)
+
+#define atomic_load_explicit(obj, order) \
+    ((void)(order), atomic_load(obj))
+
+#define atomic_exchange(obj, desired) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value = (desired); \
+    __old; \
+})
+
+#define atomic_exchange_explicit(obj, desired, order) \
+    ((void)(order), atomic_exchange(obj, desired))
+
+#define atomic_compare_exchange_strong(obj, expected, desired) ({ \
+    bool __success = false; \
+    if ((obj)->value == *(expected)) { \
+        (obj)->value = (desired); \
+        __success = true; \
+    } else { \
+        *(expected) = (obj)->value; \
+    } \
+    __success; \
+})
+
+#define atomic_compare_exchange_strong_explicit(obj, expected, desired, succ, fail) \
+    ((void)(succ), (void)(fail), atomic_compare_exchange_strong(obj, expected, desired))
+
+#define atomic_compare_exchange_weak(obj, expected, desired) \
+    atomic_compare_exchange_strong(obj, expected, desired)
+
+#define atomic_compare_exchange_weak_explicit(obj, expected, desired, succ, fail) \
+    atomic_compare_exchange_strong_explicit(obj, expected, desired, succ, fail)
+
+/* Arithmetic operations */
+#define atomic_fetch_add(obj, arg) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value += (arg); \
+    __old; \
+})
+
+#define atomic_fetch_add_explicit(obj, arg, order) \
+    ((void)(order), atomic_fetch_add(obj, arg))
+
+#define atomic_fetch_sub(obj, arg) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value -= (arg); \
+    __old; \
+})
+
+#define atomic_fetch_sub_explicit(obj, arg, order) \
+    ((void)(order), atomic_fetch_sub(obj, arg))
+
+#define atomic_fetch_or(obj, arg) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value |= (arg); \
+    __old; \
+})
+
+#define atomic_fetch_or_explicit(obj, arg, order) \
+    ((void)(order), atomic_fetch_or(obj, arg))
+
+#define atomic_fetch_xor(obj, arg) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value ^= (arg); \
+    __old; \
+})
+
+#define atomic_fetch_xor_explicit(obj, arg, order) \
+    ((void)(order), atomic_fetch_xor(obj, arg))
+
+#define atomic_fetch_and(obj, arg) ({ \
+    __typeof__((obj)->value) __old = (obj)->value; \
+    (obj)->value &= (arg); \
+    __old; \
+})
+
+#define atomic_fetch_and_explicit(obj, arg, order) \
+    ((void)(order), atomic_fetch_and(obj, arg))
+
+/* Fence operations (no-ops in non-atomic implementation) */
+static inline void atomic_thread_fence(memory_order order) {
+    (void)order;
+    /* In a real implementation, this would be a memory barrier */
+    /* For embedded single-core systems, might not need anything */
+    /* For multi-threaded, you would need compiler barriers at minimum */
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__ __volatile__ ("" ::: "memory");  /* Compiler barrier */
+#endif
+}
+
+static inline void atomic_signal_fence(memory_order order) {
+    (void)order;
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__ __volatile__ ("" ::: "memory");  /* Compiler barrier */
+#endif
+}
+
+/* Lock-free property queries (always false in non-atomic implementation) */
+#define atomic_is_lock_free(obj) false
+
+#define ATOMIC_BOOL_LOCK_FREE 0
+#define ATOMIC_CHAR_LOCK_FREE 0
+#define ATOMIC_CHAR16_T_LOCK_FREE 0
+#define ATOMIC_CHAR32_T_LOCK_FREE 0
+#define ATOMIC_WCHAR_T_LOCK_FREE 0
+#define ATOMIC_SHORT_LOCK_FREE 0
+#define ATOMIC_INT_LOCK_FREE 0
+#define ATOMIC_LONG_LOCK_FREE 0
+#define ATOMIC_LLONG_LOCK_FREE 0
+#define ATOMIC_POINTER_LOCK_FREE 0
+
+#ifdef __cplusplus
+}
+#endif
+
+#warning "Using non-atomic compatibility layer for stdatomic.h - NOT THREAD-SAFE!"
 
 #endif // !C11_ATOMIC_OK
 
