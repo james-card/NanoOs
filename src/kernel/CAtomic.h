@@ -36,12 +36,32 @@
 #ifndef C_ATOMIC_H
 #define C_ATOMIC_H
 
+// Note on the below include:  For some reason, the AVR version of GCC has the
+// stdatomic.h header, but the standard library is missing the functionality
+// needed for atomics.  So, we have to exclude it from the list here.
 #if (defined __STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) \
-  && (__STDC_NO_ATOMICS__ != 1)
+  && (__STDC_NO_ATOMICS__ != 1) && !defined(__AVR__)
 
 #include "stdatomic.h"
+#define C11_ATOMIC_OK 1
 
 #elif defined(__cplusplus)
+
+#if defined(__has_include)
+  #if __has_include(<atomic>)
+    #define HAS_CXX_ATOMIC 1
+  #else
+    #define HAS_CXX_ATOMIC 0
+  #endif
+#elif __cplusplus >= 201103L
+  #define HAS_CXX_ATOMIC 1
+#else
+  #define HAS_CXX_ATOMIC 0
+#endif
+
+#endif // __cplusplus
+
+#if !C11_ATOMIC_OK && HAS_CXX_ATOMIC
 
 #include <atomic>
 #include <cstddef>
@@ -479,7 +499,18 @@ inline void atomic_flag_clear_explicit(volatile atomic_flag* object,
 #define memory_order_acq_rel std::memory_order_acq_rel
 #define memory_order_seq_cst std::memory_order_seq_cst
 
-#endif // __cplusplus
+#define C11_ATOMIC_OK 1
+
+#endif // HAS_CXX_ATOMIC
+
+#if !C11_ATOMIC_OK
+// There is no way for us to do anything atomic.  Just use standard variables
+// and operations.
+
+#define _Atomic(type) type
+#define atomic_load(pointer) *(pointer)
+
+#endif // !C11_ATOMIC_OK
 
 #endif // C_ATOMIC_H
 
