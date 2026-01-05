@@ -39,8 +39,7 @@
 // Note on the below include:  For some reason, the AVR version of GCC has the
 // stdatomic.h header, but the standard library is missing the functionality
 // needed for atomics.  So, we have to exclude it from the list here.
-#if (defined __STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) \
-  && (__STDC_NO_ATOMICS__ != 1) && !defined(__AVR__)
+#if (__STDC_VERSION__ >= 201112L) && (__STDC_NO_ATOMICS__ != 1)
 
 #include "stdatomic.h"
 #define C11_ATOMIC_OK 1
