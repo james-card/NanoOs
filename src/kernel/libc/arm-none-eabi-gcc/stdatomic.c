@@ -37,5 +37,26 @@
 
 #if defined(__arm__)
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+bool __atomic_compare_exchange_4(
+  uint32_t *mptr, uint32_t *eptr, uint32_t newval, int smodel, int fmodel
+) {
+  (void) smodel;
+  (void) fmodel;
+  
+  bool success = false;
+  if (*mptr == *eptr) {
+    *mptr = newval;
+    success = true;
+  } else {
+    *eptr = *mptr;
+  }
+  
+  return success;
+}
+
 #endif // defined(__arm__)
 
