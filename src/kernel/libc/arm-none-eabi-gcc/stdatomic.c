@@ -41,11 +41,19 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "../../Hal.h"
+#include "../../Scheduler.h"
+
 bool __atomic_compare_exchange_4(
   uint32_t *mptr, uint32_t *eptr, uint32_t newval, int smodel, int fmodel
 ) {
   (void) smodel;
   (void) fmodel;
+  
+  uint64_t remainingNanoseconds;
+  void (*callback)(void);
+  int cancelStatus = HAL->cancelAndGetTimer(
+    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
   
   bool success = false;
   if (*mptr == *eptr) {
@@ -53,6 +61,11 @@ bool __atomic_compare_exchange_4(
     success = true;
   } else {
     *eptr = *mptr;
+  }
+  
+  if (cancelStatus == 0) {
+    // A timer was active when we were called.  Restore it.
+    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
   }
   
   return success;
