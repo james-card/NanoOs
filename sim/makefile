@@ -32,6 +32,7 @@ CFLAGS := $(CPU) -std=gnu17
 LINKS := \
 
 INCLUDES := \
+    -Ihal \
     -Ikernel \
     -Iuser \
 
@@ -42,6 +43,7 @@ WARNINGS := \
     -Werror \
 
 COMPONENTS := \
+    ../src/hal \
     ../src/kernel \
     ../src/user \
 
@@ -56,6 +58,7 @@ OS_OBJECTS := \
     $(OBJ_DIR)/ExFatFilesystem.o \
     $(OBJ_DIR)/ExFatTask.o \
     $(OBJ_DIR)/Filesystem.o \
+    $(OBJ_DIR)/HalPosix.o \
     $(OBJ_DIR)/Link.o \
     $(OBJ_DIR)/MemoryManager.o \
     $(OBJ_DIR)/Messages.o \
@@ -72,7 +75,6 @@ OS_OBJECTS := \
     $(OBJ_DIR)/NanoOsUnistd.o \
 
 SIM_OBJECTS := \
-    $(OBJ_DIR)/HalPosix.o \
     $(OBJ_DIR)/NanoOsSim.o \
     $(OBJ_DIR)/SdCardPosix.o \
 

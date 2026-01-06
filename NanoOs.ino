@@ -26,8 +26,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Custom includes
-#include "HalArduinoNano33Iot.h"
-#include "HalArduinoNanoEvery.h"
+#include "src/hal/HalArduinoNano33Iot.h"
+#include "src/hal/HalArduinoNanoEvery.h"
 #include "src/kernel/NanoOs.h"
 #include "src/kernel/Scheduler.h"
 #include "src/kernel/SdCardSpi.h"

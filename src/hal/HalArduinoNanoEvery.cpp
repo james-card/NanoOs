@@ -29,6 +29,8 @@
 ///
 /// @brief HAL implementation for an Arduino Nano Every
 
+#if defined(__AVR__)
+
 // Base Arduino definitions
 #include <Arduino.h>
 
@@ -42,12 +44,12 @@
 // Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
 // operational prior to the memory manager and really should be completely
 // independent of it.
-#include "src/kernel/ExFatTask.h"
-#include "src/kernel/NanoOs.h"
-#include "src/kernel/Tasks.h"
-#include "src/kernel/SdCardSpi.h"
-#include "src/user/NanoOsErrno.h"
-#include "src/user/NanoOsStdio.h"
+#include "../kernel/ExFatTask.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Tasks.h"
+#include "../kernel/SdCardSpi.h"
+#include "../user/NanoOsErrno.h"
+#include "../user/NanoOsStdio.h"
 
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
@@ -61,12 +63,14 @@
 // of corrupting something elsewhere in memory.  Just in case we ever forget
 // this and try to use memory management functions in the future, define them
 // all to MEMORY_ERROR so that the build will fail.
+#undef malloc
 #define malloc  MEMORY_ERROR
+#undef calloc
 #define calloc  MEMORY_ERROR
+#undef realloc
 #define realloc MEMORY_ERROR
-#define freee   MEMORY_ERROR
-
-#if defined(__AVR__)
+#undef free
+#define free   MEMORY_ERROR
 
 // Sleep configuration
 #include <avr/sleep.h>
@@ -91,7 +95,7 @@ int arduinoNanoEveryGetNumSerialPorts(void) {
 }
 
 int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
-  if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
+  if (numSerialPorts > ((int) (sizeof(serialPorts) / sizeof(serialPorts[0])))) {
     return -ERANGE;
   } else if (numSerialPorts < -ELAST) {
     return -ERANGE;

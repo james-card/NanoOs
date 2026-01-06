@@ -29,6 +29,8 @@
 ///
 /// @brief HAL implementation for a Posix simulator.
 
+#ifdef __x86_64__
+
 // Standard C includes from the compiler
 #undef errno
 #include <errno.h>
@@ -674,4 +676,6 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   
   return &posixHal;
 }
+
+#endif // __x86_64__
 
