@@ -214,7 +214,7 @@ int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int arduinoNano33IotInitSerialPort(int port, int baud) {
+int arduinoNano33IotInitSerialPort(int port, int32_t baud) {
   int returnValue = -ERANGE;
   
   if ((port >= 0) && (port < _numSerialPorts)) {

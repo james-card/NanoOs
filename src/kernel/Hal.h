@@ -104,7 +104,7 @@ typedef struct Hal {
   /// @return Returns 0 on success, -errno on failure.
   int (*setNumSerialPorts)(int numSerialPorts);
   
-  /// @fn initSerialPort(int port, int baud)
+  /// @fn initSerialPort(int port, int32_t baud)
   ///
   /// @brief Initialize a hardware serial port.
   ///
@@ -112,7 +112,7 @@ typedef struct Hal {
   /// @param baud The desired baud rate of the port.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*initSerialPort)(int port, int baud);
+  int (*initSerialPort)(int port, int32_t baud);
   
   /// @fn int pollSerialPort(int port)
   ///

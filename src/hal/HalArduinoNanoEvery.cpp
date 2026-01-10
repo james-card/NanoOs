@@ -106,7 +106,7 @@ int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int arduinoNanoEveryInitSerialPort(int port, int baud) {
+int arduinoNanoEveryInitSerialPort(int port, int32_t baud) {
   int returnValue = -ERANGE;
   
   if ((port >= 0) && (port < _numSerialPorts)) {

@@ -104,7 +104,7 @@ int posixSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int posixInitSerialPort(int port, int baud) {
+int posixInitSerialPort(int port, int32_t baud) {
   (void) baud;
   
   if (port != 0) {
