@@ -44,11 +44,12 @@
 #include "../../Hal.h"
 #include "../../Scheduler.h"
 
-bool __atomic_compare_exchange_4(
-  uint32_t *mptr, uint32_t *eptr, uint32_t newval, int smodel, int fmodel
+bool __atomic_compare_exchange_4(void *ptr, void *expected, uint32_t desired,
+  bool weak, int success_memorder, int failure_memorder
 ) {
-  (void) smodel;
-  (void) fmodel;
+  (void) weak;
+  (void) success_memorder;
+  (void) failure_memorder;
   
   uint64_t remainingNanoseconds;
   void (*callback)(void);
@@ -56,11 +57,11 @@ bool __atomic_compare_exchange_4(
     PREEMPTION_TIMER, &remainingNanoseconds, &callback);
   
   bool success = false;
-  if (*mptr == *eptr) {
-    *mptr = newval;
+  if (*((uint32_t*) ptr) == *((uint32_t*) expected)) {
+    *((uint32_t*) ptr) = desired;
     success = true;
   } else {
-    *eptr = *mptr;
+    *((uint32_t*) expected) = *((uint32_t*) ptr);
   }
   
   if (cancelStatus == 0) {
