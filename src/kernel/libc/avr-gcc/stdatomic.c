@@ -36,5 +36,74 @@
 
 #if defined(__AVR__)
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+#include "../../Hal.h"
+#include "../../Scheduler.h"
+
+bool __atomic_compare_exchange_2(void *ptr, void *expected, uint16_t desired,
+  bool weak, int success_memorder, int failure_memorder
+) {
+  (void) weak;
+  (void) success_memorder;
+  (void) failure_memorder;
+  
+  uint64_t remainingNanoseconds;
+  void (*callback)(void);
+  int cancelStatus = HAL->cancelAndGetTimer(
+    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
+  
+  bool success = false;
+  if (*((uint16_t*) ptr) == *((uint16_t*) expected)) {
+    *((uint16_t*) ptr) = desired;
+    success = true;
+  } else {
+    *((uint16_t*) expected) = *((uint16_t*) ptr);
+  }
+  
+  if (cancelStatus == 0) {
+    // A timer was active when we were called.  Restore it.
+    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
+  }
+  
+  return success;
+}
+
+void __atomic_store_2(void *ptr, uint16_t val, int memorder) {
+  (void) memorder;
+  
+  uint64_t remainingNanoseconds;
+  void (*callback)(void);
+  int cancelStatus = HAL->cancelAndGetTimer(
+    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
+  
+  *((uint16_t*) ptr) = val;
+  
+  if (cancelStatus == 0) {
+    // A timer was active when we were called.  Restore it.
+    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
+  }
+}
+
+uint16_t __atomic_load_2(const void *ptr, int memorder) {
+  (void) memorder;
+  
+  uint64_t remainingNanoseconds;
+  void (*callback)(void);
+  int cancelStatus = HAL->cancelAndGetTimer(
+    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
+  
+  uint16_t returnValue = *((uint16_t*) ptr);
+  
+  if (cancelStatus == 0) {
+    // A timer was active when we were called.  Restore it.
+    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
+  }
+  
+  return returnValue;
+}
+
 #endif // defined(__AVR__)
 
