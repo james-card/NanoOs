@@ -50,18 +50,18 @@
 #include "time.h"
 #include "stdint.h"
 
+// Forward declarations.  Doxygen below.
+typedef struct Coroutine Coroutine, coro_s, *coro_t;
+typedef struct msg_t msg_t;
+
+#include "Messages.h"
+
 #include "CoroutineSync.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-// Forward declarations.  Doxygen below.
-typedef struct Coroutine Coroutine, coro_s, *coro_t;
-typedef struct msg_t msg_t;
-
-#include "Messages.h"
 
 // Base coroutine support.
 
