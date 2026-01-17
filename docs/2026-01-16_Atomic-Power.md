@@ -18,6 +18,8 @@ So, now I have software atomicity in an environment where it's not guaranteed in
 
 Something that's fallen out of this is that my coroutine primitives are now full replacements for C's thread primitives within the context of the OS.  When I get around to it, `mtx_t` and `cnd_t` can be fully implemented by my `Comutex` and `Cocondition` constructs.  Because I based all this on C's thread model, there are 1:1 mappings for all the objects and functionality now.
 
+It's worth noting that I had to add a HAL function to do this work.  One of the reasons I started this effort was so that I could get experience in writing a fully-functional operating system.  The thing is, you don't know the best way to do things until you've done it to completion once and screwed up a bunch of times along the way.  Things like this teach me about what I need in the future if I wind up having to design all or part of an OS at a day job.  Every time I discover something like this, it's another win for this effort.
+
 So, maybe now I can finally get back to the work I was doing on overlays and userspace processes.  We'll see.
 
 To be continued...
