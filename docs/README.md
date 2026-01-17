@@ -57,3 +57,6 @@ This work started out as an experiment to see if I could implement an operating 
 [2025-11-30: "Open the Pod Bay Doors, HAL."](2025-11-30_HAL.md)
 
 [2026-01-01: Preemptive Multitasking - Take 2](2026-01-01_Preemptive-Multitasking-Take-2.md)
+
+[2026-01-16: Atomic Power](2026-01-16_Atomic-Power.md)
+
