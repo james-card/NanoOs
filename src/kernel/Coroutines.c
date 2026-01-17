@@ -1213,10 +1213,10 @@ int coroutineTerminate(Coroutine *targetCoroutine, Comutex **mutexes) {
   // Unlock any mutexes the coroutine had locked.
   if (mutexes != NULL) {
     for (int i = 0; mutexes[i] != NULL; i++) {
-      if (mutexes[i]->coroutine == targetCoroutine) {
+      if (atomic_load(&mutexes[i]->coroutine) == targetCoroutine) {
         // Unlock the mutex.
         mutexes[i]->recursionLevel = 0;
-        mutexes[i]->coroutine = NULL;
+        atomic_store(&mutexes[i]->coroutine, NULL);
       }
     }
   }
@@ -1523,7 +1523,7 @@ int comutexInit(Comutex *mtx, int type) {
   if (mtx != NULL) {
     mtx->lastYieldValue = NULL;
     mtx->type = type;
-    mtx->coroutine = NULL;
+    atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     mtx->recursionLevel = 0;
     mtx->head = NULL;
     mtx->timeoutTime = 0;
@@ -1631,7 +1631,7 @@ int comutexUnlock(Comutex *mtx) {
     return coroutineError;
   }
 
-  if ((mtx != NULL) && (mtx->coroutine == running)) {
+  if ((mtx != NULL) && (atomic_load(&mtx->coroutine) == running)) {
     mtx->recursionLevel--;
     if (mtx->recursionLevel == 0) {
       void *stateData = _globalStateData;
@@ -1653,7 +1653,7 @@ int comutexUnlock(Comutex *mtx) {
         comutexUnlockCallback(stateData, mtx);
       }
 
-      mtx->coroutine = NULL;
+      atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     }
   } else {
     returnValue = coroutineError;
@@ -1673,7 +1673,7 @@ void comutexDestroy(Comutex *mtx) {
   if (mtx != NULL) {
     mtx->lastYieldValue = NULL;
     mtx->type = 0;
-    mtx->coroutine = NULL;
+    atomic_store(&mtx->coroutine, (Coroutine*) NULL);
     mtx->recursionLevel = 0;
     mtx->head = NULL;
     mtx->timeoutTime = 0;
@@ -1793,7 +1793,7 @@ int comutexTryLock(Comutex *mtx) {
   }
 #endif
 
-  Coroutine* running = getRunningCoroutine();
+  Coroutine *running = getRunningCoroutine();
   if (running == NULL) {
     // running stack not setup yet.  Bail.
     return coroutineError;
@@ -1801,14 +1801,15 @@ int comutexTryLock(Comutex *mtx) {
     return coroutineBusy;
   }
 
-  if (mtx->coroutine == NULL) {
-    mtx->coroutine = running;
+  Coroutine *cur = NULL;
+  atomic_compare_exchange_strong(&mtx->coroutine, &cur, running);
+  if (cur == NULL) {
     mtx->recursionLevel = 1;
     returnValue = coroutineSuccess;
-  } else if ((mtx->coroutine == running) && (mtx->type & comutexRecursive)) {
+  } else if ((cur == running) && (mtx->type & comutexRecursive)) {
     mtx->recursionLevel++;
     returnValue = coroutineSuccess;
-  } else if (mtx->coroutine != running) {
+  } else if (cur != running) {
     returnValue = coroutineBusy;
   } // else any other situation is an error, which is the value of returnValue
 
@@ -2185,7 +2186,7 @@ bool coroutineDeadlocked(Coroutine *coroutine) {
   while ((coroutineState(coroutine) == COROUTINE_STATE_WAIT)
     && (coroutine->blockingComutex != NULL)
   ) {
-    coroutine = coroutine->blockingComutex->coroutine;
+    coroutine = atomic_load(&coroutine->blockingComutex->coroutine);
     if (coroutine == initialCoroutine) {
       returnValue = true;
       break;

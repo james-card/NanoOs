@@ -41,7 +41,7 @@
 
 typedef struct BlockStorageDevice BlockStorageDevice;
 typedef struct NanoOsFile FILE;
-typedef struct msg_t ProcessMessage;
+typedef struct msg_t TaskMessage;
 
 #ifdef __cplusplus
 extern "C"
@@ -60,7 +60,7 @@ extern "C"
 
 /// @struct FilesystemState
 ///
-/// @brief State metadata the filesystem process uses to provide access to
+/// @brief State metadata the filesystem task uses to provide access to
 /// files.
 ///
 /// @param blockDevice A pointer to an allocated and initialized
@@ -119,7 +119,7 @@ typedef struct FilesystemSeekParameters {
 ///
 /// @param stream A pointer to the FILE to close.
 /// @param returnValue The return value of the operation that will be passed
-///   back to the handler.  This value will be set to the process's errno value.
+///   back to the handler.  This value will be set to the task's errno value.
 typedef struct FilesystemFcloseParameters {
   FILE *stream;
   int returnValue;
@@ -128,11 +128,11 @@ typedef struct FilesystemFcloseParameters {
 /// @typedef FilesystemCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
-typedef int (*FilesystemCommandHandler)(FilesystemState*, ProcessMessage*);
+typedef int (*FilesystemCommandHandler)(FilesystemState*, TaskMessage*);
 
 /// @enum FilesystemCommandResponse
 ///
-/// @brief Commands and responses understood by the filesystem inter-process
+/// @brief Commands and responses understood by the filesystem inter-task
 /// message handler.
 typedef enum FilesystemCommandResponse {
   // Commands:

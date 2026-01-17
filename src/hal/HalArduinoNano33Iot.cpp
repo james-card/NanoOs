@@ -29,6 +29,8 @@
 ///
 /// @brief HAL implementation for an Arduino Nano 33 IoT
 
+#if defined(__arm__)
+
 // Base Arduino definitions
 #include <Arduino.h>
 
@@ -42,13 +44,13 @@
 // Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
 // operational prior to the memory manager and really should be completely
 // independent of it.
-#include "src/kernel/ExFatProcess.h"
-#include "src/kernel/NanoOs.h"
-#include "src/kernel/Processes.h"
-#include "src/kernel/Scheduler.h"
-#include "src/kernel/SdCardSpi.h"
-#include "src/user/NanoOsErrno.h"
-#include "src/user/NanoOsStdio.h"
+#include "../kernel/ExFatTask.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Tasks.h"
+#include "../kernel/Scheduler.h"
+#include "../kernel/SdCardSpi.h"
+#include "../user/NanoOsErrno.h"
+#include "../user/NanoOsStdio.h"
 
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
@@ -62,12 +64,14 @@
 // of corrupting something elsewhere in memory.  Just in case we ever forget
 // this and try to use memory management functions in the future, define them
 // all to MEMORY_ERROR so that the build will fail.
+#undef malloc
 #define malloc  MEMORY_ERROR
+#undef calloc
 #define calloc  MEMORY_ERROR
+#undef realloc
 #define realloc MEMORY_ERROR
-#define freee   MEMORY_ERROR
-
-#if defined(__arm__)
+#undef free
+#define free   MEMORY_ERROR
 
 /// @struct SavedContext
 ///
@@ -199,7 +203,7 @@ int arduinoNano33IotGetNumSerialPorts(void) {
 }
 
 int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
-  if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
+  if (numSerialPorts > ((int) (sizeof(serialPorts) / sizeof(serialPorts[0])))) {
     return -ERANGE;
   } else if (numSerialPorts < -ELAST) {
     return -EINVAL;
@@ -210,7 +214,7 @@ int arduinoNano33IotSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int arduinoNano33IotInitSerialPort(int port, int baud) {
+int arduinoNano33IotInitSerialPort(int port, int32_t baud) {
   int returnValue = -ERANGE;
   
   if ((port >= 0) && (port < _numSerialPorts)) {
@@ -398,7 +402,7 @@ int arduinoNano33IotSpiTransfer8(int spi, uint8_t data) {
 
 /// @var baseSystemTimeUs
 ///
-/// @brief The time provided by the user or some other process as a baseline
+/// @brief The time provided by the user or some other task as a baseline
 /// time for the system.
 static int64_t baseSystemTimeUs = 0;
 
@@ -454,9 +458,9 @@ int arduinoNano33IotShutdown(void) {
 }
 
 int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
-  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  TaskDescriptor *allTasks = schedulerState->allTasks;
   
-  // Create the SD card process.
+  // Create the SD card task.
   SdCardSpiArgs sdCardSpiArgs = {
     .spiCsDio = SD_CARD_PIN_CHIP_SELECT,
     .spiCopiDio = SPI_COPI_DIO,
@@ -464,41 +468,53 @@ int arduinoNano33IotInitRootStorage(SchedulerState *schedulerState) {
     .spiSckDio = SPI_SCK_DIO,
   };
 
-  // Create the SD card process.
-  ProcessDescriptor *processDescriptor
-    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
-  if (processCreate(
-    processDescriptor, runSdCardSpi, &sdCardSpiArgs)
-    != processSuccess
+  // Create the SD card task.
+  TaskDescriptor *taskDescriptor
+    = &allTasks[NANO_OS_SD_CARD_TASK_ID];
+  if (taskCreate(
+    taskDescriptor, runSdCardSpi, &sdCardSpiArgs)
+    != taskSuccess
   ) {
-    fputs("Could not start SD card process.\n", stderr);
+    fputs("Could not start SD card task.\n", stderr);
   }
-  printDebugString("Started SD card process.\n");
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
-  processDescriptor->name = "SD card";
-  processDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Started SD card task.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_SD_CARD_TASK_ID;
+  taskDescriptor->name = "SD card";
+  taskDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+    allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card process.\n");
+  printDebugString("Configured SD card task.\n");
   
-  // Create the filesystem process.
-  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
-  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
-    != processSuccess
+  // Create the filesystem task.
+  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID];
+  if (taskCreate(taskDescriptor, runExFatFilesystem, sdDevice)
+    != taskSuccess
   ) {
-    fputs("Could not start filesystem process.\n", stderr);
+    fputs("Could not start filesystem task.\n", stderr);
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
-  processDescriptor->name = "filesystem";
-  processDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created filesystem process.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_FILESYSTEM_TASK_ID;
+  taskDescriptor->name = "filesystem";
+  taskDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Created filesystem task.\n");
   
   return 0;
 }
 
+/// @struct HardwareTimer
+///
+/// @brief Collection of variables needed to manage a single hardware timer.
+///
+/// @param tc A pointer to the timer/counter structure used for the tiemr.
+/// @param irqType The IRQ used to manage the timer.
+/// @param clockId The global clock identifier used to manage the timer.
+/// @param initialized Whether or not the timer has been initialized yet.
+/// @param callback The callback to call when the timer fires, if any.
+/// @param active Whether or not the timer is currently active.
+/// @param startTime The time, in nanoseconds, when the timer was configured.
+/// @param deadline The time, in nanoseconds, when the timer expires.
 typedef struct HardwareTimer {
   Tc *tc;
   IRQn_Type irqType;
@@ -510,6 +526,9 @@ typedef struct HardwareTimer {
   int64_t deadline;
 } HardwareTimer;
 
+/// @var hardwareTimers
+///
+/// @brief Array of HardwareTimer objects managed by the HAL.
 static HardwareTimer hardwareTimers[] = {
   {
     .tc = TC3,
@@ -533,15 +552,21 @@ static HardwareTimer hardwareTimers[] = {
   },
 };
 
-static int _numTimers
-  = sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
+/// @var _numTimers
+///
+/// @brief The number of timers returned by arduinoNano33IotGetNumTimers.  This
+/// is initialized to the number of timers supported, but may be overridden by
+/// a call to arduinoNano33IotSetNumTimers.
+static int _numTimers = sizeof(hardwareTimers) / sizeof(hardwareTimers[0]);
 
 int arduinoNano33IotGetNumTimers(void) {
   return _numTimers;
 }
 
 int arduinoNano33IotSetNumTimers(int numTimers) {
-  if (numTimers > (sizeof(hardwareTimers) / sizeof(hardwareTimers[0]))) {
+  if (
+    numTimers > ((int) (sizeof(hardwareTimers) / sizeof(hardwareTimers[0])))
+  ) {
     return -ERANGE;
   } else if (numTimers < -ELAST) {
     return -EINVAL;
@@ -558,6 +583,10 @@ int arduinoNano33IotInitTimer(int timer) {
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (hwTimer->initialized) {
+    // Nothing to do
+    return 0;
+  }
   
   // Enable GCLK for the TC timer (48MHz)
   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN |
@@ -588,19 +617,30 @@ int arduinoNano33IotInitTimer(int timer) {
   NVIC_SetPriority(hwTimer->irqType, 0);
   NVIC_EnableIRQ(hwTimer->irqType);
   
+  hwTimer->initialized = true;
+  
   return 0;
 }
 
 int arduinoNano33IotConfigTimer(int timer,
-    uint32_t microseconds, void (*callback)(void)
+    uint64_t nanoseconds, void (*callback)(void)
 ) {
   if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
   }
   
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if (!hwTimer->initialized) {
+    return -EINVAL;
+  }
+  
   // Cancel any existing timer
   int arduinoNano33IotCancelTimer(int);
   arduinoNano33IotCancelTimer(timer);
+  
+  // We take a number of nanoseconds for HAL compatibility, but our timers
+  // don't support that resolution.  Convert to microseconds.
+  uint64_t microseconds = nanoseconds / ((uint64_t) 1000);
   
   // Make sure we don't overflow
   if (microseconds > 89478485) {
@@ -635,7 +675,6 @@ int arduinoNano33IotConfigTimer(int timer,
     }
   }
   
-  HardwareTimer *hwTimer = &hardwareTimers[timer];
   hwTimer->callback = callback;
   hwTimer->active = true;
   
@@ -657,18 +696,41 @@ int arduinoNano33IotConfigTimer(int timer,
   // Enable timer
   hwTimer->tc->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
   while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
-  hwTimer->startTime = arduinoNano33IotGetElapsedMicroseconds(0);
-  hwTimer->deadline = hwTimer->startTime + microseconds;
+  hwTimer->startTime = arduinoNano33IotGetElapsedNanoseconds(0);
+  hwTimer->deadline = hwTimer->startTime + (microseconds * ((uint64_t) 1000));
   
   return 0;
 }
 
-bool arduinoNano33IotIsTimerActive(int timer) {
+uint64_t arduinoNano33IotConfiguredTimerNanoseconds(int timer) {
   if ((timer < 0) || (timer >= _numTimers)) {
-    return false;
+    return 0;
   }
   
-  return hardwareTimers[timer].active;
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if ((!hwTimer->initialized) || (!hwTimer->active)) {
+    return 0;
+  }
+  
+  return hwTimer->deadline - hwTimer->startTime;
+}
+
+uint64_t arduinoNano33IotRemainingTimerNanoseconds(int timer) {
+  if ((timer < 0) || (timer >= _numTimers)) {
+    return 0;
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if ((!hwTimer->initialized) || (!hwTimer->active)) {
+    return 0;
+  }
+  
+  int64_t now = arduinoNano33IotGetElapsedNanoseconds(0);
+  if (now > hwTimer->deadline) {
+    return 0;
+  }
+  
+  return hwTimer->deadline - now;
 }
 
 int arduinoNano33IotCancelTimer(int timer) {
@@ -677,7 +739,9 @@ int arduinoNano33IotCancelTimer(int timer) {
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
-  if (!hwTimer->active) {
+  if (!hwTimer->initialized) {
+    return -EINVAL;
+  } else if (!hwTimer->active) {
     // Not an error but nothing to do.
     return 0;
   }
@@ -688,6 +752,50 @@ int arduinoNano33IotCancelTimer(int timer) {
   
   // Clear interrupt flag
   hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  hwTimer->active = false;
+  hwTimer->startTime = 0;
+  hwTimer->deadline = 0;
+  hwTimer->callback = nullptr;
+  
+  return 0;
+}
+
+int arduinoNano33IotCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void)
+) {
+  if ((timer < 0) || (timer >= _numTimers)) {
+    return -ERANGE;
+  }
+  
+  HardwareTimer *hwTimer = &hardwareTimers[timer];
+  if ((!hwTimer->initialized) || (!hwTimer->active)
+    || (remainingNanoseconds == NULL) || (callback == NULL)
+  ) {
+    // We cannot populate the provided pointers, so we will error here.  This
+    // also signals to the caller that there's no need to call configTimer
+    // later.
+    return -EINVAL;
+  }
+  
+  // ***DO NOT*** call arduinoNano33IotCancelTimer.  It's expected that this
+  // function is in the critical path.  Time is of the essence, so inline the
+  // logic.
+  
+  // Disable timer
+  hwTimer->tc->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  while (hwTimer->tc->COUNT16.STATUS.bit.SYNCBUSY);
+  
+  // Clear interrupt flag
+  hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+  
+  // Don't call arduinoNano33IotGetElapsedNanoseconds, just compute directly.
+  int64_t now = micros() * 1000;
+  if (now < hwTimer->deadline) {
+    *remainingNanoseconds = hwTimer->deadline - now;
+  }
+  
+  *callback = hwTimer->callback;
   
   hwTimer->active = false;
   hwTimer->startTime = 0;
@@ -809,8 +917,10 @@ static Hal arduinoNano33IotHal = {
   .setNumTimers = arduinoNano33IotSetNumTimers,
   .initTimer = arduinoNano33IotInitTimer,
   .configTimer = arduinoNano33IotConfigTimer,
-  .isTimerActive = arduinoNano33IotIsTimerActive,
+  .configuredTimerNanoseconds = arduinoNano33IotConfiguredTimerNanoseconds,
+  .remainingTimerNanoseconds = arduinoNano33IotRemainingTimerNanoseconds,
   .cancelTimer = arduinoNano33IotCancelTimer,
+  .cancelAndGetTimer = arduinoNano33IotCancelAndGetTimer,
 };
 
 const Hal* halArduinoNano33IotInit(void) {

@@ -1,11 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @author            James Card
-/// @date              11.21.2024
+/// @file              ExFatTask.h
 ///
-/// @file              Commands.h
-///
-/// @brief             Commands library for NanoOs.
+/// @brief             exFAT task for NanoOs.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -31,33 +28,22 @@
 ///                                James Card
 ///                         http://www.jamescard.org
 ///
+///
 ///////////////////////////////////////////////////////////////////////////////
 
-// #ifndef has to come after includes for this file.
-#ifndef COMMANDS_H
-#define COMMANDS_H
-
-#include "NanoOsTypes.h"
+#ifndef EXFAT_TASK_H
+#define EXFAT_TASK_H
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-// Special exit statuses
-#define COMMAND_CANNOT_EXECUTE 126
-#define COMMAND_NOT_FOUND      127
-#define COMMAND_EXIT_INVALID   128
-
-// Exported support functions
-const CommandEntry* getCommandEntryFromInput(char *consoleInput);
-int handleCommand(int consolePort, char *consoleInput);
-
-// Exported tasks
-void* runShell(void *args);
+void* runExFatFilesystem(void *args);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // COMMANDS_H
+#endif // EXFAT_TASK_H
+

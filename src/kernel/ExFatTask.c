@@ -27,16 +27,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              ExFatProcess.c
+/// @file              ExFatTask.c
 ///
-/// @brief             exFAT process implementation for NanoOs.
+/// @brief             exFAT task implementation for NanoOs.
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "ExFatProcess.h"
+#include "ExFatTask.h"
 #include "ExFatFilesystem.h"
 #include "NanoOs.h"
-#include "Processes.h"
+#include "Tasks.h"
 
 // Must come last
 #include "../user/NanoOsStdio.h"
@@ -45,25 +45,25 @@
 /// @typedef ExFatCommandHandler
 ///
 /// @brief Definition of a filesystem command handler function.
-typedef int (*ExFatCommandHandler)(ExFatDriverState*, ProcessMessage*);
+typedef int (*ExFatCommandHandler)(ExFatDriverState*, TaskMessage*);
 
-/// @fn int exFatProcessOpenFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskOpenFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_OPEN_FILE command.
 ///
 /// @param filesystemState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessOpenFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskOpenFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
   NanoOsFile *nanoOsFile = NULL;
-  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
-  const char *mode = nanoOsMessageFuncPointer(processMessage, char*);
+  const char *pathname = nanoOsMessageDataPointer(taskMessage, char*);
+  const char *mode = nanoOsMessageFuncPointer(taskMessage, char*);
 
   printDebugString("Opening file \"");
   printDebugString(pathname);
@@ -83,30 +83,30 @@ int exFatProcessOpenFileCommandHandler(
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) nanoOsFile;
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return 0;
 }
 
-/// @fn int exFatProcessCloseFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskCloseFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_CLOSE_FILE command.
 ///
 /// @param driverState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessCloseFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskCloseFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
   (void) driverState;
 
   FilesystemFcloseParameters *fcloseParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemFcloseParameters*);
+    = nanoOsMessageDataPointer(taskMessage, FilesystemFcloseParameters*);
   ExFatFileHandle *exFatFile = (ExFatFileHandle*) fcloseParameters->stream->file;
   free(fcloseParameters->stream);
   if (driverState->driverStateValid) {
@@ -116,26 +116,26 @@ int exFatProcessCloseFileCommandHandler(
     }
   }
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return 0;
 }
 
-/// @fn int exFatProcessReadFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskReadFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_READ_FILE command.
 ///
 /// @param driverState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessReadFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskReadFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+    = nanoOsMessageDataPointer(taskMessage, FilesystemIoCommandParameters*);
   int32_t returnValue = 0;
   if (driverState->driverStateValid) {
     uint32_t length = filesystemIoCommandParameters->length;
@@ -161,26 +161,26 @@ int exFatProcessReadFileCommandHandler(
     }
   }
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return returnValue;
 }
 
-/// @fn int exFatProcessWriteFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskWriteFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_WRITE_FILE command.
 ///
 /// @param driverState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessWriteFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskWriteFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
   FilesystemIoCommandParameters *filesystemIoCommandParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemIoCommandParameters*);
+    = nanoOsMessageDataPointer(taskMessage, FilesystemIoCommandParameters*);
   int32_t returnValue = 0;
   if (driverState->driverStateValid) {
     uint32_t length = filesystemIoCommandParameters->length;
@@ -207,53 +207,53 @@ int exFatProcessWriteFileCommandHandler(
     }
   }
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return returnValue;
 }
 
-/// @fn int exFatProcessRemoveFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskRemoveFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_REMOVE_FILE command.
 ///
 /// @param driverState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessRemoveFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskRemoveFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
-  const char *pathname = nanoOsMessageDataPointer(processMessage, char*);
+  const char *pathname = nanoOsMessageDataPointer(taskMessage, char*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
     returnValue = exFatRemove(driverState, pathname);
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) returnValue;
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return 0;
 }
 
-/// @fn int exFatProcessSeekFileCommandHandler(
-///   ExFatDriverState *driverState, ProcessMessage *processMessage)
+/// @fn int exFatTaskSeekFileCommandHandler(
+///   ExFatDriverState *driverState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for FILESYSTEM_SEEK_FILE command.
 ///
 /// @param driverState A pointer to the FilesystemState object maintained
-///   by the filesystem process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the filesystem process.
+///   by the filesystem task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the filesystem task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
-int exFatProcessSeekFileCommandHandler(
-  ExFatDriverState *driverState, ProcessMessage *processMessage
+int exFatTaskSeekFileCommandHandler(
+  ExFatDriverState *driverState, TaskMessage *taskMessage
 ) {
   FilesystemSeekParameters *filesystemSeekParameters
-    = nanoOsMessageDataPointer(processMessage, FilesystemSeekParameters*);
+    = nanoOsMessageDataPointer(taskMessage, FilesystemSeekParameters*);
   int returnValue = 0;
   if (driverState->driverStateValid) {
     NanoOsFile *nanoOsFile = filesystemSeekParameters->stream;
@@ -265,9 +265,9 @@ int exFatProcessSeekFileCommandHandler(
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) returnValue;
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
   return 0;
 }
 
@@ -275,29 +275,29 @@ int exFatProcessSeekFileCommandHandler(
 ///
 /// @brief Array of ExFatCommandHandler function pointers.
 const ExFatCommandHandler filesystemCommandHandlers[] = {
-  exFatProcessOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
-  exFatProcessCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
-  exFatProcessReadFileCommandHandler,   // FILESYSTEM_READ_FILE
-  exFatProcessWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
-  exFatProcessRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
-  exFatProcessSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
+  exFatTaskOpenFileCommandHandler,   // FILESYSTEM_OPEN_FILE
+  exFatTaskCloseFileCommandHandler,  // FILESYSTEM_CLOSE_FILE
+  exFatTaskReadFileCommandHandler,   // FILESYSTEM_READ_FILE
+  exFatTaskWriteFileCommandHandler,  // FILESYSTEM_WRITE_FILE
+  exFatTaskRemoveFileCommandHandler, // FILESYSTEM_REMOVE_FILE
+  exFatTaskSeekFileCommandHandler,   // FILESYSTEM_SEEK_FILE
 };
 
 
 /// @fn static void exFatHandleFilesystemMessages(FilesystemState *fs)
 ///
-/// @brief Pop and handle all messages in the filesystem process's message
+/// @brief Pop and handle all messages in the filesystem task's message
 /// queue until there are no more.
 ///
 /// @param fs A pointer to the FilesystemState object maintained by the
-///   filesystem process.
+///   filesystem task.
 ///
 /// @return This function returns no value.
 static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
-  ProcessMessage *msg = processMessageQueuePop();
+  TaskMessage *msg = taskMessageQueuePop();
   while (msg != NULL) {
     FilesystemCommandResponse type = 
-      (FilesystemCommandResponse) processMessageType(msg);
+      (FilesystemCommandResponse) taskMessageType(msg);
     if (type < NUM_FILESYSTEM_COMMANDS) {
       printDebugString("Handling filesystem message type ");
       printDebugInt(type);
@@ -308,20 +308,20 @@ static void exFatHandleFilesystemMessages(ExFatDriverState *driverState) {
       printInt(type);
       printString("\n");
     }
-    msg = processMessageQueuePop();
+    msg = taskMessageQueuePop();
   }
 }
 
 /// @fn void* runExFatFilesystem(void *args)
 ///
-/// @brief Main process entry point for the FAT16 filesystem process.
+/// @brief Main task entry point for the FAT16 filesystem task.
 ///
 /// @param args A pointer to an initialized BlockStorageDevice structure cast
 ///   to a void*.
 ///
 /// @return This function never returns, but would return NULL if it did.
 void* runExFatFilesystem(void *args) {
-  processYield();
+  taskYield();
   printDebugString("runExFatFilesystem: Allocating FilesystemState\n");
   FilesystemState *fs = (FilesystemState*) calloc(1, sizeof(FilesystemState));
   printDebugString("runExFatFilesystem: Allocating ExFatDriverState\n");
@@ -338,12 +338,12 @@ void* runExFatFilesystem(void *args) {
   exFatInitialize(driverState, fs);
   printDebugString("runExFatFilesystem: Initialization complete\n");
   
-  ProcessMessage *msg = NULL;
+  TaskMessage *msg = NULL;
   while (1) {
-    msg = (ProcessMessage*) processYield();
+    msg = (TaskMessage*) taskYield();
     if (msg) {
       FilesystemCommandResponse type = 
-        (FilesystemCommandResponse) processMessageType(msg);
+        (FilesystemCommandResponse) taskMessageType(msg);
       if (type < NUM_FILESYSTEM_COMMANDS) {
         filesystemCommandHandlers[type](driverState, msg);
       }

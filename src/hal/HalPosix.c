@@ -29,11 +29,15 @@
 ///
 /// @brief HAL implementation for a Posix simulator.
 
+#ifdef __x86_64__
+
 // Standard C includes from the compiler
 #undef errno
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include </usr/include/time.h>
@@ -42,9 +46,9 @@
 
 #include "HalPosix.h"
 #include "SdCardPosix.h"
-#include "kernel/ExFatProcess.h"
+#include "kernel/ExFatTask.h"
 #include "kernel/NanoOs.h"
-#include "kernel/Processes.h"
+#include "kernel/Tasks.h"
 
 /// @def OVERLAY_BASE_ADDRESS
 ///
@@ -100,7 +104,7 @@ int posixSetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int posixInitSerialPort(int port, int baud) {
+int posixInitSerialPort(int port, int32_t baud) {
   (void) baud;
   
   if (port != 0) {
@@ -266,85 +270,309 @@ int posixShutdown(void) {
 
 /// @var _sdCardDevicePath
 ///
-/// @brief Path to the device node to connect to for the SdCardSim process.
+/// @brief Path to the device node to connect to for the SdCardSim task.
 static const char *_sdCardDevicePath = NULL;
 
 int posixInitRootStorage(SchedulerState *schedulerState) {
-  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  TaskDescriptor *allTasks = schedulerState->allTasks;
   
-  // Create the SD card process.
-  ProcessDescriptor *processDescriptor
-    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
-  if (processCreate(
-    processDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
-    != processSuccess
+  // Create the SD card task.
+  TaskDescriptor *taskDescriptor
+    = &allTasks[NANO_OS_SD_CARD_TASK_ID];
+  if (taskCreate(
+    taskDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
+    != taskSuccess
   ) {
-    fputs("Could not start SD card process.\n", stderr);
+    fputs("Could not start SD card task.\n", stderr);
   }
-  printDebugString("Started SD card process.\n");
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
-  processDescriptor->name = "SD card";
-  processDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Started SD card task.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_SD_CARD_TASK_ID;
+  taskDescriptor->name = "SD card";
+  taskDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+    allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card process.\n");
+  printDebugString("Configured SD card task.\n");
   
-  // Create the filesystem process.
-  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
-  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
-    != processSuccess
+  // Create the filesystem task.
+  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID];
+  if (taskCreate(taskDescriptor, runExFatFilesystem, sdDevice)
+    != taskSuccess
   ) {
-    fputs("Could not start filesystem process.\n", stderr);
+    fputs("Could not start filesystem task.\n", stderr);
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
-  processDescriptor->name = "filesystem";
-  processDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created filesystem process.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_FILESYSTEM_TASK_ID;
+  taskDescriptor->name = "filesystem";
+  taskDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Created filesystem task.\n");
   
   return 0;
 }
 
-static int _numTimers = 0;
+// Timer support
+
+/// @var _mainThreadId
+///
+/// @brief The ID of the main thread that calls halPosixInit.
+static pthread_t _mainThreadId = 0;
+
+/// @struct SoftwareTimer
+///
+/// @brief Collection of variables needed to manage a software timer.
+///
+/// @param timerThread The pthread_t of the thread that is serving as the timer
+///   if the timer is active.
+/// @param signal The signal number that is to be sent to the main thread when
+///   the timer expires.
+/// @param signalHandler Function pointer to the signal handler function that
+///   will be triggered on the main thread when the timer sends the signal.
+/// @param initialized Whether or not the timer has been initialized yet.
+/// @param callback The callback to call when the timer fires, if any.
+/// @param active Whether or not the timer is currently active.
+/// @param startTime The time, in nanoseconds, when the timer was configured.
+/// @param deadline The time, in nanoseconds, when the timer expires.
+typedef struct SoftwareTimer {
+  pthread_t timerThread;
+  int signal;
+  void (*signalHandler)(int);
+  bool initialized;
+  void (*callback)(void);
+  bool active;
+  int64_t startTime;
+  int64_t deadline;
+} SoftwareTimer;
+
+/// Forward declaration
+extern SoftwareTimer softwareTimers[];
+
+/// @fn void* timerThreadFunction(void *arg)
+///
+/// @brief pthread-compatible function to wait for a specified amount of time
+/// before sending a signal to the main thread.  This function runs on its own
+/// thread.
+///
+/// @param arg The index of the timer to use for configuration, cast to a
+///   void*.
+///
+/// @return This function always succeeds if it completes and always returns
+/// NULL.
+void* timerThreadFunction(void *arg) {
+  intptr_t timer = (intptr_t) arg;
+  
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  int64_t delay = swTimer->deadline - swTimer->startTime;
+  struct timespec ts = {
+    .tv_sec = delay / ((int64_t) 1000000000),
+    .tv_nsec = delay % ((int64_t) 1000000000),
+  };
+  nanosleep(&ts, NULL);
+  if (swTimer->active) {
+    // Send the specified signal to the main thread.
+    pthread_kill(_mainThreadId, swTimer->signal);
+  }
+  
+  return NULL;
+}
+
+/// @fn void timerSignalHandler(int timer)
+///
+/// @brief Main signal handler.  This function runs on the main thread.
+///
+/// @param timer Index of the timer in the softwareTimers array;
+///
+/// @return This function returns no value, but it does call the timer's
+/// callback if one is set.
+void timerSignalHandler(int timer) {
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  
+  swTimer->active = false;
+  swTimer->timerThread = 0;
+  swTimer->startTime = 0;
+  swTimer->deadline = 0;
+  
+  // Call callback if set
+  if (swTimer->callback) {
+    swTimer->callback();
+  }
+}
+
+/// @fn void timer0SignalHandler(int signal)
+///
+/// @brief signal-compliant function to handle a signal serving as a timer
+/// interrupt callback.
+///
+/// @param signal Integer value of the signal being raised.  Always SIGUSR1 in
+///   this case.  The parameter is ignored by this function.
+///
+/// @return This function returns no value but invokes timerSignalHandler for
+/// timer 0.
+void timer0SignalHandler(int signal) {
+  (void) signal; // We know this is SIGUSR1, so no need to check it.
+  timerSignalHandler(0);
+}
+
+/// @fn void timer1SignalHandler(int signal)
+///
+/// @brief signal-compliant function to handle a signal serving as a timer
+/// interrupt callback.
+///
+/// @param signal Integer value of the signal being raised.  Always SIGUSR2 in
+///   this case.  The parameter is ignored by this function.
+///
+/// @return This function returns no value but invokes timerSignalHandler for
+/// timer 1.
+void timer1SignalHandler(int signal) {
+  (void) signal; // We know this is SIGUSR2, so no need to check it.
+  timerSignalHandler(1);
+}
+
+/// @var softwareTimers
+///
+/// @brief Array of SoftwareTimer objects managed by the HAL.
+SoftwareTimer softwareTimers[] = {
+  {
+    .timerThread = 0,
+    .signal = SIGUSR1,
+    .signalHandler = timer0SignalHandler,
+    .initialized = false,
+    .callback = NULL,
+    .active = false,
+    .startTime = 0,
+    .deadline = 0,
+  },
+  {
+    .timerThread = 1,
+    .signal = SIGUSR2,
+    .signalHandler = timer1SignalHandler,
+    .initialized = false,
+    .callback = NULL,
+    .active = false,
+    .startTime = 0,
+    .deadline = 0,
+  },
+};
+
+/// @var _numTimers
+///
+/// @brief The number of timers returned by posixGetNumTimers.  This is
+/// initialized to the number of timers supported, but may be overridden by a
+/// call to posixSetNumTimers.
+static int _numTimers = sizeof(softwareTimers) / sizeof(softwareTimers[0]);
 
 int posixGetNumTimers(void) {
   return _numTimers;
 }
 
 int posixSetNumTimers(int numTimers) {
-  (void) numTimers;
+  if (numTimers
+    > ((int) (sizeof(softwareTimers) / sizeof(softwareTimers[0])))
+  ) {
+    return -ERANGE;
+  } else if (numTimers < -ELAST) {
+    return -EINVAL;
+  }
   
-  return -ENOTSUP;
+  _numTimers = numTimers;
+  
+  return 0;
 }
 
 int posixInitTimer(int timer) {
-  (void) timer;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
   
-  return -ENOTSUP;
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if (swTimer->initialized) {
+    // Nothing to do
+    return 0;
+  }
+  
+  signal(swTimer->signal, swTimer->signalHandler);
+  swTimer->initialized = true;
+  
+  return 0;
 }
 
 int posixConfigTimer(int timer,
-    uint32_t microseconds, void (*callback)(void)
+    uint64_t nanoseconds, void (*callback)(void)
 ) {
-  (void) timer;
-  (void) microseconds;
-  (void) callback;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
+  
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if (!swTimer->initialized) {
+    return -EINVAL;
+  }
+  
+  swTimer->callback = callback;
+  swTimer->active = true;
+  swTimer->startTime = posixGetElapsedNanoseconds(0);
+  swTimer->deadline = swTimer->startTime + nanoseconds;
+  pthread_create(&swTimer->timerThread, NULL,
+    timerThreadFunction, (void*) ((intptr_t) timer));
+  pthread_detach(swTimer->timerThread);
   
   return -ENOTSUP;
 }
 
-bool posixIsTimerActive(int timer) {
-  (void) timer;
+uint64_t posixConfiguredTimerNanoseconds(int timer) {
+  if (timer >= _numTimers) {
+    return 0;
+  }
   
-  return false;
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if ((!swTimer->initialized) || (!swTimer->active)) {
+    return 0;
+  }
+  
+  return swTimer->deadline - swTimer->startTime;
+}
+
+uint64_t posixRemainingTimerNanoseconds(int timer) {
+  if (timer >= _numTimers) {
+    return 0;
+  }
+  
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if ((!swTimer->initialized) || (!swTimer->active)) {
+    return 0;
+  }
+  
+  int64_t now = posixGetElapsedNanoseconds(0);
+  if (now > swTimer->deadline) {
+    return 0;
+  }
+  
+  return swTimer->deadline - now;
 }
 
 int posixCancelTimer(int timer) {
-  (void) timer;
+  if (timer >= _numTimers) {
+    return -ERANGE;
+  }
   
-  return -ENOTSUP;
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if (!swTimer->initialized) {
+    return -EINVAL;
+  }
+  
+  bool active = swTimer->active;
+  swTimer->active = false;
+  
+  if (active) {
+    pthread_cancel(swTimer->timerThread);
+  }
+  
+  swTimer->timerThread = 0;
+  swTimer->startTime = 0;
+  swTimer->deadline = 0;
+  swTimer->callback = NULL;
+  
+  return 0;
 }
 
 /// @var posixHal
@@ -394,7 +622,8 @@ static Hal posixHal = {
   .setNumTimers = posixSetNumTimers,
   .initTimer = posixInitTimer,
   .configTimer = posixConfigTimer,
-  .isTimerActive = posixIsTimerActive,
+  .configuredTimerNanoseconds = posixConfiguredTimerNanoseconds,
+  .remainingTimerNanoseconds = posixRemainingTimerNanoseconds,
   .cancelTimer = posixCancelTimer,
 };
 
@@ -443,6 +672,10 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   fprintf(stderr, "posixHal.overlayMap = %p\n", (void*) posixHal.overlayMap);
   fprintf(stderr, "\n");
   
+  _mainThreadId = pthread_self();
+  
   return &posixHal;
 }
+
+#endif // __x86_64__
 

@@ -29,6 +29,8 @@
 ///
 /// @brief HAL implementation for an Arduino Nano Every
 
+#if defined(__AVR__)
+
 // Base Arduino definitions
 #include <Arduino.h>
 
@@ -42,12 +44,12 @@
 // Deliberately *NOT* including MemoryManager.h here.  The HAL has to be
 // operational prior to the memory manager and really should be completely
 // independent of it.
-#include "src/kernel/ExFatProcess.h"
-#include "src/kernel/NanoOs.h"
-#include "src/kernel/Processes.h"
-#include "src/kernel/SdCardSpi.h"
-#include "src/user/NanoOsErrno.h"
-#include "src/user/NanoOsStdio.h"
+#include "../kernel/ExFatTask.h"
+#include "../kernel/NanoOs.h"
+#include "../kernel/Tasks.h"
+#include "../kernel/SdCardSpi.h"
+#include "../user/NanoOsErrno.h"
+#include "../user/NanoOsStdio.h"
 
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
@@ -61,12 +63,14 @@
 // of corrupting something elsewhere in memory.  Just in case we ever forget
 // this and try to use memory management functions in the future, define them
 // all to MEMORY_ERROR so that the build will fail.
+#undef malloc
 #define malloc  MEMORY_ERROR
+#undef calloc
 #define calloc  MEMORY_ERROR
+#undef realloc
 #define realloc MEMORY_ERROR
-#define freee   MEMORY_ERROR
-
-#if defined(__AVR__)
+#undef free
+#define free   MEMORY_ERROR
 
 // Sleep configuration
 #include <avr/sleep.h>
@@ -91,7 +95,7 @@ int arduinoNanoEveryGetNumSerialPorts(void) {
 }
 
 int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
-  if (numSerialPorts > (sizeof(serialPorts) / sizeof(serialPorts[0]))) {
+  if (numSerialPorts > ((int) (sizeof(serialPorts) / sizeof(serialPorts[0])))) {
     return -ERANGE;
   } else if (numSerialPorts < -ELAST) {
     return -ERANGE;
@@ -102,7 +106,7 @@ int arduinoNanoEverySetNumSerialPorts(int numSerialPorts) {
   return 0;
 }
 
-int arduinoNanoEveryInitSerialPort(int port, int baud) {
+int arduinoNanoEveryInitSerialPort(int port, int32_t baud) {
   int returnValue = -ERANGE;
   
   if ((port >= 0) && (port < _numSerialPorts)) {
@@ -290,7 +294,7 @@ int arduinoNanoEverySpiTransfer8(int spi, uint8_t data) {
 
 /// @var baseSystemTimeMs
 ///
-/// @brief The time provided by the user or some other process as a baseline
+/// @brief The time provided by the user or some other task as a baseline
 /// time for the system.
 static int64_t baseSystemTimeMs = 0;
 
@@ -366,9 +370,9 @@ int arduinoNanoEveryShutdown(void) {
 }
 
 int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
-  ProcessDescriptor *allProcesses = schedulerState->allProcesses;
+  TaskDescriptor *allTasks = schedulerState->allTasks;
   
-  // Create the SD card process.
+  // Create the SD card task.
   SdCardSpiArgs sdCardSpiArgs = {
     .spiCsDio = SD_CARD_PIN_CHIP_SELECT,
     .spiCopiDio = SPI_COPI_DIO,
@@ -376,37 +380,37 @@ int arduinoNanoEveryInitRootStorage(SchedulerState *schedulerState) {
     .spiSckDio = SPI_SCK_DIO,
   };
 
-  // Create the SD card process.
-  ProcessDescriptor *processDescriptor
-    = &allProcesses[NANO_OS_SD_CARD_PROCESS_ID];
-  if (processCreate(
-    processDescriptor, runSdCardSpi, &sdCardSpiArgs)
-    != processSuccess
+  // Create the SD card task.
+  TaskDescriptor *taskDescriptor
+    = &allTasks[NANO_OS_SD_CARD_TASK_ID];
+  if (taskCreate(
+    taskDescriptor, runSdCardSpi, &sdCardSpiArgs)
+    != taskSuccess
   ) {
-    fputs("Could not start SD card process.\n", stderr);
+    fputs("Could not start SD card task.\n", stderr);
   }
-  printDebugString("Started SD card process.\n");
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_SD_CARD_PROCESS_ID;
-  processDescriptor->name = "SD card";
-  processDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Started SD card task.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_SD_CARD_TASK_ID;
+  taskDescriptor->name = "SD card";
+  taskDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle, NULL);
+    allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card process.\n");
+  printDebugString("Configured SD card task.\n");
   
-  // Create the filesystem process.
-  processDescriptor = &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID];
-  if (processCreate(processDescriptor, runExFatFilesystem, sdDevice)
-    != processSuccess
+  // Create the filesystem task.
+  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID];
+  if (taskCreate(taskDescriptor, runExFatFilesystem, sdDevice)
+    != taskSuccess
   ) {
-    fputs("Could not start filesystem process.\n", stderr);
+    fputs("Could not start filesystem task.\n", stderr);
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_FILESYSTEM_PROCESS_ID;
-  processDescriptor->name = "filesystem";
-  processDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created filesystem process.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_FILESYSTEM_TASK_ID;
+  taskDescriptor->name = "filesystem";
+  taskDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Created filesystem task.\n");
   
   return 0;
 }
@@ -428,23 +432,39 @@ int arduinoNanoEveryInitTimer(int timer) {
 }
 
 int arduinoNanoEveryConfigTimer(int timer,
-    uint32_t microseconds, void (*callback)(void)
+    uint64_t nanoseconds, void (*callback)(void)
 ) {
   (void) timer;
-  (void) microseconds;
+  (void) nanoseconds;
   (void) callback;
   
   return -ENOTSUP;
 }
 
-bool arduinoNanoEveryIsTimerActive(int timer) {
+uint64_t arduinoNanoEveryConfiguredTimerNanoseconds(int timer) {
   (void) timer;
   
-  return false;
+  return 0;
+}
+
+uint64_t arduinoNanoEveryRemainingTimerNanoseconds(int timer) {
+  (void) timer;
+  
+  return 0;
 }
 
 int arduinoNanoEveryCancelTimer(int timer) {
   (void) timer;
+  
+  return -ENOTSUP;
+}
+
+int arduinoNanoEveryCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void)
+) {
+  (void) timer;
+  (void) remainingNanoseconds;
+  (void) callback;
   
   return -ENOTSUP;
 }
@@ -496,8 +516,10 @@ static Hal arduinoNanoEveryHal = {
   .setNumTimers = arduinoNanoEverySetNumTimers,
   .initTimer = arduinoNanoEveryInitTimer,
   .configTimer = arduinoNanoEveryConfigTimer,
-  .isTimerActive = arduinoNanoEveryIsTimerActive,
+  .configuredTimerNanoseconds = arduinoNanoEveryConfiguredTimerNanoseconds,
+  .remainingTimerNanoseconds = arduinoNanoEveryRemainingTimerNanoseconds,
   .cancelTimer = arduinoNanoEveryCancelTimer,
+  .cancelAndGetTimer = arduinoNanoEveryCancelAndGetTimer,
 };
 
 const Hal* halArduinoNanoEveryInit(void) {

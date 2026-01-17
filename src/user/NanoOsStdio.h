@@ -75,7 +75,7 @@ typedef struct NanoOsFile NanoOsFile;
 #define startDebugMessage(message) \
   printString("["); \
   printLongLong(HAL->getElapsedMilliseconds(0)); \
-  printString(" Process "); \
+  printString(" Task "); \
   printUInt(coroutineId(getRunningCoroutine())); \
   printString(" "); \
   printString((strrchr(__FILE__, '/') + 1)); \

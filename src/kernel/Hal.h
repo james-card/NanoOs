@@ -104,7 +104,7 @@ typedef struct Hal {
   /// @return Returns 0 on success, -errno on failure.
   int (*setNumSerialPorts)(int numSerialPorts);
   
-  /// @fn initSerialPort(int port, int baud)
+  /// @fn initSerialPort(int port, int32_t baud)
   ///
   /// @brief Initialize a hardware serial port.
   ///
@@ -112,7 +112,7 @@ typedef struct Hal {
   /// @param baud The desired baud rate of the port.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*initSerialPort)(int port, int baud);
+  int (*initSerialPort)(int port, int32_t baud);
   
   /// @fn int pollSerialPort(int port)
   ///
@@ -300,10 +300,10 @@ typedef struct Hal {
   
   /// @fn int initRootStorage(SchedulerState *schedulerState)
   ///
-  /// @brief Initialize the processes that operate the root storage system.
+  /// @brief Initialize the tasks that operate the root storage system.
   ///
   /// @param schedulerState A pointer to the SchedulerState to use to initialize
-  ///   the processes.
+  ///   the tasks.
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*initRootStorage)(SchedulerState *schedulerState);
@@ -341,30 +341,37 @@ typedef struct Hal {
   int (*initTimer)(int timer);
   
   /// @fn int configTimer(int timer,
-  ///   uint32_t microseconds, void (*callback)(void))
+  ///   uint64_t nanoseconds, void (*callback)(void))
   ///
   /// @brief Configure a hardware timer to fire at some point in the future and
   /// call a callback.
   ///
   /// @param timer The zero-based index of the timer to configure.
-  /// @param microseconds The number of microseconds in the future the timer
+  /// @param nanoseconds The number of nanoseconds in the future the timer
   ///   should fire.
   /// @param callback The function to call when the timer fires.
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*configTimer)(int timer,
-    uint32_t microseconds, void (*callback)(void));
+    uint64_t nanoseconds, void (*callback)(void));
   
-  /// @fn bool isTimerActive(int timer)
+  /// @fn uint64_t configuredTimerNanoseconds(int timer)
   ///
-  /// @brief Determine whether a given hardware timer is currently configured
-  /// and set to fire.
+  /// @brief Get the number of nanoseconds a timer is configured to wait.
   ///
   /// @param timer The zero-based index of the timer to interrogate.
   ///
-  /// @return Returns true if the specified timer is currently configured,
-  /// false if not.
-  bool (*isTimerActive)(int timer);
+  /// @return Returns the number of nanoseconds configured for a timer.
+  uint64_t (*configuredTimerNanoseconds)(int timer);
+  
+  /// @fn uint64_t remainingTimerNanoseconds(int timer)
+  ///
+  /// @brief Get the remaining number of nanoseconds before a timer fires.
+  ///
+  /// @param timer The zero-based index of the timer to interrogate.
+  ///
+  /// @return Returns the number of nanoseconds remaining for a timer.
+  uint64_t (*remainingTimerNanoseconds)(int timer);
   
   /// @fn int cancelTimer(int timer)
   ///
@@ -374,6 +381,23 @@ typedef struct Hal {
   ///
   /// @return Returns 0 on success, -errno on failure.
   int (*cancelTimer)(int timer);
+  
+  /// @fn int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+  ///   void (**callback)(void))
+  ///
+  /// @brief Cancel a timer and get its configuration.  It's expected that this
+  /// is to be called in order to make sure that an operation is atomic and
+  /// that the caller will call configTimer after doing its work.
+  ///
+  /// @param timer The zero-based index of the timer to cancel and retrieve.
+  /// @param remainingNanoseconds A pointer to a uint64_t that will hold the
+  ///   number of nanoseconds remaining for the timer, if any.
+  /// @param callback A pointer to a callback function pointer that will be
+  ///   populated with the callback that the timer was going to call, if any.
+  ///
+  /// @return Returns 0 on success, -errno on failure.
+  int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+    void (**callback)(void));
 } Hal;
 
 extern const Hal *HAL;

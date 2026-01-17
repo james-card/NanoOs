@@ -36,7 +36,7 @@
 
 // NanoOs includes
 #include "NanoOsLibC.h"
-#include "Processes.h"
+#include "Tasks.h"
 
 // Simulator includes
 #include "SdCardPosix.h"
@@ -45,22 +45,22 @@
 #define printDebug(fmt, ...) {}
 
 /// @fn int sdCardReadBlocksCommandHandler(
-///   SdCardState *sdCardState, ProcessMessage *processMessage)
+///   SdCardState *sdCardState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for the SD_CARD_READ_BLOCKS command.
 ///
 /// @param sdCardState A pointer to the SdCardState object maintained by the
-///   SD card process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the SD card process.
+///   SD card task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the SD card task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int sdCardReadBlocksCommandHandler(
-  SdCardState *sdCardState, ProcessMessage *processMessage
+  SdCardState *sdCardState, TaskMessage *taskMessage
 ) {
   printDebug("sdCardReadBlocksCommandHandler: Enter\n");
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   printDebug("sdCardReadBlocksCommandHandler: Got NanoOsMessage\n");
   
   int devFd = (int) ((intptr_t) sdCardState->context);
@@ -68,14 +68,14 @@ int sdCardReadBlocksCommandHandler(
     // Nothing we can do.
     printDebug("sdCardReadBlocksCommandHandler: Invalid file descriptor\n");
     nanoOsMessage->data = EIO;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     printDebug("sdCardReadBlocksCommandHandler: Returning early\n");
     return 0;
   }
   printDebug("sdCardReadBlocksCommandHandler: context is *NOT* NULL\n");
   
   SdCommandParams *sdCommandParams
-    = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
+    = nanoOsMessageDataPointer(taskMessage, SdCommandParams*);
   printDebug("sdCardReadBlocksCommandHandler: Got sdCommandParams\n");
   uint32_t startSdBlock = 0, numSdBlocks = 0;
   int returnValue = sdCardGetReadWriteParameters(
@@ -103,39 +103,39 @@ int sdCardReadBlocksCommandHandler(
 exit:
   nanoOsMessage->data = returnValue;
   printDebug("sdCardReadBlocksCommandHandler: Setting message to done\n");
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   printDebug("sdCardReadBlocksCommandHandler: Returning\n");
   return 0;
 }
 
 /// @fn int sdCardWriteBlocksCommandHandler(
-///   SdCardState *sdCardState, ProcessMessage *processMessage)
+///   SdCardState *sdCardState, TaskMessage *taskMessage)
 ///
 /// @brief Command handler for the SD_CARD_WRITE_BLOCKS command.
 ///
 /// @param sdCardState A pointer to the SdCardState object maintained by the
-///   SD card process.
-/// @param processMessage A pointer to the ProcessMessage that was received by
-///   the SD card process.
+///   SD card task.
+/// @param taskMessage A pointer to the TaskMessage that was received by
+///   the SD card task.
 ///
 /// @return Returns 0 on success, a standard POSIX error code on failure.
 int sdCardWriteBlocksCommandHandler(
-  SdCardState *sdCardState, ProcessMessage *processMessage
+  SdCardState *sdCardState, TaskMessage *taskMessage
 ) {
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   
   int devFd = (int) ((intptr_t) sdCardState->context);
   if (devFd < 0) {
     // Nothing we can do.
     nanoOsMessage->data = EIO;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     return 0;
   }
   
   SdCommandParams *sdCommandParams
-    = nanoOsMessageDataPointer(processMessage, SdCommandParams*);
+    = nanoOsMessageDataPointer(taskMessage, SdCommandParams*);
   uint32_t startSdBlock = 0, numSdBlocks = 0;
   int returnValue = sdCardGetReadWriteParameters(
     sdCardState, sdCommandParams, &startSdBlock, &numSdBlocks);
@@ -155,7 +155,7 @@ int sdCardWriteBlocksCommandHandler(
 
 exit:
   nanoOsMessage->data = returnValue;
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   return 0;
 }
@@ -171,27 +171,27 @@ SdCardCommandHandler sdCardCommandHandlers[] = {
 
 /// @fn void handleSdCardMessages(SdCardState *sdCardState)
 ///
-/// @brief Handle sdCard messages from the process's queue until there are no
+/// @brief Handle sdCard messages from the task's queue until there are no
 /// more waiting.
 ///
 /// @param sdCardState A pointer to the SdCardState structure maintained by the
-///   sdCard process.
+///   sdCard task.
 ///
 /// @return This function returns no value.
 void handleSdCardMessages(SdCardState *sdCardState) {
-  ProcessMessage *processMessage = processMessageQueuePop();
-  while (processMessage != NULL) {
+  TaskMessage *taskMessage = taskMessageQueuePop();
+  while (taskMessage != NULL) {
     SdCardCommandResponse messageType
-      = (SdCardCommandResponse) processMessageType(processMessage);
+      = (SdCardCommandResponse) taskMessageType(taskMessage);
     if (messageType >= NUM_SD_CARD_COMMANDS) {
       printDebug("handleSdCardMessages: Received invalid messageType %d\n",
         messageType);
-      processMessage = processMessageQueuePop();
+      taskMessage = taskMessageQueuePop();
       continue;
     }
     
-    sdCardCommandHandlers[messageType](sdCardState, processMessage);
-    processMessage = processMessageQueuePop();
+    sdCardCommandHandlers[messageType](sdCardState, taskMessage);
+    taskMessage = taskMessageQueuePop();
   }
   
   return;
@@ -199,7 +199,7 @@ void handleSdCardMessages(SdCardState *sdCardState) {
 
 /// @fn void* runSdCardPosix(void *args)
 ///
-/// @brief Process entry-point for the SD card process.  Sets up and
+/// @brief Task entry-point for the SD card task.  Sets up and
 /// configures access to the SD card reader and then enters an infinite loop
 /// for processing commands.
 ///
@@ -215,7 +215,7 @@ void* runSdCardPosix(void *args) {
   SdCardState sdCardState;
   memset(&sdCardState, 0, sizeof(sdCardState));
   BlockStorageDevice sdDevice = {
-    .context = (void*) ((intptr_t) getRunningProcessId()),
+    .context = (void*) ((intptr_t) getRunningTaskId()),
     .readBlocks = sdReadBlocks,
     .writeBlocks = sdWriteBlocks,
     .blockSize = 512,
@@ -236,15 +236,15 @@ void* runSdCardPosix(void *args) {
     fprintf(stderr, "Error returned: %s", strerror(openError));
   }
 
-  ProcessMessage *schedulerMessage = NULL;
+  TaskMessage *schedulerMessage = NULL;
   while (1) {
-    schedulerMessage = (ProcessMessage*) coroutineYield(NULL, 0);
+    schedulerMessage = (TaskMessage*) coroutineYield(NULL, 0);
     if (schedulerMessage != NULL) {
-      // We have a message from the scheduler that we need to process.  This
+      // We have a message from the scheduler that we need to task.  This
       // is not the expected case, but it's the priority case, so we need to
       // list it first.
       SdCardCommandResponse messageType
-        = (SdCardCommandResponse) processMessageType(schedulerMessage);
+        = (SdCardCommandResponse) taskMessageType(schedulerMessage);
       if (messageType < NUM_SD_CARD_COMMANDS) {
         sdCardCommandHandlers[messageType](&sdCardState, schedulerMessage);
       } else {

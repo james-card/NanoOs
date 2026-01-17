@@ -1,8 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              ExFatProcess.h
+/// @file              HalArduinoNano33Iot.h
 ///
-/// @brief             exFAT process for NanoOs.
+/// @brief             Header for the Arduino Nano 33 IoT HAL implementation.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -28,22 +28,51 @@
 ///                                James Card
 ///                         http://www.jamescard.org
 ///
-///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef EXFAT_PROCESS_H
-#define EXFAT_PROCESS_H
+#ifndef HAL_ARDUINO_NANO_33_IOT_H
+#define HAL_ARDUINO_NANO_33_IOT_H
+
+#include "../kernel/Hal.h"
+
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-void* runExFatFilesystem(void *args);
+/// @def DIO_START
+///
+/// @brief On the Arduino Nano 33 IoT, D0 is used for Serial1's RX and D1 is
+/// used for Serial1's TX.  We use expect to use Serial1, so our first usable
+/// DIO is 2.
+#define DIO_START 2
+
+/// @def NUM_DIO_PINS
+///
+/// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
+#define NUM_DIO_PINS 14
+
+/// @def SPI_COPI_DIO
+///
+/// @brief DIO pin used for SPI COPI on the Arduino Nano 33 IoT.
+#define SPI_COPI_DIO 11
+
+/// @def SPI_CIPO_DIO
+///
+/// @brief DIO pin used for SPI CIPO on the Arduino Nano 33 IoT.
+#define SPI_CIPO_DIO 12
+
+/// @def SPI_SCK_DIO
+///
+/// @brief DIO pin used for SPI serial clock on the Arduino Nano 33 IoT.
+#define SPI_SCK_DIO 13
+
+const Hal* halArduinoNano33IotInit(void);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // EXFAT_PROCESS_H
+#endif // HAL_ARDUINO_NANO_33_IOT_H
 

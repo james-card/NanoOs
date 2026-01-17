@@ -55,7 +55,11 @@ typedef struct FilesystemState FilesystemState;
 #define EXFAT_SIGNATURE              0x4146544658455845ULL // "EXFATFAT"
 #define EXFAT_SECTOR_SIZE            512
 #define EXFAT_CLUSTER_SIZE_MIN       512
-#define EXFAT_CLUSTER_SIZE_MAX       (32 * 1024 * 1024)
+#define EXFAT_CLUSTER_SIZE_MAX       \
+  ( ((uint32_t)   32) \
+  * ((uint32_t) 1024) \
+  * ((uint32_t) 1024) \
+  )
 #define EXFAT_MAX_FILENAME_LENGTH    255
 #define EXFAT_DIRECTORY_ENTRY_SIZE   32
 #define EXFAT_MAX_OPEN_FILES         8

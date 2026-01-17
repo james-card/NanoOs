@@ -33,7 +33,7 @@
 #ifndef HAL_ARDUINO_NANO_EVERY_H
 #define HAL_ARDUINO_NANO_EVERY_H
 
-#include "src/kernel/Hal.h"
+#include "../kernel/Hal.h"
 
 
 #ifdef __cplusplus

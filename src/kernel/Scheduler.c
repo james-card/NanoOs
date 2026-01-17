@@ -32,11 +32,11 @@
 #include "Commands.h"
 #include "Console.h"
 #include "ExFatFilesystem.h"
-#include "ExFatProcess.h"
+#include "ExFatTask.h"
 #include "Hal.h"
 #include "NanoOs.h"
 #include "NanoOsOverlay.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "Scheduler.h"
 #include "SdCard.h"
 
@@ -52,65 +52,65 @@ void runScheduler(SchedulerState *schedulerState);
 
 /// @def NUM_STANDARD_FILE_DESCRIPTORS
 ///
-/// @brief The number of file descriptors a process usually starts out with.
+/// @brief The number of file descriptors a task usually starts out with.
 #define NUM_STANDARD_FILE_DESCRIPTORS 3
 
 /// @def STDIN_FILE_DESCRIPTOR_INDEX
 ///
-/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
-/// FileDescriptor object that maps to the process's stdin FILE stream.
+/// @brief Index into a TaskDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the task's stdin FILE stream.
 #define STDIN_FILE_DESCRIPTOR_INDEX 0
 
 /// @def STDOUT_FILE_DESCRIPTOR_INDEX
 ///
-/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
-/// FileDescriptor object that maps to the process's stdout FILE stream.
+/// @brief Index into a TaskDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the task's stdout FILE stream.
 #define STDOUT_FILE_DESCRIPTOR_INDEX 1
 
 /// @def STDERR_FILE_DESCRIPTOR_INDEX
 ///
-/// @brief Index into a ProcessDescriptor's fileDescriptors array that holds the
-/// FileDescriptor object that maps to the process's stderr FILE stream.
+/// @brief Index into a TaskDescriptor's fileDescriptors array that holds the
+/// FileDescriptor object that maps to the task's stderr FILE stream.
 #define STDERR_FILE_DESCRIPTOR_INDEX 2
 
-/// @var schedulerProcessHandle
+/// @var schedulerTaskHandle
 ///
-/// @brief Pointer to the main process handle that's allocated before the
+/// @brief Pointer to the main task handle that's allocated before the
 /// scheduler is started.
-ProcessHandle schedulerProcessHandle = NULL;
+TaskHandle schedulerTaskHandle = NULL;
 
-/// @var schedulerProcess
+/// @var schedulerTask
 ///
-/// @brief Pointer to the scheduler process.
-static ProcessDescriptor *schedulerProcess = NULL;
+/// @brief Pointer to the scheduler task.
+static TaskDescriptor *schedulerTask = NULL;
 
-/// @var currentProcess
+/// @var currentTask
 ///
-/// @brief Pointer to the process that is currently executing.
-static ProcessDescriptor *currentProcess = NULL;
+/// @brief Pointer to the task that is currently executing.
+static TaskDescriptor *currentTask = NULL;
 
-/// @var allProcesses
+/// @var allTasks
 ///
-/// @brief Pointer to the allProcesses array that is part of the
-/// SchedulerState object maintained by the scheduler process.  This is needed
-/// in order to do lookups from process IDs to process object pointers.
-static ProcessDescriptor *allProcesses = NULL;
+/// @brief Pointer to the allTasks array that is part of the
+/// SchedulerState object maintained by the scheduler task.  This is needed
+/// in order to do lookups from task IDs to task object pointers.
+static TaskDescriptor *allTasks = NULL;
 
 /// @var standardKernelFileDescriptors
 ///
-/// @brief The array of file descriptors that all kernel processes use.
+/// @brief The array of file descriptors that all kernel tasks use.
 static const FileDescriptor standardKernelFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
 ] = {
   {
     // stdin
-    // Kernel processes do not read from stdin, so clear out both pipes.
+    // Kernel tasks do not read from stdin, so clear out both pipes.
     .inputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
   },
@@ -119,11 +119,11 @@ static const FileDescriptor standardKernelFileDescriptors[
     // Uni-directional FileDescriptor, so clear the input pipe and direct the
     // output pipe to the console.
     .inputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .taskId = NANO_OS_CONSOLE_TASK_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -132,11 +132,11 @@ static const FileDescriptor standardKernelFileDescriptors[
     // Uni-directional FileDescriptor, so clear the input pipe and direct the
     // output pipe to the console.
     .inputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .taskId = NANO_OS_CONSOLE_TASK_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -145,7 +145,7 @@ static const FileDescriptor standardKernelFileDescriptors[
 /// @var standardUserFileDescriptors
 ///
 /// @brief Pointer to the array of FileDescriptor objects (declared in the
-/// startScheduler function on the scheduler's stack) that all processes start
+/// startScheduler function on the scheduler's stack) that all tasks start
 /// out with.
 static const FileDescriptor standardUserFileDescriptors[
   NUM_STANDARD_FILE_DESCRIPTORS
@@ -155,11 +155,11 @@ static const FileDescriptor standardUserFileDescriptors[
     // Uni-directional FileDescriptor, so clear the output pipe and direct the
     // input pipe to the console.
     .inputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .taskId = NANO_OS_CONSOLE_TASK_ID,
       .messageType = CONSOLE_WAIT_FOR_INPUT,
     },
     .outputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
   },
@@ -168,11 +168,11 @@ static const FileDescriptor standardUserFileDescriptors[
     // Uni-directional FileDescriptor, so clear the input pipe and direct the
     // output pipe to the console.
     .inputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .taskId = NANO_OS_CONSOLE_TASK_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -181,11 +181,11 @@ static const FileDescriptor standardUserFileDescriptors[
     // Uni-directional FileDescriptor, so clear the input pipe and direct the
     // output pipe to the console.
     .inputPipe = {
-      .processId = PROCESS_ID_NOT_SET,
+      .taskId = TASK_ID_NOT_SET,
       .messageType = 0,
     },
     .outputPipe = {
-      .processId = NANO_OS_CONSOLE_PROCESS_ID,
+      .taskId = NANO_OS_CONSOLE_TASK_ID,
       .messageType = CONSOLE_WRITE_BUFFER,
     },
   },
@@ -193,97 +193,97 @@ static const FileDescriptor standardUserFileDescriptors[
 
 /// @var shellNames
 ///
-/// @brief The names of the shells as they will appear in the process table.
+/// @brief The names of the shells as they will appear in the task table.
 static const char* const shellNames[NANO_OS_MAX_NUM_SHELLS] = {
   "shell 0",
   "shell 1",
 };
 
-/// @fn int processQueuePush(
-///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
+/// @fn int taskQueuePush(
+///   TaskQueue *taskQueue, TaskDescriptor *taskDescriptor)
 ///
-/// @brief Push a pointer to a ProcessDescriptor onto a ProcessQueue.
+/// @brief Push a pointer to a TaskDescriptor onto a TaskQueue.
 ///
-/// @param processQueue A pointer to a ProcessQueue to push the pointer to.
-/// @param processDescriptor A pointer to a ProcessDescriptor to push onto the
+/// @param taskQueue A pointer to a TaskQueue to push the pointer to.
+/// @param taskDescriptor A pointer to a TaskDescriptor to push onto the
 ///   queue.
 ///
 /// @return Returns 0 on success, ENOMEM on failure.
-int processQueuePush(
-  ProcessQueue *processQueue, ProcessDescriptor *processDescriptor
+int taskQueuePush(
+  TaskQueue *taskQueue, TaskDescriptor *taskDescriptor
 ) {
-  if ((processQueue == NULL)
-    || (processQueue->numElements >= SCHEDULER_NUM_PROCESSES)
+  if ((taskQueue == NULL)
+    || (taskQueue->numElements >= SCHEDULER_NUM_TASKS)
   ) {
-    printString("ERROR: Could not push process ");
-    printInt(processDescriptor->processId);
+    printString("ERROR: Could not push task ");
+    printInt(taskDescriptor->taskId);
     printString(" onto ");
-    printString(processQueue->name);
+    printString(taskQueue->name);
     printString(" queue:\n");
     return ENOMEM;
   }
 
-  processQueue->processes[processQueue->tail] = processDescriptor;
-  processQueue->tail++;
-  processQueue->tail %= SCHEDULER_NUM_PROCESSES;
-  processQueue->numElements++;
-  processDescriptor->processQueue = processQueue;
+  taskQueue->tasks[taskQueue->tail] = taskDescriptor;
+  taskQueue->tail++;
+  taskQueue->tail %= SCHEDULER_NUM_TASKS;
+  taskQueue->numElements++;
+  taskDescriptor->taskQueue = taskQueue;
 
   return 0;
 }
 
-/// @fn ProcessDescriptor* processQueuePop(ProcessQueue *processQueue)
+/// @fn TaskDescriptor* taskQueuePop(TaskQueue *taskQueue)
 ///
-/// @brief Pop a pointer to a ProcessDescriptor from a ProcessQueue.
+/// @brief Pop a pointer to a TaskDescriptor from a TaskQueue.
 ///
-/// @param processQueue A pointer to a ProcessQueue to pop the pointer from.
+/// @param taskQueue A pointer to a TaskQueue to pop the pointer from.
 ///
-/// @return Returns a pointer to a ProcessDescriptor on success, NULL on
+/// @return Returns a pointer to a TaskDescriptor on success, NULL on
 /// failure.
-ProcessDescriptor* processQueuePop(ProcessQueue *processQueue) {
-  ProcessDescriptor *processDescriptor = NULL;
-  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
-    return processDescriptor; // NULL
+TaskDescriptor* taskQueuePop(TaskQueue *taskQueue) {
+  TaskDescriptor *taskDescriptor = NULL;
+  if ((taskQueue == NULL) || (taskQueue->numElements == 0)) {
+    return taskDescriptor; // NULL
   }
 
-  processDescriptor = processQueue->processes[processQueue->head];
-  processQueue->head++;
-  processQueue->head %= SCHEDULER_NUM_PROCESSES;
-  processQueue->numElements--;
-  processDescriptor->processQueue = NULL;
+  taskDescriptor = taskQueue->tasks[taskQueue->head];
+  taskQueue->head++;
+  taskQueue->head %= SCHEDULER_NUM_TASKS;
+  taskQueue->numElements--;
+  taskDescriptor->taskQueue = NULL;
 
-  return processDescriptor;
+  return taskDescriptor;
 }
 
-/// @fn int processQueueRemove(
-///   ProcessQueue *processQueue, ProcessDescriptor *processDescriptor)
+/// @fn int taskQueueRemove(
+///   TaskQueue *taskQueue, TaskDescriptor *taskDescriptor)
 ///
-/// @brief Remove a pointer to a ProcessDescriptor from a ProcessQueue.
+/// @brief Remove a pointer to a TaskDescriptor from a TaskQueue.
 ///
-/// @param processQueue A pointer to a ProcessQueue to remove the pointer from.
-/// @param processDescriptor A pointer to a ProcessDescriptor to remove from the
+/// @param taskQueue A pointer to a TaskQueue to remove the pointer from.
+/// @param taskDescriptor A pointer to a TaskDescriptor to remove from the
 ///   queue.
 ///
 /// @return Returns 0 on success, ENOMEM on failure.
-int processQueueRemove(
-  ProcessQueue *processQueue, ProcessDescriptor *processDescriptor
+int taskQueueRemove(
+  TaskQueue *taskQueue, TaskDescriptor *taskDescriptor
 ) {
   int returnValue = EINVAL;
-  if ((processQueue == NULL) || (processQueue->numElements == 0)) {
+  if ((taskQueue == NULL) || (taskQueue->numElements == 0)) {
     // Nothing to do.
     return returnValue; // EINVAL
   }
 
-  ProcessDescriptor *poppedDescriptor = NULL;
-  for (uint8_t ii = 0; ii < processQueue->numElements; ii++) {
-    poppedDescriptor = processQueuePop(processQueue);
-    if (poppedDescriptor == processDescriptor) {
+  TaskDescriptor *poppedDescriptor = NULL;
+  for (uint8_t ii = 0; ii < taskQueue->numElements; ii++) {
+    poppedDescriptor = taskQueuePop(taskQueue);
+    if (poppedDescriptor == taskDescriptor) {
       returnValue = ENOERR;
-      processDescriptor->processQueue = NULL;
+      taskDescriptor->taskQueue = NULL;
       break;
     }
     // This is not what we're looking for.  Put it back.
-    processQueuePush(processQueue, poppedDescriptor);
+    taskQueuePush(taskQueue, poppedDescriptor);
   }
 
   return returnValue;
@@ -333,13 +333,13 @@ void coroutineYieldCallback(void *stateData, Coroutine *coroutine) {
 /// waiting queue and pushed onto the ready queue.
 void comutexUnlockCallback(void *stateData, Comutex *comutex) {
   SchedulerState *schedulerState = *((SchedulerState**) stateData);
-  ProcessDescriptor *processDescriptor = coroutineContext(comutex->head);
-  if (processDescriptor == NULL) {
+  TaskDescriptor *taskDescriptor = coroutineContext(comutex->head);
+  if (taskDescriptor == NULL) {
     // Nothing is waiting on this mutex.  Just return.
     return;
   }
-  processQueueRemove(processDescriptor->processQueue, processDescriptor);
-  processQueuePush(&schedulerState->ready, processDescriptor);
+  taskQueueRemove(taskDescriptor->taskQueue, taskDescriptor);
+  taskQueuePush(&schedulerState->ready, taskDescriptor);
 
   return;
 }
@@ -360,154 +360,154 @@ void comutexUnlockCallback(void *stateData, Comutex *comutex) {
 /// waiting queue and pushed onto the ready queue.
 void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
   SchedulerState *schedulerState = *((SchedulerState**) stateData);
-  ProcessHandle cur = cocondition->head;
+  TaskHandle cur = cocondition->head;
 
   for (int ii = 0; (ii < cocondition->numSignals) && (cur != NULL); ii++) {
-    ProcessDescriptor *processDescriptor = coroutineContext(cur);
-    // It's not possible for processDescriptor to be NULL.  We only enter this
+    TaskDescriptor *taskDescriptor = coroutineContext(cur);
+    // It's not possible for taskDescriptor to be NULL.  We only enter this
     // loop if cocondition->numSignals > 0, so there MUST be something waiting
     // on this condition.
-    processQueueRemove(processDescriptor->processQueue, processDescriptor);
-    processQueuePush(&schedulerState->ready, processDescriptor);
+    taskQueueRemove(taskDescriptor->taskQueue, taskDescriptor);
+    taskQueuePush(&schedulerState->ready, taskDescriptor);
     cur = cur->nextToSignal;
   }
 
   return;
 }
 
-/// @fn ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid)
+/// @fn TaskDescriptor* schedulerGetTaskByPid(unsigned int pid)
 ///
-/// @brief Look up a process for a running command given its process ID.
+/// @brief Look up a task for a running command given its task ID.
 ///
-/// @param pid The integer ID for the process.
+/// @param pid The integer ID for the task.
 ///
-/// @return Returns the found process descriptor on success, NULL on failure.
-ProcessDescriptor* schedulerGetProcessByPid(unsigned int pid) {
-  ProcessDescriptor *processDescriptor = NULL;
-  if (pid < NANO_OS_NUM_PROCESSES) {
-    processDescriptor = &allProcesses[pid];
+/// @return Returns the found task descriptor on success, NULL on failure.
+TaskDescriptor* schedulerGetTaskByPid(unsigned int pid) {
+  TaskDescriptor *taskDescriptor = NULL;
+  if (pid < NANO_OS_NUM_TASKS) {
+    taskDescriptor = &allTasks[pid];
   }
 
-  return processDescriptor;
+  return taskDescriptor;
 }
 
-/// @fn void* dummyProcess(void *args)
+/// @fn void* dummyTask(void *args)
 ///
-/// @brief Dummy process that's loaded at startup to prepopulate the process
-/// array with processes.
+/// @brief Dummy task that's loaded at startup to prepopulate the task
+/// array with tasks.
 ///
 /// @param args Any arguments passed to this function.  Ignored.
 ///
 /// @return This function always returns NULL.
-void* dummyProcess(void *args) {
+void* dummyTask(void *args) {
   (void) args;
   return NULL;
 }
 
-/// @fn int schedulerSendProcessMessageToProcess(
-///   ProcessDescriptor *processDescriptor, ProcessMessage *processMessage)
+/// @fn int schedulerSendTaskMessageToTask(
+///   TaskDescriptor *taskDescriptor, TaskMessage *taskMessage)
 ///
-/// @brief Get an available ProcessMessage, populate it with the specified data,
-/// and push it onto a destination process's queue.
+/// @brief Get an available TaskMessage, populate it with the specified data,
+/// and push it onto a destination task's queue.
 ///
-/// @param processDescriptor A pointer to the ProcessDescriptor that manages
-///   the process to send a message to.
-/// @param processMessage A pointer to the message to send to the destination
-///   process.
+/// @param taskDescriptor A pointer to the TaskDescriptor that manages
+///   the task to send a message to.
+/// @param taskMessage A pointer to the message to send to the destination
+///   task.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int schedulerSendProcessMessageToProcess(
-  ProcessDescriptor *processDescriptor, ProcessMessage *processMessage
+/// @return Returns taskSuccess on success, taskError on failure.
+int schedulerSendTaskMessageToTask(
+  TaskDescriptor *taskDescriptor, TaskMessage *taskMessage
 ) {
-  int returnValue = processSuccess;
-  if ((processDescriptor == NULL)
-    || (processDescriptor->processHandle == NULL)
+  int returnValue = taskSuccess;
+  if ((taskDescriptor == NULL)
+    || (taskDescriptor->taskHandle == NULL)
   ) {
     printString(
-      "ERROR: Attempt to send scheduler processMessage to NULL process.\n");
-    returnValue = processError;
+      "ERROR: Attempt to send scheduler taskMessage to NULL task.\n");
+    returnValue = taskError;
     return returnValue;
-  } else if (processMessage == NULL) {
+  } else if (taskMessage == NULL) {
     printString(
-      "ERROR: Attempt to send NULL scheduler processMessage to process.\n");
-    returnValue = processError;
+      "ERROR: Attempt to send NULL scheduler taskMessage to task.\n");
+    returnValue = taskError;
     return returnValue;
   }
-  // processMessage->from would normally be set when we do a
-  // processMessageQueuePush. We're not using that mechanism here, so we have
+  // taskMessage->from would normally be set when we do a
+  // taskMessageQueuePush. We're not using that mechanism here, so we have
   // to do it manually.  If we don't do this, then commands that validate that
   // the message came from the scheduler will fail.
-  msg_from(processMessage).coro = schedulerProcessHandle;
+  msg_from(taskMessage).coro = schedulerTaskHandle;
 
   // Have to set the endpoint type manually since we're not using
   // comessageQueuePush.
-  processMessage->msg_sync = &msg_sync_array[MSG_CORO_SAFE];
+  taskMessage->msg_sync = &msg_sync_array[MSG_CORO_SAFE];
 
-  if (coroutineCorrupted(processDescriptor->processHandle)) {
-    printString("ERROR: Called process is corrupted:\n");
-    returnValue = processError;
+  if (coroutineCorrupted(taskDescriptor->taskHandle)) {
+    printString("ERROR: Called task is corrupted:\n");
+    returnValue = taskError;
     return returnValue;
   }
-  processResume(processDescriptor, processMessage);
+  taskResume(taskDescriptor, taskMessage);
 
-  if (processMessageDone(processMessage) != true) {
-    // This is our only indication from the called process that something went
+  if (taskMessageDone(taskMessage) != true) {
+    // This is our only indication from the called task that something went
     // wrong.  Return an error status here.
-    printString("ERROR: Called process did not mark sent message done.\n");
-    returnValue = processError;
+    printString("ERROR: Called task did not mark sent message done.\n");
+    returnValue = taskError;
   }
 
   return returnValue;
 }
 
-/// @fn int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
-///   unsigned int pid, ProcessMessage *processMessage)
+/// @fn int schedulerSendTaskMessageToPid(SchedulerState *schedulerState,
+///   unsigned int pid, TaskMessage *taskMessage)
 ///
-/// @brief Look up a process by its PID and send a message to it.
+/// @brief Look up a task by its PID and send a message to it.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param pid The ID of the process to send the message to.
-/// @param processMessage A pointer to the message to send to the destination
-///   process.
+///   scheduler task.
+/// @param pid The ID of the task to send the message to.
+/// @param taskMessage A pointer to the message to send to the destination
+///   task.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int schedulerSendProcessMessageToPid(SchedulerState *schedulerState,
-  unsigned int pid, ProcessMessage *processMessage
+/// @return Returns taskSuccess on success, taskError on failure.
+int schedulerSendTaskMessageToPid(SchedulerState *schedulerState,
+  unsigned int pid, TaskMessage *taskMessage
 ) {
   (void) schedulerState;
 
-  ProcessDescriptor *processDescriptor = schedulerGetProcessByPid(pid);
-  // If processDescriptor is NULL, it will be detected as not running by
-  // schedulerSendProcessMessageToProcess, so there's no real point in
+  TaskDescriptor *taskDescriptor = schedulerGetTaskByPid(pid);
+  // If taskDescriptor is NULL, it will be detected as not running by
+  // schedulerSendTaskMessageToTask, so there's no real point in
   //  checking for NULL here.
-  return schedulerSendProcessMessageToProcess(
-    processDescriptor, processMessage);
+  return schedulerSendTaskMessageToTask(
+    taskDescriptor, taskMessage);
 }
 
-/// @fn int schedulerSendNanoOsMessageToProcess(
-///   ProcessDescriptor *processDescriptor, int type,
+/// @fn int schedulerSendNanoOsMessageToTask(
+///   TaskDescriptor *taskDescriptor, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
 ///
-/// @brief Send a NanoOsMessage to another process identified by its Coroutine.
+/// @brief Send a NanoOsMessage to another task identified by its Coroutine.
 ///
-/// @param processDescriptor A pointer to the ProcesDescriptor that holds the
-///   metadata for the process.
-/// @param type The type of the message to send to the destination process.
-/// @param func The function information to send to the destination process,
+/// @param taskDescriptor A pointer to the ProcesDescriptor that holds the
+///   metadata for the task.
+/// @param type The type of the message to send to the destination task.
+/// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
-/// @param data The data to send to the destination process, cast to a
+/// @param data The data to send to the destination task, cast to a
 ///   NanoOsMessageData.
 /// @param waiting Whether or not the sender is waiting on a response from the
-///   destination process.
+///   destination task.
 ///
-/// @return Returns processSuccess on success, a different process status
+/// @return Returns taskSuccess on success, a different task status
 /// on failure.
-int schedulerSendNanoOsMessageToProcess(ProcessDescriptor *processDescriptor,
+int schedulerSendNanoOsMessageToTask(TaskDescriptor *taskDescriptor,
   int type, NanoOsMessageData func, NanoOsMessageData data
 ) {
-  ProcessMessage processMessage;
-  memset(&processMessage, 0, sizeof(processMessage));
+  TaskMessage taskMessage;
+  memset(&taskMessage, 0, sizeof(taskMessage));
   NanoOsMessage nanoOsMessage;
 
   nanoOsMessage.func = func;
@@ -515,11 +515,11 @@ int schedulerSendNanoOsMessageToProcess(ProcessDescriptor *processDescriptor,
 
   // These messages are always waiting for done from the caller, so hardcode
   // the waiting parameter to true here.
-  processMessageInit(
-    &processMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
+  taskMessageInit(
+    &taskMessage, type, &nanoOsMessage, sizeof(nanoOsMessage), true);
 
-  int returnValue = schedulerSendProcessMessageToProcess(
-    processDescriptor, &processMessage);
+  int returnValue = schedulerSendTaskMessageToTask(
+    taskDescriptor, &taskMessage);
 
   return returnValue;
 }
@@ -529,48 +529,48 @@ int schedulerSendNanoOsMessageToProcess(ProcessDescriptor *processDescriptor,
 ///   int pid, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
 ///
-/// @brief Send a NanoOsMessage to another process identified by its PID. Looks
-/// up the process's Coroutine by its PID and then calls
-/// schedulerSendNanoOsMessageToProcess.
+/// @brief Send a NanoOsMessage to another task identified by its PID. Looks
+/// up the task's Coroutine by its PID and then calls
+/// schedulerSendNanoOsMessageToTask.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintainted by
 ///   the scheduler.
-/// @param pid The process ID of the destination process.
-/// @param type The type of the message to send to the destination process.
-/// @param func The function information to send to the destination process,
+/// @param pid The task ID of the destination task.
+/// @param type The type of the message to send to the destination task.
+/// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
-/// @param data The data to send to the destination process, cast to a
+/// @param data The data to send to the destination task, cast to a
 ///   NanoOsMessageData.
 ///
-/// @return Returns processSuccess on success, a different process status
+/// @return Returns taskSuccess on success, a different task status
 /// on failure.
 int schedulerSendNanoOsMessageToPid(
   SchedulerState *schedulerState,
   int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data
 ) {
-  int returnValue = processError;
-  if (pid >= NANO_OS_NUM_PROCESSES) {
+  int returnValue = taskError;
+  if (pid >= NANO_OS_NUM_TASKS) {
     // Not a valid PID.  Fail.
     printString("ERROR: ");
     printInt(pid);
     printString(" is not a valid PID.\n");
-    return returnValue; // processError
+    return returnValue; // taskError
   }
 
-  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[pid];
-  returnValue = schedulerSendNanoOsMessageToProcess(
-    processDescriptor, type, func, data);
+  TaskDescriptor *taskDescriptor = &schedulerState->allTasks[pid];
+  returnValue = schedulerSendNanoOsMessageToTask(
+    taskDescriptor, type, func, data);
   return returnValue;
 }
 
 /// @fn void* schedulerResumeReallocMessage(void *ptr, size_t size)
 ///
-/// @brief Send a MEMORY_MANAGER_REALLOC command to the memory manager process
+/// @brief Send a MEMORY_MANAGER_REALLOC command to the memory manager task
 /// by resuming it with the message and get a reply.
 ///
-/// @param ptr The pointer to send to the process.
-/// @param size The size to send to the process.
+/// @param ptr The pointer to send to the task.
+/// @param size The size to send to the task.
 ///
 /// @return Returns the data pointer returned in the reply.
 void* schedulerResumeReallocMessage(void *ptr, size_t size) {
@@ -581,24 +581,24 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   reallocMessage.size = size;
   reallocMessage.responseType = MEMORY_MANAGER_RETURNING_POINTER;
   
-  ProcessMessage *sent = getAvailableMessage();
+  TaskMessage *sent = getAvailableMessage();
   if (sent == NULL) {
     // Nothing we can do.  The scheduler can't yield.  Bail.
     return returnValue;
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(sent);
+    = (NanoOsMessage*) taskMessageData(sent);
   nanoOsMessage->data = (NanoOsMessageData) ((uintptr_t) &reallocMessage);
-  processMessageInit(sent, MEMORY_MANAGER_REALLOC,
+  taskMessageInit(sent, MEMORY_MANAGER_REALLOC,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  // sent->from would normally be set during processMessageQueuePush.  We're
+  // sent->from would normally be set during taskMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcessHandle;
+  msg_from(sent).coro = schedulerTaskHandle;
 
-  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
-  if (processMessageDone(sent) == true) {
+  taskResume(&allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID], sent);
+  if (taskMessageDone(sent) == true) {
     // The handler set the pointer back in the structure we sent it, so grab it
     // out of the structure we already have.
     returnValue = reallocMessage.ptr;
@@ -608,11 +608,11 @@ void* schedulerResumeReallocMessage(void *ptr, size_t size) {
   }
   // The handler pushes the message back onto our queue, which is not what we
   // want.  Pop it off again.
-  processMessageQueuePop();
-  processMessageRelease(sent);
+  taskMessageQueuePop();
+  taskMessageRelease(sent);
 
   // The message that was sent to us is the one that we allocated on the stack,
-  // so, there's no reason to call processMessageRelease here.
+  // so, there's no reason to call taskMessageRelease here.
   
   return returnValue;
 }
@@ -673,55 +673,55 @@ void* kcalloc(size_t nmemb, size_t size) {
 ///
 /// @return This function returns no value.
 void kfree(void *ptr) {
-  ProcessMessage *sent = getAvailableMessage();
+  TaskMessage *sent = getAvailableMessage();
   if (sent == NULL) {
     // Nothing we can do.  The scheduler can't yield.  Bail.
     return;
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(sent);
+    = (NanoOsMessage*) taskMessageData(sent);
   nanoOsMessage->data = (NanoOsMessageData) ((intptr_t) ptr);
-  processMessageInit(sent, MEMORY_MANAGER_FREE,
+  taskMessageInit(sent, MEMORY_MANAGER_FREE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  // sent->from would normally be set during processMessageQueuePush.  We're
+  // sent->from would normally be set during taskMessageQueuePush.  We're
   // not using that mechanism here, so we have to do it manually.  Things will
   // get messed up if we don't.
-  msg_from(sent).coro = schedulerProcessHandle;
+  msg_from(sent).coro = schedulerTaskHandle;
 
-  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], sent);
-  if (processMessageDone(sent) == false) {
+  taskResume(&allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID], sent);
+  if (taskMessageDone(sent) == false) {
     printString(
       "Warning:  Memory manager did not mark free message done.\n");
   }
-  processMessageRelease(sent);
+  taskMessageRelease(sent);
 
   return;
 }
 
 /// @fn int schedulerAssignPortToPid(
 ///   SchedulerState *schedulerState,
-///   uint8_t consolePort, ProcessId owner)
+///   uint8_t consolePort, TaskId owner)
 ///
-/// @brief Assign a console port to a process ID.
+/// @brief Assign a console port to a task ID.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintainted by
 ///   the scheduler.
 /// @param consolePort The ID of the consolePort to assign.
-/// @param owner The ID of the process to assign the port to.
+/// @param owner The ID of the task to assign the port to.
 ///
-/// @return Returns processSuccess on success, processError on failure.
+/// @return Returns taskSuccess on success, taskError on failure.
 int schedulerAssignPortToPid(
   SchedulerState *schedulerState,
-  uint8_t consolePort, ProcessId owner
+  uint8_t consolePort, TaskId owner
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.consolePortPidAssociation.consolePort
     = consolePort;
-  consolePortPidUnion.consolePortPidAssociation.processId = owner;
+  consolePortPidUnion.consolePortPidAssociation.taskId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT,
+    NANO_OS_CONSOLE_TASK_ID, CONSOLE_ASSIGN_PORT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -729,27 +729,27 @@ int schedulerAssignPortToPid(
 
 /// @fn int schedulerAssignPortInputToPid(
 ///   SchedulerState *schedulerState,
-///   uint8_t consolePort, ProcessId owner)
+///   uint8_t consolePort, TaskId owner)
 ///
-/// @brief Assign a console port to a process ID.
+/// @brief Assign a console port to a task ID.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintainted by
 ///   the scheduler.
 /// @param consolePort The ID of the consolePort to assign.
-/// @param owner The ID of the process to assign the port to.
+/// @param owner The ID of the task to assign the port to.
 ///
-/// @return Returns processSuccess on success, processError on failure.
+/// @return Returns taskSuccess on success, taskError on failure.
 int schedulerAssignPortInputToPid(
   SchedulerState *schedulerState,
-  uint8_t consolePort, ProcessId owner
+  uint8_t consolePort, TaskId owner
 ) {
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.consolePortPidAssociation.consolePort
     = consolePort;
-  consolePortPidUnion.consolePortPidAssociation.processId = owner;
+  consolePortPidUnion.consolePortPidAssociation.taskId = owner;
 
   int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_ASSIGN_PORT_INPUT,
+    NANO_OS_CONSOLE_TASK_ID, CONSOLE_ASSIGN_PORT_INPUT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -757,36 +757,36 @@ int schedulerAssignPortInputToPid(
 
 /// @fn int schedulerSetPortShell(
 ///   SchedulerState *schedulerState,
-///   uint8_t consolePort, ProcessId shell)
+///   uint8_t consolePort, TaskId shell)
 ///
-/// @brief Assign a console port to a process ID.
+/// @brief Assign a console port to a task ID.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintainted by
 ///   the scheduler.
 /// @param consolePort The ID of the consolePort to set the shell for.
-/// @param shell The ID of the shell process for the port.
+/// @param shell The ID of the shell task for the port.
 ///
-/// @return Returns processSuccess on success, processError on failure.
+/// @return Returns taskSuccess on success, taskError on failure.
 int schedulerSetPortShell(
   SchedulerState *schedulerState,
-  uint8_t consolePort, ProcessId shell
+  uint8_t consolePort, TaskId shell
 ) {
-  int returnValue = processError;
+  int returnValue = taskError;
 
-  if (shell >= NANO_OS_NUM_PROCESSES) {
+  if (shell >= NANO_OS_NUM_TASKS) {
     printString("ERROR: schedulerSetPortShell called with invalid shell PID ");
     printInt(shell);
     printString("\n");
-    return returnValue; // processError
+    return returnValue; // taskError
   }
 
   ConsolePortPidUnion consolePortPidUnion;
   consolePortPidUnion.consolePortPidAssociation.consolePort
     = consolePort;
-  consolePortPidUnion.consolePortPidAssociation.processId = shell;
+  consolePortPidUnion.consolePortPidAssociation.taskId = shell;
 
   returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_SET_PORT_SHELL,
+    NANO_OS_CONSOLE_TASK_ID, CONSOLE_SET_PORT_SHELL,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
@@ -802,7 +802,7 @@ int schedulerSetPortShell(
 /// @return Returns the number of ports the console is running on success, -1
 /// on failure.
 int schedulerGetNumConsolePorts(SchedulerState *schedulerState) {
-  ProcessMessage *messageToSend = getAvailableMessage();
+  TaskMessage *messageToSend = getAvailableMessage();
   while (messageToSend == NULL) {
     runScheduler(schedulerState);
     messageToSend = getAvailableMessage();
@@ -810,121 +810,121 @@ int schedulerGetNumConsolePorts(SchedulerState *schedulerState) {
   int returnValue = -1;
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(messageToSend);
-  processMessageInit(messageToSend, CONSOLE_GET_NUM_PORTS,
+    = (NanoOsMessage*) taskMessageData(messageToSend);
+  taskMessageInit(messageToSend, CONSOLE_GET_NUM_PORTS,
     /*data= */ nanoOsMessage, /* size= */ sizeof(NanoOsMessage),
     /* waiting= */ true);
-  if (schedulerSendProcessMessageToPid(schedulerState,
-    NANO_OS_CONSOLE_PROCESS_ID, messageToSend) != processSuccess
+  if (schedulerSendTaskMessageToPid(schedulerState,
+    NANO_OS_CONSOLE_TASK_ID, messageToSend) != taskSuccess
   ) {
     printString("ERROR: Could not send CONSOLE_GET_NUM_PORTS to console\n");
     return returnValue; // -1
   }
 
   returnValue = nanoOsMessageDataValue(messageToSend, int);
-  processMessageRelease(messageToSend);
+  taskMessageRelease(messageToSend);
 
   return returnValue;
 }
 
-/// @fn int schedulerNotifyProcessComplete(ProcessId processId)
+/// @fn int schedulerNotifyTaskComplete(TaskId taskId)
 ///
-/// @brief Notify a waiting process that a running process has completed.
+/// @brief Notify a waiting task that a running task has completed.
 ///
-/// @param processId The ID of the process to notify.
+/// @param taskId The ID of the task to notify.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int schedulerNotifyProcessComplete(ProcessId processId) {
-  if (sendNanoOsMessageToPid(processId,
-    SCHEDULER_PROCESS_COMPLETE, 0, 0, false) == NULL
+/// @return Returns taskSuccess on success, taskError on failure.
+int schedulerNotifyTaskComplete(TaskId taskId) {
+  if (sendNanoOsMessageToPid(taskId,
+    SCHEDULER_TASK_COMPLETE, 0, 0, false) == NULL
   ) {
-    return processError;
+    return taskError;
   }
 
-  return processSuccess;
+  return taskSuccess;
 }
 
-/// @fn int schedulerWaitForProcessComplete(void)
+/// @fn int schedulerWaitForTaskComplete(void)
 ///
-/// @brief Wait for another process to send us a message indicating that a
-/// process is complete.
+/// @brief Wait for another task to send us a message indicating that a
+/// task is complete.
 ///
-/// @return Returns processSuccess on success, processError on failure.
-int schedulerWaitForProcessComplete(void) {
-  ProcessMessage *doneMessage
-    = processMessageQueueWaitForType(SCHEDULER_PROCESS_COMPLETE, NULL);
+/// @return Returns taskSuccess on success, taskError on failure.
+int schedulerWaitForTaskComplete(void) {
+  TaskMessage *doneMessage
+    = taskMessageQueueWaitForType(SCHEDULER_TASK_COMPLETE, NULL);
   if (doneMessage == NULL) {
-    return processError;
+    return taskError;
   }
 
   // We don't need any data from the message.  Just release it.
-  processMessageRelease(doneMessage);
+  taskMessageRelease(doneMessage);
 
-  return processSuccess;
+  return taskSuccess;
 }
 
-/// @fn ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout)
+/// @fn TaskId schedulerGetNumRunningTasks(struct timespec *timeout)
 ///
-/// @brief Get the number of running processes from the scheduler.
+/// @brief Get the number of running tasks from the scheduler.
 ///
 /// @param timeout A pointer to a struct timespec with the end time for the
 ///   timeout.
 ///
-/// @return Returns the number of running processes on success, 0 on failure.
-/// There is no way for the number of running processes to exceed the maximum
-/// value of a ProcessId type, so it's used here as the return type.
-ProcessId schedulerGetNumRunningProcesses(struct timespec *timeout) {
-  ProcessMessage *processMessage = NULL;
-  int waitStatus = processSuccess;
-  ProcessId numProcessDescriptors = 0;
+/// @return Returns the number of running tasks on success, 0 on failure.
+/// There is no way for the number of running tasks to exceed the maximum
+/// value of a TaskId type, so it's used here as the return type.
+TaskId schedulerGetNumRunningTasks(struct timespec *timeout) {
+  TaskMessage *taskMessage = NULL;
+  int waitStatus = taskSuccess;
+  TaskId numTaskDescriptors = 0;
 
-  processMessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_NUM_RUNNING_PROCESSES,
+  taskMessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_NUM_RUNNING_TASKS,
     (NanoOsMessageData) 0, (NanoOsMessageData) 0, true);
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     printf("ERROR: Could not communicate with scheduler.\n");
     goto exit;
   }
 
-  waitStatus = processMessageWaitForDone(processMessage, timeout);
-  if (waitStatus != processSuccess) {
-    if (waitStatus == processTimedout) {
-      printf("Command to get the number of running processes timed out.\n");
+  waitStatus = taskMessageWaitForDone(taskMessage, timeout);
+  if (waitStatus != taskSuccess) {
+    if (waitStatus == taskTimedout) {
+      printf("Command to get the number of running tasks timed out.\n");
     } else {
-      printf("Command to get the number of running processes failed.\n");
+      printf("Command to get the number of running tasks failed.\n");
     }
 
-    // Without knowing how many processes there are, we can't continue.  Bail.
+    // Without knowing how many tasks there are, we can't continue.  Bail.
     goto releaseMessage;
   }
 
-  numProcessDescriptors = nanoOsMessageDataValue(processMessage, ProcessId);
-  if (numProcessDescriptors == 0) {
-    printf("ERROR: Number of running processes returned from the "
+  numTaskDescriptors = nanoOsMessageDataValue(taskMessage, TaskId);
+  if (numTaskDescriptors == 0) {
+    printf("ERROR: Number of running tasks returned from the "
       "scheduler is 0.\n");
     goto releaseMessage;
   }
 
 releaseMessage:
-  if (processMessageRelease(processMessage) != processSuccess) {
+  if (taskMessageRelease(taskMessage) != taskSuccess) {
     printf("ERROR: Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+      "getting the number of running tasks.\n");
   }
 
 exit:
-  return numProcessDescriptors;
+  return numTaskDescriptors;
 }
 
-/// @fn ProcessInfo* schedulerGetProcessInfo(void)
+/// @fn TaskInfo* schedulerGetTaskInfo(void)
 ///
-/// @brief Get information about all processes running in the system from the
+/// @brief Get information about all tasks running in the system from the
 /// scheduler.
 ///
-/// @return Returns a populated, dynamically-allocated ProcessInfo object on
+/// @return Returns a populated, dynamically-allocated TaskInfo object on
 /// success, NULL on failure.
-ProcessInfo* schedulerGetProcessInfo(void) {
-  ProcessMessage *processMessage = NULL;
-  int waitStatus = processSuccess;
+TaskInfo* schedulerGetTaskInfo(void) {
+  TaskMessage *taskMessage = NULL;
+  int waitStatus = taskSuccess;
 
   // We don't know where our messages to the scheduler will be in its queue, so
   // we can't assume they will be processed immediately, but we can't wait
@@ -936,84 +936,84 @@ ProcessInfo* schedulerGetProcessInfo(void) {
   // Because the scheduler runs on the main coroutine, it doesn't have the
   // ability to yield.  That means it can't do anything that requires a
   // synchronus message exchange, i.e. allocating memory.  So, we need to
-  // allocate memory from the current process and then pass that back to the
-  // scheduler to populate.  That means we first need to know how many processes
+  // allocate memory from the current task and then pass that back to the
+  // scheduler to populate.  That means we first need to know how many tasks
   // are running so that we know how much space to allocate.  So, get that
   // first.
-  ProcessId numProcessDescriptors = schedulerGetNumRunningProcesses(&timeout);
+  TaskId numTaskDescriptors = schedulerGetNumRunningTasks(&timeout);
 
-  // We need numProcessDescriptors rows.
-  ProcessInfo *processInfo = (ProcessInfo*) malloc(sizeof(ProcessInfo)
-    + ((numProcessDescriptors - 1) * sizeof(ProcessInfoElement)));
-  if (processInfo == NULL) {
+  // We need numTaskDescriptors rows.
+  TaskInfo *taskInfo = (TaskInfo*) malloc(sizeof(TaskInfo)
+    + ((numTaskDescriptors - 1) * sizeof(TaskInfoElement)));
+  if (taskInfo == NULL) {
     printf(
-      "ERROR: Could not allocate memory for processInfo in getProcessInfo.\n");
+      "ERROR: Could not allocate memory for taskInfo in getTaskInfo.\n");
     goto exit;
   }
 
-  // It is possible, although unlikely, that an additional process is started
+  // It is possible, although unlikely, that an additional task is started
   // between the time we made the call above and the time that our message gets
   // handled below.  We allocated our return value based upon the size that was
   // returned above and, if we're not careful, it will be possible to overflow
-  // the array.  Initialize processInfo->numProcesses so that
-  // schedulerGetProcessInfoCommandHandler knows the maximum number of
-  // ProcessInfoElements it can populated.
-  processInfo->numProcesses = numProcessDescriptors;
+  // the array.  Initialize taskInfo->numTasks so that
+  // schedulerGetTaskInfoCommandHandler knows the maximum number of
+  // TaskInfoElements it can populated.
+  taskInfo->numTasks = numTaskDescriptors;
 
-  processMessage
-    = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_PROCESS_ID,
-    SCHEDULER_GET_PROCESS_INFO, /* func= */ 0, (intptr_t) processInfo, true);
+  taskMessage
+    = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_TASK_ID,
+    SCHEDULER_GET_TASK_INFO, /* func= */ 0, (intptr_t) taskInfo, true);
 
-  if (processMessage == NULL) {
-    printf("ERROR: Could not send scheduler message to get process info.\n");
+  if (taskMessage == NULL) {
+    printf("ERROR: Could not send scheduler message to get task info.\n");
     goto freeMemory;
   }
 
-  waitStatus = processMessageWaitForDone(processMessage, &timeout);
-  if (waitStatus != processSuccess) {
-    if (waitStatus == processTimedout) {
-      printf("Command to get process information timed out.\n");
+  waitStatus = taskMessageWaitForDone(taskMessage, &timeout);
+  if (waitStatus != taskSuccess) {
+    if (waitStatus == taskTimedout) {
+      printf("Command to get task information timed out.\n");
     } else {
-      printf("Command to get process information failed.\n");
+      printf("Command to get task information failed.\n");
     }
 
-    // Without knowing the data for the processes, we can't display them.  Bail.
+    // Without knowing the data for the tasks, we can't display them.  Bail.
     goto releaseMessage;
   }
 
-  if (processMessageRelease(processMessage) != processSuccess) {
+  if (taskMessageRelease(taskMessage) != taskSuccess) {
     printf("ERROR: Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+      "getting the number of running tasks.\n");
   }
 
-  return processInfo;
+  return taskInfo;
 
 releaseMessage:
-  if (processMessageRelease(processMessage) != processSuccess) {
+  if (taskMessageRelease(taskMessage) != taskSuccess) {
     printf("ERROR: Could not release message sent to scheduler for "
-      "getting the number of running processes.\n");
+      "getting the number of running tasks.\n");
   }
 
 freeMemory:
-  free(processInfo); processInfo = NULL;
+  free(taskInfo); taskInfo = NULL;
 
 exit:
-  return processInfo;
+  return taskInfo;
 }
 
-/// @fn int schedulerKillProcess(ProcessId processId)
+/// @fn int schedulerKillTask(TaskId taskId)
 ///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to kill a running process.
+/// @brief Do all the inter-task communication with the scheduler required
+/// to kill a running task.
 ///
-/// @param processId The ID of the process to kill.
+/// @param taskId The ID of the task to kill.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int schedulerKillProcess(ProcessId processId) {
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_KILL_PROCESS,
-    (NanoOsMessageData) 0, (NanoOsMessageData) processId, true);
-  if (processMessage == NULL) {
+int schedulerKillTask(TaskId taskId) {
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_KILL_TASK,
+    (NanoOsMessageData) 0, (NanoOsMessageData) taskId, true);
+  if (taskMessage == NULL) {
     printf("ERROR: Could not communicate with scheduler.\n");
     return 1;
   }
@@ -1025,28 +1025,28 @@ int schedulerKillProcess(ProcessId processId) {
   timespec_get(&ts, TIME_UTC);
   ts.tv_nsec += 100000000;
 
-  int waitStatus = processMessageWaitForDone(processMessage, &ts);
+  int waitStatus = taskMessageWaitForDone(taskMessage, &ts);
   int returnValue = 0;
-  if (waitStatus == processSuccess) {
+  if (waitStatus == taskSuccess) {
     NanoOsMessage *nanoOsMessage
-      = (NanoOsMessage*) processMessageData(processMessage);
+      = (NanoOsMessage*) taskMessageData(taskMessage);
     returnValue = nanoOsMessage->data;
     if (returnValue == 0) {
       printf("Termination successful.\n");
     } else {
-      printf("Process termination returned status \"%s\".\n",
+      printf("Task termination returned status \"%s\".\n",
         strerror(returnValue));
     }
   } else {
     returnValue = 1;
-    if (waitStatus == processTimedout) {
-      printf("Command to kill PID %d timed out.\n", processId);
+    if (waitStatus == taskTimedout) {
+      printf("Command to kill PID %d timed out.\n", taskId);
     } else {
-      printf("Command to kill PID %d failed.\n", processId);
+      printf("Command to kill PID %d failed.\n", taskId);
     }
   }
 
-  if (processMessageRelease(processMessage) != processSuccess) {
+  if (taskMessageRelease(taskMessage) != taskSuccess) {
     returnValue = 1;
     printf("ERROR: "
       "Could not release message sent to scheduler for kill command.\n");
@@ -1055,21 +1055,21 @@ int schedulerKillProcess(ProcessId processId) {
   return returnValue;
 }
 
-/// @fn int schedulerRunProcess(const CommandEntry *commandEntry,
+/// @fn int schedulerRunTask(const CommandEntry *commandEntry,
 ///   char *consoleInput, int consolePort)
 ///
-/// @brief Do all the inter-process communication with the scheduler required
-/// to start a process.
+/// @brief Do all the inter-task communication with the scheduler required
+/// to start a task.
 ///
 /// @param commandEntry A pointer to the CommandEntry that describes the command
 ///   to run.
 /// @param consoleInput The raw consoleInput that was captured for the command
 ///   line.
-/// @param consolePort The index of the console port the process is being
+/// @param consolePort The index of the console port the task is being
 ///   launched from.
 ///
 /// @return Returns 0 on success, 1 on failure.
-int schedulerRunProcess(const CommandEntry *commandEntry,
+int schedulerRunTask(const CommandEntry *commandEntry,
   char *consoleInput, int consolePort
 ) {
   int returnValue = 1;
@@ -1081,10 +1081,10 @@ int schedulerRunProcess(const CommandEntry *commandEntry,
   }
   commandDescriptor->consoleInput = consoleInput;
   commandDescriptor->consolePort = consolePort;
-  commandDescriptor->callingProcess = processId(getRunningProcess());
+  commandDescriptor->callingTask = taskId(getRunningTask());
 
-  ProcessMessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_RUN_PROCESS,
+  TaskMessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_RUN_TASK,
     (NanoOsMessageData) ((uintptr_t) commandEntry),
     (NanoOsMessageData) ((uintptr_t) commandDescriptor),
     true);
@@ -1092,64 +1092,64 @@ int schedulerRunProcess(const CommandEntry *commandEntry,
     printString("ERROR: Could not communicate with scheduler.\n");
     return returnValue; // 1
   }
-  schedulerWaitForProcessComplete();
+  schedulerWaitForTaskComplete();
 
-  if (processMessageDone(sent) == false) {
-    // The called process was killed.  We need to release the sent message on
+  if (taskMessageDone(sent) == false) {
+    // The called task was killed.  We need to release the sent message on
     // its behalf.
-    processMessageRelease(sent);
+    taskMessageRelease(sent);
   }
 
   returnValue = 0;
   return returnValue;
 }
 
-/// @fn UserId schedulerGetProcessUser(void)
+/// @fn UserId schedulerGetTaskUser(void)
 ///
-/// @brief Get the ID of the user running the current process.
+/// @brief Get the ID of the user running the current task.
 ///
-/// @return Returns the ID of the user running the current process on success,
+/// @return Returns the ID of the user running the current task on success,
 /// -1 on failure.
-UserId schedulerGetProcessUser(void) {
+UserId schedulerGetTaskUser(void) {
   UserId userId = -1;
-  ProcessMessage *processMessage
+  TaskMessage *taskMessage
     = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_PROCESS_USER,
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_TASK_USER,
     /* func= */ 0, /* data= */ 0, true);
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     printString("ERROR: Could not communicate with scheduler.\n");
     return userId; // -1
   }
 
-  processMessageWaitForDone(processMessage, NULL);
-  userId = nanoOsMessageDataValue(processMessage, UserId);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  userId = nanoOsMessageDataValue(taskMessage, UserId);
+  taskMessageRelease(taskMessage);
 
   return userId;
 }
 
-/// @fn int schedulerSetProcessUser(UserId userId)
+/// @fn int schedulerSetTaskUser(UserId userId)
 ///
-/// @brief Set the user ID of the current process to the specified user ID.
+/// @brief Set the user ID of the current task to the specified user ID.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int schedulerSetProcessUser(UserId userId) {
+int schedulerSetTaskUser(UserId userId) {
   int returnValue = -1;
-  ProcessMessage *processMessage
+  TaskMessage *taskMessage
     = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_SET_PROCESS_USER,
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_SET_TASK_USER,
     /* func= */ 0, /* data= */ userId, true);
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     printString("ERROR: Could not communicate with scheduler.\n");
     return returnValue; // -1
   }
 
-  processMessageWaitForDone(processMessage, NULL);
-  returnValue = nanoOsMessageDataValue(processMessage, int);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  returnValue = nanoOsMessageDataValue(taskMessage, int);
+  taskMessageRelease(taskMessage);
 
   if (returnValue != 0) {
-    printf("Scheduler returned \"%s\" for setProcessUser.\n",
+    printf("Scheduler returned \"%s\" for setTaskUser.\n",
       strerror(returnValue));
   }
 
@@ -1158,21 +1158,21 @@ int schedulerSetProcessUser(UserId userId) {
 
 /// @fn FileDescriptor* schedulerGetFileDescriptor(FILE *stream)
 ///
-/// @brief Get the IoPipe object for a process given a pointer to the FILE
+/// @brief Get the IoPipe object for a task given a pointer to the FILE
 ///   stream to write to.
 ///
 /// @param stream A pointer to the desired FILE output stream (stdout or
 ///   stderr).
 ///
 /// @return Returns the appropriate FileDescriptor object for the current
-/// process on success, NULL on failure.
+/// task on success, NULL on failure.
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
   FileDescriptor *returnValue = NULL;
   uintptr_t fdIndex = (uintptr_t) stream;
-  ProcessId runningProcessId = getRunningProcessId();
+  TaskId runningTaskId = getRunningTaskId();
 
-  if (fdIndex <= allProcesses[runningProcessId].numFileDescriptors) {
-    returnValue = &allProcesses[runningProcessId].fileDescriptors[fdIndex - 1];
+  if (fdIndex <= allTasks[runningTaskId].numFileDescriptors) {
+    returnValue = &allTasks[runningTaskId].fileDescriptors[fdIndex - 1];
   } else {
     printString("ERROR: Received request for unknown stream ");
     printInt((intptr_t) stream);
@@ -1185,15 +1185,15 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
 /// @fn int schedulerCloseAllFileDescriptors(void)
 ///
 /// @brief Close all the open file descriptors for the currently-running
-/// process.
+/// task.
 ///
 /// @return Returns 0 on success, -1 on failure.
 int schedulerCloseAllFileDescriptors(void) {
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
     /* func= */ 0, /* data= */ 0, true);
-  processMessageWaitForDone(processMessage, NULL);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  taskMessageRelease(taskMessage);
 
   return 0;
 }
@@ -1206,18 +1206,18 @@ int schedulerCloseAllFileDescriptors(void) {
 /// failure.
 const char* schedulerGetHostname(void) {
   const char *hostname = NULL;
-  ProcessMessage *processMessage
+  TaskMessage *taskMessage
     = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_GET_HOSTNAME,
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_HOSTNAME,
     /* func= */ 0, /* data= */ 0, true);
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     printString("ERROR: Could not communicate with scheduler.\n");
     return hostname; // NULL
   }
 
-  processMessageWaitForDone(processMessage, NULL);
-  hostname = nanoOsMessageDataValue(processMessage, char*);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  hostname = nanoOsMessageDataValue(taskMessage, char*);
+  taskMessageRelease(taskMessage);
 
   return hostname;
 }
@@ -1310,23 +1310,23 @@ int schedulerExecve(const char *pathname,
 
   execArgs->schedulerState = NULL; // Set by the scheduler
 
-  ProcessMessage *processMessage
+  TaskMessage *taskMessage
     = sendNanoOsMessageToPid(
-    NANO_OS_SCHEDULER_PROCESS_ID, SCHEDULER_EXECVE,
+    NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_EXECVE,
     /* func= */ 0, /* data= */ (uintptr_t) execArgs, true);
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     // The only way this should be possible is if all available messages are
     // in use, so use ENOMEM as the errno.
     errno = ENOMEM;
     return -1;
   }
 
-  processMessageWaitForDone(processMessage, NULL);
+  taskMessageWaitForDone(taskMessage, NULL);
 
   // If we got this far then the exec failed for some reason.  The error will
   // be in the data portion of the message we sent to the scheduler.
-  errno = nanoOsMessageDataValue(processMessage, int);
-  processMessageRelease(processMessage);
+  errno = nanoOsMessageDataValue(taskMessage, int);
+  taskMessageRelease(taskMessage);
 freeExecArgs:
   execArgs = execArgsDestroy(execArgs);
 
@@ -1337,30 +1337,30 @@ freeExecArgs:
 // Scheduler command handlers and support functions
 ////////////////////////////////////////////////////////////////////////////////
 
-/// @fn void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine)
+/// @fn void handleOutOfSlots(TaskMessage *taskMessage, char *commandLine)
 ///
-/// @brief Handle the exception case when we're out of free process slots to run
+/// @brief Handle the exception case when we're out of free task slots to run
 /// all the commands we've been asked to launch.  Releases all relevant messages
 /// and frees all relevant memory.
 ///
-/// @param processMessage A pointer to the ProcessMessage that was received
-///   that contains the information about the process to run and how to run it.
+/// @param taskMessage A pointer to the TaskMessage that was received
+///   that contains the information about the task to run and how to run it.
 /// @param commandLine The part of the console input that was being worked on
 ///   at the time of the failure.
 ///
 /// @return This function returns no value.
-void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
+void handleOutOfSlots(TaskMessage *taskMessage, char *commandLine) {
   CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
+    = nanoOsMessageDataPointer(taskMessage, CommandDescriptor*);
 
   // printf sends synchronous messages to the console, which we can't do.
   // Use the non-blocking printString instead.
-  printString("Out of process slots to launch process.\n");
-  sendNanoOsMessageToPid(commandDescriptor->callingProcess,
-    SCHEDULER_PROCESS_COMPLETE, 0, 0, true);
+  printString("Out of task slots to launch task.\n");
+  sendNanoOsMessageToPid(commandDescriptor->callingTask,
+    SCHEDULER_TASK_COMPLETE, 0, 0, true);
   commandLine = stringDestroy(commandLine);
   free(commandDescriptor); commandDescriptor = NULL;
-  if (processMessageRelease(processMessage) != processSuccess) {
+  if (taskMessageRelease(taskMessage) != taskSuccess) {
     printString("ERROR: "
       "Could not release message from handleSchedulerMessage "
       "for invalid message type.\n");
@@ -1369,77 +1369,77 @@ void handleOutOfSlots(ProcessMessage *processMessage, char *commandLine) {
   return;
 }
 
-/// @fn ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
-///   ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
-///   ProcessDescriptor *processDescriptor, bool backgroundProcess)
+/// @fn TaskDescriptor* launchTask(SchedulerState *schedulerState,
+///   TaskMessage *taskMessage, CommandDescriptor *commandDescriptor,
+///   TaskDescriptor *taskDescriptor, bool backgroundTask)
 ///
-/// @brief Run the specified command line with the specified ProcessDescriptor.
+/// @brief Run the specified command line with the specified TaskDescriptor.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received
-///   that contains the information about the process to run and how to run it.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received
+///   that contains the information about the task to run and how to run it.
 /// @param commandDescriptor The CommandDescriptor that was sent via the
-///   processMessage to the scueduler.
-/// @param processDescriptor A pointer to the available processDescriptor to
+///   taskMessage to the scueduler.
+/// @param taskDescriptor A pointer to the available taskDescriptor to
 ///   run the command with.
-/// @param backgroundProcess Whether or not the process is to be launched as a
-///   background process.  If this value is false then it will not be assigned
+/// @param backgroundTask Whether or not the task is to be launched as a
+///   background task.  If this value is false then it will not be assigned
 ///   to a console port.
 ///
-/// @return Returns a pointer to the ProcessDescriptor used to launch the
-/// process on success, NULL on failure.
-static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
-  ProcessMessage *processMessage, CommandDescriptor *commandDescriptor,
-  ProcessDescriptor *processDescriptor, bool backgroundProcess
+/// @return Returns a pointer to the TaskDescriptor used to launch the
+/// task on success, NULL on failure.
+static inline TaskDescriptor* launchTask(SchedulerState *schedulerState,
+  TaskMessage *taskMessage, CommandDescriptor *commandDescriptor,
+  TaskDescriptor *taskDescriptor, bool backgroundTask
 ) {
-  ProcessDescriptor *returnValue = processDescriptor;
+  TaskDescriptor *returnValue = taskDescriptor;
   CommandEntry *commandEntry
-    = nanoOsMessageFuncPointer(processMessage, CommandEntry*);
+    = nanoOsMessageFuncPointer(taskMessage, CommandEntry*);
 
-  if (processDescriptor != NULL) {
-    processDescriptor->userId = schedulerState->allProcesses[
-      processId(processMessageFrom(processMessage))].userId;
-    processDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
-    processDescriptor->fileDescriptors
+  if (taskDescriptor != NULL) {
+    taskDescriptor->userId = schedulerState->allTasks[
+      taskId(taskMessageFrom(taskMessage))].userId;
+    taskDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+    taskDescriptor->fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
 
-    if (processCreate(processDescriptor,
-      startCommand, processMessage) == processError
+    if (taskCreate(taskDescriptor,
+      startCommand, taskMessage) == taskError
     ) {
       printString(
-        "ERROR: Could not configure process handle for new command.\n");
+        "ERROR: Could not configure task handle for new command.\n");
     }
     if (assignMemory(commandDescriptor->consoleInput,
-      processDescriptor->processId) != 0
+      taskDescriptor->taskId) != 0
     ) {
       printString(
-        "WARNING: Could not assign console input to new process.\n");
+        "WARNING: Could not assign console input to new task.\n");
       printString("Memory leak.\n");
     }
-    if (assignMemory(commandDescriptor, processDescriptor->processId) != 0) {
+    if (assignMemory(commandDescriptor, taskDescriptor->taskId) != 0) {
       printString(
-        "WARNING: Could not assign command descriptor to new process.\n");
+        "WARNING: Could not assign command descriptor to new task.\n");
       printString("Memory leak.\n");
     }
 
-    processDescriptor->name = commandEntry->name;
+    taskDescriptor->name = commandEntry->name;
 
-    if (backgroundProcess == false) {
+    if (backgroundTask == false) {
       if (schedulerAssignPortToPid(schedulerState,
-        commandDescriptor->consolePort, processDescriptor->processId)
-        != processSuccess
+        commandDescriptor->consolePort, taskDescriptor->taskId)
+        != taskSuccess
       ) {
-        printString("WARNING: Could not assign console port to process.\n");
+        printString("WARNING: Could not assign console port to task.\n");
       }
     }
 
     // Resume the coroutine so that it picks up all the pointers it needs
     // before we release the message we were sent.
-    processResume(processDescriptor, NULL);
+    taskResume(taskDescriptor, NULL);
 
-    // Put the process on the ready queue.
-    processQueuePush(&schedulerState->ready, processDescriptor);
+    // Put the task on the ready queue.
+    taskQueuePush(&schedulerState->ready, taskDescriptor);
   } else {
     returnValue = NULL;
   }
@@ -1447,144 +1447,144 @@ static inline ProcessDescriptor* launchProcess(SchedulerState *schedulerState,
   return returnValue;
 }
 
-/// @fn ProcessDescriptor* launchForegroundProcess(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage,
+/// @fn TaskDescriptor* launchForegroundTask(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage,
 ///   CommandDescriptor *commandDescriptor)
 ///
-/// @brief Kill the sender of the ProcessMessage and use its ProcessDescriptor
+/// @brief Kill the sender of the TaskMessage and use its TaskDescriptor
 /// to run the specified command line.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received
-///   that contains the information about the process to run and how to run it.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received
+///   that contains the information about the task to run and how to run it.
 /// @param commandDescriptor The CommandDescriptor that was sent via the
-///   processMessage to the scueduler.
+///   taskMessage to the scueduler.
 ///
-/// @return Returns a pointer to the ProcessDescriptor used to launch the
-/// process on success, NULL on failure.
-static inline ProcessDescriptor* launchForegroundProcess(
-  SchedulerState *schedulerState, ProcessMessage *processMessage,
+/// @return Returns a pointer to the TaskDescriptor used to launch the
+/// task on success, NULL on failure.
+static inline TaskDescriptor* launchForegroundTask(
+  SchedulerState *schedulerState, TaskMessage *taskMessage,
   CommandDescriptor *commandDescriptor
 ) {
-  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
-    processId(processMessageFrom(processMessage))];
-  // The process should be blocked in processMessageQueueWaitForType waiting
+  TaskDescriptor *taskDescriptor = &schedulerState->allTasks[
+    taskId(taskMessageFrom(taskMessage))];
+  // The task should be blocked in taskMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
-  if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0) {
-    if (processQueueRemove(
-      &schedulerState->timedWaiting, processDescriptor) != 0
+  if (taskQueueRemove(&schedulerState->waiting, taskDescriptor) != 0) {
+    if (taskQueueRemove(
+      &schedulerState->timedWaiting, taskDescriptor) != 0
     ) {
-      processQueueRemove(&schedulerState->ready, processDescriptor);
+      taskQueueRemove(&schedulerState->ready, taskDescriptor);
     }
   }
 
   // Protect the relevant memory from deletion below.
   if (assignMemory(commandDescriptor->consoleInput,
-    NANO_OS_SCHEDULER_PROCESS_ID) != 0
+    NANO_OS_SCHEDULER_TASK_ID) != 0
   ) {
     printString(
       "WARNING: Could not protect console input from deletion.\n");
     printString("Undefined behavior.\n");
   }
-  if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(commandDescriptor, NANO_OS_SCHEDULER_TASK_ID) != 0) {
     printString(
       "WARNING: Could not protect command descriptor from deletion.\n");
     printString("Undefined behavior.\n");
   }
 
-  // Kill and clear out the calling process.
-  processTerminate(processDescriptor);
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  // Kill and clear out the calling task.
+  taskTerminate(taskDescriptor);
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
   if (schedulerSendNanoOsMessageToPid(
-    schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-    /* func= */ 0, processDescriptor->processId)
+    schedulerState, NANO_OS_MEMORY_MANAGER_TASK_ID,
+    MEMORY_MANAGER_FREE_TASK_MEMORY,
+    /* func= */ 0, taskDescriptor->taskId)
   ) {
-    printString("WARNING: Could not release memory for process ");
-    printInt(processDescriptor->processId);
+    printString("WARNING: Could not release memory for task ");
+    printInt(taskDescriptor->taskId);
     printString("\n");
     printString("Memory leak.\n");
   }
 
-  return launchProcess(schedulerState, processMessage, commandDescriptor,
-    processDescriptor, false);
+  return launchTask(schedulerState, taskMessage, commandDescriptor,
+    taskDescriptor, false);
 }
 
-/// @fn ProcessDescriptor* launchBackgroundProcess(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage,
+/// @fn TaskDescriptor* launchBackgroundTask(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage,
 ///   CommandDescriptor *commandDescriptor)
 ///
-/// @brief Pop a process off of the free queue and use it to run the specified
+/// @brief Pop a task off of the free queue and use it to run the specified
 /// command line.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received
-///   that contains the information about the process to run and how to run it.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received
+///   that contains the information about the task to run and how to run it.
 /// @param commandDescriptor The CommandDescriptor that was sent via the
-///   processMessage to the scueduler.
+///   taskMessage to the scueduler.
 ///
-/// @return Returns a pointer to the ProcessDescriptor used to launch the
-/// process on success, NULL on failure.
-static inline ProcessDescriptor* launchBackgroundProcess(
-  SchedulerState *schedulerState, ProcessMessage *processMessage,
+/// @return Returns a pointer to the TaskDescriptor used to launch the
+/// task on success, NULL on failure.
+static inline TaskDescriptor* launchBackgroundTask(
+  SchedulerState *schedulerState, TaskMessage *taskMessage,
   CommandDescriptor *commandDescriptor
 ) {
-  return launchProcess(schedulerState, processMessage, commandDescriptor,
-    processQueuePop(&schedulerState->free), true);
+  return launchTask(schedulerState, taskMessage, commandDescriptor,
+    taskQueuePop(&schedulerState->free), true);
 }
 
-/// @fn int closeProcessFileDescriptors(
-///   SchedulerState *schedulerState, ProcessDescriptor *processDescriptor)
+/// @fn int closeTaskFileDescriptors(
+///   SchedulerState *schedulerState, TaskDescriptor *taskDescriptor)
 ///
-/// @brief Helper function to close out the file descriptors owned by a process
+/// @brief Helper function to close out the file descriptors owned by a task
 /// when it exits or is killed.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processDescriptor A pointer to the ProcessDescriptor that holds the
+///   scheduler task.
+/// @param taskDescriptor A pointer to the TaskDescriptor that holds the
 ///   fileDescriptors array to close.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int closeProcessFileDescriptors(
-  SchedulerState *schedulerState, ProcessDescriptor *processDescriptor
+int closeTaskFileDescriptors(
+  SchedulerState *schedulerState, TaskDescriptor *taskDescriptor
 ) {
-  FileDescriptor *fileDescriptors = processDescriptor->fileDescriptors;
+  FileDescriptor *fileDescriptors = taskDescriptor->fileDescriptors;
   if (fileDescriptors != standardUserFileDescriptors) {
-    ProcessMessage *messageToSend = getAvailableMessage();
+    TaskMessage *messageToSend = getAvailableMessage();
     while (messageToSend == NULL) {
       runScheduler(schedulerState);
       messageToSend = getAvailableMessage();
     }
 
-    uint8_t numFileDescriptors = processDescriptor->numFileDescriptors;
+    uint8_t numFileDescriptors = taskDescriptor->numFileDescriptors;
     for (uint8_t ii = 0; ii < numFileDescriptors; ii++) {
-      ProcessId waitingOutputProcessId
-        = fileDescriptors[ii].outputPipe.processId;
-      if ((waitingOutputProcessId != PROCESS_ID_NOT_SET)
-        && (waitingOutputProcessId != NANO_OS_CONSOLE_PROCESS_ID)
+      TaskId waitingOutputTaskId
+        = fileDescriptors[ii].outputPipe.taskId;
+      if ((waitingOutputTaskId != TASK_ID_NOT_SET)
+        && (waitingOutputTaskId != NANO_OS_CONSOLE_TASK_ID)
       ) {
-        ProcessDescriptor *waitingProcessDescriptor
-          = &schedulerState->allProcesses[waitingOutputProcessId];
+        TaskDescriptor *waitingTaskDescriptor
+          = &schedulerState->allTasks[waitingOutputTaskId];
 
-        // Clear the processId of the waiting process's stdin file descriptor.
-        waitingProcessDescriptor->fileDescriptors[
+        // Clear the taskId of the waiting task's stdin file descriptor.
+        waitingTaskDescriptor->fileDescriptors[
           STDIN_FILE_DESCRIPTOR_INDEX].
-          inputPipe.processId = PROCESS_ID_NOT_SET;
+          inputPipe.taskId = TASK_ID_NOT_SET;
 
-        // Send an empty message to the waiting process so that it will become
+        // Send an empty message to the waiting task so that it will become
         // unblocked.
-        processMessageInit(messageToSend,
+        taskMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
-        // Give the process a chance to unblock.
-        processResume(waitingProcessDescriptor, NULL);
+        taskMessageQueuePush(waitingTaskDescriptor, messageToSend);
+        // Give the task a chance to unblock.
+        taskResume(waitingTaskDescriptor, NULL);
 
         // The function that was waiting should have released the message we
         // sent it.  Get another one.
@@ -1595,27 +1595,27 @@ int closeProcessFileDescriptors(
         }
       }
 
-      ProcessId waitingInputProcessId
-        = fileDescriptors[ii].inputPipe.processId;
-      if ((waitingInputProcessId != PROCESS_ID_NOT_SET)
-        && (waitingInputProcessId != NANO_OS_CONSOLE_PROCESS_ID)
+      TaskId waitingInputTaskId
+        = fileDescriptors[ii].inputPipe.taskId;
+      if ((waitingInputTaskId != TASK_ID_NOT_SET)
+        && (waitingInputTaskId != NANO_OS_CONSOLE_TASK_ID)
       ) {
-        ProcessDescriptor *waitingProcessDescriptor
-          = &schedulerState->allProcesses[waitingInputProcessId];
+        TaskDescriptor *waitingTaskDescriptor
+          = &schedulerState->allTasks[waitingInputTaskId];
 
-        // Clear the processId of the waiting process's stdin file descriptor.
-        waitingProcessDescriptor->fileDescriptors[
+        // Clear the taskId of the waiting task's stdin file descriptor.
+        waitingTaskDescriptor->fileDescriptors[
           STDOUT_FILE_DESCRIPTOR_INDEX].
-          outputPipe.processId = PROCESS_ID_NOT_SET;
+          outputPipe.taskId = TASK_ID_NOT_SET;
 
-        // Send an empty message to the waiting process so that it will become
+        // Send an empty message to the waiting task so that it will become
         // unblocked.
-        processMessageInit(messageToSend,
+        taskMessageInit(messageToSend,
             fileDescriptors[ii].outputPipe.messageType,
             /*data= */ NULL, /* size= */ 0, /* waiting= */ false);
-        processMessageQueuePush(waitingProcessDescriptor, messageToSend);
-        // Give the process a chance to unblock.
-        processResume(waitingProcessDescriptor, NULL);
+        taskMessageQueuePush(waitingTaskDescriptor, messageToSend);
+        // Give the task a chance to unblock.
+        taskResume(waitingTaskDescriptor, NULL);
 
         // The function that was waiting should have released the message we
         // sent it.  Get another one.
@@ -1629,8 +1629,8 @@ int closeProcessFileDescriptors(
 
     // kfree will pull an available message.  Release the one we've been
     // using so that we're guaranteed it will be successful.
-    processMessageRelease(messageToSend);
-    kfree(fileDescriptors); processDescriptor->fileDescriptors = NULL;
+    taskMessageRelease(messageToSend);
+    kfree(fileDescriptors); taskDescriptor->fileDescriptors = NULL;
   }
 
   return 0;
@@ -1642,7 +1642,7 @@ int closeProcessFileDescriptors(
 /// @brief Version of fopen for the scheduler.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 /// @param pathname A pointer to the C string with the full path to the file to
 ///   open.
 /// @param mode A pointer to the C string that defines the way to open the file.
@@ -1653,33 +1653,33 @@ FILE* kfopen(SchedulerState *schedulerState,
 ) {
   FILE *returnValue = NULL;
   printDebugString("kfopen: Getting message\n");
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
     runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
+    taskMessage = getAvailableMessage();
   }
   printDebugString("kfopen: Message retrieved\n");
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->func = (intptr_t) mode;
   nanoOsMessage->data = (intptr_t) pathname;
   printDebugString("kfopen: Initializing message\n");
-  processMessageInit(processMessage, FILESYSTEM_OPEN_FILE,
+  taskMessageInit(taskMessage, FILESYSTEM_OPEN_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
   printDebugString("kfopen: Pushing message\n");
-  processMessageQueuePush(
-    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
-    processMessage);
+  taskMessageQueuePush(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID],
+    taskMessage);
 
   printDebugString("kfopen: Resuming filesystem\n");
-  while (processMessageDone(processMessage) == false) {
+  while (taskMessageDone(taskMessage) == false) {
     runScheduler(schedulerState);
   }
   printDebugString("kfopen: Filesystem message is done\n");
 
-  returnValue = nanoOsMessageDataPointer(processMessage, FILE*);
+  returnValue = nanoOsMessageDataPointer(taskMessage, FILE*);
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   return returnValue;
 }
 
@@ -1688,31 +1688,31 @@ FILE* kfopen(SchedulerState *schedulerState,
 /// @brief Version of fclose for the scheduler.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 /// @param stream A pointer to the FILE object that was previously opened.
 ///
 /// @return Returns 0 on success, EOF on failure.  On failure, the value of
 /// errno is also set to the appropriate error.
 int kfclose(SchedulerState *schedulerState, FILE *stream) {
   int returnValue = 0;
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
     runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
+    taskMessage = getAvailableMessage();
   }
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   FilesystemFcloseParameters fcloseParameters;
   fcloseParameters.stream = stream;
   fcloseParameters.returnValue = 0;
   nanoOsMessage->data = (intptr_t) &fcloseParameters;
-  processMessageInit(processMessage, FILESYSTEM_CLOSE_FILE,
+  taskMessageInit(taskMessage, FILESYSTEM_CLOSE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  processResume(
-    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
-    processMessage);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID],
+    taskMessage);
 
-  while (processMessageDone(processMessage) == false) {
+  while (taskMessageDone(taskMessage) == false) {
     runScheduler(schedulerState);
   }
 
@@ -1721,7 +1721,7 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
     returnValue = EOF;
   }
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   return returnValue;
 }
 
@@ -1730,40 +1730,40 @@ int kfclose(SchedulerState *schedulerState, FILE *stream) {
 /// @brief Version of remove for the scheduler.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 /// @param pathname A pointer to the C string with the full path to the file to
 ///   remove.
 ///
 /// @return Returns 0 on success, -1 and sets the value of errno on failure.
 int kremove(SchedulerState *schedulerState, const char *pathname) {
   int returnValue = 0;
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
     runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
+    taskMessage = getAvailableMessage();
   }
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) pathname;
-  processMessageInit(processMessage, FILESYSTEM_REMOVE_FILE,
+  taskMessageInit(taskMessage, FILESYSTEM_REMOVE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  processResume(
-    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
-    processMessage);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID],
+    taskMessage);
 
-  while (processMessageDone(processMessage) == false) {
+  while (taskMessageDone(taskMessage) == false) {
     runScheduler(schedulerState);
   }
 
-  returnValue = nanoOsMessageDataValue(processMessage, int);
+  returnValue = nanoOsMessageDataValue(taskMessage, int);
   if (returnValue != 0) {
-    // returnValue holds a negative errno.  Set errno for the current process
+    // returnValue holds a negative errno.  Set errno for the current task
     // and return -1 like we're supposed to.
     errno = -returnValue;
     returnValue = -1;
   }
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   return returnValue;
 }
 
@@ -1773,7 +1773,7 @@ int kremove(SchedulerState *schedulerState, const char *pathname) {
 /// @brief Version of fgets for the scheduler.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 /// @param buffer The character buffer to read the file data into.
 /// @param size The size of the buffer provided, in bytes.
 /// @param stream A pointer to the FILE object that was previously opened.
@@ -1790,21 +1790,21 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
     .length = (uint32_t) size - 1
   };
 
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
     runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
+    taskMessage = getAvailableMessage();
   }
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_READ_FILE,
+  taskMessageInit(taskMessage, FILESYSTEM_READ_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  processResume(
-    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
-    processMessage);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID],
+    taskMessage);
 
-  while (processMessageDone(processMessage) == false) {
+  while (taskMessageDone(taskMessage) == false) {
     runScheduler(schedulerState);
   }
   if (filesystemIoCommandParameters.length > 0) {
@@ -1812,7 +1812,7 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
     returnValue = buffer;
   }
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   return returnValue;
 }
 
@@ -1822,7 +1822,7 @@ char* kFilesystemFGets(SchedulerState *schedulerState,
 /// @brief Version of fputs for the scheduler.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 /// @param s A pointer to the C string to write to the file.
 /// @param stream A pointer to the FILE object that was previously opened.
 ///
@@ -1838,78 +1838,78 @@ int kFilesystemFPuts(SchedulerState *schedulerState,
     .length = (uint32_t) strlen(s)
   };
 
-  ProcessMessage *processMessage = getAvailableMessage();
-  while (processMessage == NULL) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
     runScheduler(schedulerState);
-    processMessage = getAvailableMessage();
+    taskMessage = getAvailableMessage();
   }
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
-  processMessageInit(processMessage, FILESYSTEM_WRITE_FILE,
+  taskMessageInit(taskMessage, FILESYSTEM_WRITE_FILE,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  processResume(
-    &schedulerState->allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID],
-    processMessage);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID],
+    taskMessage);
 
-  while (processMessageDone(processMessage) == false) {
+  while (taskMessageDone(taskMessage) == false) {
     runScheduler(schedulerState);
   }
   if (filesystemIoCommandParameters.length == 0) {
     returnValue = EOF;
   }
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   return returnValue;
 }
 
-/// @fn int schedulerRunProcessCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerRunTaskCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Run a process in an appropriate process slot.
+/// @brief Run a task in an appropriate task slot.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received
-///   that contains the information about the process to run and how to run it.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received
+///   that contains the information about the task to run and how to run it.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerRunProcessCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerRunTaskCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
     // status.
     return 0;
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   CommandDescriptor *commandDescriptor
-    = nanoOsMessageDataPointer(processMessage, CommandDescriptor*);
+    = nanoOsMessageDataPointer(taskMessage, CommandDescriptor*);
   char *consoleInput = commandDescriptor->consoleInput;
-  if (assignMemory(consoleInput, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(consoleInput, NANO_OS_SCHEDULER_TASK_ID) != 0) {
     printString("WARNING: Could not assign consoleInput to scheduler.\n");
     printString("Undefined behavior.\n");
   }
   commandDescriptor->schedulerState = schedulerState;
-  bool backgroundProcess = false;
+  bool backgroundTask = false;
   char *charAt = NULL;
-  ProcessDescriptor *curProcessDescriptor = NULL;
-  ProcessDescriptor *prevProcessDescriptor = NULL;
+  TaskDescriptor *curTaskDescriptor = NULL;
+  TaskDescriptor *prevTaskDescriptor = NULL;
   char *commandLine = NULL;
 
   if (consoleInput == NULL) {
     // We can't parse or handle NULL input.  Bail.
-    handleOutOfSlots(processMessage, consoleInput);
+    handleOutOfSlots(taskMessage, consoleInput);
     free(commandDescriptor); commandDescriptor = NULL;
     return 0;
   } else if (getNumPipes(consoleInput)
     > schedulerState->free.numElements
   ) {
-    // We've been asked to run more processes chained together than we can
+    // We've been asked to run more tasks chained together than we can
     // currently launch.  Fail.
-    handleOutOfSlots(processMessage, consoleInput);
+    handleOutOfSlots(taskMessage, consoleInput);
     free(commandDescriptor); commandDescriptor = NULL;
     return 0;
   }
@@ -1918,7 +1918,7 @@ int schedulerRunProcessCommandHandler(
   while (charAt != NULL) {
     charAt++;
     if (charAt[strspn(charAt, " \t\r\n")] == '\0') {
-      backgroundProcess = true;
+      backgroundTask = true;
       break;
     }
 
@@ -1946,46 +1946,46 @@ int schedulerRunProcessCommandHandler(
     nanoOsMessage->func = (intptr_t) commandEntry;
     commandDescriptor->consoleInput = commandLine;
 
-    if (backgroundProcess == false) {
-      // Task is a foreground process.  We're going to kill the caller and reuse
-      // its process slot.  This is expected to be the usual case, so list it
+    if (backgroundTask == false) {
+      // Task is a foreground task.  We're going to kill the caller and reuse
+      // its task slot.  This is expected to be the usual case, so list it
       // first.
-      curProcessDescriptor = launchForegroundProcess(
-        schedulerState, processMessage, commandDescriptor);
+      curTaskDescriptor = launchForegroundTask(
+        schedulerState, taskMessage, commandDescriptor);
 
-      // Any process after the first one (if we're connecting pipes) will have
-      // to be a background process, so set backgroundProcess to true.
-      backgroundProcess = true;
+      // Any task after the first one (if we're connecting pipes) will have
+      // to be a background task, so set backgroundTask to true.
+      backgroundTask = true;
     } else {
-      // Task is a background process.  Get a process off the free queue.
-      curProcessDescriptor = launchBackgroundProcess(
-        schedulerState, processMessage, commandDescriptor);
+      // Task is a background task.  Get a task off the free queue.
+      curTaskDescriptor = launchBackgroundTask(
+        schedulerState, taskMessage, commandDescriptor);
     }
-    if (curProcessDescriptor == NULL) {
+    if (curTaskDescriptor == NULL) {
       commandLine = stringDestroy(commandLine);
-      handleOutOfSlots(processMessage, consoleInput);
+      handleOutOfSlots(taskMessage, consoleInput);
       break;
     }
 
-    if (prevProcessDescriptor != NULL) {
+    if (prevTaskDescriptor != NULL) {
       // We're piping two or more commands together and we need to connect the
       // pipes.
       FileDescriptor *fileDescriptors = NULL;
       if (
-        prevProcessDescriptor->fileDescriptors == standardUserFileDescriptors
+        prevTaskDescriptor->fileDescriptors == standardUserFileDescriptors
       ) {
-        // We need to make a copy of the previous process descriptor's file
+        // We need to make a copy of the previous task descriptor's file
         // descriptors.
         fileDescriptors = (FileDescriptor*) kmalloc(
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
-        memcpy(fileDescriptors, prevProcessDescriptor->fileDescriptors,
+        memcpy(fileDescriptors, prevTaskDescriptor->fileDescriptors,
           NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
-        prevProcessDescriptor->fileDescriptors = fileDescriptors;
+        prevTaskDescriptor->fileDescriptors = fileDescriptors;
       }
-      prevProcessDescriptor->fileDescriptors[
-        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.processId
-        = curProcessDescriptor->processId;
-      prevProcessDescriptor->fileDescriptors[
+      prevTaskDescriptor->fileDescriptors[
+        STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.taskId
+        = curTaskDescriptor->taskId;
+      prevTaskDescriptor->fileDescriptors[
         STDIN_FILE_DESCRIPTOR_INDEX].inputPipe.messageType
         = 0;
 
@@ -1993,74 +1993,74 @@ int schedulerRunProcessCommandHandler(
         NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
       memcpy(fileDescriptors, standardUserFileDescriptors,
         NUM_STANDARD_FILE_DESCRIPTORS * sizeof(FileDescriptor));
-      curProcessDescriptor->fileDescriptors = fileDescriptors;
-      curProcessDescriptor->fileDescriptors[
-        STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.processId
-        = prevProcessDescriptor->processId;
-      curProcessDescriptor->fileDescriptors[
+      curTaskDescriptor->fileDescriptors = fileDescriptors;
+      curTaskDescriptor->fileDescriptors[
+        STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.taskId
+        = prevTaskDescriptor->taskId;
+      curTaskDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
         = CONSOLE_RETURNING_INPUT;
       if (schedulerAssignPortInputToPid(schedulerState,
-        commandDescriptor->consolePort, curProcessDescriptor->processId)
-        != processSuccess
+        commandDescriptor->consolePort, curTaskDescriptor->taskId)
+        != taskSuccess
       ) {
         printString(
-          "WARNING: Could not assign console port input to process.\n");
+          "WARNING: Could not assign console port input to task.\n");
       }
     }
 
-    prevProcessDescriptor = curProcessDescriptor;
+    prevTaskDescriptor = curTaskDescriptor;
   }
 
-  // We're done with our copy of the console input.  The process(es) will free
+  // We're done with our copy of the console input.  The task(es) will free
   // its/their copy/copies.
   consoleInput = stringDestroy(consoleInput);
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
   free(commandDescriptor); commandDescriptor = NULL;
   return 0;
 }
 
-/// @fn int schedulerKillProcessCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerKillTaskCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Kill a process identified by its process ID.
+/// @brief Kill a task identified by its task ID.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received that contains
-///   the information about the process to kill.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received that contains
+///   the information about the task to kill.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerKillProcessCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerKillTaskCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
 
-  ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
-  if (schedulerProcessCompleteMessage == NULL) {
+  TaskMessage *schedulerTaskCompleteMessage = getAvailableMessage();
+  if (schedulerTaskCompleteMessage == NULL) {
     // We have to have a message to send to unblock the console.  Fail and try
     // again later.
     return EBUSY;
   }
-  processMessageInit(schedulerProcessCompleteMessage,
-    SCHEDULER_PROCESS_COMPLETE, 0, 0, false);
+  taskMessageInit(schedulerTaskCompleteMessage,
+    SCHEDULER_TASK_COMPLETE, 0, 0, false);
 
   UserId callingUserId
-    = allProcesses[processId(processMessageFrom(processMessage))].userId;
-  ProcessId processId
-    = nanoOsMessageDataValue(processMessage, ProcessId);
+    = allTasks[taskId(taskMessageFrom(taskMessage))].userId;
+  TaskId taskId
+    = nanoOsMessageDataValue(taskMessage, TaskId);
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
 
-  if ((processId >= NANO_OS_FIRST_USER_PROCESS_ID)
-    && (processId < NANO_OS_NUM_PROCESSES)
-    && (processRunning(&allProcesses[processId]))
+  if ((taskId >= NANO_OS_FIRST_USER_TASK_ID)
+    && (taskId < NANO_OS_NUM_TASKS)
+    && (taskRunning(&allTasks[taskId]))
   ) {
-    if ((allProcesses[processId].userId == callingUserId)
+    if ((allTasks[taskId].userId == callingUserId)
       || (callingUserId == ROOT_USER_ID)
     ) {
-      ProcessDescriptor *processDescriptor = &allProcesses[processId];
+      TaskDescriptor *taskDescriptor = &allTasks[taskId];
       // Regardless of whether or not we succeed at terminating it, we have
       // to remove it from its queue.  We don't know which queue it's on,
       // though.  The fact that we're killing it makes it likely that it's hung.
@@ -2070,96 +2070,96 @@ int schedulerKillProcessCommandHandler(
       // ready queue is the second-most-likely place it could be.  The least-
       // likely place for it to be would be the timed waiting queue with a very
       // long timeout.  So, attempt to remove from the queues in that order.
-      if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0
+      if (taskQueueRemove(&schedulerState->waiting, taskDescriptor) != 0
       ) {
-        if (processQueueRemove(&schedulerState->ready, processDescriptor) != 0
+        if (taskQueueRemove(&schedulerState->ready, taskDescriptor) != 0
         ) {
-          processQueueRemove(&schedulerState->timedWaiting, processDescriptor);
+          taskQueueRemove(&schedulerState->timedWaiting, taskDescriptor);
         }
       }
 
       // Tell the console to release the port for us.  We will forward it
       // the message we acquired above, which it will use to send to the
       // correct shell to unblock it.  We need to do this before terminating
-      // the process because, in the event the process we're terminating is one
-      // of the shell process slots, the message won't get released because
+      // the task because, in the event the task we're terminating is one
+      // of the shell task slots, the message won't get released because
       // there's no shell blocking waiting for the message.
       schedulerSendNanoOsMessageToPid(
         schedulerState,
-        NANO_OS_CONSOLE_PROCESS_ID,
+        NANO_OS_CONSOLE_TASK_ID,
         CONSOLE_RELEASE_PID_PORT,
-        (intptr_t) schedulerProcessCompleteMessage,
-        processId);
+        (intptr_t) schedulerTaskCompleteMessage,
+        taskId);
 
       // Forward the message on to the memory manager to have it clean up the
-      // process's memory.  *DO NOT* mark the message as done.  The memory
+      // task's memory.  *DO NOT* mark the message as done.  The memory
       // manager will do that.
-      processMessageInit(processMessage, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+      taskMessageInit(taskMessage, MEMORY_MANAGER_FREE_TASK_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ true);
-      sendProcessMessageToProcess(
-        &schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID],
-        processMessage);
+      sendTaskMessageToTask(
+        &schedulerState->allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID],
+        taskMessage);
 
-      // Close the file descriptors before we terminate the process so that
-      // anything that gets sent to the process's queue gets cleaned up when
+      // Close the file descriptors before we terminate the task so that
+      // anything that gets sent to the task's queue gets cleaned up when
       // we terminate it.
-      closeProcessFileDescriptors(schedulerState, processDescriptor);
+      closeTaskFileDescriptors(schedulerState, taskDescriptor);
 
-      if (processTerminate(processDescriptor) == processSuccess) {
-        processHandleSetContext(processDescriptor->processHandle,
-          processDescriptor);
-        processDescriptor->name = NULL;
-        processDescriptor->userId = NO_USER_ID;
+      if (taskTerminate(taskDescriptor) == taskSuccess) {
+        taskHandleSetContext(taskDescriptor->taskHandle,
+          taskDescriptor);
+        taskDescriptor->name = NULL;
+        taskDescriptor->userId = NO_USER_ID;
 
-        if (processId > (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells)) {
+        if (taskId > (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells)) {
           // The expected case.
-          processQueuePush(&schedulerState->free, processDescriptor);
+          taskQueuePush(&schedulerState->free, taskDescriptor);
         } else {
-          // The killed process is a shell command.  The scheduler is
+          // The killed task is a shell command.  The scheduler is
           // responsible for detecting that it's not running and restarting it.
           // However, the scheduler only ever pops anything from the ready
           // queue.  So, push this back onto the ready queue instead of the free
           // queue this time.
-          processQueuePush(&schedulerState->ready, processDescriptor);
+          taskQueuePush(&schedulerState->ready, taskDescriptor);
         }
       } else {
         // Tell the caller that we've failed.
         nanoOsMessage->data = 1;
-        if (processMessageSetDone(processMessage) != processSuccess) {
+        if (taskMessageSetDone(taskMessage) != taskSuccess) {
           printString("ERROR: Could not mark message done in "
-            "schedulerKillProcessCommandHandler.\n");
+            "schedulerKillTaskCommandHandler.\n");
         }
 
-        // Do *NOT* push the process back onto the free queue in this case.
+        // Do *NOT* push the task back onto the free queue in this case.
         // If we couldn't terminate it, it's not valid to try and reuse it for
-        // another process.
+        // another task.
       }
     } else {
       // Tell the caller that we've failed.
       nanoOsMessage->data = EACCES; // Permission denied
-      if (processMessageSetDone(processMessage) != processSuccess) {
+      if (taskMessageSetDone(taskMessage) != taskSuccess) {
         printString("ERROR: Could not mark message done in "
-          "schedulerKillProcessCommandHandler.\n");
+          "schedulerKillTaskCommandHandler.\n");
       }
-      if (processMessageRelease(schedulerProcessCompleteMessage)
-        != processSuccess
+      if (taskMessageRelease(schedulerTaskCompleteMessage)
+        != taskSuccess
       ) {
         printString("ERROR: "
-          "Could not release schedulerProcessCompleteMessage.\n");
+          "Could not release schedulerTaskCompleteMessage.\n");
       }
     }
   } else {
     // Tell the caller that we've failed.
     nanoOsMessage->data = EINVAL; // Invalid argument
-    if (processMessageSetDone(processMessage) != processSuccess) {
+    if (taskMessageSetDone(taskMessage) != taskSuccess) {
       printString("ERROR: "
-        "Could not mark message done in schedulerKillProcessCommandHandler.\n");
+        "Could not mark message done in schedulerKillTaskCommandHandler.\n");
     }
-    if (processMessageRelease(schedulerProcessCompleteMessage)
-      != processSuccess
+    if (taskMessageRelease(schedulerTaskCompleteMessage)
+      != taskSuccess
     ) {
       printString("ERROR: "
-        "Could not release schedulerProcessCompleteMessage.\n");
+        "Could not release schedulerTaskCompleteMessage.\n");
     }
   }
 
@@ -2168,145 +2168,145 @@ int schedulerKillProcessCommandHandler(
   return returnValue;
 }
 
-/// @fn int schedulerGetNumProcessDescriptorsCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerGetNumTaskDescriptorsCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Get the number of processes that are currently running in the system.
+/// @brief Get the number of tasks that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.  This will be
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerGetNumProcessDescriptorsCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerGetNumTaskDescriptorsCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
 
-  uint8_t numProcessDescriptors = 0;
-  for (int ii = 0; ii < NANO_OS_NUM_PROCESSES; ii++) {
-    if (processRunning(&schedulerState->allProcesses[ii])) {
-      numProcessDescriptors++;
+  uint8_t numTaskDescriptors = 0;
+  for (int ii = 0; ii < NANO_OS_NUM_TASKS; ii++) {
+    if (taskRunning(&schedulerState->allTasks[ii])) {
+      numTaskDescriptors++;
     }
   }
-  nanoOsMessage->data = numProcessDescriptors;
+  nanoOsMessage->data = numTaskDescriptors;
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
   return returnValue;
 }
 
-/// @fn int schedulerGetProcessInfoCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerGetTaskInfoCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
 /// @brief Fill in a provided array with information about the currently-running
-/// processes.
+/// tasks.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.  This will be
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerGetProcessInfoCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerGetTaskInfoCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
 
-  ProcessInfo *processInfo
-    = nanoOsMessageDataPointer(processMessage, ProcessInfo*);
-  int maxProcesses = processInfo->numProcesses;
-  ProcessInfoElement *processes = processInfo->processes;
+  TaskInfo *taskInfo
+    = nanoOsMessageDataPointer(taskMessage, TaskInfo*);
+  int maxTasks = taskInfo->numTasks;
+  TaskInfoElement *tasks = taskInfo->tasks;
   int idx = 0;
-  for (int ii = 0; (ii < NANO_OS_NUM_PROCESSES) && (idx < maxProcesses); ii++) {
-    if (processRunning(&schedulerState->allProcesses[ii])) {
-      processes[idx].pid = (int) schedulerState->allProcesses[ii].processId;
-      processes[idx].name = schedulerState->allProcesses[ii].name;
-      processes[idx].userId = schedulerState->allProcesses[ii].userId;
+  for (int ii = 0; (ii < NANO_OS_NUM_TASKS) && (idx < maxTasks); ii++) {
+    if (taskRunning(&schedulerState->allTasks[ii])) {
+      tasks[idx].pid = (int) schedulerState->allTasks[ii].taskId;
+      tasks[idx].name = schedulerState->allTasks[ii].name;
+      tasks[idx].userId = schedulerState->allTasks[ii].userId;
       idx++;
     }
   }
 
-  // It's possible that a process completed between the time that processInfo
-  // was allocated and now, so set the value of numProcesses to the value of
+  // It's possible that a task completed between the time that taskInfo
+  // was allocated and now, so set the value of numTasks to the value of
   // idx.
-  processInfo->numProcesses = idx;
+  taskInfo->numTasks = idx;
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
   return returnValue;
 }
 
-/// @fn int schedulerGetProcessUserCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerGetTaskUserCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Get the number of processes that are currently running in the system.
+/// @brief Get the number of tasks that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.  This will be
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.  This will be
 ///   reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerGetProcessUserCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerGetTaskUserCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
-  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
-  if (callingProcessId < NANO_OS_NUM_PROCESSES) {
-    nanoOsMessage->data = schedulerState->allProcesses[callingProcessId].userId;
+  TaskId callingTaskId = taskId(taskMessageFrom(taskMessage));
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) taskMessageData(taskMessage);
+  if (callingTaskId < NANO_OS_NUM_TASKS) {
+    nanoOsMessage->data = schedulerState->allTasks[callingTaskId].userId;
   } else {
     nanoOsMessage->data = -1;
   }
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
   return returnValue;
 }
 
-/// @fn int schedulerSetProcessUserCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+/// @fn int schedulerSetTaskUserCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Get the number of processes that are currently running in the system.
+/// @brief Get the number of tasks that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.
 ///   This will be reused for the reply.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
-int schedulerSetProcessUserCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+int schedulerSetTaskUserCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
-  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
-  UserId userId = nanoOsMessageDataValue(processMessage, UserId);
-  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(processMessage);
+  TaskId callingTaskId = taskId(taskMessageFrom(taskMessage));
+  UserId userId = nanoOsMessageDataValue(taskMessage, UserId);
+  NanoOsMessage *nanoOsMessage = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = -1;
 
-  if (callingProcessId < NANO_OS_NUM_PROCESSES) {
-    if ((schedulerState->allProcesses[callingProcessId].userId == -1)
+  if (callingTaskId < NANO_OS_NUM_TASKS) {
+    if ((schedulerState->allTasks[callingTaskId].userId == -1)
       || (userId == -1)
     ) {
-      schedulerState->allProcesses[callingProcessId].userId = userId;
+      schedulerState->allTasks[callingTaskId].userId = userId;
       nanoOsMessage->data = 0;
     } else {
       nanoOsMessage->data = EACCES;
     }
   }
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   // DO NOT release the message since the caller is waiting on the response.
 
@@ -2314,79 +2314,79 @@ int schedulerSetProcessUserCommandHandler(
 }
 
 /// @fn int schedulerCloseAllFileDescriptorsCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
-/// @brief Get the number of processes that are currently running in the system.
+/// @brief Get the number of tasks that are currently running in the system.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerCloseAllFileDescriptorsCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
-  ProcessId callingProcessId = processId(processMessageFrom(processMessage));
-  ProcessDescriptor *processDescriptor
-    = &schedulerState->allProcesses[callingProcessId];
-  closeProcessFileDescriptors(schedulerState, processDescriptor);
+  TaskId callingTaskId = taskId(taskMessageFrom(taskMessage));
+  TaskDescriptor *taskDescriptor
+    = &schedulerState->allTasks[callingTaskId];
+  closeTaskFileDescriptors(schedulerState, taskDescriptor);
 
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   return returnValue;
 }
 
 /// @fn int schedulerGetHostnameCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
 /// @brief Get the hostname that's read when the scheduler starts.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerGetHostnameCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
   nanoOsMessage->data = (uintptr_t) schedulerState->hostname;
-  processMessageSetDone(processMessage);
+  taskMessageSetDone(taskMessage);
 
   return returnValue;
 }
 
 /// @fn int schedulerExecveCommandHandler(
-///   SchedulerState *schedulerState, ProcessMessage *processMessage)
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
 ///
 /// @brief Exec a new program in place of a running program.
 ///
 /// @param schedulerState A pointer to the SchedulerState maintained by the
-///   scheduler process.
-/// @param processMessage A pointer to the ProcessMessage that was received.
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.
 ///
 /// @return Returns 0 on success, non-zero error code on failure.
 int schedulerExecveCommandHandler(
-  SchedulerState *schedulerState, ProcessMessage *processMessage
+  SchedulerState *schedulerState, TaskMessage *taskMessage
 ) {
   int returnValue = 0;
-  if (processMessage == NULL) {
+  if (taskMessage == NULL) {
     // This should be impossible, but there's nothing to do.  Return good
     // status.
     return returnValue; // 0
   }
 
   NanoOsMessage *nanoOsMessage
-    = (NanoOsMessage*) processMessageData(processMessage);
-  ExecArgs *execArgs = nanoOsMessageDataValue(processMessage, ExecArgs*);
+    = (NanoOsMessage*) taskMessageData(taskMessage);
+  ExecArgs *execArgs = nanoOsMessageDataValue(taskMessage, ExecArgs*);
   if (execArgs == NULL) {
     printString("ERROR! execArgs provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     return returnValue; // 0; Don't retry this command
   }
 
@@ -2395,7 +2395,7 @@ int schedulerExecveCommandHandler(
     // Invalid
     printString("ERROR! pathname provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     return returnValue; // 0; Don't retry this command
   }
   char **argv = execArgs->argv;
@@ -2403,33 +2403,33 @@ int schedulerExecveCommandHandler(
     // Invalid
     printString("ERROR! argv provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     return returnValue; // 0; Don't retry this command
   } else if (argv[0] == NULL) {
     // Invalid
     printString("ERROR! argv[0] provided was NULL.\n");
     nanoOsMessage->data = EINVAL;
-    processMessageSetDone(processMessage);
+    taskMessageSetDone(taskMessage);
     return returnValue; // 0; Don't retry this command
   }
   char **envp = execArgs->envp;
 
-  if (assignMemory(execArgs, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(execArgs, NANO_OS_SCHEDULER_TASK_ID) != 0) {
     printString("WARNING: Could not assign execArgs to scheduler.\n");
     printString("Undefined behavior.\n");
   }
 
-  if (assignMemory(pathname, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(pathname, NANO_OS_SCHEDULER_TASK_ID) != 0) {
     printString("WARNING: Could not assign pathname to scheduler.\n");
     printString("Undefined behavior.\n");
   }
 
-  if (assignMemory(argv, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+  if (assignMemory(argv, NANO_OS_SCHEDULER_TASK_ID) != 0) {
     printString("WARNING: Could not assign argv to scheduler.\n");
     printString("Undefined behavior.\n");
   }
   for (int ii = 0; argv[ii] != NULL; ii++) {
-    if (assignMemory(argv[ii], NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    if (assignMemory(argv[ii], NANO_OS_SCHEDULER_TASK_ID) != 0) {
       printString("WARNING: Could not assign argv[");
       printInt(ii);
       printString("] to scheduler.\n");
@@ -2438,12 +2438,12 @@ int schedulerExecveCommandHandler(
   }
 
   if (envp != NULL) {
-    if (assignMemory(envp, NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+    if (assignMemory(envp, NANO_OS_SCHEDULER_TASK_ID) != 0) {
       printString("WARNING: Could not assign envp to scheduler.\n");
       printString("Undefined behavior.\n");
     }
     for (int ii = 0; envp[ii] != NULL; ii++) {
-      if (assignMemory(envp[ii], NANO_OS_SCHEDULER_PROCESS_ID) != 0) {
+      if (assignMemory(envp[ii], NANO_OS_SCHEDULER_TASK_ID) != 0) {
         printString("WARNING: Could not assign envp[");
         printInt(ii);
         printString("] to scheduler.\n");
@@ -2452,60 +2452,60 @@ int schedulerExecveCommandHandler(
     }
   }
 
-  ProcessDescriptor *processDescriptor = &schedulerState->allProcesses[
-    processId(processMessageFrom(processMessage))];
-  // The process should be blocked in processMessageQueueWaitForType waiting
+  TaskDescriptor *taskDescriptor = &schedulerState->allTasks[
+    taskId(taskMessageFrom(taskMessage))];
+  // The task should be blocked in taskMessageQueueWaitForType waiting
   // on a condition with an infinite timeout.  So, it *SHOULD* be on the
   // waiting queue.  Take no chances, though.
-  if (processQueueRemove(&schedulerState->waiting, processDescriptor) != 0) {
-    if (processQueueRemove(&schedulerState->timedWaiting, processDescriptor)
+  if (taskQueueRemove(&schedulerState->waiting, taskDescriptor) != 0) {
+    if (taskQueueRemove(&schedulerState->timedWaiting, taskDescriptor)
       != 0
     ) {
-      processQueueRemove(&schedulerState->ready, processDescriptor);
+      taskQueueRemove(&schedulerState->ready, taskDescriptor);
     }
   }
 
-  // Kill and clear out the calling process.
-  processTerminate(processDescriptor);
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
+  // Kill and clear out the calling task.
+  taskTerminate(taskDescriptor);
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
   if (schedulerSendNanoOsMessageToPid(
-    schedulerState, NANO_OS_MEMORY_MANAGER_PROCESS_ID,
-    MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-    /* func= */ 0, processDescriptor->processId)
+    schedulerState, NANO_OS_MEMORY_MANAGER_TASK_ID,
+    MEMORY_MANAGER_FREE_TASK_MEMORY,
+    /* func= */ 0, taskDescriptor->taskId)
   ) {
-    printString("WARNING: Could not release memory for process ");
-    printInt(processDescriptor->processId);
+    printString("WARNING: Could not release memory for task ");
+    printInt(taskDescriptor->taskId);
     printString("\n");
     printString("Memory leak.\n");
   }
 
   execArgs->schedulerState = schedulerState;
-  if (processCreate(processDescriptor,
-    execCommand, processMessage) == processError
+  if (taskCreate(taskDescriptor,
+    execCommand, taskMessage) == taskError
   ) {
     printString(
-      "ERROR: Could not configure process handle for new command.\n");
+      "ERROR: Could not configure task handle for new command.\n");
   }
 
-  if (assignMemory(execArgs, processDescriptor->processId) != 0) {
+  if (assignMemory(execArgs, taskDescriptor->taskId) != 0) {
     printString("WARNING: Could not assign execArgs to scheduler.\n");
     printString("Undefined behavior.\n");
   }
 
-  if (assignMemory(pathname, processDescriptor->processId) != 0) {
+  if (assignMemory(pathname, taskDescriptor->taskId) != 0) {
     printString("WARNING: Could not assign pathname to scheduler.\n");
     printString("Undefined behavior.\n");
   }
 
-  if (assignMemory(argv, processDescriptor->processId) != 0) {
+  if (assignMemory(argv, taskDescriptor->taskId) != 0) {
     printString("WARNING: Could not assign argv to scheduler.\n");
     printString("Undefined behavior.\n");
   }
   for (int ii = 0; argv[ii] != NULL; ii++) {
-    if (assignMemory(argv[ii], processDescriptor->processId) != 0) {
+    if (assignMemory(argv[ii], taskDescriptor->taskId) != 0) {
       printString("WARNING: Could not assign argv[");
       printInt(ii);
       printString("] to scheduler.\n");
@@ -2514,12 +2514,12 @@ int schedulerExecveCommandHandler(
   }
 
   if (envp != NULL) {
-    if (assignMemory(envp, processDescriptor->processId) != 0) {
+    if (assignMemory(envp, taskDescriptor->taskId) != 0) {
       printString("WARNING: Could not assign envp to scheduler.\n");
       printString("Undefined behavior.\n");
     }
     for (int ii = 0; envp[ii] != NULL; ii++) {
-      if (assignMemory(envp[ii], processDescriptor->processId) != 0) {
+      if (assignMemory(envp[ii], taskDescriptor->taskId) != 0) {
         printString("WARNING: Could not assign envp[");
         printInt(ii);
         printString("] to scheduler.\n");
@@ -2528,17 +2528,17 @@ int schedulerExecveCommandHandler(
     }
   }
 
-  processDescriptor->overlayDir = pathname;
-  processDescriptor->overlay = "main";
-  processDescriptor->envp = (const char**) envp;
-  processDescriptor->name = argv[0];
+  taskDescriptor->overlayDir = pathname;
+  taskDescriptor->overlay = "main";
+  taskDescriptor->envp = (const char**) envp;
+  taskDescriptor->name = argv[0];
 
   /*
    * This shouldn't be necessary.  In hindsight, perhaps I shouldn't be
-   * assigning a port to a process at all.  That's not the way Unix works.  I
+   * assigning a port to a task at all.  That's not the way Unix works.  I
    * should probably remove the ability to exclusively assign a port to a
-   * process at some point in the future.  Delete this if I haven't found a
-   * good reason to continue granting exclusive access to a process by then.
+   * task at some point in the future.  Delete this if I haven't found a
+   * good reason to continue granting exclusive access to a task by then.
    * Leaving it uncommented in an if (false) so that compilation will fail
    * if/when I delete the functionality.
    *
@@ -2546,21 +2546,21 @@ int schedulerExecveCommandHandler(
    */
   if (false) {
     if (schedulerAssignPortToPid(schedulerState,
-      /*commandDescriptor->consolePort*/ 255, processDescriptor->processId)
-      != processSuccess
+      /*commandDescriptor->consolePort*/ 255, taskDescriptor->taskId)
+      != taskSuccess
     ) {
-      printString("WARNING: Could not assign console port to process.\n");
+      printString("WARNING: Could not assign console port to task.\n");
     }
   }
 
   // Resume the coroutine so that it picks up all the pointers it needs before
   // we release the message we were sent.
-  processResume(processDescriptor, NULL);
+  taskResume(taskDescriptor, NULL);
 
-  // Put the process on the ready queue.
-  processQueuePush(&schedulerState->ready, processDescriptor);
+  // Put the task on the ready queue.
+  taskQueuePush(&schedulerState->ready, taskDescriptor);
 
-  processMessageRelease(processMessage);
+  taskMessageRelease(taskMessage);
 
   return returnValue;
 }
@@ -2568,20 +2568,20 @@ int schedulerExecveCommandHandler(
 /// @typedef SchedulerCommandHandler
 ///
 /// @brief Signature of command handler for a scheduler command.
-typedef int (*SchedulerCommandHandler)(SchedulerState*, ProcessMessage*);
+typedef int (*SchedulerCommandHandler)(SchedulerState*, TaskMessage*);
 
 /// @var schedulerCommandHandlers
 ///
 /// @brief Array of function pointers for commands that are understood by the
 /// message handler for the main loop function.
 const SchedulerCommandHandler schedulerCommandHandlers[] = {
-  schedulerRunProcessCommandHandler,        // SCHEDULER_RUN_PROCESS
-  schedulerKillProcessCommandHandler,       // SCHEDULER_KILL_PROCESS
-  // SCHEDULER_GET_NUM_RUNNING_PROCESSES:
-  schedulerGetNumProcessDescriptorsCommandHandler,
-  schedulerGetProcessInfoCommandHandler,    // SCHEDULER_GET_PROCESS_INFO
-  schedulerGetProcessUserCommandHandler,    // SCHEDULER_GET_PROCESS_USER
-  schedulerSetProcessUserCommandHandler,    // SCHEDULER_SET_PROCESS_USER
+  schedulerRunTaskCommandHandler,        // SCHEDULER_RUN_TASK
+  schedulerKillTaskCommandHandler,       // SCHEDULER_KILL_TASK
+  // SCHEDULER_GET_NUM_RUNNING_TASKS:
+  schedulerGetNumTaskDescriptorsCommandHandler,
+  schedulerGetTaskInfoCommandHandler,    // SCHEDULER_GET_TASK_INFO
+  schedulerGetTaskUserCommandHandler,    // SCHEDULER_GET_TASK_USER
+  schedulerSetTaskUserCommandHandler,    // SCHEDULER_SET_TASK_USER
   // SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS:
   schedulerCloseAllFileDescriptorsCommandHandler,
   schedulerGetHostnameCommandHandler,       // SCHEDULER_GET_HOSTNAME
@@ -2595,18 +2595,18 @@ const SchedulerCommandHandler schedulerCommandHandlers[] = {
 /// end of our message queue.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 ///
 /// @return This function returns no value.
 void handleSchedulerMessage(SchedulerState *schedulerState) {
   static int lastReturnValue = 0;
-  ProcessMessage *message = processMessageQueuePop();
+  TaskMessage *message = taskMessageQueuePop();
   if (message != NULL) {
     SchedulerCommand messageType
-      = (SchedulerCommand) processMessageType(message);
+      = (SchedulerCommand) taskMessageType(message);
     if (messageType >= NUM_SCHEDULER_COMMANDS) {
       // Invalid.  Purge the message.
-      if (processMessageRelease(message) != processSuccess) {
+      if (taskMessageRelease(message) != taskSuccess) {
         printString("ERROR: "
           "Could not release message from handleSchedulerMessage "
           "for invalid message type.\n");
@@ -2617,14 +2617,14 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
     int returnValue = schedulerCommandHandlers[messageType](
       schedulerState, message);
     if (returnValue != 0) {
-      // Processing the message failed.  We can't release it.  Put it on the
+      // Tasking the message failed.  We can't release it.  Put it on the
       // back of our own queue again and try again later.
       if (lastReturnValue == 0) {
         // Only print out a message if this is the first time we've failed.
         printString("Scheduler command handler failed.\n");
         printString("Pushing message back onto our own queue.\n");
       }
-      processMessageQueuePush(getRunningProcess(), message);
+      taskMessageQueuePush(getRunningTask(), message);
     }
     lastReturnValue = returnValue;
   }
@@ -2637,32 +2637,32 @@ void handleSchedulerMessage(SchedulerState *schedulerState) {
 /// @brief Check for anything that's timed out on the timedWaiting queue.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 ///
 /// @return This function returns no value.
 void checkForTimeouts(SchedulerState *schedulerState) {
-  ProcessQueue *timedWaiting = &schedulerState->timedWaiting;
+  TaskQueue *timedWaiting = &schedulerState->timedWaiting;
   uint8_t numElements = timedWaiting->numElements;
   int64_t now = coroutineGetNanoseconds(NULL);
 
   for (uint8_t ii = 0; ii < numElements; ii++) {
-    ProcessDescriptor *poppedDescriptor = processQueuePop(timedWaiting);
+    TaskDescriptor *poppedDescriptor = taskQueuePop(timedWaiting);
     Comutex *blockingComutex
-      = poppedDescriptor->processHandle->blockingComutex;
+      = poppedDescriptor->taskHandle->blockingComutex;
     Cocondition *blockingCocondition
-      = poppedDescriptor->processHandle->blockingCocondition;
+      = poppedDescriptor->taskHandle->blockingCocondition;
 
     if ((blockingComutex != NULL) && (now >= blockingComutex->timeoutTime)) {
-      processQueuePush(&schedulerState->ready, poppedDescriptor);
+      taskQueuePush(&schedulerState->ready, poppedDescriptor);
       continue;
     } else if ((blockingCocondition != NULL)
       && (now >= blockingCocondition->timeoutTime)
     ) {
-      processQueuePush(&schedulerState->ready, poppedDescriptor);
+      taskQueuePush(&schedulerState->ready, poppedDescriptor);
       continue;
     }
 
-    processQueuePush(timedWaiting, poppedDescriptor);
+    taskQueuePush(timedWaiting, poppedDescriptor);
   }
 
   return;
@@ -2671,11 +2671,11 @@ void checkForTimeouts(SchedulerState *schedulerState) {
 /// @fn void forceYield(void)
 ///
 /// @brief Callback that's invoked when the preemption timer fires.  Wrapper
-///   for processYield.  Does nothing else.
+///   for taskYield.  Does nothing else.
 ///
 /// @return This function returns no value.
 void forceYield(void) {
-  processYield();
+  taskYield();
 }
 
 /// @fn void runScheduler(SchedulerState *schedulerState)
@@ -2683,121 +2683,121 @@ void forceYield(void) {
 /// @brief Run one (1) iteration of the main scheduler loop.
 ///
 /// @param schedulerState A pointer to the SchedulerState object maintained by
-///   the scheduler process.
+///   the scheduler task.
 ///
 /// @return This function returns no value.
 void runScheduler(SchedulerState *schedulerState) {
-  ProcessDescriptor *processDescriptor
-    = processQueuePop(&schedulerState->ready);
+  TaskDescriptor *taskDescriptor
+    = taskQueuePop(&schedulerState->ready);
 
-  if (coroutineCorrupted(processDescriptor->processHandle)) {
-    printString("ERROR: Process corruption detected:\n");
-    printString("       Removing process ");
-    printInt(processDescriptor->processId);
-    printString(" from process queues.\n");
+  if (coroutineCorrupted(taskDescriptor->taskHandle)) {
+    printString("ERROR: Task corruption detected:\n");
+    printString("       Removing task ");
+    printInt(taskDescriptor->taskId);
+    printString(" from task queues.\n");
 
-    processDescriptor->name = NULL;
-    processDescriptor->userId = NO_USER_ID;
-    processDescriptor->processHandle->state = COROUTINE_STATE_NOT_RUNNING;
+    taskDescriptor->name = NULL;
+    taskDescriptor->userId = NO_USER_ID;
+    taskDescriptor->taskHandle->state = COROUTINE_STATE_NOT_RUNNING;
 
-    ProcessMessage *schedulerProcessCompleteMessage = getAvailableMessage();
-    if (schedulerProcessCompleteMessage != NULL) {
+    TaskMessage *schedulerTaskCompleteMessage = getAvailableMessage();
+    if (schedulerTaskCompleteMessage != NULL) {
       schedulerSendNanoOsMessageToPid(
         schedulerState,
-        NANO_OS_CONSOLE_PROCESS_ID,
+        NANO_OS_CONSOLE_TASK_ID,
         CONSOLE_RELEASE_PID_PORT,
-        (intptr_t) schedulerProcessCompleteMessage,
-        processDescriptor->processId);
+        (intptr_t) schedulerTaskCompleteMessage,
+        taskDescriptor->taskId);
     } else {
       printString("WARNING: Could not allocate "
-        "schedulerProcessCompleteMessage.  Memory leak.\n");
+        "schedulerTaskCompleteMessage.  Memory leak.\n");
       // If we can't allocate the first message, we can't allocate the second
       // one either, so bail.
       return;
     }
 
-    ProcessMessage *freeProcessMemoryMessage = getAvailableMessage();
-    if (freeProcessMemoryMessage != NULL) {
-      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) processMessageData(
-        freeProcessMemoryMessage);
-      nanoOsMessage->data = processDescriptor->processId;
-      processMessageInit(freeProcessMemoryMessage,
-        MEMORY_MANAGER_FREE_PROCESS_MEMORY,
+    TaskMessage *freeTaskMemoryMessage = getAvailableMessage();
+    if (freeTaskMemoryMessage != NULL) {
+      NanoOsMessage *nanoOsMessage = (NanoOsMessage*) taskMessageData(
+        freeTaskMemoryMessage);
+      nanoOsMessage->data = taskDescriptor->taskId;
+      taskMessageInit(freeTaskMemoryMessage,
+        MEMORY_MANAGER_FREE_TASK_MEMORY,
         nanoOsMessage, sizeof(*nanoOsMessage), /* waiting= */ false);
-      sendProcessMessageToProcess(
-        &schedulerState->allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID],
-        freeProcessMemoryMessage);
+      sendTaskMessageToTask(
+        &schedulerState->allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID],
+        freeTaskMemoryMessage);
     } else {
       printString("WARNING: Could not allocate "
-        "freeProcessMemoryMessage.  Memory leak.\n");
+        "freeTaskMemoryMessage.  Memory leak.\n");
     }
 
     return;
   }
 
-  // Configure the preemption timer to force the process to yield if it doesn't
+  // Configure the preemption timer to force the task to yield if it doesn't
   // voluntarily give up control within a reasonable amount of time.
-  if (processDescriptor->processId >= NANO_OS_FIRST_USER_PROCESS_ID) {
-    HAL->configTimer(schedulerState->preemptionTimer, 2000, forceYield);
+  if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
+    HAL->configTimer(schedulerState->preemptionTimer, 2000000, forceYield);
   }
-  processResume(processDescriptor, NULL);
+  taskResume(taskDescriptor, NULL);
 
-  if (processRunning(processDescriptor) == false) {
+  if (taskRunning(taskDescriptor) == false) {
     schedulerSendNanoOsMessageToPid(schedulerState,
-      NANO_OS_MEMORY_MANAGER_PROCESS_ID, MEMORY_MANAGER_FREE_PROCESS_MEMORY,
-      /* func= */ 0, /* data= */ processDescriptor->processId);
+      NANO_OS_MEMORY_MANAGER_TASK_ID, MEMORY_MANAGER_FREE_TASK_MEMORY,
+      /* func= */ 0, /* data= */ taskDescriptor->taskId);
   }
 
   // Check the shells and restart them if needed.
-  if ((processDescriptor->processId >= NANO_OS_FIRST_SHELL_PID)
-    && (processDescriptor->processId
+  if ((taskDescriptor->taskId >= NANO_OS_FIRST_SHELL_PID)
+    && (taskDescriptor->taskId
       < (NANO_OS_FIRST_SHELL_PID + schedulerState->numShells))
-    && (processRunning(processDescriptor) == false)
+    && (taskRunning(taskDescriptor) == false)
   ) {
     if ((schedulerState->hostname == NULL)
       || (*schedulerState->hostname == '\0')
     ) {
-      // We're not done initializing yet.  Put the process back on the ready
+      // We're not done initializing yet.  Put the task back on the ready
       // queue and try again later.
-      processQueuePush(&schedulerState->ready, processDescriptor);
+      taskQueuePush(&schedulerState->ready, taskDescriptor);
       return;
     }
 
-    if (allProcesses[processDescriptor->processId].userId == NO_USER_ID) {
+    if (allTasks[taskDescriptor->taskId].userId == NO_USER_ID) {
       // Login failed.  Re-launch getty.
     } else {
-      // User process exited.  Re-launch the shell.
+      // User task exited.  Re-launch the shell.
     }
     
     // Restart the shell.
-    allProcesses[processDescriptor->processId].numFileDescriptors
+    allTasks[taskDescriptor->taskId].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
-    allProcesses[processDescriptor->processId].fileDescriptors
+    allTasks[taskDescriptor->taskId].fileDescriptors
       = (FileDescriptor*) standardUserFileDescriptors;
-    processDescriptor->name
-      = shellNames[processDescriptor->processId - NANO_OS_FIRST_SHELL_PID];
-    if (processCreate(processDescriptor, runShell, schedulerState->hostname
-      ) == processError
+    taskDescriptor->name
+      = shellNames[taskDescriptor->taskId - NANO_OS_FIRST_SHELL_PID];
+    if (taskCreate(taskDescriptor, runShell, schedulerState->hostname
+      ) == taskError
     ) {
-      printString("ERROR: Could not configure process for ");
-      printString(processDescriptor->name);
+      printString("ERROR: Could not configure task for ");
+      printString(taskDescriptor->name);
       printString("\n");
     }
-    processResume(processDescriptor, NULL);
+    taskResume(taskDescriptor, NULL);
   }
 
-  if (coroutineState(processDescriptor->processHandle)
+  if (coroutineState(taskDescriptor->taskHandle)
     == COROUTINE_STATE_WAIT
   ) {
-    processQueuePush(&schedulerState->waiting, processDescriptor);
-  } else if (coroutineState(processDescriptor->processHandle)
+    taskQueuePush(&schedulerState->waiting, taskDescriptor);
+  } else if (coroutineState(taskDescriptor->taskHandle)
     == COROUTINE_STATE_TIMEDWAIT
   ) {
-    processQueuePush(&schedulerState->timedWaiting, processDescriptor);
-  } else if (processFinished(processDescriptor)) {
-    processQueuePush(&schedulerState->free, processDescriptor);
-  } else { // Process is still running.
-    processQueuePush(&schedulerState->ready, processDescriptor);
+    taskQueuePush(&schedulerState->timedWaiting, taskDescriptor);
+  } else if (taskFinished(taskDescriptor)) {
+    taskQueuePush(&schedulerState->free, taskDescriptor);
+  } else { // Task is still running.
+    taskQueuePush(&schedulerState->ready, taskDescriptor);
   }
 
   checkForTimeouts(schedulerState);
@@ -2823,15 +2823,16 @@ __attribute__((noinline)) void startScheduler(
   schedulerState.waiting.name = "waiting";
   schedulerState.timedWaiting.name = "timed waiting";
   schedulerState.free.name = "free";
-  schedulerState.preemptionTimer = (HAL->getNumTimers() > 0) ? 0 : -1;
+  schedulerState.preemptionTimer
+    = (HAL->getNumTimers() > PREEMPTION_TIMER) ? PREEMPTION_TIMER : -1;
   printDebugString("Set scheduler state.\n");
 
   // Initialize the pointer that was used to configure coroutines.
   *coroutineStatePointer = &schedulerState;
 
-  // Initialize the static ProcessMessage storage.
-  ProcessMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {0};
-  extern ProcessMessage *messages;
+  // Initialize the static TaskMessage storage.
+  TaskMessage messagesStorage[NANO_OS_NUM_MESSAGES] = {0};
+  extern TaskMessage *messages;
   messages = messagesStorage;
 
   // Initialize the static NanoOsMessage storage.
@@ -2840,46 +2841,46 @@ __attribute__((noinline)) void startScheduler(
   nanoOsMessages = nanoOsMessagesStorage;
   printDebugString("Allocated messages storage.\n");
 
-  // Initialize the allProcesses pointer.  The processes are all zeroed because
+  // Initialize the allTasks pointer.  The tasks are all zeroed because
   // we zeroed the entire schedulerState when we declared it.
-  allProcesses = schedulerState.allProcesses;
+  allTasks = schedulerState.allTasks;
 
   // Initialize the scheduler in the array of running commands.
-  schedulerProcess = &allProcesses[NANO_OS_SCHEDULER_PROCESS_ID];
-  schedulerProcess->processHandle = schedulerProcessHandle;
-  schedulerProcess->processId
-    = NANO_OS_SCHEDULER_PROCESS_ID;
-  schedulerProcess->name = "scheduler";
-  schedulerProcess->userId = ROOT_USER_ID;
-  processHandleSetContext(schedulerProcess->processHandle, schedulerProcess);
+  schedulerTask = &allTasks[NANO_OS_SCHEDULER_TASK_ID];
+  schedulerTask->taskHandle = schedulerTaskHandle;
+  schedulerTask->taskId
+    = NANO_OS_SCHEDULER_TASK_ID;
+  schedulerTask->name = "scheduler";
+  schedulerTask->userId = ROOT_USER_ID;
+  taskHandleSetContext(schedulerTask->taskHandle, schedulerTask);
 
-  // We are not officially running the first process, so make it current.
-  currentProcess = schedulerProcess;
-  printDebugString("Configured scheduler process.\n");
+  // We are not officially running the first task, so make it current.
+  currentTask = schedulerTask;
+  printDebugString("Configured scheduler task.\n");
 
-  // Initialize all the kernel process file descriptors.
-  for (ProcessId ii = 0; ii < NANO_OS_FIRST_USER_PROCESS_ID; ii++) {
-    allProcesses[ii].numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
-    allProcesses[ii].fileDescriptors
+  // Initialize all the kernel task file descriptors.
+  for (TaskId ii = 0; ii < NANO_OS_FIRST_USER_TASK_ID; ii++) {
+    allTasks[ii].numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+    allTasks[ii].fileDescriptors
       = (FileDescriptor*) standardKernelFileDescriptors;
   }
-  printDebugString("Initialized kernel process file descriptors.\n");
+  printDebugString("Initialized kernel task file descriptors.\n");
 
-  // Create the console process.
-  ProcessDescriptor *processDescriptor
-    = &allProcesses[NANO_OS_CONSOLE_PROCESS_ID];
-  if (processCreate(processDescriptor, runConsole, NULL) != processSuccess) {
-    printString("Could not create console process.\n");
+  // Create the console task.
+  TaskDescriptor *taskDescriptor
+    = &allTasks[NANO_OS_CONSOLE_TASK_ID];
+  if (taskCreate(taskDescriptor, runConsole, NULL) != taskSuccess) {
+    printString("Could not create console task.\n");
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_CONSOLE_PROCESS_ID;
-  processDescriptor->name = "console";
-  processDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created console process.\n");
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_CONSOLE_TASK_ID;
+  taskDescriptor->name = "console";
+  taskDescriptor->userId = ROOT_USER_ID;
+  printDebugString("Created console task.\n");
 
-  // Start the console by calling processResume.
-  processResume(&allProcesses[NANO_OS_CONSOLE_PROCESS_ID], NULL);
-  printDebugString("Started console process.\n");
+  // Start the console by calling taskResume.
+  taskResume(&allTasks[NANO_OS_CONSOLE_TASK_ID], NULL);
+  printDebugString("Started console task.\n");
 
   printDebugString("\n");
   printDebugString("sizeof(int) = ");
@@ -2890,15 +2891,15 @@ __attribute__((noinline)) void startScheduler(
   printDebugString("\n");
   printDebugString("Main stack size = ");
   printDebugInt(ABS_DIFF(
-    ((intptr_t) schedulerProcessHandle),
-    ((intptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle)
+    ((intptr_t) schedulerTaskHandle),
+    ((intptr_t) allTasks[NANO_OS_CONSOLE_TASK_ID].taskHandle)
   ));
   printDebugString(" bytes\n");
   printDebugString("schedulerState size = ");
   printDebugInt(sizeof(SchedulerState));
   printDebugString(" bytes\n");
   printDebugString("messagesStorage size = ");
-  printDebugInt(sizeof(ProcessMessage) * NANO_OS_NUM_MESSAGES);
+  printDebugInt(sizeof(TaskMessage) * NANO_OS_NUM_MESSAGES);
   printDebugString(" bytes\n");
   printDebugString("nanoOsMessagesStorage size = ");
   printDebugInt(sizeof(NanoOsMessage) * NANO_OS_NUM_MESSAGES);
@@ -2915,7 +2916,7 @@ __attribute__((noinline)) void startScheduler(
     while(1);
   }
   // Irrespective of how many ports the console may be running, we can't run
-  // more shell processes than what we're configured for.  Make sure we set a
+  // more shell tasks than what we're configured for.  Make sure we set a
   // sensible limit.
   schedulerState.numShells
     = MIN(schedulerState.numShells, NANO_OS_MAX_NUM_SHELLS);
@@ -2930,40 +2931,40 @@ __attribute__((noinline)) void startScheduler(
     printString("\n");
   }
 
-  // We need to do an initial population of all the processes because we need to
+  // We need to do an initial population of all the tasks because we need to
   // get to the end of memory to run the memory manager in whatever is left
   // over.
-  for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
-    ii < NANO_OS_NUM_PROCESSES;
+  for (TaskId ii = NANO_OS_FIRST_USER_TASK_ID;
+    ii < NANO_OS_NUM_TASKS;
     ii++
   ) {
-    processDescriptor = &allProcesses[ii];
-    if (processCreate(processDescriptor,
-      dummyProcess, NULL) != processSuccess
+    taskDescriptor = &allTasks[ii];
+    if (taskCreate(taskDescriptor,
+      dummyTask, NULL) != taskSuccess
     ) {
-      printString("Could not create process ");
+      printString("Could not create task ");
       printInt(ii);
       printString(".\n");
     }
-    processHandleSetContext(
-      processDescriptor->processHandle, processDescriptor);
-    processDescriptor->processId = ii;
-    processDescriptor->userId = NO_USER_ID;
+    taskHandleSetContext(
+      taskDescriptor->taskHandle, taskDescriptor);
+    taskDescriptor->taskId = ii;
+    taskDescriptor->userId = NO_USER_ID;
   }
-  printDebugString("Created all processes.\n");
+  printDebugString("Created all tasks.\n");
 
   printDebugString("Console stack size = ");
   printDebugInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_SD_CARD_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_CONSOLE_PROCESS_ID].processHandle))
+    ((uintptr_t) allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle),
+    ((uintptr_t) allTasks[NANO_OS_CONSOLE_TASK_ID].taskHandle))
     - sizeof(Coroutine)
   );
   printDebugString(" bytes\n");
 
   printDebugString("Coroutine stack size = ");
   printDebugInt(ABS_DIFF(
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID].processHandle),
-    ((uintptr_t) allProcesses[NANO_OS_FIRST_USER_PROCESS_ID + 1].processHandle))
+    ((uintptr_t) allTasks[NANO_OS_FIRST_USER_TASK_ID].taskHandle),
+    ((uintptr_t) allTasks[NANO_OS_FIRST_USER_TASK_ID + 1].taskHandle))
     - sizeof(Coroutine)
   );
   printDebugString(" bytes\n");
@@ -2976,28 +2977,28 @@ __attribute__((noinline)) void startScheduler(
   printDebugInt(sizeof(standardKernelFileDescriptors));
   printDebugString("\n");
 
-  // Create the memory manager process.  : THIS MUST BE THE LAST PROCESS
+  // Create the memory manager task.  : THIS MUST BE THE LAST TASK
   // CREATED BECAUSE WE WANT TO USE THE ENTIRE REST OF MEMORY FOR IT :
-  processDescriptor = &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID];
-  if (processCreate(processDescriptor,
-    runMemoryManager, NULL) != processSuccess
+  taskDescriptor = &allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID];
+  if (taskCreate(taskDescriptor,
+    runMemoryManager, NULL) != taskSuccess
   ) {
-    printString("Could not create memory manager process.\n");
+    printString("Could not create memory manager task.\n");
   }
-  processHandleSetContext(processDescriptor->processHandle, processDescriptor);
-  processDescriptor->processId = NANO_OS_MEMORY_MANAGER_PROCESS_ID;
-  processDescriptor->name = "memory manager";
-  processDescriptor->userId = ROOT_USER_ID;
+  taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
+  taskDescriptor->taskId = NANO_OS_MEMORY_MANAGER_TASK_ID;
+  taskDescriptor->name = "memory manager";
+  taskDescriptor->userId = ROOT_USER_ID;
   printDebugString("Created memory manager.\n");
 
-  // Start the memory manager by calling processResume.
-  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], NULL);
+  // Start the memory manager by calling taskResume.
+  taskResume(&allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID], NULL);
   printDebugString("Started memory manager.\n");
 
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
     if (schedulerAssignPortToPid(&schedulerState,
-      ii, NANO_OS_MEMORY_MANAGER_PROCESS_ID) != processSuccess
+      ii, NANO_OS_MEMORY_MANAGER_TASK_ID) != taskSuccess
     ) {
       printString(
         "WARNING: Could not assign console port to memory manager.\n");
@@ -3008,7 +3009,7 @@ __attribute__((noinline)) void startScheduler(
   // Set the shells for the ports.
   for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
     if (schedulerSetPortShell(&schedulerState,
-      ii, NANO_OS_FIRST_SHELL_PID + ii) != processSuccess
+      ii, NANO_OS_FIRST_SHELL_PID + ii) != taskSuccess
     ) {
       printString("WARNING: Could not set shell for ");
       printString(shellNames[ii]);
@@ -3018,27 +3019,27 @@ __attribute__((noinline)) void startScheduler(
   }
   printDebugString("Set shells for ports.\n");
 
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_SD_CARD_PROCESS_ID]);
-  processQueuePush(&schedulerState.ready,
-    &allProcesses[NANO_OS_CONSOLE_PROCESS_ID]);
-  // The scheduler will take care of cleaning up the dummy processes in the
+  taskQueuePush(&schedulerState.ready,
+    &allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID]);
+  taskQueuePush(&schedulerState.ready,
+    &allTasks[NANO_OS_FILESYSTEM_TASK_ID]);
+  taskQueuePush(&schedulerState.ready,
+    &allTasks[NANO_OS_SD_CARD_TASK_ID]);
+  taskQueuePush(&schedulerState.ready,
+    &allTasks[NANO_OS_CONSOLE_TASK_ID]);
+  // The scheduler will take care of cleaning up the dummy tasks in the
   // ready queue.
-  for (ProcessId ii = NANO_OS_FIRST_USER_PROCESS_ID;
-    ii < NANO_OS_NUM_PROCESSES;
+  for (TaskId ii = NANO_OS_FIRST_USER_TASK_ID;
+    ii < NANO_OS_NUM_TASKS;
     ii++
   ) {
-    processQueuePush(&schedulerState.ready, &allProcesses[ii]);
+    taskQueuePush(&schedulerState.ready, &allTasks[ii]);
   }
   printDebugString("Populated ready queue.\n");
 
   // Get the memory manager and filesystem up and running.
-  processResume(&allProcesses[NANO_OS_MEMORY_MANAGER_PROCESS_ID], NULL);
-  processResume(&allProcesses[NANO_OS_FILESYSTEM_PROCESS_ID], NULL);
+  taskResume(&allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID], NULL);
+  taskResume(&allTasks[NANO_OS_FILESYSTEM_TASK_ID], NULL);
   printDebugString("Started memory manager and filesystem.\n");
 
   // Allocate memory for the hostname.

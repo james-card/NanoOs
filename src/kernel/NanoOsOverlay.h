@@ -53,6 +53,16 @@ extern "C"
 /// @brief Value used to validate that an overlay header is valid.
 #define NANO_OS_OVERLAY_MAGIC 0x4c4f734f6f6e614e // "NanoOsOL"
 
+/// @def NANO_OS_OVERLAY_VERSION
+///
+/// The version of the overlay metadata, encoded into a 32-bit integer.
+#define NANO_OS_OVERLAY_VERSION \
+  ( (((uint32_t) 0) << 24) \
+  | (((uint32_t) 0) << 16) \
+  | (((uint32_t) 1) << 8) \
+  | (((uint32_t) 0) << 0) \
+  )
+
 /// @def OVERLAY_EXT
 ///
 /// @brief The file extension for overlay files.

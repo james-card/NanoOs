@@ -31,7 +31,7 @@
 // Custom includes
 #include "Console.h"
 #include "NanoOs.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "Scheduler.h"
 #include "../user/NanoOsLibC.h"
 
@@ -41,15 +41,15 @@
 extern const User users[];
 extern const int NUM_USERS;
 
-/// @fn ProcessId getNumPipes(const char *commandLine)
+/// @fn TaskId getNumPipes(const char *commandLine)
 ///
 /// @brief Get the number of pipes in a commandLine.
 ///
 /// @param commandLine The command line as read in from a console port.
 ///
 /// @return Returns the number of pipe characters found in the command line.
-ProcessId getNumPipes(const char *commandLine) {
-  ProcessId numPipes = 0;
+TaskId getNumPipes(const char *commandLine) {
+  TaskId numPipes = 0;
   const char *pipeAt = NULL;
 
   do {
@@ -63,69 +63,69 @@ ProcessId getNumPipes(const char *commandLine) {
   return numPipes;
 }
 
-/// @var processStorage
+/// @var taskStorage
 ///
-/// @brief File-local variable to hold the per-process storage.
-static void *processStorage[
-  NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID][
-  NUM_PROCESS_STORAGE_KEYS] = {0};
+/// @brief File-local variable to hold the per-task storage.
+static void *taskStorage[
+  NANO_OS_NUM_TASKS - NANO_OS_FIRST_USER_TASK_ID][
+  NUM_TASK_STORAGE_KEYS] = {0};
 
-/// @fn void *getProcessStorage(uint8_t key)
+/// @fn void *getTaskStorage(uint8_t key)
 ///
-/// @brief Get a previously-set value from per-process storage.
+/// @brief Get a previously-set value from per-task storage.
 ///
-/// @param key The index into the process's per-process storage to retrieve.
+/// @param key The index into the task's per-task storage to retrieve.
 ///
 /// @return Returns the previously-set value on success, NULL on failure.
-void *getProcessStorage(uint8_t key) {
+void *getTaskStorage(uint8_t key) {
   void *returnValue = NULL;
-  if (key >= NUM_PROCESS_STORAGE_KEYS) {
+  if (key >= NUM_TASK_STORAGE_KEYS) {
     // Key is out of range.
     return returnValue; // NULL
   }
 
-  int processIndex
-    = ((int) getRunningProcessId()) - NANO_OS_FIRST_USER_PROCESS_ID;
-  if ((processIndex >= 0)
-    && (processIndex < (NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID))
+  int taskIndex
+    = ((int) getRunningTaskId()) - NANO_OS_FIRST_USER_TASK_ID;
+  if ((taskIndex >= 0)
+    && (taskIndex < (NANO_OS_NUM_TASKS - NANO_OS_FIRST_USER_TASK_ID))
   ) {
-    // Calling process is not supported and does not have storage.
-    returnValue = processStorage[processIndex][key];
+    // Calling task is not supported and does not have storage.
+    returnValue = taskStorage[taskIndex][key];
   }
 
   return returnValue;
 }
 
-/// @fn int setProcessStorage_(uint8_t key, void *val, int processId, ...)
+/// @fn int setTaskStorage_(uint8_t key, void *val, int taskId, ...)
 ///
-/// @brief Set the value of a piece of per-process storage.
+/// @brief Set the value of a piece of per-task storage.
 ///
-/// @param key The index into the process's per-process storage to retrieve.
+/// @param key The index into the task's per-task storage to retrieve.
 /// @param val The pointer value to set for the storage.
-/// @param processId The ID of the process to set.  This value may only be set
+/// @param taskId The ID of the task to set.  This value may only be set
 ///   by the scheduler.
 ///
 /// @return Returns coroutineSuccess on success, coroutineError on failure.
-int setProcessStorage_(uint8_t key, void *val, int processId, ...) {
+int setTaskStorage_(uint8_t key, void *val, int taskId, ...) {
   int returnValue = coroutineError;
-  if (key >= NUM_PROCESS_STORAGE_KEYS) {
+  if (key >= NUM_TASK_STORAGE_KEYS) {
     // Key is out of range.
     return returnValue; // coroutineError
   }
 
-  if (processId < 0) {
-    if (getRunningProcessId() == NANO_OS_SCHEDULER_PROCESS_ID) {
-      processId = (int) getRunningProcessId();
+  if (taskId < 0) {
+    if (getRunningTaskId() == NANO_OS_SCHEDULER_TASK_ID) {
+      taskId = (int) getRunningTaskId();
     } else {
       return returnValue; // coroutineError
     }
   }
-  int processIndex = processId - NANO_OS_FIRST_USER_PROCESS_ID;
-  if ((processIndex >= 0)
-    && (processIndex < (NANO_OS_NUM_PROCESSES - NANO_OS_FIRST_USER_PROCESS_ID))
+  int taskIndex = taskId - NANO_OS_FIRST_USER_TASK_ID;
+  if ((taskIndex >= 0)
+    && (taskIndex < (NANO_OS_NUM_TASKS - NANO_OS_FIRST_USER_TASK_ID))
   ) {
-    // Calling process is not supported and does not have storage.
-    processStorage[processIndex][key] = val;
+    // Calling task is not supported and does not have storage.
+    taskStorage[taskIndex][key] = val;
     returnValue = coroutineSuccess;
   }
 
@@ -233,7 +233,7 @@ UserId getUserIdByUsername(const char *username) {
 
 /// @fn void login(void)
 ///
-/// @brief Authenticate a user for login.  Sets the owner of the current process
+/// @brief Authenticate a user for login.  Sets the owner of the current task
 /// to the ID of the authenticated user before returning.
 ///
 /// @param This function returns no value.
@@ -299,9 +299,9 @@ void login(void) {
   username = stringDestroy(username);
   password = stringDestroy(password);
 
-  if (schedulerSetProcessUser(userId) != 0) {
+  if (schedulerSetTaskUser(userId) != 0) {
     fputs("WARNING: "
-      "Could not set owner of current process to authenticated user.\n",
+      "Could not set owner of current task to authenticated user.\n",
       stderr);
   }
 

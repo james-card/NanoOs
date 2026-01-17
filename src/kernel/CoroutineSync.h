@@ -36,6 +36,8 @@
 #ifndef COROUTINE_SYNC_H
 #define COROUTINE_SYNC_H
 
+#include "CAtomic.h"
+
 #include "time.h"
 #include "stdint.h"
 
@@ -74,7 +76,7 @@ typedef struct Coroutine Coroutine, coro_s, *coro_t;
 typedef struct Comutex {
   void *lastYieldValue;
   int type;
-  Coroutine *coroutine;
+  _Atomic(Coroutine*) coroutine;
   int recursionLevel;
   Coroutine *head;
   int64_t timeoutTime;

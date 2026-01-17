@@ -1,8 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// @file              HalArduinoNano33Iot.h
+/// @author            James Card
+/// @date              01.05.2026
 ///
-/// @brief             Header for the Arduino Nano 33 IoT HAL implementation.
+/// @file              stdatomic.c
+///
+/// @brief             NanoOs implementation of stdatomic.h functions missing
+///                    from the arm-none-eabi-gcc standard C library
+///                    implementation.
 ///
 /// @copyright
 ///                   Copyright (c) 2012-2025 James Card
@@ -30,49 +35,42 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef HAL_ARDUINO_NANO_33_IOT_H
-#define HAL_ARDUINO_NANO_33_IOT_H
+#if defined(__arm__)
 
-#include "src/kernel/Hal.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 
+#include "../../Hal.h"
+#include "../../Scheduler.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+bool __atomic_compare_exchange_4(void *ptr, void *expected, uint32_t desired,
+  bool weak, int success_memorder, int failure_memorder
+) {
+  (void) weak;
+  (void) success_memorder;
+  (void) failure_memorder;
+  
+  uint64_t remainingNanoseconds;
+  void (*callback)(void);
+  int cancelStatus = HAL->cancelAndGetTimer(
+    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
+  
+  bool success = false;
+  if (*((uint32_t*) ptr) == *((uint32_t*) expected)) {
+    *((uint32_t*) ptr) = desired;
+    success = true;
+  } else {
+    *((uint32_t*) expected) = *((uint32_t*) ptr);
+  }
+  
+  if (cancelStatus == 0) {
+    // A timer was active when we were called.  Restore it.
+    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
+  }
+  
+  return success;
+}
 
-/// @def DIO_START
-///
-/// @brief On the Arduino Nano 33 IoT, D0 is used for Serial1's RX and D1 is
-/// used for Serial1's TX.  We use expect to use Serial1, so our first usable
-/// DIO is 2.
-#define DIO_START 2
-
-/// @def NUM_DIO_PINS
-///
-/// @brief The number of digital IO pins on the board.  14 on an Arduino Nano.
-#define NUM_DIO_PINS 14
-
-/// @def SPI_COPI_DIO
-///
-/// @brief DIO pin used for SPI COPI on the Arduino Nano 33 IoT.
-#define SPI_COPI_DIO 11
-
-/// @def SPI_CIPO_DIO
-///
-/// @brief DIO pin used for SPI CIPO on the Arduino Nano 33 IoT.
-#define SPI_CIPO_DIO 12
-
-/// @def SPI_SCK_DIO
-///
-/// @brief DIO pin used for SPI serial clock on the Arduino Nano 33 IoT.
-#define SPI_SCK_DIO 13
-
-const Hal* halArduinoNano33IotInit(void);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
-#endif // HAL_ARDUINO_NANO_33_IOT_H
+#endif // defined(__arm__)
 

@@ -32,7 +32,7 @@
 #include "../kernel/Console.h"
 #include "../kernel/Hal.h"
 #include "../kernel/NanoOs.h"
-#include "../kernel/Processes.h"
+#include "../kernel/Tasks.h"
 #include "../kernel/Scheduler.h"
 
 // Must come last
@@ -222,7 +222,7 @@ typedef enum TypeModifier {
 /// @brief Parse a signed integer value and store it in a variable at a provided
 /// pointer.
 ///
-/// @param buffer A pointer to the character buffer that is in the process of
+/// @param buffer A pointer to the character buffer that is in the task of
 ///   being parsed.  This value will be updated on success.
 /// @param typeModifier The TypeModifier value that specifies the size of the
 ///   variable being stored.
@@ -334,7 +334,7 @@ int scanfParseSignedInt(
 /// @brief Parse an unsigned integer value and store it in a variable at a
 /// provided pointer.
 ///
-/// @param buffer A pointer to the character buffer that is in the process of
+/// @param buffer A pointer to the character buffer that is in the task of
 ///   being parsed.  This value will be updated on success.
 /// @param typeModifier The TypeModifier value that specifies the size of the
 ///   variable being stored.
@@ -436,7 +436,7 @@ int scanfParseUnsignedInt(
 /// @brief Parse an floating-point value and store it in a variable at a
 /// provided pointer.
 ///
-/// @param buffer A pointer to the character buffer that is in the process of
+/// @param buffer A pointer to the character buffer that is in the task of
 ///   being parsed.  This value will be updated on success.
 /// @param typeModifier The TypeModifier value that specifies the size of the
 ///   variable being stored.
@@ -503,7 +503,7 @@ int scanfParseFloat(
 /// @brief Parse a string value and store it in a variable at a provided
 /// pointer.
 ///
-/// @param buffer A pointer to the character buffer that is in the process of
+/// @param buffer A pointer to the character buffer that is in the task of
 ///   being parsed.  This value will be updated on success.
 /// @param numBytes The number of bytes to read from the buffer.
 /// @param addNullByte Whether or not to add a terminating NULL byte to the end
@@ -777,7 +777,7 @@ int sscanf(const char *buffer, const char *format, ...) {
 
 /// @fn ConsoleBuffer* nanoOsWaitForInput(void)
 ///
-/// @brief Wait for input from the nanoOs port owned by the current process.
+/// @brief Wait for input from the nanoOs port owned by the current task.
 ///
 /// @return Returns a pointer to the input retrieved on success, NULL on
 /// failure.
@@ -785,8 +785,8 @@ ConsoleBuffer* nanoOsWaitForInput(void) {
   ConsoleBuffer *nanoOsBuffer = NULL;
   FileDescriptor *inputFd = schedulerGetFileDescriptor(stdin);
   if (inputFd == NULL) {
-    printString("ERROR: Could not get input file descriptor for process ");
-    printInt(getRunningProcessId());
+    printString("ERROR: Could not get input file descriptor for task ");
+    printInt(getRunningTaskId());
     printString(" and stream ");
     printInt((intptr_t) stdin);
     printString(".\n");
@@ -796,22 +796,22 @@ ConsoleBuffer* nanoOsWaitForInput(void) {
   }
   IoPipe *inputPipe = &inputFd->inputPipe;
 
-  if (inputPipe->processId == NANO_OS_CONSOLE_PROCESS_ID) {
-    sendNanoOsMessageToPid(inputPipe->processId, inputPipe->messageType,
+  if (inputPipe->taskId == NANO_OS_CONSOLE_TASK_ID) {
+    sendNanoOsMessageToPid(inputPipe->taskId, inputPipe->messageType,
       /* func= */ 0, /* data= */ 0, false);
   }
 
-  if (inputPipe->processId != PROCESS_ID_NOT_SET) {
-    ProcessMessage *response
-      = processMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
+  if (inputPipe->taskId != TASK_ID_NOT_SET) {
+    TaskMessage *response
+      = taskMessageQueueWaitForType(CONSOLE_RETURNING_INPUT, NULL);
     nanoOsBuffer = nanoOsMessageDataPointer(response, ConsoleBuffer*);
 
-    if (processMessageWaiting(response) == false) {
+    if (taskMessageWaiting(response) == false) {
       // The usual case.
-      processMessageRelease(response);
+      taskMessageRelease(response);
     } else {
       // Just tell the sender that we're done.
-      processMessageSetDone(response);
+      taskMessageSetDone(response);
     }
   }
 
@@ -831,7 +831,7 @@ ConsoleBuffer* nanoOsWaitForInput(void) {
 char *nanoOsFGets(char *buffer, int size, FILE *stream) {
   char *returnValue = NULL;
   ConsoleBuffer *nanoOsBuffer
-    = (ConsoleBuffer*) getProcessStorage(FGETS_CONSOLE_BUFFER_KEY);
+    = (ConsoleBuffer*) getTaskStorage(FGETS_CONSOLE_BUFFER_KEY);
   int numBytesReceived = 0;
   char *newlineAt = NULL;
   int numBytesToCopy = 0;
@@ -847,7 +847,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
     // 4. We reach size - 1 bytes received from the stream.
     if (nanoOsBuffer == NULL) {
       nanoOsBuffer = nanoOsWaitForInput();
-      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
+      setTaskStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
     } else {
       // We're continuing to read from a buffer that contained a newline plus
       // something else after it.
@@ -895,7 +895,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       buffer[numBytesReceived] = '\0';
       // Release the buffer.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (uintptr_t) nanoOsBuffer, false);
 
       if ((newlineAt != NULL) || (strchr(nanoOsBuffer->buffer, ASCII_ESCAPE))) {
@@ -908,7 +908,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
         bufferIndex = 0;
       }
 
-      setProcessStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
+      setTaskStorage(FGETS_CONSOLE_BUFFER_KEY, nanoOsBuffer);
     }
   } else {
     // stream is a regular FILE.
@@ -917,18 +917,18 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       .buffer = buffer,
       .length = (uint32_t) size - 1
     };
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
+    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_TASK_ID,
       FILESYSTEM_READ_FILE,
       /* func= */ 0,
       /* data= */ (intptr_t) &filesystemIoCommandParameters,
       true);
-    processMessageWaitForDone(processMessage, NULL);
+    taskMessageWaitForDone(taskMessage, NULL);
     if (filesystemIoCommandParameters.length > 0) {
       buffer[filesystemIoCommandParameters.length] = '\0';
       returnValue = buffer;
     }
-    processMessageRelease(processMessage);
+    taskMessageRelease(taskMessage);
   }
 
   return returnValue;
@@ -958,7 +958,7 @@ int nanoOsVFScanf(FILE *stream, const char *format, va_list args) {
     returnValue = vsscanf(nanoOsBuffer->buffer, format, args);
     // Release the buffer.
     sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+      NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
   }
 
@@ -1009,10 +1009,10 @@ int nanoOsScanf(const char *format, ...) {
 
 /// @fn ConsoleBuffer* nanoOsGetBuffer(void)
 ///
-/// @brief Get a buffer from the runConsole process by sending it a command
+/// @brief Get a buffer from the runConsole task by sending it a command
 /// message and getting its response.
 ///
-/// @return Returns a pointer to a ConsoleBuffer from the runConsole process on
+/// @return Returns a pointer to a ConsoleBuffer from the runConsole task on
 /// success, NULL on failure.
 ConsoleBuffer* nanoOsGetBuffer(void) {
   ConsoleBuffer *returnValue = NULL;
@@ -1022,40 +1022,40 @@ ConsoleBuffer* nanoOsGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_GET_BUFFER, 0, 0, true);
-    if (processMessage == NULL) {
+    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+      NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_BUFFER, 0, 0, true);
+    if (taskMessage == NULL) {
       break; // will return returnValue, which is NULL
     }
 
     // We want to make sure the handler is done processing the message before
     // we wait for a reply.  Do a blocking wait.
-    if (processMessageWaitForDone(processMessage, NULL) != processSuccess) {
+    if (taskMessageWaitForDone(taskMessage, NULL) != taskSuccess) {
       // Something is wrong.  Bail.
-      processMessageRelease(processMessage);
+      taskMessageRelease(taskMessage);
       break; // will return returnValue, which is NULL
     }
-    processMessageRelease(processMessage);
+    taskMessageRelease(taskMessage);
 
     // The handler only marks the message as done if it has successfully sent
     // us a reply or if there was an error and it could not send a reply.  So,
     // we don't want an infinite timeout to waitForDataMessage, we want zero
     // wait.  That's why we need the zeroed timespec above and we want to
     // manually wait for done above.
-    processMessage
-      = processMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
-    if (processMessage == NULL) {
+    taskMessage
+      = taskMessageQueueWaitForType(CONSOLE_RETURNING_BUFFER, &ts);
+    if (taskMessage == NULL) {
       // The handler marked the sent message done but did not send a reply.
       // That means something is wrong internally to it.  Bail.
       break; // will return returnValue, which is NULL
     }
 
-    returnValue = nanoOsMessageDataPointer(processMessage, ConsoleBuffer*);
-    processMessageRelease(processMessage);
+    returnValue = nanoOsMessageDataPointer(taskMessage, ConsoleBuffer*);
+    taskMessageRelease(taskMessage);
     if (returnValue == NULL) {
-      // Yield control to give the nanoOs a chance to get done processing the
+      // Yield control to give the OS a chance to get done processing the
       // buffers that are in use.
-      processYield();
+      taskYield();
     }
   }
 
@@ -1064,7 +1064,7 @@ ConsoleBuffer* nanoOsGetBuffer(void) {
 
 /// @fn int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer)
 ///
-/// @brief Send a CONSOLE_WRITE_BUFFER command to the nanoOs process.
+/// @brief Send a CONSOLE_WRITE_BUFFER command to the nanoOs task.
 ///
 /// @param stream A pointer to a FILE object designating which file to output
 ///   to (stdout or stderr).
@@ -1078,15 +1078,15 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
     FileDescriptor *outputFd = schedulerGetFileDescriptor(stream);
     if (outputFd == NULL) {
       printString(
-        "ERROR: Could not get output file descriptor for process ");
-      printInt(getRunningProcessId());
+        "ERROR: Could not get output file descriptor for task ");
+      printInt(getRunningTaskId());
       printString(" and stream ");
       printInt((intptr_t) stream);
       printString(".\n");
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
       // We can't proceed, so bail.
@@ -1095,40 +1095,40 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
     }
     IoPipe *outputPipe = &outputFd->outputPipe;
 
-    if ((outputPipe != NULL) && (outputPipe->processId != PROCESS_ID_NOT_SET)) {
+    if ((outputPipe != NULL) && (outputPipe->taskId != TASK_ID_NOT_SET)) {
       if ((stream == stdout) || (stream == stderr)) {
-        ProcessMessage *processMessage = sendNanoOsMessageToPid(
-          outputPipe->processId, outputPipe->messageType,
+        TaskMessage *taskMessage = sendNanoOsMessageToPid(
+          outputPipe->taskId, outputPipe->messageType,
           0, (intptr_t) nanoOsBuffer, true);
-        if (processMessage != NULL) {
-          processMessageWaitForDone(processMessage, NULL);
-          processMessageRelease(processMessage);
+        if (taskMessage != NULL) {
+          taskMessageWaitForDone(taskMessage, NULL);
+          taskMessageRelease(taskMessage);
         } else {
           returnValue = EOF;
         }
       } else {
         printString("ERROR: Request to write to invalid stream ");
         printInt((intptr_t) stream);
-        printString(" from process ");
-        printInt(getRunningProcessId());
+        printString(" from task ");
+        printInt(getRunningTaskId());
         printString(".\n");
 
         // Release the buffer to avoid creating a leak.
         sendNanoOsMessageToPid(
-          NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+          NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
           /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
         returnValue = EOF;
       }
     } else {
       printString(
-        "ERROR: Request to write with no output pipe set from process ");
-      printInt(getRunningProcessId());
+        "ERROR: Request to write with no output pipe set from task ");
+      printInt(getRunningTaskId());
       printString(".\n");
 
       // Release the buffer to avoid creating a leak.
       sendNanoOsMessageToPid(
-        NANO_OS_CONSOLE_PROCESS_ID, CONSOLE_RELEASE_BUFFER,
+        NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
       returnValue = EOF;
@@ -1140,17 +1140,17 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       .buffer = nanoOsBuffer->buffer,
       .length = (uint32_t) strlen(nanoOsBuffer->buffer)
     };
-    ProcessMessage *processMessage = sendNanoOsMessageToPid(
-      NANO_OS_FILESYSTEM_PROCESS_ID,
+    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+      NANO_OS_FILESYSTEM_TASK_ID,
       FILESYSTEM_WRITE_FILE,
       /* func= */ 0,
       /* data= */ (intptr_t) &filesystemIoCommandParameters,
       true);
-    processMessageWaitForDone(processMessage, NULL);
+    taskMessageWaitForDone(taskMessage, NULL);
     if (filesystemIoCommandParameters.length == 0) {
       returnValue = EOF;
     }
-    processMessageRelease(processMessage);
+    taskMessageRelease(taskMessage);
   }
 
   return returnValue;

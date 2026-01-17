@@ -31,7 +31,7 @@
 // Custom includes
 #include "SdCard.h"
 #include "NanoOs.h"
-#include "Processes.h"
+#include "Tasks.h"
 #include "../user/NanoOsLibC.h"
 
 // Must come last
@@ -45,7 +45,7 @@
 /// operation on the SD card.
 ///
 /// @param sdCardState A pointer to the SdCardState object maintained by the
-///   SD card process.
+///   SD card task.
 /// @param sdCommandParams A pointer to the SdCommandParams structure passed in
 ///   by the client function.
 /// @param startSdBlock A pointer to the uint32_t variable that will hold the
@@ -77,7 +77,7 @@ int sdCardGetReadWriteParameters(
 /// @brief Read a specified number of blocks of a given size from the SD card
 /// into a provided buffer.
 ///
-/// @param context The process ID of the SD card process to read from, cast to
+/// @param context The task ID of the SD card task to read from, cast to
 ///   a void*.
 /// @param startBlock The start block to read from in terms of the caller's
 ///   context.
@@ -90,19 +90,19 @@ int sdCardGetReadWriteParameters(
 int sdReadBlocks(void *context, uint32_t startBlock,
   uint32_t numBlocks, uint16_t blockSize, uint8_t *buffer
 ) {
-  intptr_t sdCardProcess = (intptr_t) context;
+  intptr_t sdCardTask = (intptr_t) context;
   SdCommandParams sdCommandParams;
   sdCommandParams.startBlock = startBlock;
   sdCommandParams.numBlocks = numBlocks;
   sdCommandParams.blockSize = blockSize;
   sdCommandParams.buffer = buffer;
 
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    sdCardProcess, SD_CARD_READ_BLOCKS,
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    sdCardTask, SD_CARD_READ_BLOCKS,
     /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
-  processMessageWaitForDone(processMessage, NULL);
-  int returnValue = nanoOsMessageDataValue(processMessage, int);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  int returnValue = nanoOsMessageDataValue(taskMessage, int);
+  taskMessageRelease(taskMessage);
 
   return returnValue;
 }
@@ -113,7 +113,7 @@ int sdReadBlocks(void *context, uint32_t startBlock,
 /// @brief Write a specified number of blocks of a given size to the SD card
 /// from a provided buffer.
 ///
-/// @param context The process ID of the SD card process to write to, cast to
+/// @param context The task ID of the SD card task to write to, cast to
 ///   a void*.
 /// @param startBlock The start block to write to in terms of the caller's
 ///   context.
@@ -126,19 +126,19 @@ int sdReadBlocks(void *context, uint32_t startBlock,
 int sdWriteBlocks(void *context, uint32_t startBlock,
   uint32_t numBlocks, uint16_t blockSize, const uint8_t *buffer
 ) {
-  intptr_t sdCardProcess = (intptr_t) context;
+  intptr_t sdCardTask = (intptr_t) context;
   SdCommandParams sdCommandParams;
   sdCommandParams.startBlock = startBlock;
   sdCommandParams.numBlocks = numBlocks;
   sdCommandParams.blockSize = blockSize;
   sdCommandParams.buffer = (uint8_t*) buffer;
 
-  ProcessMessage *processMessage = sendNanoOsMessageToPid(
-    sdCardProcess, SD_CARD_WRITE_BLOCKS,
+  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    sdCardTask, SD_CARD_WRITE_BLOCKS,
     /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
-  processMessageWaitForDone(processMessage, NULL);
-  int returnValue = nanoOsMessageDataValue(processMessage, int);
-  processMessageRelease(processMessage);
+  taskMessageWaitForDone(taskMessage, NULL);
+  int returnValue = nanoOsMessageDataValue(taskMessage, int);
+  taskMessageRelease(taskMessage);
 
   return returnValue;
 }

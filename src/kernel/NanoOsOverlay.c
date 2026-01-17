@@ -114,9 +114,7 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
     return -ENOEXEC;
   }
   printDebugString("Verifying overlay version\n");
-  if (HAL->overlayMap->header.version
-    != ((0 << 24) | (0 << 16) | (1 << 8) | (0 << 0))
-  ) {
+  if (HAL->overlayMap->header.version != NANO_OS_OVERLAY_VERSION) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
       HAL->overlayMap->header.version, fullPath);
     free(fullPath); fullPath = NULL;
