@@ -2864,7 +2864,7 @@ __attribute__((noinline)) void startScheduler(
   schedulerTask->taskHandle = schedulerTaskHandle;
   schedulerTask->taskId
     = NANO_OS_SCHEDULER_TASK_ID;
-  schedulerTask->name = "scheduler";
+  schedulerTask->name = "init";
   schedulerTask->userId = ROOT_USER_ID;
   taskHandleSetContext(schedulerTask->taskHandle, schedulerTask);
 
