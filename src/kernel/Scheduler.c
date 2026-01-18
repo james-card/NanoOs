@@ -2829,6 +2829,116 @@ void removeTask(SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
   return;
 }
 
+/// @fn int schedLoadOverlay(SchedulerState *schedulerState,
+///   const char *overlayDir, const char *overlay, char **envp)
+///
+/// @brief Load and configure an overlay into the overlayMap in memory.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler task.
+/// @param overlayDir The full path to the directory of the overlay on the
+///   filesystem.
+/// @param overlay The name of the overlay within the overlayDir to load (minus
+///   the ".overlay" file extension).
+/// @param envp The array of environment variables in "name=value" form.
+///
+/// @return Returns 0 on success, negative error code on failure.
+int schedLoadOverlay(SchedulerState *schedulerState,
+  const char *overlayDir, const char *overlay, char **envp
+) {
+  if ((overlayDir == NULL) || (overlay == NULL)) {
+    // There's no overlay to load.  This isn't really an error, but there's
+    // nothing to do.  Just return 0.
+    return 0;
+  }
+
+  NanoOsOverlayMap *overlayMap = HAL->overlayMap();
+  uintptr_t overlaySize = HAL->overlaySize();
+  if ((overlayMap == NULL) || (overlaySize == 0)) {
+    printString("No overlay memory available for use.\n");
+    return -ENOMEM;
+  }
+
+  NanoOsOverlayHeader *overlayHeader = &overlayMap->header;
+  if ((overlayHeader->overlayDir != NULL) && (overlayHeader->overlay != NULL)) {
+    if ((strcmp(overlayHeader->overlayDir, overlayDir) == 0)
+      && (strcmp(overlayHeader->overlay, overlay) == 0)
+    ) {
+      // Overlay is already loaded.  Do nothing.
+      return 0;
+    }
+  }
+
+  // We need two extra characters:  One for the '/' that separates the directory
+  // and the file name and one for the terminating NULL byte.
+  char *fullPath = (char*) schedMalloc(
+    strlen(overlayDir) + strlen(overlay) + OVERLAY_EXT_LEN + 2);
+  if (fullPath == NULL) {
+    return -ENOMEM;
+  }
+  strcpy(fullPath, overlayDir);
+  strcat(fullPath, "/");
+  strcat(fullPath, overlay);
+  strcat(fullPath, OVERLAY_EXT);
+  FILE *overlayFile = schedFopen(schedulerState, fullPath, "r");
+  if (overlayFile == NULL) {
+    printString("Could not open file \"");
+    printString(fullPath);
+    printString("\" from the filesystem.\n");
+    schedFree(fullPath); fullPath = NULL;
+    return -ENOENT;
+  }
+
+  printDebugString(__func__);
+  printDebugString(": Reading from overlayFile 0x");
+  printDebugHex((uintptr_t) overlayFile);
+  printDebugString("\n");
+  if (schedFread(schedulerState,
+    overlayMap, 1, overlaySize, overlayFile) == 0
+  ) {
+    printString("Could not read overlay from \"");
+    printString(fullPath);
+    printString("\" file\n");
+    schedFclose(schedulerState, overlayFile); overlayFile = NULL;
+    schedFree(fullPath); fullPath = NULL;
+    return -EIO;
+  }
+  printDebugString(__func__);
+  printDebugString(": Closing overlayFile 0x");
+  printDebugHex((uintptr_t) overlayFile);
+  printDebugString("\n");
+  schedFclose(schedulerState, overlayFile); overlayFile = NULL;
+
+  printDebugString("Verifying overlay magic\n");
+  if (overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+    printString("Overlay magic for \"");
+    printString(fullPath);
+    printString("\" was not \"NanoOsOL\".\n");
+    schedFree(fullPath); fullPath = NULL;
+    return -ENOEXEC;
+  }
+  printDebugString("Verifying overlay version\n");
+  if (overlayMap->header.version != NANO_OS_OVERLAY_VERSION) {
+    printString("Overlay version is 0x");
+    printHex(overlayMap->header.version);
+    printString(" for \"");
+    printString(fullPath);
+    printString("\"\n");
+    schedFree(fullPath); fullPath = NULL;
+    return -ENOEXEC;
+  }
+  schedFree(fullPath); fullPath = NULL;
+
+  // Set the pieces of the overlay header that the program needs to run.
+  printDebugString("Configuring overlay environment\n");
+  overlayHeader->osApi = &nanoOsApi;
+  overlayHeader->env = envp;
+  overlayHeader->overlayDir = overlayDir;
+  overlayHeader->overlay = overlay;
+  
+  return 0;
+}
+
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
 /// @brief Run one (1) iteration of the main scheduler loop.
@@ -2848,7 +2958,8 @@ void runScheduler(SchedulerState *schedulerState) {
 
   if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
     // This is a user task, which is in an overlay.  Make sure it's loaded.
-    if (loadOverlay(taskDescriptor->overlayDir, taskDescriptor->overlay,
+    if (schedLoadOverlay(schedulerState,
+      taskDescriptor->overlayDir, taskDescriptor->overlay,
       taskDescriptor->envp) != 0
     ) {
       removeTask(schedulerState, taskDescriptor, "Overlay load failure");
