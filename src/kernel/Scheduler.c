@@ -1780,6 +1780,94 @@ int schedRemove(SchedulerState *schedulerState, const char *pathname) {
   return returnValue;
 }
 
+/// @fn size_t schedFread(SchedulerState *schedulerState,
+///   void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Version of fread for the scheduler.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler task.
+/// @param ptr A pointer to the buffer to read data into.
+/// @param size The size, in bytes, of each item that is to be read in.
+/// @param nmemb The number of items to read from the file.
+/// @param stream A pointer to the open FILE to read data in from.
+///
+/// @return Returns the number of items successfully read in.
+size_t schedFread(SchedulerState *schedulerState,
+  void *ptr, size_t size, size_t nmemb, FILE *stream
+) {
+  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+    .file = stream,
+    .buffer = ptr,
+    .length = size * nmemb
+  };
+
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
+    runScheduler(schedulerState);
+    taskMessage = getAvailableMessage();
+  }
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) taskMessageData(taskMessage);
+  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
+  taskMessageInit(taskMessage, FILESYSTEM_READ_FILE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID - 1],
+    taskMessage);
+
+  while (taskMessageDone(taskMessage) == false) {
+    runScheduler(schedulerState);
+  }
+
+  taskMessageRelease(taskMessage);
+  return filesystemIoCommandParameters.length / size;
+}
+
+/// @fn size_t schedFwrite(SchedulerState *schedulerState,
+///   void *ptr, size_t size, size_t nmemb, FILE *stream)
+///
+/// @brief Version of fwrite for the scheduler.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler task.
+/// @param ptr A pointer to the buffer to write data from.
+/// @param size The size, in bytes, of each item that is to be written out.
+/// @param nmemb The number of items to written to the file.
+/// @param stream A pointer to the open FILE to write data out to.
+///
+/// @return Returns the number of items successfully written out.
+size_t schedFwrite(SchedulerState *schedulerState,
+  void *ptr, size_t size, size_t nmemb, FILE *stream
+) {
+  FilesystemIoCommandParameters filesystemIoCommandParameters = {
+    .file = stream,
+    .buffer = ptr,
+    .length = size * nmemb
+  };
+
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
+    runScheduler(schedulerState);
+    taskMessage = getAvailableMessage();
+  }
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) taskMessageData(taskMessage);
+  nanoOsMessage->data = (intptr_t) &filesystemIoCommandParameters;
+  taskMessageInit(taskMessage, FILESYSTEM_WRITE_FILE,
+    nanoOsMessage, sizeof(*nanoOsMessage), true);
+  taskResume(
+    &schedulerState->allTasks[NANO_OS_FILESYSTEM_TASK_ID - 1],
+    taskMessage);
+
+  while (taskMessageDone(taskMessage) == false) {
+    runScheduler(schedulerState);
+  }
+
+  taskMessageRelease(taskMessage);
+  return filesystemIoCommandParameters.length / size;
+}
+
 /// @fn int schedFgets(SchedulerState *schedulerState,
 ///   char *buffer, int size, FILE *stream)
 ///
