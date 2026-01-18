@@ -622,7 +622,7 @@ int arduinoNano33IotInitTimer(int timer) {
   return 0;
 }
 
-int arduinoNano33IotConfigTimer(int timer,
+int arduinoNano33IotConfigOneShotTimer(int timer,
     uint64_t nanoseconds, void (*callback)(void)
 ) {
   if ((timer < 0) || (timer >= _numTimers)) {
@@ -761,17 +761,21 @@ int arduinoNano33IotCancelTimer(int timer) {
   return 0;
 }
 
-int arduinoNano33IotCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
-    void (**callback)(void)
+int arduinoNano33IotCancelAndGetTimer(int timer,
+  uint64_t *configuredNanoseconds, uint64_t *remainingNanoseconds,
+  void (**callback)(void)
 ) {
+  // We need to get `now` as close to the beginning of this function call as
+  // possible so that any call to reconfigure the timer later is correct.
+  // Don't call arduinoNano33IotGetElapsedNanoseconds, just compute directly.
+  int64_t now = micros() * 1000;
+  
   if ((timer < 0) || (timer >= _numTimers)) {
     return -ERANGE;
   }
   
   HardwareTimer *hwTimer = &hardwareTimers[timer];
-  if ((!hwTimer->initialized) || (!hwTimer->active)
-    || (remainingNanoseconds == NULL) || (callback == NULL)
-  ) {
+  if ((!hwTimer->initialized) || (!hwTimer->active)) {
     // We cannot populate the provided pointers, so we will error here.  This
     // also signals to the caller that there's no need to call configTimer
     // later.
@@ -789,13 +793,25 @@ int arduinoNano33IotCancelAndGetTimer(int timer, uint64_t *remainingNanoseconds,
   // Clear interrupt flag
   hwTimer->tc->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
   
-  // Don't call arduinoNano33IotGetElapsedNanoseconds, just compute directly.
-  int64_t now = micros() * 1000;
-  if (now < hwTimer->deadline) {
-    *remainingNanoseconds = hwTimer->deadline - now;
+  if (configuredNanoseconds != NULL) {
+    if (hwTimer->deadline > hwTimer->startTime) {
+      *configuredNanoseconds = hwTimer->deadline - hwTimer->startTime;
+    } else {
+      *configuredNanoseconds = 0;
+    }
   }
   
-  *callback = hwTimer->callback;
+  if (remainingNanoseconds != NULL) {
+    if (now < hwTimer->deadline) {
+      *remainingNanoseconds = hwTimer->deadline - now;
+    } else {
+      *remainingNanoseconds = 0;
+    }
+  }
+  
+  if (callback != NULL) {
+    *callback = hwTimer->callback;
+  }
   
   hwTimer->active = false;
   hwTimer->startTime = 0;
@@ -916,7 +932,7 @@ static Hal arduinoNano33IotHal = {
   .getNumTimers = arduinoNano33IotGetNumTimers,
   .setNumTimers = arduinoNano33IotSetNumTimers,
   .initTimer = arduinoNano33IotInitTimer,
-  .configTimer = arduinoNano33IotConfigTimer,
+  .configOneShotTimer = arduinoNano33IotConfigOneShotTimer,
   .configuredTimerNanoseconds = arduinoNano33IotConfiguredTimerNanoseconds,
   .remainingTimerNanoseconds = arduinoNano33IotRemainingTimerNanoseconds,
   .cancelTimer = arduinoNano33IotCancelTimer,

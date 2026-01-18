@@ -2752,7 +2752,8 @@ void runScheduler(SchedulerState *schedulerState) {
   // Configure the preemption timer to force the task to yield if it doesn't
   // voluntarily give up control within a reasonable amount of time.
   if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
-    HAL->configTimer(schedulerState->preemptionTimer, 2000000, forceYield);
+    HAL->configOneShotTimer(
+      schedulerState->preemptionTimer, 10000000, forceYield);
   }
   taskResume(taskDescriptor, NULL);
 

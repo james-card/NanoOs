@@ -54,7 +54,7 @@ bool __atomic_compare_exchange_4(void *ptr, void *expected, uint32_t desired,
   uint64_t remainingNanoseconds;
   void (*callback)(void);
   int cancelStatus = HAL->cancelAndGetTimer(
-    PREEMPTION_TIMER, &remainingNanoseconds, &callback);
+    PREEMPTION_TIMER, NULL, &remainingNanoseconds, &callback);
   
   bool success = false;
   if (*((uint32_t*) ptr) == *((uint32_t*) expected)) {
@@ -66,7 +66,7 @@ bool __atomic_compare_exchange_4(void *ptr, void *expected, uint32_t desired,
   
   if (cancelStatus == 0) {
     // A timer was active when we were called.  Restore it.
-    HAL->configTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
+    HAL->configOneShotTimer(PREEMPTION_TIMER, remainingNanoseconds, callback);
   }
   
   return success;

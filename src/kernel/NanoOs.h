@@ -53,7 +53,7 @@ extern "C"
 /// @brief The minimum size for an individual task's stack.  Actual size will
 /// be slightly larger than this.
 #if defined(__arm__)
-#define NANO_OS_STACK_SIZE 720
+#define NANO_OS_STACK_SIZE 752
 #elif defined(__AVR__)
 #define NANO_OS_STACK_SIZE 320
 #elif defined(__linux__)

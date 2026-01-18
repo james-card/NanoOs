@@ -340,7 +340,7 @@ typedef struct Hal {
   /// @return Returns 0 on success, -errno on failure.
   int (*initTimer)(int timer);
   
-  /// @fn int configTimer(int timer,
+  /// @fn int configOneShotTimer(int timer,
   ///   uint64_t nanoseconds, void (*callback)(void))
   ///
   /// @brief Configure a hardware timer to fire at some point in the future and
@@ -352,7 +352,7 @@ typedef struct Hal {
   /// @param callback The function to call when the timer fires.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*configTimer)(int timer,
+  int (*configOneShotTimer)(int timer,
     uint64_t nanoseconds, void (*callback)(void));
   
   /// @fn uint64_t configuredTimerNanoseconds(int timer)
@@ -382,7 +382,8 @@ typedef struct Hal {
   /// @return Returns 0 on success, -errno on failure.
   int (*cancelTimer)(int timer);
   
-  /// @fn int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+  /// @fn int cancelAndGetTimer(int timer,
+  ///   uint64_t *configuredNanoseconds, uint64_t *remainingNanoseconds,
   ///   void (**callback)(void))
   ///
   /// @brief Cancel a timer and get its configuration.  It's expected that this
@@ -390,13 +391,16 @@ typedef struct Hal {
   /// that the caller will call configTimer after doing its work.
   ///
   /// @param timer The zero-based index of the timer to cancel and retrieve.
+  /// @param configuredNanoseconds A pointer to a uint64_t that will hold the
+  ///   number of nanoseconds the timer is configured for, if any.
   /// @param remainingNanoseconds A pointer to a uint64_t that will hold the
   ///   number of nanoseconds remaining for the timer, if any.
   /// @param callback A pointer to a callback function pointer that will be
   ///   populated with the callback that the timer was going to call, if any.
   ///
   /// @return Returns 0 on success, -errno on failure.
-  int (*cancelAndGetTimer)(int timer, uint64_t *remainingNanoseconds,
+  int (*cancelAndGetTimer)(int timer,
+    uint64_t *configuredNanoseconds, uint64_t *remainingNanoseconds,
     void (**callback)(void));
 } Hal;
 

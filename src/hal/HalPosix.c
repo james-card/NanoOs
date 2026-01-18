@@ -496,7 +496,7 @@ int posixInitTimer(int timer) {
   return 0;
 }
 
-int posixConfigTimer(int timer,
+int posixConfigOneShotTimer(int timer,
     uint64_t nanoseconds, void (*callback)(void)
 ) {
   if (timer >= _numTimers) {
@@ -575,6 +575,65 @@ int posixCancelTimer(int timer) {
   return 0;
 }
 
+int posixCancelAndGetTimer(int timer,
+  uint64_t *configuredNanoseconds, uint64_t *remainingNanoseconds,
+  void (**callback)(void)
+) {
+  // We need to get `now` as close to the beginning of this function call as
+  // possible so that any call to reconfigure the timer later is correct.
+  int64_t now = posixGetElapsedNanoseconds(0);
+  
+  if ((timer < 0) || (timer >= _numTimers)) {
+    return -ERANGE;
+  }
+  
+  SoftwareTimer *swTimer = &softwareTimers[timer];
+  if ((!swTimer->initialized) || (!swTimer->active)) {
+    // We cannot populate the provided pointers, so we will error here.  This
+    // also signals to the caller that there's no need to call configTimer
+    // later.
+    return -EINVAL;
+  }
+  
+  // ***DO NOT*** call posixCancelTimer.  It's expected that this
+  // function is in the critical path.  Time is of the essence, so inline the
+  // logic.
+  
+  bool active = swTimer->active;
+  swTimer->active = false;
+  
+  if (active) {
+    pthread_cancel(swTimer->timerThread);
+  }
+  
+  if (configuredNanoseconds != NULL) {
+    if (swTimer->deadline > swTimer->startTime) {
+      *configuredNanoseconds = swTimer->deadline - swTimer->startTime;
+    } else {
+      *configuredNanoseconds = 0;
+    }
+  }
+  
+  if (remainingNanoseconds != NULL) {
+    if (now < swTimer->deadline) {
+      *remainingNanoseconds = swTimer->deadline - now;
+    } else {
+      *remainingNanoseconds = 0;
+    }
+  }
+  
+  if (callback != NULL) {
+    *callback = swTimer->callback;
+  }
+  
+  swTimer->active = false;
+  swTimer->startTime = 0;
+  swTimer->deadline = 0;
+  swTimer->callback = NULL;
+  
+  return 0;
+}
+
 /// @var posixHal
 ///
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
@@ -621,10 +680,11 @@ static Hal posixHal = {
   .getNumTimers = posixGetNumTimers,
   .setNumTimers = posixSetNumTimers,
   .initTimer = posixInitTimer,
-  .configTimer = posixConfigTimer,
+  .configOneShotTimer = posixConfigOneShotTimer,
   .configuredTimerNanoseconds = posixConfiguredTimerNanoseconds,
   .remainingTimerNanoseconds = posixRemainingTimerNanoseconds,
   .cancelTimer = posixCancelTimer,
+  .cancelAndGetTimer = posixCancelAndGetTimer,
 };
 
 const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
