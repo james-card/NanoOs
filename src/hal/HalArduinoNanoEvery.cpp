@@ -76,17 +76,17 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 
-void* arduinoNanoEveryGetBottomOfStack(void) {
+void* arduinoNanoEveryBottomOfStack(void) {
   extern int __heap_start;
   extern char *__brkval;
   return (__brkval == NULL) ? (char*) &__heap_start : __brkval;
 }
 
-NanoOsOverlayMap* arduinoNanoEveryGetOverlayMap(void) {
+NanoOsOverlayMap* arduinoNanoEveryOverlayMap(void) {
   return NULL;
 }
 
-uintptr_t arduinoNanoEveryGetOverlaySize(void) {
+uintptr_t arduinoNanoEveryOverlaySize(void) {
   return 0;
 }
 
@@ -489,11 +489,11 @@ int arduinoNanoEveryCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
 static Hal arduinoNanoEveryHal = {
   // Memory definitions.
-  .getBottomOfStack = arduinoNanoEveryGetBottomOfStack,
+  .bottomOfStack = arduinoNanoEveryBottomOfStack,
   
   // Overlay definitions.
-  .getOverlayMap = arduinoNanoEveryGetOverlayMap,
-  .getOverlaySize = arduinoNanoEveryGetOverlaySize,
+  .overlayMap = arduinoNanoEveryOverlayMap,
+  .overlaySize = arduinoNanoEveryOverlaySize,
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNanoEveryGetNumSerialPorts,

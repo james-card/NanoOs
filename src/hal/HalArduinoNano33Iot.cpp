@@ -194,7 +194,7 @@ static SavedContext _savedContext;
 /// @brief Where the bottom of the stack will be set to be in memory.
 static void *_bottomOfStack = (void*) (0x20001400 + OVERLAY_SIZE);
 
-void* arduinoNano33IotGetBottomOfStack(void) {
+void* arduinoNano33IotBottomOfStack(void) {
   return _bottomOfStack;
 }
 
@@ -203,11 +203,11 @@ void* arduinoNano33IotGetBottomOfStack(void) {
 /// @brief Where the overlay map is located in memory.
 static NanoOsOverlayMap *_overlayMap = (NanoOsOverlayMap*) 0x20001400;
 
-NanoOsOverlayMap* arduinoNano33IotGetOverlayMap(void) {
+NanoOsOverlayMap* arduinoNano33IotOverlayMap(void) {
   return _overlayMap;
 }
 
-uintptr_t arduinoNano33IotGetOverlaySize(void) {
+uintptr_t arduinoNano33IotOverlaySize(void) {
   return OVERLAY_SIZE;
 }
 
@@ -918,11 +918,11 @@ void TC4_Handler(void) {
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
   // Memory definitions.
-  .getBottomOfStack = arduinoNano33IotGetBottomOfStack,
+  .bottomOfStack = arduinoNano33IotBottomOfStack,
   
   // Overlay definitions.
-  .getOverlayMap = arduinoNano33IotGetOverlayMap,
-  .getOverlaySize = arduinoNano33IotGetOverlaySize,
+  .overlayMap = arduinoNano33IotOverlayMap,
+  .overlaySize = arduinoNano33IotOverlaySize,
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,

@@ -502,12 +502,12 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // We want to grab as much memory as we can support for the memory manager.
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
-  mallocBufferStart = (char*) ((uintptr_t) HAL->getBottomOfStack());
+  mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack());
 #if defined(__arm__)
   extern char __bss_end__;
-  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->getOverlayMap())) {
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap())) {
     printString("ERROR!!! &__bss_end__ > ");
-    printInt((uintptr_t) HAL->getOverlayMap());
+    printInt((uintptr_t) HAL->overlayMap());
     printString("\n");
     printString("*******************************************************\n");
     printString("* Running user programs will corrupt system memory!!! *\n");

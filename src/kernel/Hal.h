@@ -61,7 +61,7 @@ typedef struct NanoOsOverlayMap NanoOsOverlayMap;
 typedef struct Hal {
   // Memory definitions.
   
-  /// @fn void* getBottomOfStack(void)
+  /// @fn void* bottomOfStack(void)
   ///
   /// @brief The memmory manager uses stack memory for dynamic memory
   /// allocation and needs to know where the bottom of it is so that it doesn't
@@ -69,25 +69,25 @@ typedef struct Hal {
   ///
   /// @return Returns the address of the bottom of the stack.   This call never
   /// fails.
-  void* (*getBottomOfStack)(void);
+  void* (*bottomOfStack)(void);
   
   // Overlay definitions.
   
-  /// @fn NanoOsOverlayMap* getOverlayMap(void)
+  /// @fn NanoOsOverlayMap* overlayMap(void)
   ///
   /// @brief Memory address where overlays will be loaded.
   ///
   /// @return Returns the address of the overlay map in memory.  This call
   /// never fails.
-  NanoOsOverlayMap* (*getOverlayMap)(void);
+  NanoOsOverlayMap* (*overlayMap)(void);
   
-  /// @fn uintptr_t getOverlaySize(void)
+  /// @fn uintptr_t overlaySize(void)
   ///
   /// @brief The number of bytes available for the overlay.
   ///
   /// @return Returns the number of bytes in the overlay.   This call never
   /// fails, but may return 0 on systems that don't support overlays.
-  uintptr_t (*getOverlaySize)(void);
+  uintptr_t (*overlaySize)(void);
   
   // Serial port functionality.
   

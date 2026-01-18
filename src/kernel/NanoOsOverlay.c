@@ -56,8 +56,8 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
     return 0;
   }
 
-  NanoOsOverlayMap *overlayMap = HAL->getOverlayMap();
-  uintptr_t overlaySize = HAL->getOverlaySize();
+  NanoOsOverlayMap *overlayMap = HAL->overlayMap();
+  uintptr_t overlaySize = HAL->overlaySize();
   if ((overlayMap == NULL) || (overlaySize == 0)) {
     fprintf(stderr, "No overlay memory available for use.\n");
     return -ENOMEM;
@@ -146,7 +146,7 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   int comp = 0;
   OverlayFunction overlayFunction = NULL;
   
-  NanoOsOverlayMap *overlayMap = HAL->getOverlayMap();
+  NanoOsOverlayMap *overlayMap = HAL->overlayMap();
   for (uint16_t ii = 0, jj = overlayMap->numExports - 1; ii <= jj;) {
     cur = (ii + jj) >> 1;
     comp = strcmp(overlayMap->exports[cur].name, overlayFunctionName);

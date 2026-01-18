@@ -80,7 +80,7 @@
 /// @brief Where the bottom of the stack will be set to be in memory.
 static void *_bottomOfStack = NULL;
 
-void* posixGetBottomOfStack(void) {
+void* posixBottomOfStack(void) {
   return _bottomOfStack;
 }
 
@@ -89,11 +89,11 @@ void* posixGetBottomOfStack(void) {
 /// @brief Where the overlay map is located in memory.
 static NanoOsOverlayMap *_overlayMap = NULL;
 
-NanoOsOverlayMap* posixGetOverlayMap(void) {
+NanoOsOverlayMap* posixOverlayMap(void) {
   return _overlayMap;
 }
 
-uintptr_t posixGetOverlaySize(void) {
+uintptr_t posixOverlaySize(void) {
   return OVERLAY_SIZE;
 }
 
@@ -661,11 +661,11 @@ int posixCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal posixHal = {
   // Memory definitions.
-  .getBottomOfStack = posixGetBottomOfStack,
+  .bottomOfStack = posixBottomOfStack,
   
   // Overlay definitions.
-  .getOverlayMap = posixGetOverlayMap,
-  .getOverlaySize = posixGetOverlaySize,
+  .overlayMap = posixOverlayMap,
+  .overlaySize = posixOverlaySize,
   
   // Serial port functionality.
   .getNumSerialPorts = posixGetNumSerialPorts,
