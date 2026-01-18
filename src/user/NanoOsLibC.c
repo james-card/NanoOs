@@ -129,7 +129,7 @@ void msleep(int durationMs) {
 /// @return Returns a pointer to the value of the named environment variable on
 /// success, NULL on failure.
 char* nanoOsGetenv(const char *name) {
-  char **env = HAL->overlayMap->header.env;
+  char **env = HAL->getOverlayMap()->header.env;
   if ((name == NULL) || (*name == '\0') || (env == NULL)) {
     return NULL;
   }

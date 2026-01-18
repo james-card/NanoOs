@@ -75,6 +75,28 @@
 /// of errno.h.  (It's a BSD thing...)
 #define ELAST                  EHWPOISON
 
+/// @var _bottomOfStack
+///
+/// @brief Where the bottom of the stack will be set to be in memory.
+static void *_bottomOfStack = NULL;
+
+void* posixGetBottomOfStack(void) {
+  return _bottomOfStack;
+}
+
+/// @var _overlayMap
+///
+/// @brief Where the overlay map is located in memory.
+static NanoOsOverlayMap *_overlayMap = NULL;
+
+NanoOsOverlayMap* posixGetOverlayMap(void) {
+  return _overlayMap;
+}
+
+uintptr_t posixGetOverlaySize(void) {
+  return OVERLAY_SIZE;
+}
+
 /// @var serialPorts
 ///
 /// @brief Array of serial ports on the system.  Index 0 is the main port,
@@ -639,11 +661,11 @@ int posixCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal posixHal = {
   // Memory definitions.
-  .bottomOfStack = 0,
+  .getBottomOfStack = posixGetBottomOfStack,
   
   // Overlay definitions.
-  .overlayMap = NULL,
-  .overlaySize = OVERLAY_SIZE,
+  .getOverlayMap = posixGetOverlayMap,
+  .getOverlaySize = posixGetOverlaySize,
   
   // Serial port functionality.
   .getNumSerialPorts = posixGetNumSerialPorts,
@@ -703,9 +725,8 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   fprintf(stderr, "Top of stack        = %p\n", (void*) &topOfStack);
   
   // Simulate having a total of 64 KB available for dynamic memory.
-  posixHal.bottomOfStack
-    = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
-  fprintf(stderr, "Bottom of stack     = %p\n", (void*) posixHal.bottomOfStack);
+  _bottomOfStack = (void*) (((uintptr_t) &topOfStack) - ((uintptr_t) 65536));
+  fprintf(stderr, "Bottom of stack     = %p\n", (void*) _bottomOfStack);
   
   // The size used in the mmap call has to be large enough to accommodate the
   // size used for the overlay, plus the offset into the overlay.  It also has
@@ -716,20 +737,20 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
     = ((size_t) (OVERLAY_OFFSET + OVERLAY_SIZE + (pageSize - 1)))
     & ~((size_t) (pageSize - 1));
   
-  posixHal.overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_BASE_ADDRESS,
+  _overlayMap = (NanoOsOverlayMap*) mmap((void*) OVERLAY_BASE_ADDRESS,
     overlayBaseSize, PROT_READ | PROT_WRITE | PROT_EXEC,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
     -1, 0);
-  if (posixHal.overlayMap == MAP_FAILED) {
+  if (_overlayMap == MAP_FAILED) {
     fprintf(stderr, "mmap failed with error: %s\n", strerror(errno));
     return NULL;
   }
   
   // The address that the code is built around for both the Cortex-M0 and the
   // simulation code is OVERLAY_OFFSET bytes into the map we just made.
-  posixHal.overlayMap = (void*) (OVERLAY_BASE_ADDRESS + OVERLAY_OFFSET);
+  _overlayMap = (void*) (OVERLAY_BASE_ADDRESS + OVERLAY_OFFSET);
   
-  fprintf(stderr, "posixHal.overlayMap = %p\n", (void*) posixHal.overlayMap);
+  fprintf(stderr, "_overlayMap = %p\n", (void*) _overlayMap);
   fprintf(stderr, "\n");
   
   _mainThreadId = pthread_self();

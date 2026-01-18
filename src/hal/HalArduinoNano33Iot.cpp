@@ -52,6 +52,11 @@
 #include "../user/NanoOsErrno.h"
 #include "../user/NanoOsStdio.h"
 
+/// @def OVERLAY_SIZE
+///
+/// @brief The size, in bytes, of the overlay supported by the Nano 33 IoT.
+#define OVERLAY_SIZE 8192
+
 /// @def SD_CARD_PIN_CHIP_SELECT
 ///
 /// @brief Pin to use for the MicroSD card reader's SPI chip select line.
@@ -183,6 +188,28 @@ static SavedContext _savedContext;
   *returnAddressAt \
     = (uint32_t) arduinoNano33IotTimerInterruptHandler ## handlerIndex; \
   return
+
+/// @var _bottomOfStack
+///
+/// @brief Where the bottom of the stack will be set to be in memory.
+static void *_bottomOfStack = (void*) (0x20001400 + OVERLAY_SIZE);
+
+void* arduinoNano33IotGetBottomOfStack(void) {
+  return _bottomOfStack;
+}
+
+/// @var _overlayMap
+///
+/// @brief Where the overlay map is located in memory.
+static NanoOsOverlayMap *_overlayMap = (NanoOsOverlayMap*) 0x20001400;
+
+NanoOsOverlayMap* arduinoNano33IotGetOverlayMap(void) {
+  return _overlayMap;
+}
+
+uintptr_t arduinoNano33IotGetOverlaySize(void) {
+  return OVERLAY_SIZE;
+}
 
 /// @var serialPorts
 ///
@@ -891,11 +918,11 @@ void TC4_Handler(void) {
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
   // Memory definitions.
-  .bottomOfStack = (void*) (0x20001400 + 8192),
+  .getBottomOfStack = arduinoNano33IotGetBottomOfStack,
   
   // Overlay definitions.
-  .overlayMap = (NanoOsOverlayMap*) 0x20001400,
-  .overlaySize = 8192,
+  .getOverlayMap = arduinoNano33IotGetOverlayMap,
+  .getOverlaySize = arduinoNano33IotGetOverlaySize,
   
   // Serial port functionality.
   .getNumSerialPorts = arduinoNano33IotGetNumSerialPorts,

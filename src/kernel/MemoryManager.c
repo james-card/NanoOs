@@ -502,30 +502,17 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // We want to grab as much memory as we can support for the memory manager.
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
+  mallocBufferStart = (char*) ((uintptr_t) HAL->getBottomOfStack());
 #if defined(__arm__)
-  // RAM addresses start at 0x20000000.  Overlay addresses are based on the
-  // address of overlayMap.  This is intended to leave enough room for whatever
-  // globals and dynamic memory the Arduino libraries use.  Overlays are a
-  // maximum of overlaySize bytes in size, so the lowest address we can use for
-  // our own dynamic memory manager is (overlayMap + overlaySize).
   extern char __bss_end__;
-  //// mallocBufferStart
-  ////   = (char*) (((uintptr_t) HAL->) + HAL->overlaySize);
-  mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack);
-  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap)) {
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->getOverlayMap())) {
     printString("ERROR!!! &__bss_end__ > ");
-    printInt((uintptr_t) HAL->overlayMap);
+    printInt((uintptr_t) HAL->getOverlayMap());
     printString("\n");
     printString("*******************************************************\n");
     printString("* Running user programs will corrupt system memory!!! *\n");
     printString("*******************************************************\n");
   }
-#elif defined(__AVR__)
-  extern int __heap_start;
-  extern char *__brkval;
-  mallocBufferStart = (__brkval == NULL) ? (char*) &__heap_start : __brkval;
-#elif defined(__linux__)
-  mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack);
 #endif // __arm__
   uintptr_t memorySize
     = (((uintptr_t) &mallocBufferStart)

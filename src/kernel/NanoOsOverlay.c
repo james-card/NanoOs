@@ -56,7 +56,14 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
     return 0;
   }
 
-  NanoOsOverlayHeader *overlayHeader = &HAL->overlayMap->header;
+  NanoOsOverlayMap *overlayMap = HAL->getOverlayMap();
+  uintptr_t overlaySize = HAL->getOverlaySize();
+  if ((overlayMap == NULL) || (overlaySize == 0)) {
+    fprintf(stderr, "No overlay memory available for use.\n");
+    return -ENOMEM;
+  }
+
+  NanoOsOverlayHeader *overlayHeader = &overlayMap->header;
   if ((overlayHeader->overlayDir != NULL) && (overlayHeader->overlay != NULL)) {
     if ((strcmp(overlayHeader->overlayDir, overlayDir) == 0)
       && (strcmp(overlayHeader->overlay, overlay) == 0)
@@ -84,16 +91,11 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
     return -ENOENT;
   }
 
-  if ((HAL->overlayMap == NULL) || (HAL->overlaySize == 0)) {
-    fprintf(stderr, "No overlay memory available for use.\n");
-    return -ENOMEM;
-  }
-
   printDebugString(__func__);
   printDebugString(": Reading from overlayFile 0x");
   printDebugHex((uintptr_t) overlayFile);
   printDebugString("\n");
-  if (fread(HAL->overlayMap, 1, HAL->overlaySize, overlayFile) == 0) {
+  if (fread(overlayMap, 1, overlaySize, overlayFile) == 0) {
     fprintf(stderr, "Could not read overlay from \"%s\" file.\n",
       fullPath);
     fclose(overlayFile); overlayFile = NULL;
@@ -107,16 +109,16 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
   fclose(overlayFile); overlayFile = NULL;
 
   printDebugString("Verifying overlay magic\n");
-  if (HAL->overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
+  if (overlayMap->header.magic != NANO_OS_OVERLAY_MAGIC) {
     fprintf(stderr, "Overlay magic for \"%s\" was not \"NanoOsOL\".\n",
       fullPath);
     free(fullPath); fullPath = NULL;
     return -ENOEXEC;
   }
   printDebugString("Verifying overlay version\n");
-  if (HAL->overlayMap->header.version != NANO_OS_OVERLAY_VERSION) {
+  if (overlayMap->header.version != NANO_OS_OVERLAY_VERSION) {
     fprintf(stderr, "Overlay version is 0x%08x for \"%s\"\n",
-      HAL->overlayMap->header.version, fullPath);
+      overlayMap->header.version, fullPath);
     free(fullPath); fullPath = NULL;
     return -ENOEXEC;
   }
@@ -144,11 +146,12 @@ OverlayFunction findOverlayFunction(const char *overlayFunctionName) {
   int comp = 0;
   OverlayFunction overlayFunction = NULL;
   
-  for (uint16_t ii = 0, jj = HAL->overlayMap->numExports - 1; ii <= jj;) {
+  NanoOsOverlayMap *overlayMap = HAL->getOverlayMap();
+  for (uint16_t ii = 0, jj = overlayMap->numExports - 1; ii <= jj;) {
     cur = (ii + jj) >> 1;
-    comp = strcmp(HAL->overlayMap->exports[cur].name, overlayFunctionName);
+    comp = strcmp(overlayMap->exports[cur].name, overlayFunctionName);
     if (comp == 0) {
-      overlayFunction = HAL->overlayMap->exports[cur].fn;
+      overlayFunction = overlayMap->exports[cur].fn;
       break;
     } else if (comp < 0) { // cur < overlayFunctionName
       // Move the left bound to one greater than cur.
