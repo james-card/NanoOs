@@ -319,17 +319,14 @@ void* execCommand(void *args) {
   // The scheduler may be suspended because of launching this task.
   // Immediately call taskYield as a best practice to make sure the scheduler
   // goes back to its work.
-  TaskMessage *taskMessage = (TaskMessage*) args;
-  if (taskMessage == NULL) {
-    printString("ERROR: No arguments message provided to startCommand.\n");
+  ExecArgs *execArgs = (ExecArgs*) args;
+  if (execArgs == NULL) {
+    printString("ERROR: No arguments message provided to execCommand.\n");
     releaseConsole();
     schedulerCloseAllFileDescriptors();
     return (void*) ((intptr_t) -1);
   }
-  TaskId callingTaskId = taskId(taskMessageFrom(taskMessage));
-  ExecArgs *execArgs
-    = nanoOsMessageDataPointer(taskMessage, ExecArgs*);
-  // taskMessage will be released by the scheduler when we yield.
+  // Let the caller finish its work.
   taskYield();
   char *pathname = execArgs->pathname;
   char **argv = execArgs->argv;
@@ -348,28 +345,36 @@ void* execCommand(void *args) {
 
   // Call the task function.
   int returnValue = runOverlayCommand(pathname, argc, argv, envp);
-  execArgs = execArgsDestroy(execArgs);
 
-  if (callingTaskId != getRunningTaskId()) {
+  printString("Examining callingTaskId\n");
+  if (execArgs->callingTaskId != getRunningTaskId()) {
     // This command did NOT replace a shell task.  Mark its slot in the
     // task table as unowned.
     schedulerState->allTasks[
-      taskId(getRunningTask())].userId = NO_USER_ID;
+      taskId(getRunningTask()) - 1].userId = NO_USER_ID;
   }
+
+  printString("Destroying execArgs\n");
+  execArgs = execArgsDestroy(execArgs);
+
+  printString("Releasing console\n");
   releaseConsole();
 
+  printString("Closing file descriptors\n");
   schedulerCloseAllFileDescriptors();
 
   // Gracefully clear out our message queue.  We have to do this after closing
   // our file descriptors (which is a blocking call) because some other task
   // may be in the middle of sending us data and if we were to do this first,
   // it could turn around and send us more data again.
+  printString("Popping messages\n");
   msg_t *msg = taskMessageQueuePop();
   while (msg != NULL) {
     taskMessageSetDone(msg);
     msg = taskMessageQueuePop();
   }
 
+  printString("Returning\n");
   return (void*) ((intptr_t) returnValue);
 }
 

@@ -494,6 +494,7 @@ typedef struct BlockStorageDevice {
 ///
 /// @brief Arguments for the standard POSIX execve call.
 ///
+/// @param callingTaskId The task ID of the process that is execing.
 /// @param pathname The full, absolute path on disk to the program to run.
 /// @param argv The NULL-terminated array of arguments for the command.  argv[0]
 ///   must be valid and should be the name of the program.
@@ -502,6 +503,7 @@ typedef struct BlockStorageDevice {
 /// @param schedulerState A pointer to the SchedulerState managed by the
 ///   scheduler.  This is needed by the execCommand function.
 typedef struct ExecArgs {
+  TaskId callingTaskId;
   char *pathname;
   char **argv;
   char **envp;

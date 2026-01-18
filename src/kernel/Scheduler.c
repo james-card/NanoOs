@@ -2491,6 +2491,7 @@ int schedulerExecveCommandHandler(
     taskMessageSetDone(taskMessage);
     return returnValue; // 0; Don't retry this command
   }
+  execArgs->callingTaskId = taskId(taskMessageFrom(taskMessage));
 
   char *pathname = execArgs->pathname;
   if (pathname == NULL) {
@@ -2585,46 +2586,44 @@ int schedulerExecveCommandHandler(
   }
 
   execArgs->schedulerState = schedulerState;
-  if (taskCreate(taskDescriptor,
-    execCommand, taskMessage) == taskError
-  ) {
+  if (taskCreate(taskDescriptor, execCommand, execArgs) == taskError) {
     printString(
       "ERROR: Could not configure task handle for new command.\n");
   }
 
   if (assignMemory(execArgs, taskDescriptor->taskId) != 0) {
-    printString("WARNING: Could not assign execArgs to scheduler.\n");
+    printString("WARNING: Could not assign execArgs to exec task.\n");
     printString("Undefined behavior.\n");
   }
 
   if (assignMemory(pathname, taskDescriptor->taskId) != 0) {
-    printString("WARNING: Could not assign pathname to scheduler.\n");
+    printString("WARNING: Could not assign pathname to exec task.\n");
     printString("Undefined behavior.\n");
   }
 
   if (assignMemory(argv, taskDescriptor->taskId) != 0) {
-    printString("WARNING: Could not assign argv to scheduler.\n");
+    printString("WARNING: Could not assign argv to exec task.\n");
     printString("Undefined behavior.\n");
   }
   for (int ii = 0; argv[ii] != NULL; ii++) {
     if (assignMemory(argv[ii], taskDescriptor->taskId) != 0) {
       printString("WARNING: Could not assign argv[");
       printInt(ii);
-      printString("] to scheduler.\n");
+      printString("] to exec task.\n");
       printString("Undefined behavior.\n");
     }
   }
 
   if (envp != NULL) {
     if (assignMemory(envp, taskDescriptor->taskId) != 0) {
-      printString("WARNING: Could not assign envp to scheduler.\n");
+      printString("WARNING: Could not assign envp to exec task.\n");
       printString("Undefined behavior.\n");
     }
     for (int ii = 0; envp[ii] != NULL; ii++) {
       if (assignMemory(envp[ii], taskDescriptor->taskId) != 0) {
         printString("WARNING: Could not assign envp[");
         printInt(ii);
-        printString("] to scheduler.\n");
+        printString("] to exec task.\n");
         printString("Undefined behavior.\n");
       }
     }
@@ -2829,7 +2828,7 @@ void removeTask(SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
   return;
 }
 
-/// @fn int schedLoadOverlay(SchedulerState *schedulerState,
+/// @fn int schedulerLoadOverlay(SchedulerState *schedulerState,
 ///   const char *overlayDir, const char *overlay, char **envp)
 ///
 /// @brief Load and configure an overlay into the overlayMap in memory.
@@ -2843,7 +2842,7 @@ void removeTask(SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
 /// @param envp The array of environment variables in "name=value" form.
 ///
 /// @return Returns 0 on success, negative error code on failure.
-int schedLoadOverlay(SchedulerState *schedulerState,
+int schedulerLoadOverlay(SchedulerState *schedulerState,
   const char *overlayDir, const char *overlay, char **envp
 ) {
   if ((overlayDir == NULL) || (overlay == NULL)) {
@@ -2939,6 +2938,80 @@ int schedLoadOverlay(SchedulerState *schedulerState,
   return 0;
 }
 
+/// @fn int schedulerRunOverlayCommand(
+///   SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
+///   const char *commandPath, int argc, const char **argv, const char **envp)
+///
+/// @brief Launch a command that's in overlay format on the filesystem.
+///
+/// @param schedulerState A pointer to the SchedulerState object maintained by
+///   the scheduler task.
+/// @param taskDescriptor A pointer to the TaskDescriptor that will be
+///   populated with the overlay command.
+/// @param commandPath The full path to the command overlay file on the
+///   filesystem.
+/// @param argc The number of arguments from the command line.
+/// @param argv The of arguments from the command line as an array of C strings.
+/// @param envp The array of environment variable strings where each element is
+///   in "name=value" form.
+///
+/// @return Returns 0 on success, -errno on failure.
+int schedulerRunOverlayCommand(
+  SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
+  const char *commandPath, const char **argv, const char **envp
+) {
+  ExecArgs *execArgs = schedMalloc(sizeof(ExecArgs));
+  execArgs->callingTaskId = taskDescriptor->taskId;
+  execArgs->argv = (char**) argv;
+  execArgs->envp = (char**) envp;
+  execArgs->schedulerState = schedulerState;
+
+  if (assignMemory(execArgs, taskDescriptor->taskId) != 0) {
+    printString("WARNING: Could not assign execArgs to exec task.\n");
+    printString("Undefined behavior.\n");
+  }
+
+  if (taskCreate(taskDescriptor, execCommand, execArgs) == taskError) {
+    printString(
+      "ERROR: Could not configure task handle for new command.\n");
+    schedFree(execArgs);
+    return -ENOEXEC;
+  }
+
+  taskDescriptor->overlayDir = commandPath;
+  taskDescriptor->overlay = "main";
+  taskDescriptor->envp = (char**) envp;
+  taskDescriptor->name = argv[0];
+
+  taskDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
+  taskDescriptor->fileDescriptors
+    = (FileDescriptor*) standardUserFileDescriptors;
+
+  taskResume(taskDescriptor, NULL);
+
+  return 0;
+}
+
+//// /// @var gettyArgs
+//// ///
+//// /// @brief Command line arguments used to launch the getty process.  These have
+//// /// to be declared global because they're referenced by the launched process on
+//// /// its own stack.
+//// static const char *gettyArgs[] = {
+////   "getty",
+////   NULL,
+//// };
+//// 
+//// /// @var mushArgs
+//// ///
+//// /// @brief Command line arguments used to launch the mush process.  These have
+//// /// to be declared global because they're referenced by the launched process on
+//// /// its own stack.
+//// static const char *mushArgs[] = {
+////   "mush",
+////   NULL,
+//// };
+
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
 /// @brief Run one (1) iteration of the main scheduler loop.
@@ -2958,7 +3031,7 @@ void runScheduler(SchedulerState *schedulerState) {
 
   if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
     // This is a user task, which is in an overlay.  Make sure it's loaded.
-    if (schedLoadOverlay(schedulerState,
+    if (schedulerLoadOverlay(schedulerState,
       taskDescriptor->overlayDir, taskDescriptor->overlay,
       taskDescriptor->envp) != 0
     ) {
@@ -2994,12 +3067,22 @@ void runScheduler(SchedulerState *schedulerState) {
       return;
     }
 
-    if (allTasks[taskDescriptor->taskId - 1].userId == NO_USER_ID) {
-      // Login failed.  Re-launch getty.
-    } else {
-      // User task exited.  Re-launch the shell.
-    }
-    
+    //// if (taskDescriptor->userId == NO_USER_ID) {
+    ////   // Login failed.  Re-launch getty.
+    ////   if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
+    ////     "/usr/bin/getty", gettyArgs, NULL) != 0
+    ////   ) {
+    ////     removeTask(schedulerState, taskDescriptor, "Failed to load getty");
+    ////   }
+    //// } else {
+    ////   // User task exited.  Re-launch the shell.
+    ////   if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
+    ////     "/usr/bin/mush", mushArgs, NULL) != 0
+    ////   ) {
+    ////     removeTask(schedulerState, taskDescriptor, "Failed to load mush");
+    ////   }
+    //// }
+
     // Restart the shell.
     allTasks[taskDescriptor->taskId - 1].numFileDescriptors
       = NUM_STANDARD_FILE_DESCRIPTORS;
