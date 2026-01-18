@@ -48,29 +48,18 @@ extern "C"
 /// @brief The size, in bytes, of one chunk of the main memory task's stack.
 #define MEMORY_MANAGER_TASK_STACK_CHUNK_SIZE 32
 
-/// @def MEMORY_MANAGER_TASK_STACK_SIZE
+/// @def MEMORY_MANAGER_DEBUG
+///
+/// @brief Whether or not the memory manager is emitting debug prints.  Set
+/// this to 1 to enable.
+#define MEMORY_MANAGER_DEBUG 0
+
+/// @def MEMORY_MANAGER_DEBUG_STACK_SIZE
 ///
 /// @brief The stack size, in bytes, of the main memory manager task that
-/// will handle messages.  This needs to be as small as possible.  The actual
-/// stack size allocated will be slightly larger than this due to other things
-/// being pushed onto the stack before initializeGlobals is called.  Note that
-/// we need a larger stack when debugging to accommodate the logging calls.
-//// #define MEMORY_MANAGER_DEBUG
-#ifdef MEMORY_MANAGER_DEBUG
-#define MEMORY_MANAGER_TASK_STACK_SIZE 768
-#elif defined(__AVR__)
-#define MEMORY_MANAGER_TASK_STACK_SIZE 128
-#elif defined(__arm__)
-#define MEMORY_MANAGER_TASK_STACK_SIZE 192
-#elif defined(__linux__)
-// We're building as a Linux application, but we're not on ARM, so we're likely
-// on x86_64.  That means we're building on a 64-bit target with 64-bit stack
-// operands instead of a 32-bit target like on ARM.  Function calls also seem
-// to push a lot more information onto the stack in user mode than when in
-// standalone mode.  Quadruple the size of the stack relative to ARM.
-#define MEMORY_MANAGER_TASK_STACK_SIZE 768
-#endif // MEMORY_MANAGER_DEBUG
-
+/// will handle messages when in debug mode.  This needs to be as small as
+/// possible while still allowing debug prints to work.
+#define MEMORY_MANAGER_DEBUG_STACK_SIZE 768
 
 /// @enum MemoryManagerCommandResponse
 ///

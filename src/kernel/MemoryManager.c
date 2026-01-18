@@ -503,17 +503,6 @@ void initializeGlobals(MemoryManagerState *memoryManagerState,
   // Get the delta between the address of mallocBufferStart and the end of
   // memory.
   mallocBufferStart = (char*) ((uintptr_t) HAL->bottomOfStack());
-#if defined(__arm__)
-  extern char __bss_end__;
-  if (((uintptr_t) &__bss_end__) > ((uintptr_t) HAL->overlayMap())) {
-    printString("ERROR!!! &__bss_end__ > ");
-    printInt((uintptr_t) HAL->overlayMap());
-    printString("\n");
-    printString("*******************************************************\n");
-    printString("* Running user programs will corrupt system memory!!! *\n");
-    printString("*******************************************************\n");
-  }
-#endif // __arm__
   uintptr_t memorySize
     = (((uintptr_t) &mallocBufferStart)
     - ((uintptr_t) mallocBufferStart));
@@ -645,7 +634,7 @@ void* runMemoryManager(void *args) {
   uintptr_t dynamicMemorySize = 0;
   if (setjmp(returnBuffer) == 0) {
     allocateMemoryManagerStack(&memoryManagerState, returnBuffer,
-      MEMORY_MANAGER_TASK_STACK_SIZE, NULL);
+      HAL->memoryManagerStackSize(MEMORY_MANAGER_DEBUG), NULL);
   }
   printDebugString("Returned from allocateMemoryManagerStack.\n");
   

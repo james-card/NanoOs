@@ -47,8 +47,14 @@
 #include "HalPosix.h"
 #include "SdCardPosix.h"
 #include "kernel/ExFatTask.h"
+#include "kernel/MemoryManager.h"
 #include "kernel/NanoOs.h"
 #include "kernel/Tasks.h"
+
+/// @def MEMORY_MANAGER_STACK_SIZE
+///
+/// @brief The size, in bytes, of the memory manager process's stack.
+#define MEMORY_MANAGER_STACK_SIZE 768
 
 /// @def OVERLAY_BASE_ADDRESS
 ///
@@ -74,6 +80,15 @@
 /// @brief The highest errno value defined.  Missing from Linux's implementation
 /// of errno.h.  (It's a BSD thing...)
 #define ELAST                  EHWPOISON
+
+uintptr_t posixMemoryManagerStackSize(bool debug) {
+  if (debug == false) {
+    // This is the expected case, so list it first.
+    return MEMORY_MANAGER_STACK_SIZE;
+  } else {
+    return MEMORY_MANAGER_DEBUG_STACK_SIZE;
+  }
+}
 
 /// @var _bottomOfStack
 ///
@@ -661,6 +676,7 @@ int posixCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal posixHal = {
   // Memory definitions.
+  .memoryManagerStackSize = posixMemoryManagerStackSize,
   .bottomOfStack = posixBottomOfStack,
   
   // Overlay definitions.
@@ -750,7 +766,7 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   // simulation code is OVERLAY_OFFSET bytes into the map we just made.
   _overlayMap = (void*) (OVERLAY_BASE_ADDRESS + OVERLAY_OFFSET);
   
-  fprintf(stderr, "_overlayMap = %p\n", (void*) _overlayMap);
+  fprintf(stderr, "_overlayMap         = %p\n", (void*) _overlayMap);
   fprintf(stderr, "\n");
   
   _mainThreadId = pthread_self();

@@ -45,12 +45,18 @@
 // operational prior to the memory manager and really should be completely
 // independent of it.
 #include "../kernel/ExFatTask.h"
+#include "../kernel/MemoryManager.h"
 #include "../kernel/NanoOs.h"
 #include "../kernel/Tasks.h"
 #include "../kernel/Scheduler.h"
 #include "../kernel/SdCardSpi.h"
 #include "../user/NanoOsErrno.h"
 #include "../user/NanoOsStdio.h"
+
+/// @def MEMORY_MANAGER_STACK_SIZE
+///
+/// @brief The size, in bytes, of the memory manager process's stack.
+#define MEMORY_MANAGER_STACK_SIZE 192
 
 /// @def OVERLAY_SIZE
 ///
@@ -188,6 +194,15 @@ static SavedContext _savedContext;
   *returnAddressAt \
     = (uint32_t) arduinoNano33IotTimerInterruptHandler ## handlerIndex; \
   return
+
+uintptr_t arduinoNano33IotMemoryManagerStackSize(bool debug) {
+  if (debug == false) {
+    // This is the expected case, so list it first.
+    return MEMORY_MANAGER_STACK_SIZE;
+  } else {
+    return MEMORY_MANAGER_DEBUG_STACK_SIZE;
+  }
+}
 
 /// @var _bottomOfStack
 ///
@@ -918,6 +933,7 @@ void TC4_Handler(void) {
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
   // Memory definitions.
+  .memoryManagerStackSize = arduinoNano33IotMemoryManagerStackSize,
   .bottomOfStack = arduinoNano33IotBottomOfStack,
   
   // Overlay definitions.
@@ -967,6 +983,16 @@ static Hal arduinoNano33IotHal = {
 };
 
 const Hal* halArduinoNano33IotInit(void) {
+  extern char __bss_end__;
+  if (((uintptr_t) &__bss_end__) > ((uintptr_t) _overlayMap)) {
+    printString("ERROR!!! &__bss_end__ > ");
+    printInt((uintptr_t) HAL->overlayMap());
+    printString("\n");
+    printString("*******************************************************\n");
+    printString("* Running user programs will corrupt system memory!!! *\n");
+    printString("*******************************************************\n");
+  }
+  
   __enable_irq();  // Ensure global interrupts are enabled
   return &arduinoNano33IotHal;
 }
