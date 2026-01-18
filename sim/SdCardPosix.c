@@ -210,8 +210,6 @@ void handleSdCardMessages(SdCardState *sdCardState) {
 void* runSdCardPosix(void *args) {
   const char *sdCardDevicePath = (char*) args;
 
-  (void) args;
-
   SdCardState sdCardState;
   memset(&sdCardState, 0, sizeof(sdCardState));
   BlockStorageDevice sdDevice = {
@@ -233,7 +231,7 @@ void* runSdCardPosix(void *args) {
   if (((intptr_t) sdCardState.context) < 0) {
     fprintf(stderr, "ERROR: Failed to open sdCardDevicePath \"%s\"\n",
       sdCardDevicePath);
-    fprintf(stderr, "Error returned: %s", strerror(openError));
+    fprintf(stderr, "Error returned: %s\n", strerror(openError));
   }
 
   TaskMessage *schedulerMessage = NULL;

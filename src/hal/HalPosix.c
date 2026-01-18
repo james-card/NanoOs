@@ -278,7 +278,7 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   
   // Create the SD card task.
   TaskDescriptor *taskDescriptor
-    = &allTasks[NANO_OS_SD_CARD_TASK_ID];
+    = &allTasks[NANO_OS_SD_CARD_TASK_ID - 1];
   if (taskCreate(
     taskDescriptor, runSdCardPosix, (void*) _sdCardDevicePath)
     != taskSuccess
@@ -291,12 +291,12 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   taskDescriptor->name = "SD card";
   taskDescriptor->userId = ROOT_USER_ID;
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
-    allTasks[NANO_OS_SD_CARD_TASK_ID].taskHandle, NULL);
+    allTasks[NANO_OS_SD_CARD_TASK_ID - 1].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
   printDebugString("Configured SD card task.\n");
   
   // Create the filesystem task.
-  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID];
+  taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID - 1];
   if (taskCreate(taskDescriptor, runExFatFilesystem, sdDevice)
     != taskSuccess
   ) {
