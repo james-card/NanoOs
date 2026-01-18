@@ -200,7 +200,7 @@ typedef struct TaskDescriptor {
   FileDescriptor  *fileDescriptors;
   const char      *overlayDir;
   const char      *overlay;
-  const char     **envp;
+  char           **envp;
   TaskQueue       *taskQueue;
 } TaskDescriptor;
 
