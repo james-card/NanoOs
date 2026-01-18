@@ -69,6 +69,7 @@ int loadOverlay(const char *overlayDir, const char *overlay, char **envp) {
       && (strcmp(overlayHeader->overlay, overlay) == 0)
     ) {
       // Overlay is already loaded.  Do nothing.
+      return 0;
     }
   }
 
