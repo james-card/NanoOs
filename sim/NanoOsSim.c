@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
   Coroutine _mainCoroutine;
   schedulerTaskHandle = &_mainCoroutine;
   CoroutineConfigOptions coroutineConfigOptions = {
-    .stackSize = NANO_OS_STACK_SIZE,
+    .stackSize = HAL->processStackSize(),
     .stateData = &coroutineStatePointer,
     .comutexUnlockCallback = comutexUnlockCallback,
     .coconditionSignalCallback = coconditionSignalCallback,

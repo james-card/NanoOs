@@ -61,9 +61,17 @@ typedef struct NanoOsOverlayMap NanoOsOverlayMap;
 typedef struct Hal {
   // Memory definitions.
   
+  /// @fn uintptr_t processStackSize(void)
+  ///
+  /// @brief The size of a regular process's stack.
+  ///
+  /// Returns the size of the stack to use for all non-memory manager
+  /// processes in bytes.  This function never fails.
+  uintptr_t (*processStackSize)(void);
+  
   /// @fn uintptr_t memoryManagerStackSize(bool debug)
   ///
-  /// @brief Get the size of the memory manager process's stack.
+  /// @brief The size of the memory manager process's stack.
   ///
   /// @param debug Whether or not the memory manager's debug stack size should
   ///   be used so that debug prints can work correclty without corrupting the

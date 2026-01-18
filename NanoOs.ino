@@ -102,14 +102,15 @@ void setup() {
 // we want to do everything related to coroutines in this stack.  The reason
 // we want to do this is because we want to hide as much of the coroutine
 // metadata storage as we can within the stack of the main loop.  Every stack,
-// including the stack for the main loop, is NANO_OS_STACK_SIZE bytes in size.
-// If we declare no variables in this stack, we're just wasting space.  Also,
-// making the storage for the metadata global consumes precious memory.  It's
-// much more efficient to just store the pointers in the global address space
-// and put the real storage in the main loop's stack.  However, that means that
-// we have to do all the one-time setup from within the main function.  That, in
-// turn, means that we can never exit this function.  So, we will do all the
-// one-time setup and then run our scheduler loop from within this call.
+// including the stack for the main loop, is HAL->processStackSize() bytes in
+// size.  If we declare no variables in this stack, we're just wasting space.
+// Also, making the storage for the metadata global consumes precious memory.
+// It's much more efficient to just store the pointers in the global address
+// space and put the real storage in the main loop's stack.  However, that
+// means that we have to do all the one-time setup from within the main
+// function.  That, in turn, means that we can never exit this function.  So,
+// we will do all the one-time setup and then run our scheduler loop from
+// within this call.
 void loop() {
 
   // SchedulerState pointer that we will have to populate in startScheduler.
@@ -123,7 +124,7 @@ void loop() {
   Coroutine _mainCoroutine;
   schedulerTaskHandle = &_mainCoroutine;
   CoroutineConfigOptions coroutineConfigOptions = {
-    .stackSize = NANO_OS_STACK_SIZE,
+    .stackSize = HAL->processStackSize(),
     .stateData = &coroutineStatePointer,
     .coroutineYieldCallback = NULL,
     .comutexUnlockCallback = comutexUnlockCallback,

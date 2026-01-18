@@ -53,6 +53,11 @@
 #include "../user/NanoOsErrno.h"
 #include "../user/NanoOsStdio.h"
 
+/// @def PROCESS_STACK_SIZE
+///
+/// @brief The size, in bytes, of a regular process's stack.
+#define PROCESS_STACK_SIZE 1024
+
 /// @def MEMORY_MANAGER_STACK_SIZE
 ///
 /// @brief The size, in bytes, of the memory manager process's stack.
@@ -194,6 +199,10 @@ static SavedContext _savedContext;
   *returnAddressAt \
     = (uint32_t) arduinoNano33IotTimerInterruptHandler ## handlerIndex; \
   return
+
+uintptr_t arduinoNano33IotProcessStackSize(void) {
+  return PROCESS_STACK_SIZE;
+}
 
 uintptr_t arduinoNano33IotMemoryManagerStackSize(bool debug) {
   if (debug == false) {
@@ -933,6 +942,7 @@ void TC4_Handler(void) {
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal arduinoNano33IotHal = {
   // Memory definitions.
+  .processStackSize = arduinoNano33IotProcessStackSize,
   .memoryManagerStackSize = arduinoNano33IotMemoryManagerStackSize,
   .bottomOfStack = arduinoNano33IotBottomOfStack,
   

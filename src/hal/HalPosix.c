@@ -51,6 +51,11 @@
 #include "kernel/NanoOs.h"
 #include "kernel/Tasks.h"
 
+/// @def PROCESS_STACK_SIZE
+///
+/// @brief The size, in bytes, of a regular process's stack.
+#define PROCESS_STACK_SIZE 2880
+
 /// @def MEMORY_MANAGER_STACK_SIZE
 ///
 /// @brief The size, in bytes, of the memory manager process's stack.
@@ -80,6 +85,10 @@
 /// @brief The highest errno value defined.  Missing from Linux's implementation
 /// of errno.h.  (It's a BSD thing...)
 #define ELAST                  EHWPOISON
+
+uintptr_t posixProcessStackSize(void) {
+  return PROCESS_STACK_SIZE;
+}
 
 uintptr_t posixMemoryManagerStackSize(bool debug) {
   if (debug == false) {
@@ -676,6 +685,7 @@ int posixCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano 33 Iot.
 static Hal posixHal = {
   // Memory definitions.
+  .processStackSize = posixProcessStackSize,
   .memoryManagerStackSize = posixMemoryManagerStackSize,
   .bottomOfStack = posixBottomOfStack,
   

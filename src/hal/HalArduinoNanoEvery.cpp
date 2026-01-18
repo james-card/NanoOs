@@ -52,6 +52,11 @@
 #include "../user/NanoOsErrno.h"
 #include "../user/NanoOsStdio.h"
 
+/// @def PROCESS_STACK_SIZE
+///
+/// @brief The size, in bytes, of a regular process's stack.
+#define PROCESS_STACK_SIZE 320
+
 /// @def MEMORY_MANAGER_STACK_SIZE
 ///
 /// @brief The size, in bytes, of the memory manager process's stack.
@@ -82,7 +87,11 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 
-uintptr_t arduinoNano33IotMemoryManagerStackSize(bool debug) {
+uintptr_t arduinoNanoEveryProcessStackSize(void) {
+  return PROCESS_STACK_SIZE;
+}
+
+uintptr_t arduinoNanoEveryMemoryManagerStackSize(bool debug) {
   if (debug == false) {
     // This is the expected case, so list it first.
     return MEMORY_MANAGER_STACK_SIZE;
@@ -504,7 +513,8 @@ int arduinoNanoEveryCancelAndGetTimer(int timer,
 /// @brief The implementation of the Hal interface for the Arduino Nano Every.
 static Hal arduinoNanoEveryHal = {
   // Memory definitions.
-  .memoryManagerStackSize = arduinoNano33IotMemoryManagerStackSize,
+  .processStackSize = arduinoNanoEveryProcessStackSize,
+  .memoryManagerStackSize = arduinoNanoEveryMemoryManagerStackSize,
   .bottomOfStack = arduinoNanoEveryBottomOfStack,
   
   // Overlay definitions.

@@ -48,23 +48,6 @@ extern "C"
 {
 #endif
 
-/// @def NANO_OS_STACK_SIZE
-///
-/// @brief The minimum size for an individual task's stack.  Actual size will
-/// be slightly larger than this.
-#if defined(__arm__)
-#define NANO_OS_STACK_SIZE 1024
-#elif defined(__AVR__)
-#define NANO_OS_STACK_SIZE 320
-#elif defined(__linux__)
-// We're building as a Linux application, but we're not on ARM, so we're likely
-// on x86_64.  That means we're building on a 64-bit target with 64-bit stack
-// operands instead of a 32-bit target like on ARM.  Function calls also seem
-// to push a lot more information onto the stack in user mode than when in
-// standalone mode.  Quadruple the size of the stack relative to ARM.
-#define NANO_OS_STACK_SIZE 2880
-#endif // __arm__
-
 /// @def NANO_OS_NUM_MESSAGES
 ///
 /// @brief The total number of inter-task messages that will be available
