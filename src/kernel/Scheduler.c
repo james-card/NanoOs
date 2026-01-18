@@ -2992,25 +2992,25 @@ int schedulerRunOverlayCommand(
   return 0;
 }
 
-//// /// @var gettyArgs
-//// ///
-//// /// @brief Command line arguments used to launch the getty process.  These have
-//// /// to be declared global because they're referenced by the launched process on
-//// /// its own stack.
-//// static const char *gettyArgs[] = {
-////   "getty",
-////   NULL,
-//// };
-//// 
-//// /// @var mushArgs
-//// ///
-//// /// @brief Command line arguments used to launch the mush process.  These have
-//// /// to be declared global because they're referenced by the launched process on
-//// /// its own stack.
-//// static const char *mushArgs[] = {
-////   "mush",
-////   NULL,
-//// };
+/// @var gettyArgs
+///
+/// @brief Command line arguments used to launch the getty process.  These have
+/// to be declared global because they're referenced by the launched process on
+/// its own stack.
+static const char *gettyArgs[] = {
+  "getty",
+  NULL,
+};
+
+/// @var mushArgs
+///
+/// @brief Command line arguments used to launch the mush process.  These have
+/// to be declared global because they're referenced by the launched process on
+/// its own stack.
+static const char *mushArgs[] = {
+  "mush",
+  NULL,
+};
 
 /// @fn void runScheduler(SchedulerState *schedulerState)
 ///
@@ -3067,37 +3067,21 @@ void runScheduler(SchedulerState *schedulerState) {
       return;
     }
 
-    //// if (taskDescriptor->userId == NO_USER_ID) {
-    ////   // Login failed.  Re-launch getty.
-    ////   if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-    ////     "/usr/bin/getty", gettyArgs, NULL) != 0
-    ////   ) {
-    ////     removeTask(schedulerState, taskDescriptor, "Failed to load getty");
-    ////   }
-    //// } else {
-    ////   // User task exited.  Re-launch the shell.
-    ////   if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-    ////     "/usr/bin/mush", mushArgs, NULL) != 0
-    ////   ) {
-    ////     removeTask(schedulerState, taskDescriptor, "Failed to load mush");
-    ////   }
-    //// }
-
-    // Restart the shell.
-    allTasks[taskDescriptor->taskId - 1].numFileDescriptors
-      = NUM_STANDARD_FILE_DESCRIPTORS;
-    allTasks[taskDescriptor->taskId - 1].fileDescriptors
-      = (FileDescriptor*) standardUserFileDescriptors;
-    taskDescriptor->name
-      = shellNames[taskDescriptor->taskId - NANO_OS_FIRST_SHELL_PID];
-    if (taskCreate(taskDescriptor, runShell, schedulerState->hostname
-      ) == taskError
-    ) {
-      printString("ERROR: Could not configure task for ");
-      printString(taskDescriptor->name);
-      printString("\n");
+    if (taskDescriptor->userId == NO_USER_ID) {
+      // Login failed.  Re-launch getty.
+      if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
+        "/usr/bin/getty", gettyArgs, NULL) != 0
+      ) {
+        removeTask(schedulerState, taskDescriptor, "Failed to load getty");
+      }
+    } else {
+      // User task exited.  Re-launch the shell.
+      if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
+        "/usr/bin/mush", mushArgs, NULL) != 0
+      ) {
+        removeTask(schedulerState, taskDescriptor, "Failed to load mush");
+      }
     }
-    taskResume(taskDescriptor, NULL);
   }
 
   if (coroutineState(taskDescriptor->taskHandle)
