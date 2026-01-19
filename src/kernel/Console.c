@@ -549,6 +549,51 @@ void consoleGetOwnedPortCommandHandler(
   return;
 }
 
+/// @fn void consoleGetEchoCommandHandler(
+///   ConsoleState *consoleState, TaskMessage *inputMessage)
+///
+/// @brief Get whether or not input is echoed back to any console ports owned
+/// by a task.
+///
+/// @param consoleState A pointer to the ConsoleState being maintained by the
+///   runConsole function that's running.
+/// @param inputMessage A pointer to the TaskMessage with the received
+///   command.
+///
+/// @return This function returns no value.
+void consoleGetEchoCommandHandler(
+  ConsoleState *consoleState, TaskMessage *inputMessage
+) {
+  TaskId owner = taskId(taskMessageFrom(inputMessage));
+  ConsolePort *consolePorts = consoleState->consolePorts;
+  TaskMessage *returnMessage = inputMessage;
+  NanoOsMessage *nanoOsMessage
+    = (NanoOsMessage*) taskMessageData(returnMessage);
+  nanoOsMessage->func = 0;
+  nanoOsMessage->data = 0;
+
+  bool portFound = false;
+  bool echoing = false;
+  for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
+    if (consolePorts[ii].outputOwner == owner) {
+      echoing |= consolePorts[ii].echo;
+      portFound = true;
+    }
+  }
+
+  if (portFound == true) {
+    nanoOsMessage->data = (uintptr_t) echoing;
+  } else {
+    printString("WARNING: Request to get echo from non-owning task ");
+    printInt(owner);
+    printString("\n");
+  }
+
+  taskMessageSetDone(inputMessage);
+
+  return;
+}
+
 /// @fn void consoleSetEchoCommandHandler(
 ///   ConsoleState *consoleState, TaskMessage *inputMessage)
 ///
@@ -791,6 +836,7 @@ const ConsoleCommandHandler consoleCommandHandlers[] = {
   consoleAssignPortInputCommandHandler, // CONSOLE_ASSIGN_PORT_INPUT
   consoleReleasePortCommandHandler,     // CONSOLE_RELEASE_PORT
   consoleGetOwnedPortCommandHandler,    // CONSOLE_GET_OWNED_PORT
+  consoleGetEchoCommandHandler,         // CONSOLE_GET_ECHO_PORT,
   consoleSetEchoCommandHandler,         // CONSOLE_SET_ECHO_PORT
   consoleWaitForInputCommandHandler,    // CONSOLE_WAIT_FOR_INPUT
   consoleReleasePidPortCommandHandler,  // CONSOLE_RELEASE_PID_PORT
@@ -1135,9 +1181,29 @@ int getOwnedConsolePort(void) {
   return returnValue;
 }
 
-/// @fn int setConsoleEcho(bool desiredEchoState)
+/// @fn bool getConsoleEcho(void)
 ///
 /// @brief Get the echo state for all ports owned by the current task.
+///
+/// @return Returns true if the console for the process is echoing, false
+/// otherwise.
+bool getConsoleEcho(void) {
+  TaskMessage *sent = sendNanoOsMessageToPid(
+    NANO_OS_CONSOLE_TASK_ID, CONSOLE_SET_ECHO_PORT,
+    /* func= */ 0, /* data= */ 0, /* waiting= */ true);
+
+  // The console will reuse the message we sent.
+  taskMessageWaitForDone(sent, NULL);
+
+  bool returnValue = nanoOsMessageDataValue(sent, bool);
+  taskMessageRelease(sent);
+
+  return returnValue;
+}
+
+/// @fn int setConsoleEcho(bool desiredEchoState)
+///
+/// @brief Set the echo state for all ports owned by the current task.
 ///
 /// @return Returns 0 if the echo state was set for the current task's
 /// ports, -1 on failure.
