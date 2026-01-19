@@ -3030,14 +3030,14 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 
   if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
-    // This is a user task, which is in an overlay.  Make sure it's loaded.
-    if (schedulerLoadOverlay(schedulerState,
-      taskDescriptor->overlayDir, taskDescriptor->overlay,
-      taskDescriptor->envp) != 0
-    ) {
-      removeTask(schedulerState, taskDescriptor, "Overlay load failure");
-      return;
-    }
+    //// // This is a user task, which is in an overlay.  Make sure it's loaded.
+    //// if (schedulerLoadOverlay(schedulerState,
+    ////   taskDescriptor->overlayDir, taskDescriptor->overlay,
+    ////   taskDescriptor->envp) != 0
+    //// ) {
+    ////   removeTask(schedulerState, taskDescriptor, "Overlay load failure");
+    ////   return;
+    //// }
     
     // Configure the preemption timer to force the task to yield if it doesn't
     // voluntarily give up control within a reasonable amount of time.
