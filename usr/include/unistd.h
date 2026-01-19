@@ -38,6 +38,8 @@
 
 #include "NanoOsUser.h"
 
+#include "NanoOsUnistd.h"
+
 #define gethostname(name, len) \
   overlayMap.header.osApi->gethostname(name, len)
 #define sethostname(name, len) \
