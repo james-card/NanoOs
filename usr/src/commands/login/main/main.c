@@ -94,6 +94,9 @@ int main(int argc, char **argv) {
   free(old); old = NULL;
   free(new); new = NULL;
   
+  // Print a newline since one didn't get echoed when the user hit <ENTER>.
+  fputs("\n", stdout);
+  
   if ((input != NULL) && (strlen(input) > 0)
     && (input[strlen(input) - 1] == '\n')
   ) {
