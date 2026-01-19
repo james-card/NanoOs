@@ -35,6 +35,7 @@
 #include "../kernel/NanoOs.h"
 #include "../kernel/Scheduler.h"
 #include "NanoOsLibC.h"
+#include "NanoOsTermios.h"
 #include "NanoOsUnistd.h"
 
 // Must come last
@@ -136,6 +137,10 @@ NanoOsApi nanoOsApi = {
   .sethostname = sethostname,
   .ttyname_r = ttyname_r,
   .execve = schedulerExecve,
+  
+  // termios functions:
+  .tcgetattr = tcgetattr,
+  .tcsetattr = tcsetattr,
   
   // errno functions:
   .errno_ = errno_,

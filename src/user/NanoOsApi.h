@@ -60,6 +60,9 @@ extern "C"
 {
 #endif
 
+// Forward declarations from other headers.
+struct termios;
+
 typedef struct NanoOsApi {
   // Standard streams:
   FILE *stdin;
@@ -135,6 +138,11 @@ typedef struct NanoOsApi {
   int (*sethostname)(const char *name, size_t len);
   int (*ttyname_r)(int fd, char *buf, size_t buflen);
   int (*execve)(const char *pathname, char *const argv[], char *const envp[]);
+  
+  // termios functions:
+  int (*tcgetattr)(int fd, struct termios *termios_p);
+  int (*tcsetattr)(int fd, int optional_actions,
+    const struct termios *termios_p);
   
   // errno functions:
   int* (*errno_)(void);
