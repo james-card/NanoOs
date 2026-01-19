@@ -72,6 +72,7 @@ OS_OBJECTS := \
     $(OBJ_DIR)/NanoOsLibC.o \
     $(OBJ_DIR)/NanoOsStdio.o \
     $(OBJ_DIR)/NanoOsSys.o \
+    $(OBJ_DIR)/NanoOsTermios.o \
     $(OBJ_DIR)/NanoOsUnistd.o \
 
 SIM_OBJECTS := \
