@@ -2962,6 +2962,7 @@ int schedulerRunOverlayCommand(
 ) {
   ExecArgs *execArgs = schedMalloc(sizeof(ExecArgs));
   execArgs->callingTaskId = taskDescriptor->taskId;
+  execArgs->pathname = commandPath;
   execArgs->argv = (char**) argv;
   execArgs->envp = (char**) envp;
   execArgs->schedulerState = schedulerState;
@@ -3030,13 +3031,15 @@ void runScheduler(SchedulerState *schedulerState) {
   }
 
   if (taskDescriptor->taskId >= NANO_OS_FIRST_USER_TASK_ID) {
-    // This is a user task, which is in an overlay.  Make sure it's loaded.
-    if (schedulerLoadOverlay(schedulerState,
-      taskDescriptor->overlayDir, taskDescriptor->overlay,
-      taskDescriptor->envp) != 0
-    ) {
-      removeTask(schedulerState, taskDescriptor, "Overlay load failure");
-      return;
+    if (taskRunning(taskDescriptor) == true) {
+      // This is a user task, which is in an overlay.  Make sure it's loaded.
+      if (schedulerLoadOverlay(schedulerState,
+        taskDescriptor->overlayDir, taskDescriptor->overlay,
+        taskDescriptor->envp) != 0
+      ) {
+        removeTask(schedulerState, taskDescriptor, "Overlay load failure");
+        return;
+      }
     }
     
     // Configure the preemption timer to force the task to yield if it doesn't
@@ -3073,6 +3076,7 @@ void runScheduler(SchedulerState *schedulerState) {
         "/usr/bin/getty", gettyArgs, NULL) != 0
       ) {
         removeTask(schedulerState, taskDescriptor, "Failed to load getty");
+        return;
       }
     } else {
       // User task exited.  Re-launch the shell.
@@ -3080,6 +3084,7 @@ void runScheduler(SchedulerState *schedulerState) {
         "/usr/bin/mush", mushArgs, NULL) != 0
       ) {
         removeTask(schedulerState, taskDescriptor, "Failed to load mush");
+        return;
       }
     }
   }
