@@ -33,6 +33,7 @@
 
 // Standard C includes from the compiler
 #undef errno
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -54,7 +55,7 @@
 /// @def PROCESS_STACK_SIZE
 ///
 /// @brief The size, in bytes, of a regular process's stack.
-#define PROCESS_STACK_SIZE 2880
+#define PROCESS_STACK_SIZE (3 * 1024)
 
 /// @def MEMORY_MANAGER_STACK_SIZE
 ///
@@ -85,6 +86,10 @@
 /// @brief The highest errno value defined.  Missing from Linux's implementation
 /// of errno.h.  (It's a BSD thing...)
 #define ELAST                  EHWPOISON
+
+int (*realTcgetattr)(int fd, struct termios *termios_p) = NULL;
+int (*realTcsetattr)(int fd, int optional_actions,
+  const struct termios *termios_p) = NULL;
 
 uintptr_t posixProcessStackSize(void) {
   return PROCESS_STACK_SIZE;
@@ -170,7 +175,7 @@ int posixInitSerialPort(int port, int32_t baud) {
   
   // Get the current console flags.
   int stdinFileno = fileno(stdin);
-  if (tcgetattr(stdinFileno, &oldFlags) != 0) {
+  if (realTcgetattr(stdinFileno, &oldFlags) != 0) {
     fprintf(stderr, "Could not get current attributes for console.\n");
     return -errno;
   }
@@ -179,7 +184,7 @@ int posixInitSerialPort(int port, int32_t baud) {
   newFlags = oldFlags;
   newFlags.c_lflag |= ECHONL;
   newFlags.c_lflag &= ~(ECHO | ICANON);
-  if (tcsetattr(stdinFileno, TCSANOW, &newFlags) != 0) {
+  if (realTcsetattr(stdinFileno, TCSANOW, &newFlags) != 0) {
     fprintf(stderr, "Could not set new attributes for console.\n");
     return -errno;
   }
@@ -331,7 +336,6 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   ) {
     fputs("Could not start SD card task.\n", stderr);
   }
-  printDebugString("Started SD card task.\n");
   taskHandleSetContext(taskDescriptor->taskHandle, taskDescriptor);
   taskDescriptor->taskId = NANO_OS_SD_CARD_TASK_ID;
   taskDescriptor->name = "SD card";
@@ -339,7 +343,6 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   BlockStorageDevice *sdDevice = (BlockStorageDevice*) coroutineResume(
     allTasks[NANO_OS_SD_CARD_TASK_ID - 1].taskHandle, NULL);
   sdDevice->partitionNumber = 1;
-  printDebugString("Configured SD card task.\n");
   
   // Create the filesystem task.
   taskDescriptor = &allTasks[NANO_OS_FILESYSTEM_TASK_ID - 1];
@@ -352,7 +355,6 @@ int posixInitRootStorage(SchedulerState *schedulerState) {
   taskDescriptor->taskId = NANO_OS_FILESYSTEM_TASK_ID;
   taskDescriptor->name = "filesystem";
   taskDescriptor->userId = ROOT_USER_ID;
-  printDebugString("Created filesystem task.\n");
   
   return 0;
 }
@@ -780,6 +782,9 @@ const Hal* halPosixInit(jmp_buf resetBuffer, const char *sdCardDevicePath) {
   fprintf(stderr, "\n");
   
   _mainThreadId = pthread_self();
+  
+  *((void**) &realTcgetattr) = dlsym(RTLD_NEXT, "tcgetattr");
+  *((void**) &realTcsetattr) = dlsym(RTLD_NEXT, "tcsetattr");
   
   return &posixHal;
 }
