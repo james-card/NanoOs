@@ -1189,7 +1189,7 @@ int getOwnedConsolePort(void) {
 /// otherwise.
 bool getConsoleEcho(void) {
   TaskMessage *sent = sendNanoOsMessageToPid(
-    NANO_OS_CONSOLE_TASK_ID, CONSOLE_SET_ECHO_PORT,
+    NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_ECHO_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
   // The console will reuse the message we sent.
