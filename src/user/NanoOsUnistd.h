@@ -42,10 +42,6 @@ extern "C"
 {
 #endif
 
-int gethostname(char *name, size_t len);
-int sethostname(const char *name, size_t len);
-int ttyname_r(int fd, char *buf, size_t buflen);
-
 #define _POSIX_HOST_NAME_MAX 255
 
 #ifndef HOST_NAME_MAX
@@ -55,6 +51,14 @@ int ttyname_r(int fd, char *buf, size_t buflen);
 #if HOST_NAME_MAX > _POSIX_HOST_NAME_MAX
 #error "HOST_NAME_MAX cannot exceed _POSIX_HOST_NAME_MAX"
 #endif // HOST_NAME_MAX > _POSIX_HOST_NAME_MAX
+
+#define STDIN_FILENO  0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
+int gethostname(char *name, size_t len);
+int sethostname(const char *name, size_t len);
+int ttyname_r(int fd, char *buf, size_t buflen);
 
 #ifdef __cplusplus
 }
