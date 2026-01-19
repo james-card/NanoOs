@@ -33,7 +33,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#undef tcgetattr
+#undef tcsetattr
 
 /// @def SHELL_PATH
 ///
@@ -61,8 +65,35 @@ int main(int argc, char **argv) {
   }
   *buffer = '\0';
   
+  struct termios *old = (struct termios*) malloc(sizeof(struct termios));
+  if (old == NULL) {
+    fprintf(stderr, "ERROR! Could not allocate space for old in %s.\n",
+      argv[0]);
+    return 1;
+  }
+  
+  struct termios *new = (struct termios*) malloc(sizeof(struct termios));
+  if (new == NULL) {
+    fprintf(stderr, "ERROR! Could not allocate space for new in %s.\n",
+      argv[0]);
+    return 1;
+  }
+  
   fputs("password: ", stdout);
+  
+  // Disable echo
+  overlayMap.header.osApi->tcgetattr(STDIN_FILENO, old);
+  *new = *old;
+  new->c_lflag &= ~ECHO;
+  overlayMap.header.osApi->tcsetattr(STDIN_FILENO, TCSANOW, new);
+  
   char *input = fgets(buffer, 96, stdin);
+  
+  // Restore echo
+  overlayMap.header.osApi->tcsetattr(STDIN_FILENO, TCSANOW, old);
+  free(old); old = NULL;
+  free(new); new = NULL;
+  
   if ((input != NULL) && (strlen(input) > 0)
     && (input[strlen(input) - 1] == '\n')
   ) {
