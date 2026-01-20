@@ -2962,7 +2962,7 @@ int schedulerRunOverlayCommand(
 ) {
   ExecArgs *execArgs = schedMalloc(sizeof(ExecArgs));
   execArgs->callingTaskId = taskDescriptor->taskId;
-  execArgs->pathname = commandPath;
+  execArgs->pathname = (char*) commandPath;
   execArgs->argv = (char**) argv;
   execArgs->envp = (char**) envp;
   execArgs->schedulerState = schedulerState;
