@@ -897,6 +897,12 @@ int readSerialByte(ConsolePort *consolePort) {
         }
       }
       
+      if (serialData == ASCII_RETURN) {
+        serialData = ASCII_NEWLINE;
+        // Some terminals send \r\n.  Read one more character just in case.
+        HAL->pollSerialPort((int) consolePort->portId);
+      }
+      
       if (consolePort->consoleBufferIndex < (CONSOLE_BUFFER_SIZE - 1)) {
         buffer[consolePort->consoleBufferIndex] = (char) serialData;
         consolePort->consoleBufferIndex++;
