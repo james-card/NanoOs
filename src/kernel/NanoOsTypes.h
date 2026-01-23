@@ -82,13 +82,6 @@ extern "C"
 /// console task's stack.
 #define CONSOLE_NUM_BUFFERS CONSOLE_NUM_PORTS
 
-// Task status values
-#define taskSuccess  coroutineSuccess
-#define taskBusy     coroutineBusy
-#define taskError    coroutineError
-#define taskNomem    coroutineNomem
-#define taskTimedout coroutineTimedout
-
 // Primitive types
 
 /// @typedef Task

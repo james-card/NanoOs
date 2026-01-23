@@ -44,6 +44,13 @@ extern "C"
 {
 #endif
 
+// Task status values.
+#define taskSuccess  coroutineSuccess
+#define taskBusy     coroutineBusy
+#define taskError    coroutineError
+#define taskNomem    coroutineNomem
+#define taskTimedout coroutineTimedout
+
 /// @def TASK_ID_NOT_SET
 ///
 /// @brief Value to be used to indicate that a task ID has not been set for
@@ -101,6 +108,12 @@ extern "C"
 /// @brief Call to yield the processor to another task.
 #define taskYield() \
   coroutineYield(NULL, COROUTINE_STATE_BLOCKED)
+
+/// @def taskYieldValue
+///
+/// @brief Yield a value back to the scheduler.
+#define taskYieldValue(value) \
+  coroutineYield(value, COROUTINE_STATE_BLOCKED)
 
 /// @def taskTerminate
 ///
