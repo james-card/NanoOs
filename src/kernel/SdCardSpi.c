@@ -609,7 +609,7 @@ void* runSdCardSpi(void *args) {
     printString(strerror(-sdCardState.sdCardVersion));
     printString("\n");
   }
-  coroutineYield(&blockStorageDevice, 0);
+  taskYieldValue(&blockStorageDevice);
 
   TaskMessage *schedulerMessage = NULL;
   while (1) {

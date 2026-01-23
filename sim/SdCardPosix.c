@@ -227,7 +227,7 @@ void* runSdCardPosix(void *args) {
   sdCardState.context = (void*) ((intptr_t) open(sdCardDevicePath, O_RDWR));
   int openError = errno;
 
-  coroutineYield(&sdDevice, 0);
+  taskYieldValue(&sdDevice);
   if (((intptr_t) sdCardState.context) < 0) {
     fprintf(stderr, "ERROR: Failed to open sdCardDevicePath \"%s\"\n",
       sdCardDevicePath);
@@ -236,7 +236,7 @@ void* runSdCardPosix(void *args) {
 
   TaskMessage *schedulerMessage = NULL;
   while (1) {
-    schedulerMessage = (TaskMessage*) coroutineYield(NULL, 0);
+    schedulerMessage = (TaskMessage*) taskYield();
     if (schedulerMessage != NULL) {
       // We have a message from the scheduler that we need to task.  This
       // is not the expected case, but it's the priority case, so we need to

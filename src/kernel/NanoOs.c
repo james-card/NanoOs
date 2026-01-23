@@ -105,19 +105,19 @@ void *getTaskStorage(uint8_t key) {
 /// @param taskId The ID of the task to set.  This value may only be set
 ///   by the scheduler.
 ///
-/// @return Returns coroutineSuccess on success, coroutineError on failure.
+/// @return Returns taskSuccess on success, taskError on failure.
 int setTaskStorage_(uint8_t key, void *val, int taskId, ...) {
-  int returnValue = coroutineError;
+  int returnValue = taskError;
   if (key >= NUM_TASK_STORAGE_KEYS) {
     // Key is out of range.
-    return returnValue; // coroutineError
+    return returnValue; // taskError
   }
 
   if (taskId < 0) {
     if (getRunningTaskId() == NANO_OS_SCHEDULER_TASK_ID) {
       taskId = (int) getRunningTaskId();
     } else {
-      return returnValue; // coroutineError
+      return returnValue; // taskError
     }
   }
   int taskIndex = taskId - NANO_OS_FIRST_USER_TASK_ID;
@@ -126,7 +126,7 @@ int setTaskStorage_(uint8_t key, void *val, int taskId, ...) {
   ) {
     // Calling task is not supported and does not have storage.
     taskStorage[taskIndex][key] = val;
-    returnValue = coroutineSuccess;
+    returnValue = taskSuccess;
   }
 
   return returnValue;
