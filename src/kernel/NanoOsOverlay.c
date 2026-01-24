@@ -262,7 +262,8 @@ void* callOverlayFunction(const char *overlay, const char *function,
   returnValue = overlayFunction(args);
   
 restorePreviousOverlay:
-  runningTask->overlay = previousOverlay;
+  // See note above on use of atomic_store.
+  atomic_store(&runningTask->overlay, previousOverlay);
   // Make the scheduler load the overlay back into memory.
   taskYield();
   free(functionCopy);
