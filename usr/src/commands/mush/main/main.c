@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "NanoOsUser.h"
 
 int main(int argc, char **argv) {
   (void) argc;
@@ -44,6 +45,7 @@ int main(int argc, char **argv) {
   }
   *buffer = '\0';
   
+  intptr_t returnValue = 0;
   do {
     fputs("$ ", stdout);
     char *input = fgets(buffer, 96, stdin);
@@ -53,16 +55,16 @@ int main(int argc, char **argv) {
       input[strlen(input) - 1] = '\0';
     }
     
-    if (strcmp(input, "exit") == 0) {
-      // Do nothing.  We'll just exit the loop below.
-    } else if (strcmp(input, "pwd") == 0) {
-      fputs(getenv("PWD"), stdout);
-      fputs("\n", stdout);
-    } else {
+    // The variable 'input' is the same as the variable 'buffer', which is a
+    // pointer to dynamic memory.  So, it's safe to pass as a parameter to
+    // callOverlayFunction.
+    returnValue = (intptr_t) callOverlayFunction(
+      "Builtins", "processBuiltin", input);
+    if (returnValue < -1)  {
       fputs(input, stdout);
       fputs(": command not found\n", stdout);
     }
-  } while (strcmp(buffer, "exit") != 0);
+  } while (returnValue != -1);
   
   free(buffer);
   
