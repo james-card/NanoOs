@@ -541,7 +541,7 @@ void consoleGetOwnedPortCommandHandler(
   nanoOsMessage->data = (intptr_t) ownedPort;
   taskMessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  sendTaskMessageToPid(owner, inputMessage);
+  sendTaskMessageToTaskId(owner, inputMessage);
 
   taskMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
@@ -635,7 +635,7 @@ void consoleSetEchoCommandHandler(
 
   taskMessageInit(returnMessage, CONSOLE_RETURNING_PORT,
     nanoOsMessage, sizeof(*nanoOsMessage), true);
-  sendTaskMessageToPid(owner, inputMessage);
+  sendTaskMessageToTaskId(owner, inputMessage);
   taskMessageSetDone(inputMessage);
   consoleMessageCleanup(inputMessage);
 
@@ -712,13 +712,13 @@ void consoleReleasePidPortCommandHandler(
   for (int ii = 0; ii < consoleState->numConsolePorts; ii++) {
     if (consolePorts[ii].inputOwner == owner) {
       consolePorts[ii].inputOwner = consolePorts[ii].shell;
-      // NOTE:  By calling sendTaskMessageToPid from within the for loop, we
+      // NOTE:  By calling sendTaskMessageToTaskId from within the for loop, we
       // run the risk of sending the same message to multiple shells.  That's
       // irrelevant in this case since nothing is waiting for the message and
       // all the shells will release the message.  In reality, one task
       // almost never owns multiple ports.  The only exception is during boot.
       if (owner != consolePorts[ii].shell) {
-        sendTaskMessageToPid(consolePorts[ii].shell, taskMessage);
+        sendTaskMessageToTaskId(consolePorts[ii].shell, taskMessage);
       } else {
         // The shell is being restarted.  It won't be able to receive the
         // message if we send it, so we need to go ahead and release it.
@@ -1042,7 +1042,7 @@ void* runConsole(void *args) {
           consolePort->consoleBuffer->buffer[consolePort->consoleBufferIndex]
             = '\0';
           consolePort->consoleBufferIndex = 0;
-          sendNanoOsMessageToPid(
+          sendNanoOsMessageToTaskId(
             consolePort->inputOwner, CONSOLE_RETURNING_INPUT,
             /* func= */ 0, (intptr_t) consolePort->consoleBuffer, false);
           consolePort->waitingForInput = false;
@@ -1100,7 +1100,7 @@ int printConsoleValue(ConsoleValueType valueType, void *value, size_t length) {
   memcpy(&message, value, length);
 
   printDebugString("Sending message to console task.\n");
-  sendNanoOsMessageToPid(NANO_OS_CONSOLE_TASK_ID, CONSOLE_WRITE_VALUE,
+  sendNanoOsMessageToTaskId(NANO_OS_CONSOLE_TASK_ID, CONSOLE_WRITE_VALUE,
     valueType, message, false);
 
   printDebugString("Leaving printConsoleValue.\n");
@@ -1159,7 +1159,7 @@ void releaseConsole(void) {
   // from within the console task.  That means we can't do blocking prints
   // from this function.  i.e. We can't use printf here.  Use printConsole
   // instead.
-  sendNanoOsMessageToPid(NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_PORT,
+  sendNanoOsMessageToTaskId(NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_PORT,
     /* func= */ 0, /* data= */ 0, false);
   taskYield();
 }
@@ -1171,7 +1171,7 @@ void releaseConsole(void) {
 /// @return Returns the numerical index of the console port the task owns on
 /// success, -1 on failure.
 int getOwnedConsolePort(void) {
-  TaskMessage *sent = sendNanoOsMessageToPid(
+  TaskMessage *sent = sendNanoOsMessageToTaskId(
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_OWNED_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
@@ -1194,7 +1194,7 @@ int getOwnedConsolePort(void) {
 /// @return Returns true if the console for the process is echoing, false
 /// otherwise.
 bool getConsoleEcho(void) {
-  TaskMessage *sent = sendNanoOsMessageToPid(
+  TaskMessage *sent = sendNanoOsMessageToTaskId(
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_ECHO_PORT,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
 
@@ -1214,7 +1214,7 @@ bool getConsoleEcho(void) {
 /// @return Returns 0 if the echo state was set for the current task's
 /// ports, -1 on failure.
 int setConsoleEcho(bool desiredEchoState) {
-  TaskMessage *sent = sendNanoOsMessageToPid(
+  TaskMessage *sent = sendNanoOsMessageToTaskId(
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_SET_ECHO_PORT,
     /* func= */ 0, /* data= */ desiredEchoState, /* waiting= */ true);
 
@@ -1236,7 +1236,7 @@ int setConsoleEcho(bool desiredEchoState) {
 ///
 /// @return Returns the number of ports running on success, -1 on failure.
 int getNumConsolePorts(void) {
-  TaskMessage *sent = sendNanoOsMessageToPid(
+  TaskMessage *sent = sendNanoOsMessageToTaskId(
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_NUM_PORTS,
     /* func= */ 0, /* data= */ 0, /* waiting= */ true);
   if (sent == NULL) {

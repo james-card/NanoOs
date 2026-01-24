@@ -97,7 +97,7 @@ FILE* filesystemFOpen(const char *pathname, const char *mode) {
     return NULL;
   }
 
-  TaskMessage *msg = sendNanoOsMessageToPid(
+  TaskMessage *msg = sendNanoOsMessageToTaskId(
     NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_OPEN_FILE,
     (intptr_t) mode, (intptr_t) pathname, true);
   taskMessageWaitForDone(msg, NULL);
@@ -121,7 +121,7 @@ int filesystemFClose(FILE *stream) {
     fcloseParameters.stream = stream;
     fcloseParameters.returnValue = 0;
 
-    TaskMessage *msg = sendNanoOsMessageToPid(
+    TaskMessage *msg = sendNanoOsMessageToTaskId(
       NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_CLOSE_FILE,
       0, (intptr_t) &fcloseParameters, true);
     taskMessageWaitForDone(msg, NULL);
@@ -149,7 +149,7 @@ int filesystemFClose(FILE *stream) {
 int filesystemRemove(const char *pathname) {
   int returnValue = 0;
   if ((pathname != NULL) && (*pathname != '\0')) {
-    TaskMessage *msg = sendNanoOsMessageToPid(
+    TaskMessage *msg = sendNanoOsMessageToTaskId(
       NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_REMOVE_FILE,
       /* func= */ 0, (intptr_t) pathname, true);
     taskMessageWaitForDone(msg, NULL);
@@ -187,7 +187,7 @@ int filesystemFSeek(FILE *stream, long offset, int whence) {
     .offset = offset,
     .whence = whence,
   };
-  TaskMessage *msg = sendNanoOsMessageToPid(
+  TaskMessage *msg = sendNanoOsMessageToTaskId(
     NANO_OS_FILESYSTEM_TASK_ID, FILESYSTEM_REMOVE_FILE,
     /* func= */ 0, (intptr_t) &filesystemSeekParameters, true);
   taskMessageWaitForDone(msg, NULL);
@@ -233,7 +233,7 @@ size_t filesystemFRead(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   printDebugHex((uintptr_t) ptr);
   printDebugString("\n");
 
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     NANO_OS_FILESYSTEM_TASK_ID,
     FILESYSTEM_READ_FILE,
     /* func= */ 0,
@@ -281,7 +281,7 @@ size_t filesystemFWrite(
     .buffer = (void*) ptr,
     .length = (uint32_t) (size * nmemb)
   };
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     NANO_OS_FILESYSTEM_TASK_ID,
     FILESYSTEM_WRITE_FILE,
     /* func= */ 0,

@@ -375,7 +375,7 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
   return;
 }
 
-/// @fn TaskDescriptor* schedulerGetTaskByPid(unsigned int pid)
+/// @fn TaskDescriptor* schedulerGetTaskById(unsigned int taskId)
 ///
 /// @brief Look up a task for a running command given its task ID.
 ///
@@ -383,13 +383,13 @@ void coconditionSignalCallback(void *stateData, Cocondition *cocondition) {
 /// running state.  That's why there's no SchedulerState pointer in the
 /// parameters.
 ///
-/// @param pid The integer ID for the task.
+/// @param taskId The integer ID for the task.
 ///
 /// @return Returns the found task descriptor on success, NULL on failure.
-TaskDescriptor* schedulerGetTaskByPid(unsigned int pid) {
+TaskDescriptor* schedulerGetTaskById(unsigned int taskId) {
   TaskDescriptor *taskDescriptor = NULL;
-  if ((pid > 0) && (pid <= NANO_OS_NUM_TASKS)) {
-    taskDescriptor = &allTasks[pid - 1];
+  if ((taskId > 0) && (taskId <= NANO_OS_NUM_TASKS)) {
+    taskDescriptor = &allTasks[taskId - 1];
   }
 
   return taskDescriptor;
@@ -466,7 +466,7 @@ int schedulerSendTaskMessageToTask(
   return returnValue;
 }
 
-/// @fn int schedulerSendTaskMessageToPid(SchedulerState *schedulerState,
+/// @fn int schedulerSendTaskMessageToTaskId(SchedulerState *schedulerState,
 ///   unsigned int pid, TaskMessage *taskMessage)
 ///
 /// @brief Look up a task by its PID and send a message to it.
@@ -478,7 +478,7 @@ int schedulerSendTaskMessageToTask(
 ///   task.
 ///
 /// @return Returns taskSuccess on success, taskError on failure.
-int schedulerSendTaskMessageToPid(SchedulerState *schedulerState,
+int schedulerSendTaskMessageToTaskId(SchedulerState *schedulerState,
   unsigned int pid, TaskMessage *taskMessage
 ) {
   int returnValue = taskError;
@@ -537,7 +537,7 @@ int schedulerSendNanoOsMessageToTask(TaskDescriptor *taskDescriptor,
   return returnValue;
 }
 
-/// @fn int schedulerSendNanoOsMessageToPid(
+/// @fn int schedulerSendNanoOsMessageToTaskId(
 ///   SchedulerState *schedulerState,
 ///   int pid, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data)
@@ -557,7 +557,7 @@ int schedulerSendNanoOsMessageToTask(TaskDescriptor *taskDescriptor,
 ///
 /// @return Returns taskSuccess on success, a different task status
 /// on failure.
-int schedulerSendNanoOsMessageToPid(
+int schedulerSendNanoOsMessageToTaskId(
   SchedulerState *schedulerState,
   int pid, int type,
   NanoOsMessageData func, NanoOsMessageData data
@@ -712,7 +712,7 @@ void schedFree(void *ptr) {
   return;
 }
 
-/// @fn int schedulerAssignPortToPid(
+/// @fn int schedulerAssignPortToTaskId(
 ///   SchedulerState *schedulerState,
 ///   uint8_t consolePort, TaskId owner)
 ///
@@ -724,7 +724,7 @@ void schedFree(void *ptr) {
 /// @param owner The ID of the task to assign the port to.
 ///
 /// @return Returns taskSuccess on success, taskError on failure.
-int schedulerAssignPortToPid(
+int schedulerAssignPortToTaskId(
   SchedulerState *schedulerState,
   uint8_t consolePort, TaskId owner
 ) {
@@ -733,14 +733,14 @@ int schedulerAssignPortToPid(
     = consolePort;
   consolePortPidUnion.consolePortPidAssociation.taskId = owner;
 
-  int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
+  int returnValue = schedulerSendNanoOsMessageToTaskId(schedulerState,
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_ASSIGN_PORT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
   return returnValue;
 }
 
-/// @fn int schedulerAssignPortInputToPid(
+/// @fn int schedulerAssignPortInputToTaskId(
 ///   SchedulerState *schedulerState,
 ///   uint8_t consolePort, TaskId owner)
 ///
@@ -752,7 +752,7 @@ int schedulerAssignPortToPid(
 /// @param owner The ID of the task to assign the port to.
 ///
 /// @return Returns taskSuccess on success, taskError on failure.
-int schedulerAssignPortInputToPid(
+int schedulerAssignPortInputToTaskId(
   SchedulerState *schedulerState,
   uint8_t consolePort, TaskId owner
 ) {
@@ -761,7 +761,7 @@ int schedulerAssignPortInputToPid(
     = consolePort;
   consolePortPidUnion.consolePortPidAssociation.taskId = owner;
 
-  int returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
+  int returnValue = schedulerSendNanoOsMessageToTaskId(schedulerState,
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_ASSIGN_PORT_INPUT,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
@@ -798,7 +798,7 @@ int schedulerSetPortShell(
     = consolePort;
   consolePortPidUnion.consolePortPidAssociation.taskId = shell;
 
-  returnValue = schedulerSendNanoOsMessageToPid(schedulerState,
+  returnValue = schedulerSendNanoOsMessageToTaskId(schedulerState,
     NANO_OS_CONSOLE_TASK_ID, CONSOLE_SET_PORT_SHELL,
     /* func= */ 0, consolePortPidUnion.nanoOsMessageData);
 
@@ -827,7 +827,7 @@ int schedulerGetNumConsolePorts(SchedulerState *schedulerState) {
   taskMessageInit(messageToSend, CONSOLE_GET_NUM_PORTS,
     /*data= */ nanoOsMessage, /* size= */ sizeof(NanoOsMessage),
     /* waiting= */ true);
-  if (schedulerSendTaskMessageToPid(schedulerState,
+  if (schedulerSendTaskMessageToTaskId(schedulerState,
     NANO_OS_CONSOLE_TASK_ID, messageToSend) != taskSuccess
   ) {
     printString("ERROR: Could not send CONSOLE_GET_NUM_PORTS to console\n");
@@ -848,7 +848,7 @@ int schedulerGetNumConsolePorts(SchedulerState *schedulerState) {
 ///
 /// @return Returns taskSuccess on success, taskError on failure.
 int schedulerNotifyTaskComplete(TaskId taskId) {
-  if (sendNanoOsMessageToPid(taskId,
+  if (sendNanoOsMessageToTaskId(taskId,
     SCHEDULER_TASK_COMPLETE, 0, 0, false) == NULL
   ) {
     return taskError;
@@ -891,7 +891,7 @@ TaskId schedulerGetNumRunningTasks(struct timespec *timeout) {
   int waitStatus = taskSuccess;
   TaskId numTaskDescriptors = 0;
 
-  taskMessage = sendNanoOsMessageToPid(
+  taskMessage = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_NUM_RUNNING_TASKS,
     (NanoOsMessageData) 0, (NanoOsMessageData) 0, true);
   if (taskMessage == NULL) {
@@ -974,7 +974,7 @@ TaskInfo* schedulerGetTaskInfo(void) {
   taskInfo->numTasks = numTaskDescriptors;
 
   taskMessage
-    = sendNanoOsMessageToPid(NANO_OS_SCHEDULER_TASK_ID,
+    = sendNanoOsMessageToTaskId(NANO_OS_SCHEDULER_TASK_ID,
     SCHEDULER_GET_TASK_INFO, /* func= */ 0, (intptr_t) taskInfo, true);
 
   if (taskMessage == NULL) {
@@ -1023,7 +1023,7 @@ exit:
 ///
 /// @return Returns 0 on success, 1 on failure.
 int schedulerKillTask(TaskId taskId) {
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_KILL_TASK,
     (NanoOsMessageData) 0, (NanoOsMessageData) taskId, true);
   if (taskMessage == NULL) {
@@ -1096,7 +1096,7 @@ int schedulerRunTask(const CommandEntry *commandEntry,
   commandDescriptor->consolePort = consolePort;
   commandDescriptor->callingTask = taskId(getRunningTask());
 
-  TaskMessage *sent = sendNanoOsMessageToPid(
+  TaskMessage *sent = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_RUN_TASK,
     (NanoOsMessageData) ((uintptr_t) commandEntry),
     (NanoOsMessageData) ((uintptr_t) commandDescriptor),
@@ -1126,7 +1126,7 @@ int schedulerRunTask(const CommandEntry *commandEntry,
 UserId schedulerGetTaskUser(void) {
   UserId userId = -1;
   TaskMessage *taskMessage
-    = sendNanoOsMessageToPid(
+    = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_TASK_USER,
     /* func= */ 0, /* data= */ 0, true);
   if (taskMessage == NULL) {
@@ -1149,7 +1149,7 @@ UserId schedulerGetTaskUser(void) {
 int schedulerSetTaskUser(UserId userId) {
   int returnValue = -1;
   TaskMessage *taskMessage
-    = sendNanoOsMessageToPid(
+    = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_SET_TASK_USER,
     /* func= */ 0, /* data= */ userId, true);
   if (taskMessage == NULL) {
@@ -1202,7 +1202,7 @@ FileDescriptor* schedulerGetFileDescriptor(FILE *stream) {
 ///
 /// @return Returns 0 on success, -1 on failure.
 int schedulerCloseAllFileDescriptors(void) {
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
     /* func= */ 0, /* data= */ 0, true);
   taskMessageWaitForDone(taskMessage, NULL);
@@ -1220,7 +1220,7 @@ int schedulerCloseAllFileDescriptors(void) {
 const char* schedulerGetHostname(void) {
   const char *hostname = NULL;
   TaskMessage *taskMessage
-    = sendNanoOsMessageToPid(
+    = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_GET_HOSTNAME,
     /* func= */ 0, /* data= */ 0, true);
   if (taskMessage == NULL) {
@@ -1324,7 +1324,7 @@ int schedulerExecve(const char *pathname,
   execArgs->schedulerState = NULL; // Set by the scheduler
 
   TaskMessage *taskMessage
-    = sendNanoOsMessageToPid(
+    = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_EXECVE,
     /* func= */ 0, /* data= */ (uintptr_t) execArgs, true);
   if (taskMessage == NULL) {
@@ -1369,7 +1369,7 @@ void handleOutOfSlots(TaskMessage *taskMessage, char *commandLine) {
   // printf sends synchronous messages to the console, which we can't do.
   // Use the non-blocking printString instead.
   printString("Out of task slots to launch task.\n");
-  sendNanoOsMessageToPid(commandDescriptor->callingTask,
+  sendNanoOsMessageToTaskId(commandDescriptor->callingTask,
     SCHEDULER_TASK_COMPLETE, 0, 0, true);
   commandLine = stringDestroy(commandLine);
   free(commandDescriptor); commandDescriptor = NULL;
@@ -1439,7 +1439,7 @@ static inline TaskDescriptor* launchTask(SchedulerState *schedulerState,
     taskDescriptor->name = commandEntry->name;
 
     if (backgroundTask == false) {
-      if (schedulerAssignPortToPid(schedulerState,
+      if (schedulerAssignPortToTaskId(schedulerState,
         commandDescriptor->consolePort, taskDescriptor->taskId)
         != taskSuccess
       ) {
@@ -1513,7 +1513,7 @@ static inline TaskDescriptor* launchForegroundTask(
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
-  if (schedulerSendNanoOsMessageToPid(
+  if (schedulerSendNanoOsMessageToTaskId(
     schedulerState, NANO_OS_MEMORY_MANAGER_TASK_ID,
     MEMORY_MANAGER_FREE_TASK_MEMORY,
     /* func= */ 0, taskDescriptor->taskId)
@@ -2101,7 +2101,7 @@ int schedulerRunTaskCommandHandler(
       curTaskDescriptor->fileDescriptors[
         STDOUT_FILE_DESCRIPTOR_INDEX].outputPipe.messageType
         = CONSOLE_RETURNING_INPUT;
-      if (schedulerAssignPortInputToPid(schedulerState,
+      if (schedulerAssignPortInputToTaskId(schedulerState,
         commandDescriptor->consolePort, curTaskDescriptor->taskId)
         != taskSuccess
       ) {
@@ -2186,7 +2186,7 @@ int schedulerKillTaskCommandHandler(
       // the task because, in the event the task we're terminating is one
       // of the shell task slots, the message won't get released because
       // there's no shell blocking waiting for the message.
-      schedulerSendNanoOsMessageToPid(
+      schedulerSendNanoOsMessageToTaskId(
         schedulerState,
         NANO_OS_CONSOLE_TASK_ID,
         CONSOLE_RELEASE_PID_PORT,
@@ -2574,7 +2574,7 @@ int schedulerExecveCommandHandler(
 
   // We don't want to wait for the memory manager to release the memory.  Make
   // it do it immediately.
-  if (schedulerSendNanoOsMessageToPid(
+  if (schedulerSendNanoOsMessageToTaskId(
     schedulerState, NANO_OS_MEMORY_MANAGER_TASK_ID,
     MEMORY_MANAGER_FREE_TASK_MEMORY,
     /* func= */ 0, taskDescriptor->taskId)
@@ -2646,7 +2646,7 @@ int schedulerExecveCommandHandler(
    * JBC 14-Nov-2025
    */
   if (false) {
-    if (schedulerAssignPortToPid(schedulerState,
+    if (schedulerAssignPortToTaskId(schedulerState,
       /*commandDescriptor->consolePort*/ 255, taskDescriptor->taskId)
       != taskSuccess
     ) {
@@ -2795,7 +2795,7 @@ void removeTask(SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
 
   TaskMessage *schedulerTaskCompleteMessage = getAvailableMessage();
   if (schedulerTaskCompleteMessage != NULL) {
-    schedulerSendNanoOsMessageToPid(
+    schedulerSendNanoOsMessageToTaskId(
       schedulerState,
       NANO_OS_CONSOLE_TASK_ID,
       CONSOLE_RELEASE_PID_PORT,
@@ -3050,7 +3050,7 @@ void runScheduler(SchedulerState *schedulerState) {
   taskResume(taskDescriptor, NULL);
 
   if (taskRunning(taskDescriptor) == false) {
-    schedulerSendNanoOsMessageToPid(schedulerState,
+    schedulerSendNanoOsMessageToTaskId(schedulerState,
       NANO_OS_MEMORY_MANAGER_TASK_ID, MEMORY_MANAGER_FREE_TASK_MEMORY,
       /* func= */ 0, /* data= */ taskDescriptor->taskId);
   }
@@ -3300,7 +3300,7 @@ __attribute__((noinline)) void startScheduler(
 
   // Assign the console ports to it.
   for (uint8_t ii = 0; ii < schedulerState.numShells; ii++) {
-    if (schedulerAssignPortToPid(&schedulerState,
+    if (schedulerAssignPortToTaskId(&schedulerState,
       ii, NANO_OS_MEMORY_MANAGER_TASK_ID) != taskSuccess
     ) {
       printString(

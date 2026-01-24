@@ -154,7 +154,8 @@ typedef struct NanoOsApi {
   time_t (*time)(time_t *tloc);
   
   // NanoOs-specific functionality
-  void* (*callOverlayFunction)(void*);
+  void* (*callOverlayFunction)(const char *overlay, const char *functionName,
+    void *args);
 } NanoOsApi;
 
 extern NanoOsApi nanoOsApi;

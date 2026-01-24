@@ -251,9 +251,9 @@ void* startCommand(void *args);
 void* execCommand(void *args);
 int sendTaskMessageToTask(
   TaskDescriptor *taskDescriptor, TaskMessage *taskMessage);
-int sendTaskMessageToPid(unsigned int pid, TaskMessage *taskMessage);
+int sendTaskMessageToTaskId(unsigned int taskId, TaskMessage *taskMessage);
 TaskMessage* getAvailableMessage(void);
-TaskMessage* sendNanoOsMessageToPid(int pid, int type,
+TaskMessage* sendNanoOsMessageToTaskId(int taskId, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting);
 void* waitForDataMessage(TaskMessage *sent, int type, const struct timespec *ts);
 ExecArgs* execArgsDestroy(ExecArgs *execArgs);

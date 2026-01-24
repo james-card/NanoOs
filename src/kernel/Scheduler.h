@@ -74,7 +74,7 @@ typedef enum SchedulerCommandResponse {
 
 // Exported functionality
 void startScheduler(SchedulerState **coroutineStatePointer);
-TaskDescriptor* schedulerGetTaskByPid(unsigned int pid);
+TaskDescriptor* schedulerGetTaskById(unsigned int taskId);
 int schedulerNotifyTaskComplete(TaskId taskId);
 int schedulerWaitForTaskComplete(void);
 TaskId schedulerGetNumRunningTasks(struct timespec *timeout);

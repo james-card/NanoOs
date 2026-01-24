@@ -797,7 +797,7 @@ ConsoleBuffer* nanoOsWaitForInput(void) {
   IoPipe *inputPipe = &inputFd->inputPipe;
 
   if (inputPipe->taskId == NANO_OS_CONSOLE_TASK_ID) {
-    sendNanoOsMessageToPid(inputPipe->taskId, inputPipe->messageType,
+    sendNanoOsMessageToTaskId(inputPipe->taskId, inputPipe->messageType,
       /* func= */ 0, /* data= */ 0, false);
   }
 
@@ -894,7 +894,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       numBytesReceived += numBytesToCopy;
       buffer[numBytesReceived] = '\0';
       // Release the buffer.
-      sendNanoOsMessageToPid(
+      sendNanoOsMessageToTaskId(
         NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (uintptr_t) nanoOsBuffer, false);
 
@@ -917,7 +917,7 @@ char *nanoOsFGets(char *buffer, int size, FILE *stream) {
       .buffer = buffer,
       .length = (uint32_t) size - 1
     };
-    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
       NANO_OS_FILESYSTEM_TASK_ID,
       FILESYSTEM_READ_FILE,
       /* func= */ 0,
@@ -957,7 +957,7 @@ int nanoOsVFScanf(FILE *stream, const char *format, va_list args) {
 
     returnValue = vsscanf(nanoOsBuffer->buffer, format, args);
     // Release the buffer.
-    sendNanoOsMessageToPid(
+    sendNanoOsMessageToTaskId(
       NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
       /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
   }
@@ -1022,7 +1022,7 @@ ConsoleBuffer* nanoOsGetBuffer(void) {
   // is made, so we may have to try multiple times.  Do a while loop until we
   // get a buffer back or until an error occurs.
   while (returnValue == NULL) {
-    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
       NANO_OS_CONSOLE_TASK_ID, CONSOLE_GET_BUFFER, 0, 0, true);
     if (taskMessage == NULL) {
       break; // will return returnValue, which is NULL
@@ -1085,7 +1085,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       printString(".\n");
 
       // Release the buffer to avoid creating a leak.
-      sendNanoOsMessageToPid(
+      sendNanoOsMessageToTaskId(
         NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
@@ -1097,7 +1097,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
 
     if ((outputPipe != NULL) && (outputPipe->taskId != TASK_ID_NOT_SET)) {
       if ((stream == stdout) || (stream == stderr)) {
-        TaskMessage *taskMessage = sendNanoOsMessageToPid(
+        TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
           outputPipe->taskId, outputPipe->messageType,
           0, (intptr_t) nanoOsBuffer, true);
         if (taskMessage != NULL) {
@@ -1114,7 +1114,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
         printString(".\n");
 
         // Release the buffer to avoid creating a leak.
-        sendNanoOsMessageToPid(
+        sendNanoOsMessageToTaskId(
           NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
           /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
@@ -1127,7 +1127,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       printString(".\n");
 
       // Release the buffer to avoid creating a leak.
-      sendNanoOsMessageToPid(
+      sendNanoOsMessageToTaskId(
         NANO_OS_CONSOLE_TASK_ID, CONSOLE_RELEASE_BUFFER,
         /* func= */ 0, /* data= */ (intptr_t) nanoOsBuffer, false);
 
@@ -1140,7 +1140,7 @@ int nanoOsWriteBuffer(FILE *stream, ConsoleBuffer *nanoOsBuffer) {
       .buffer = nanoOsBuffer->buffer,
       .length = (uint32_t) strlen(nanoOsBuffer->buffer)
     };
-    TaskMessage *taskMessage = sendNanoOsMessageToPid(
+    TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
       NANO_OS_FILESYSTEM_TASK_ID,
       FILESYSTEM_WRITE_FILE,
       /* func= */ 0,

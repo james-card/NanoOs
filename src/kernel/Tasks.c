@@ -407,17 +407,18 @@ int sendTaskMessageToTask(
   return returnValue;
 }
 
-/// @fn int sendTaskMessageToPid(unsigned int pid, TaskMessage *taskMessage)
+/// @fn int sendTaskMessageToTaskId(unsigned int taskId,
+///   TaskMessage *taskMessage)
 ///
 /// @brief Look up a task by its PID and send a message to it.
 ///
-/// @param pid The ID of the task to send the message to.
+/// @param taskId The ID of the task to send the message to.
 /// @param taskMessage A pointer to the message to send to the destination
 ///   task.
 ///
 /// @return Returns taskSuccess on success, taskError on failure.
-int sendTaskMessageToPid(unsigned int pid, TaskMessage *taskMessage) {
-  TaskDescriptor *taskDescriptor = schedulerGetTaskByPid(pid);
+int sendTaskMessageToTaskId(unsigned int taskId, TaskMessage *taskMessage) {
+  TaskDescriptor *taskDescriptor = schedulerGetTaskById(taskId);
 
   // If taskDescriptoris NULL, it will be detected as not running by
   // sendTaskMessageToTask, so there's no real point in checking for NULL
@@ -450,9 +451,10 @@ TaskMessage* getAvailableMessage(void) {
 ///   TaskDescriptor *taskDescriptor, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a NanoOsMessage to another task identified by its Coroutine.
+/// @brief Send a NanoOsMessage to another task identified by its
+/// TaskDescriptor.
 ///
-/// @param pid The task ID of the destination task.
+/// @param task A pointer to the TaskDescriptor for the task.
 /// @param type The type of the message to send to the destination task.
 /// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
@@ -513,14 +515,14 @@ TaskMessage* sendNanoOsMessageToTask(
   return taskMessage;
 }
 
-/// @fn TaskMessage* sendNanoOsMessageToPid(int pid, int type,
+/// @fn TaskMessage* sendNanoOsMessageToTaskId(int taskId, int type,
 ///   NanoOsMessageData func, NanoOsMessageData data, bool waiting)
 ///
-/// @brief Send a NanoOsMessage to another task identified by its PID. Looks
+/// @brief Send a NanoOsMessage to another task identified by its task ID. Looks
 /// up the task's Coroutine by its PID and then calls
 /// sendNanoOsMessageToTask.
 ///
-/// @param pid The task ID of the destination task.
+/// @param taskId The task ID of the destination task.
 /// @param type The type of the message to send to the destination task.
 /// @param func The function information to send to the destination task,
 ///   cast to a NanoOsMessageData.
@@ -529,25 +531,26 @@ TaskMessage* sendNanoOsMessageToTask(
 /// @param waiting Whether or not the sender is waiting on a response from the
 ///   destination task.
 ///
-/// @return Returns a pointer to the sent TaskMessage on success, NULL on failure.
-TaskMessage* sendNanoOsMessageToPid(int pid, int type,
+/// @return Returns a pointer to the sent TaskMessage on success, NULL on
+/// failure.
+TaskMessage* sendNanoOsMessageToTaskId(int taskId, int type,
   NanoOsMessageData func, NanoOsMessageData data, bool waiting
 ) {
   TaskMessage *taskMessage = NULL;
-  if (pid >= NANO_OS_NUM_TASKS) {
+  if (taskId >= NANO_OS_NUM_TASKS) {
     // Not a valid PID.  Fail.
     printString("ERROR: ");
-    printInt(pid);
+    printInt(taskId);
     printString(" is not a valid PID.\n");
     return taskMessage; // NULL
   }
 
-  TaskDescriptor *task = schedulerGetTaskByPid(pid);
+  TaskDescriptor *task = schedulerGetTaskById(taskId);
   taskMessage
     = sendNanoOsMessageToTask(task, type, func, data, waiting);
   if (taskMessage == NULL) {
     printString("ERROR: Could not send NanoOs message to task ");
-    printInt(pid);
+    printInt(taskId);
     printString("\n");
   }
   return taskMessage;

@@ -97,7 +97,7 @@ int sdReadBlocks(void *context, uint32_t startBlock,
   sdCommandParams.blockSize = blockSize;
   sdCommandParams.buffer = buffer;
 
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     sdCardTask, SD_CARD_READ_BLOCKS,
     /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
   taskMessageWaitForDone(taskMessage, NULL);
@@ -133,7 +133,7 @@ int sdWriteBlocks(void *context, uint32_t startBlock,
   sdCommandParams.blockSize = blockSize;
   sdCommandParams.buffer = (uint8_t*) buffer;
 
-  TaskMessage *taskMessage = sendNanoOsMessageToPid(
+  TaskMessage *taskMessage = sendNanoOsMessageToTaskId(
     sdCardTask, SD_CARD_WRITE_BLOCKS,
     /* func= */ 0, /* data= */ (intptr_t) &sdCommandParams, true);
   taskMessageWaitForDone(taskMessage, NULL);
