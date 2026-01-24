@@ -147,7 +147,7 @@ NanoOsApi nanoOsApi = {
   .errno_ = errno_,
   
   // sys/*.h functions:
-  .uname = uname,
+  .uname = nanoOsUname,
   
   // time.h functions:
   .time = time,

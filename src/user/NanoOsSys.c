@@ -34,7 +34,7 @@
 #include "../kernel/NanoOs.h"
 #include "NanoOsUnistd.h"
 
-/// @fn int uname(struct utsname *buf)
+/// @fn int nanoOsUname(struct utsname *buf)
 ///
 /// @brief Get information about the system.
 ///
@@ -42,7 +42,7 @@
 ///
 /// @return Returns 0 on success, -1 on failure.  On failure, the value of
 /// errno is also set.
-int uname(struct utsname *buf) {
+int nanoOsUname(struct utsname *buf) {
   if (buf == NULL) {
     errno = EFAULT;
     return -1;

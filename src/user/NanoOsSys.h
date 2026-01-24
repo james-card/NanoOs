@@ -53,7 +53,7 @@ struct utsname {
   char machine[16];               /* Hardware type identifier */
 };
 
-int uname(struct utsname *buf);
+int nanoOsUname(struct utsname *buf);
 
 #ifdef __cplusplus
 }
