@@ -140,11 +140,6 @@ typedef struct MainArgs {
   char **argv;
 } MainArgs;
 
-int loadOverlay(const char *overlayDir, const char *overlay, char **envp);
-OverlayFunction findOverlayFunction(const char *overlayFunctionName);
-int runOverlayCommand(const char *commandPath,
-  int argc, char **argv, char **envp);
-
 #ifdef __cplusplus
 }
 #endif

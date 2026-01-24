@@ -33,7 +33,7 @@
 #include "Hal.h"
 #include "MemoryManager.h"
 #include "NanoOs.h"
-#include "NanoOsOverlay.h"
+#include "NanoOsOverlayFunctions.h"
 #include "Tasks.h"
 #include "../user/NanoOsStdio.h"
 
