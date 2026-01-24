@@ -33,6 +33,7 @@
 
 #include "../kernel/MemoryManager.h"
 #include "../kernel/NanoOs.h"
+#include "../kernel/NanoOsOverlayFunctions.h"
 #include "../kernel/Scheduler.h"
 #include "NanoOsLibC.h"
 #include "NanoOsTermios.h"
@@ -152,6 +153,6 @@ NanoOsApi nanoOsApi = {
   .time = time,
   
   // NanoOs-specific functionality
-  .callOverlayFunction = NULL,
+  .callOverlayFunction = callOverlayFunction,
 };
 
