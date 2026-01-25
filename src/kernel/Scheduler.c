@@ -1252,14 +1252,14 @@ const char* schedulerGetHostname(void) {
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]
 ) {
-  ExecArgs *execArgs = (ExecArgs*) malloc(sizeof(ExecArgs));
-  if (execArgs == NULL) {
-    errno = ENOMEM;
+  if ((pathname == NULL) || (argv == NULL) || (argv[0] == NULL)) {
+    errno = EFAULT;
     return -1;
   }
 
-  if ((pathname == NULL) || (argv == NULL) || (argv[0] == NULL)) {
-    errno = EFAULT;
+  ExecArgs *execArgs = (ExecArgs*) malloc(sizeof(ExecArgs));
+  if (execArgs == NULL) {
+    errno = ENOMEM;
     return -1;
   }
 
