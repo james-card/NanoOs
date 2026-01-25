@@ -52,11 +52,7 @@
 #undef remove
 #undef fseek
 #undef vfscanf
-#undef fscanf
-#undef scanf
 #undef vfprintf
-#undef fprintf
-#undef printf
 #undef fputs
 #undef puts
 #undef fgets
@@ -80,17 +76,9 @@ NanoOsApi nanoOsApi = {
   
   // Formatted I/O:
   .vsscanf = vsscanf,
-  .sscanf = sscanf,
   .vfscanf = nanoOsVFScanf,
-  .fscanf = nanoOsFScanf,
-  .scanf = nanoOsScanf,
   .vfprintf = nanoOsVFPrintf,
-  .fprintf = nanoOsFPrintf,
-  .printf = nanoOsPrintf,
-  .vsprintf = vsprintf,
   .vsnprintf = vsnprintf,
-  .sprintf = sprintf,
-  .snprintf = snprintf,
   
   // Character I/O:
   .fputs = nanoOsFPuts,

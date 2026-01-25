@@ -79,17 +79,9 @@ typedef struct NanoOsApi {
   
   // Formatted I/O:
   int (*vsscanf)(const char *buffer, const char *format, va_list args);
-  int (*sscanf)(const char *buffer, const char *format, ...);
   int (*vfscanf)(FILE *stream, const char *format, va_list ap);
-  int (*fscanf)(FILE *stream, const char *format, ...);
-  int (*scanf)(const char *format, ...);
   int (*vfprintf)(FILE *stream, const char *format, va_list args);
-  int (*fprintf)(FILE *stream, const char *format, ...);
-  int (*printf)(const char *format, ...);
-  int (*vsprintf)(char *str, const char *format, va_list ap);
   int (*vsnprintf)(char *str, size_t size, const char *format, va_list ap);
-  int (*sprintf)(char *str, const char *format, ...);
-  int (*snprintf)(char *str, size_t size, const char *format, ...);
   
   // Character I/O:
   int (*fputs)(const char *s, FILE *stream);
