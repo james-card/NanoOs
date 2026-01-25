@@ -52,10 +52,14 @@ extern "C"
 extern NanoOsOverlayMap overlayMap;
 
 
-#define callOverlayFunction(overlay, function, args) \
-  overlayMap.header.osApi->callOverlayFunction(overlay, function, args)
-#define parseArgs(command, argcPointer) \
-  overlayMap.header.osApi->parseArgs(command, argcPointer)
+static inline void* callOverlayFunction(
+  const char *overlay, const char *function, void *args
+) {
+  return overlayMap.header.osApi->callOverlayFunction(overlay, function, args);
+}
+static inline char** parseArgs(char *command, int *argc) {
+  return overlayMap.header.osApi->parseArgs(command, argc);
+}
 
 #ifdef __cplusplus
 }
