@@ -133,6 +133,7 @@ int main(int argc, char **argv) {
     char *shellEnvp[] = {
       envHome,
       envPwd,
+      "PATH=/usr/bin",
       NULL,
     };
     
