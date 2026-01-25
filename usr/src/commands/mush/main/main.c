@@ -28,11 +28,79 @@
 // Doxygen marker
 /// @file
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "NanoOsUser.h"
+
+extern char **environ;
+
+int runFilesystemCommand(const char *commandLine) {
+  const char *charAt = strchr(commandLine, ' ');
+  if (charAt == NULL) {
+    charAt = commandLine + strlen(commandLine);
+  }
+  size_t commandNameLength = ((uintptr_t) charAt) - ((uintptr_t) commandLine);
+  
+  bool commandFound = false;
+  const char *path = getenv("PATH");
+  while ((path != NULL) && (*path != '\0')) {
+    charAt = strchr(path, ':');
+    if (charAt == NULL) {
+      charAt = commandLine + strlen(path);
+    }
+    size_t pathDirLength = ((uintptr_t) charAt) - ((uintptr_t) path);
+    // We're appending the command name to the path, so we need pathDirLength
+    // extra characters for the path, plus the slash, commandNameLength bytes
+    // for the command name, and one more for the slash for that directory.
+    // Then, we need 4 bytes for "main", and OVERLAY_EXT_LEN bytes on top of
+    // that plus the NULL byte // at the end.
+    char *commandPath
+      = (char*) malloc(pathDirLength + commandNameLength + OVERLAY_EXT_LEN + 7);
+    if (commandPath == NULL) {
+      return -ENOMEM;
+    }
+    
+    strncpy(commandPath, path, pathDirLength);
+    path += pathDirLength + 1; // Skip over the colon
+    if (commandPath[pathDirLength - 1] != '/') {
+      // This is the expected case.
+      commandPath[pathDirLength] = '/';
+      pathDirLength++;
+    }
+    commandPath[pathDirLength] = '\0';
+    strncat(commandPath, commandLine, commandNameLength);
+    commandPath[pathDirLength + commandNameLength] = '\0';
+    strcat(commandPath, "/main");
+    strcat(commandPath, OVERLAY_EXT);
+    
+    FILE *filesystemEntry = fopen(commandPath, "r");
+    free(commandPath); commandPath = NULL;
+    if (filesystemEntry != NULL) {
+      // There is a valid command to run on the filesystem and filesystemEntry
+      // is a valid FILE pointer.  Close the file and run the command.
+      fclose(filesystemEntry); filesystemEntry = NULL;
+      commandFound = true;
+      break;
+    }
+    
+    // If we made it this far then filesystemEntry is NULL and we need to
+    // evaluate the next directory in the path.
+  }
+  
+  if (commandFound == false) {
+    // No such command on the filesystem.
+    fputs(commandLine, stdout);
+    fputs(": command not found\n", stdout);
+    return -ENOENT;
+  }
+  
+  // Exec the command on the filesystem.
+  
+  return 0;
+}
 
 int main(int argc, char **argv) {
   (void) argc;
@@ -55,14 +123,18 @@ int main(int argc, char **argv) {
       input[strlen(input) - 1] = '\0';
     }
     
+    // Attempt to process the command line as a built-in first before looking
+    // on the filesystem.
+    //
     // The variable 'input' is the same as the variable 'buffer', which is a
     // pointer to dynamic memory.  So, it's safe to pass as a parameter to
     // callOverlayFunction.
     returnValue = (intptr_t) callOverlayFunction(
       "Builtins", "processBuiltin", input);
     if (returnValue < -1)  {
-      fputs(input, stdout);
-      fputs(": command not found\n", stdout);
+      // The command wasn't processed as a built-in.  Try running it from the
+      // filesystem.
+      returnValue = runFilesystemCommand(input);
     }
   } while (returnValue != -1);
   
