@@ -38,22 +38,29 @@
 
 #include "NanoOsUser.h"
 
-#define free(ptr) \
-  overlayMap.header.osApi->free(ptr)
-#define realloc(ptr, size) \
-  overlayMap.header.osApi->realloc(ptr, size)
-#define malloc(size) \
-  overlayMap.header.osApi->malloc(size)
-#define calloc(nmemb, size) \
-  overlayMap.header.osApi->calloc(nmemb, size)
+static inline void free(void *ptr) {
+  overlayMap.header.osApi->free(ptr);
+}
+static inline void* realloc(void *ptr, size_t size) {
+  return overlayMap.header.osApi->realloc(ptr, size);
+}
+static inline void* malloc(size_t size) {
+  return overlayMap.header.osApi->malloc(size);
+}
+static inline void* calloc(size_t nmemb, size_t size) {
+  return overlayMap.header.osApi->calloc(nmemb, size);
+}
 
-#define getenv(s) \
-  overlayMap.header.osApi->getenv(s)
+static inline char *getenv(const char *name) {
+  return overlayMap.header.osApi->getenv(name);
+}
 
-#define rand() \
-  overlayMap.header.osApi->rand()
-#define srand(seed) \
-  overlayMap.header.osApi->srand(seed)
+static inline int rand(void) {
+  return overlayMap.header.osApi->rand();
+}
+static inline void srand(unsigned int seed) {
+  overlayMap.header.osApi->srand(seed);
+}
 
 #endif // STDLIB_H
 
