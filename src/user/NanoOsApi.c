@@ -37,6 +37,7 @@
 #include "../kernel/Scheduler.h"
 #include "../kernel/Tasks.h"
 #include "NanoOsLibC.h"
+#include "NanoOsPwd.h"
 #include "NanoOsTermios.h"
 #include "NanoOsUnistd.h"
 
@@ -152,6 +153,9 @@ NanoOsApi nanoOsApi = {
   
   // time.h functions:
   .time = time,
+  
+  // pwd.h functions:
+  .getpwnam_r = nanoOsGetpwnam_r,
   
   // NanoOs-specific functionality
   .callOverlayFunction = callOverlayFunction,

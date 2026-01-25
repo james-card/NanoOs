@@ -53,6 +53,7 @@
 typedef struct NanoOsFile NanoOsFile;
 #define FILE NanoOsFile
 
+#include "NanoOsPwd.h"
 #include "NanoOsSys.h"
 
 #ifdef __cplusplus
@@ -153,6 +154,13 @@ typedef struct NanoOsApi {
   // time.h functions:
   time_t (*time)(time_t *tloc);
   
+  // pwd.h functions:
+  int (*getpwnam_r)(const char *name,
+               struct passwd *pwd,
+               char *buf,
+               size_t buflen,
+               struct passwd **result);
+
   // NanoOs-specific functionality
   void* (*callOverlayFunction)(const char *overlay, const char *function,
     void *args);
