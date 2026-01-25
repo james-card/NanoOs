@@ -164,7 +164,6 @@ char** parseArgs(char *command, int *argc) {
     // Failure.
     return argv; // NULL
   }
-  *argc = 0;
   char *endOfInput = &command[strlen(command)];
 
   // First, we need to declare an array that will hold all our arguments.  In
