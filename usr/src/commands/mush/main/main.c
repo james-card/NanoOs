@@ -50,9 +50,10 @@ int runFilesystemCommand(const char *commandLine) {
   while ((path != NULL) && (*path != '\0')) {
     charAt = strchr(path, ':');
     if (charAt == NULL) {
-      charAt = commandLine + strlen(path);
+      charAt = path + strlen(path);
     }
     size_t pathDirLength = ((uintptr_t) charAt) - ((uintptr_t) path);
+    
     // We're appending the command name to the path, so we need pathDirLength
     // extra characters for the path, plus the slash, commandNameLength bytes
     // for the command name, and one more for the slash for that directory.
