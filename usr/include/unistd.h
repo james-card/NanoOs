@@ -40,14 +40,20 @@
 
 #include "NanoOsUnistd.h"
 
-#define gethostname(name, len) \
-  overlayMap.header.osApi->gethostname(name, len)
-#define sethostname(name, len) \
-  overlayMap.header.osApi->sethostname(name, len)
-#define ttyname_r(fd, buf, buflen) \
-  overlayMap.header.osApi->ttyname_r(fd, buf, buflen)
-#define execve(pathname, argv, envp) \
-  overlayMap.header.osApi->execve(pathname, argv, envp)
+static inline int gethostname(char *name, size_t len) {
+  return overlayMap.header.osApi->gethostname(name, len);
+}
+static inline int sethostname(const char *name, size_t len) {
+  return overlayMap.header.osApi->sethostname(name, len);
+}
+static inline int ttyname_r(int fd, char buf[], size_t buflen) {
+  return overlayMap.header.osApi->ttyname_r(fd, buf, buflen);
+}
+static inline int execve(const char *pathname,
+  char *const argv[], char *const envp[]
+) {
+  return overlayMap.header.osApi->execve(pathname, argv, envp);
+}
 
 #endif // UNISTD_H
 
