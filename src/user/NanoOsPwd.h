@@ -36,11 +36,7 @@
 #ifndef NANO_OS_PWD_H
 #define NANO_OS_PWD_H
 
-#if !defined(__linux__) && !defined(__linux) && !defined(_WIN32)
-#include "NanoOsSysTypes.h"
-#else
 #include <sys/types.h>
-#endif
 
 #ifdef __cplusplus
 extern "C"
