@@ -145,33 +145,33 @@ char *findEndQuote(char *input, char quote) {
   return quoteAt;
 }
 
-/// @fn char** parseArgs(char *consoleInput, int *argc)
+/// @fn char** parseArgs(char *command, int *argc)
 ///
 /// @brief Parse a raw input string from the console into an array of individual
 /// strings to pass as the argv array to a command function.
 ///
-/// @param consoleInput The raw string of data read from the user's input by the
-///   console.
+/// @param command The raw string of data read from the user's input by the
+///   console.  The string is modified in place by this function.
 /// @param argc A pointer to the integer where the number of parsed arguments
 ///   will be stored.
 ///
 /// @return Returns a pointer to an array of strings on success, NULL on
 /// failure.
-char** parseArgs(char *consoleInput, int *argc) {
+char** parseArgs(char *command, int *argc) {
   char **argv = NULL;
 
-  if ((consoleInput == NULL) || (argc == NULL)) {
+  if (command == NULL) {
     // Failure.
     return argv; // NULL
   }
   *argc = 0;
-  char *endOfInput = &consoleInput[strlen(consoleInput)];
+  char *endOfInput = &command[strlen(command)];
 
   // First, we need to declare an array that will hold all our arguments.  In
   // order to do this, we need to know the maximum number of arguments we'll be
   // working with.  That will be the number of tokens separated by whitespace.
-  int maxNumArgs = getNumTokens(consoleInput);
-  argv = (char**) malloc(maxNumArgs * sizeof(char*));
+  int maxNumArgs = getNumTokens(command);
+  argv = (char**) malloc((maxNumArgs + 1) * sizeof(char*));
   if (argv == NULL) {
     // Nothing we can do.  Fail.
     return argv; // NULL
@@ -182,35 +182,39 @@ char** parseArgs(char *consoleInput, int *argc) {
   // of each argument.
   int numArgs = 0;
   char *endOfArg = NULL;
-  while ((consoleInput != endOfInput) && (*consoleInput != '\0')) {
-    if (*consoleInput == '"') {
-      consoleInput++;
-      endOfArg = findEndQuote(consoleInput, '"');
-    } else if (*consoleInput == '\'') {
-      consoleInput++;
-      endOfArg = findEndQuote(consoleInput, '\'');
+  while ((command != endOfInput) && (*command != '\0')) {
+    if (*command == '"') {
+      command++;
+      endOfArg = findEndQuote(command, '"');
+    } else if (*command == '\'') {
+      command++;
+      endOfArg = findEndQuote(command, '\'');
     } else {
-      endOfArg = &consoleInput[strcspn(consoleInput, " \t\r\n")];
+      endOfArg = &command[strcspn(command, " \t\r\n")];
     }
 
-    argv[numArgs] = consoleInput;
+    argv[numArgs] = command;
     numArgs++;
 
     if (endOfArg != NULL) {
       *endOfArg = '\0';
       if (endOfArg != endOfInput) {
-        consoleInput = endOfArg + 1;
+        command = endOfArg + 1;
       } else {
-        consoleInput = endOfInput;
+        command = endOfInput;
       }
     } else {
-      consoleInput += strlen(consoleInput);
+      command += strlen(command);
     }
 
-    consoleInput = &consoleInput[strspn(consoleInput, " \t\r\n")];
+    command = &command[strspn(command, " \t\r\n")];
+  }
+  argv[numArgs] = NULL;
+
+  if (argc != NULL) {
+    *argc = numArgs;
   }
 
-  *argc = numArgs;
   return argv;
 }
 
