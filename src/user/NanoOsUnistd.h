@@ -56,9 +56,9 @@ extern "C"
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-int gethostname(char *name, size_t len);
-int sethostname(const char *name, size_t len);
-int ttyname_r(int fd, char *buf, size_t buflen);
+int nanoOsGethostname(char *name, size_t len);
+int nanoOsSethostname(const char *name, size_t len);
+int nanoOsTtyname_r(int fd, char *buf, size_t buflen);
 
 #ifdef __cplusplus
 }

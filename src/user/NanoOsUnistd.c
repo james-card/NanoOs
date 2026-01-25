@@ -38,16 +38,16 @@
 // Must come last
 #include "NanoOsStdio.h"
 
-/// @fn int gethostname(char *name, size_t len)
+/// @fn int nanoOsGethostname(char *name, size_t len)
 ///
-/// @brief Implementation of the standard Unix gethostname system call.
+/// @brief Implementation of the standard Unix nanoOsGethostname system call.
 ///
 /// @param name Pointer to a character buffer to fill with the hostname.
 /// @param len The number of bytes allocated to name.
 ///
 /// @return Returns 0 on success, -1 on failure.  On failure, the value of
 /// errno is also set.
-int gethostname(char *name, size_t len) {
+int nanoOsGethostname(char *name, size_t len) {
   if (name == NULL) {
     errno = EFAULT;
     return -1;
@@ -69,9 +69,9 @@ int gethostname(char *name, size_t len) {
   return returnValue;
 }
 
-/// @fn int sethostname(const char *name, size_t len)
+/// @fn int nanoOsSethostname(const char *name, size_t len)
 ///
-/// @brief Implementation of the standard Unix sethostname system call.
+/// @brief Implementation of the standard Unix nanoOsSethostname system call.
 ///
 /// @param name Pointer to a character buffer that contains the desired
 ///   hostname.
@@ -79,7 +79,7 @@ int gethostname(char *name, size_t len) {
 ///
 /// @return Returns 0 on success, -1 on failure.  On failure, the value of
 /// errno is also set.
-int sethostname(const char *name, size_t len) {
+int nanoOsSethostname(const char *name, size_t len) {
   if (name == NULL) {
     errno = EFAULT;
     return -1;
@@ -105,7 +105,7 @@ int sethostname(const char *name, size_t len) {
   return 0;
 }
 
-/// @fd int ttyname_r(int fd, char *buf, size_t buflen)
+/// @fd int nanoOsTtyname_r(int fd, char *buf, size_t buflen)
 ///
 /// @brief Get the current tty name for a specified file descriptor in a
 /// thread-safe way.
@@ -115,7 +115,7 @@ int sethostname(const char *name, size_t len) {
 /// @param buflen The number of bytes available at the buf pointer.
 ///
 /// @return Returns 0 on success, an error number on failure.
-int ttyname_r(int fd, char *buf, size_t buflen) {
+int nanoOsTtyname_r(int fd, char *buf, size_t buflen) {
   if (fd < 0) {
     return EBADF;
   } else if (fd > 2) {

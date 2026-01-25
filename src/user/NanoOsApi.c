@@ -136,9 +136,9 @@ NanoOsApi nanoOsApi = {
   .srand = srand,
   
   // unistd functions:
-  .gethostname = gethostname,
-  .sethostname = sethostname,
-  .ttyname_r = ttyname_r,
+  .gethostname = nanoOsGethostname,
+  .sethostname = nanoOsSethostname,
+  .ttyname_r = nanoOsTtyname_r,
   .execve = schedulerExecve,
   
   // termios functions:
