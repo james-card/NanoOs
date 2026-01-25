@@ -142,8 +142,8 @@ NanoOsApi nanoOsApi = {
   .execve = schedulerExecve,
   
   // termios functions:
-  .tcgetattr = tcgetattr,
-  .tcsetattr = tcsetattr,
+  .tcgetattr = nanoOsTcgetattr,
+  .tcsetattr = nanoOsTcsetattr,
   
   // errno functions:
   .errno_ = errno_,

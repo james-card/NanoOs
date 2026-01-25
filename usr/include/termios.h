@@ -40,10 +40,14 @@
 
 #include "NanoOsTermios.h"
 
-#define tcgetattr(fd, termios_p) \
-  overlayMap.header.osApi->tcgetattr(fd, termios_p)
-#define tcsetattr(fd, optional_actions, termios_p) \
-  overlayMap.header.osApi->tcsetattr(fd, optional_actions, termios_p)
+static inline int tcgetattr(int fd, struct termios *termios_p) {
+  return overlayMap.header.osApi->tcgetattr(fd, termios_p);
+}
+static inline int tcsetattr(int fd, int optional_actions,
+  const struct termios *termios_p
+) {
+  return overlayMap.header.osApi->tcsetattr(fd, optional_actions, termios_p);
+}
 
 #endif // TERMIOS_H
 

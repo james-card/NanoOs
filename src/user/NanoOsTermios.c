@@ -36,7 +36,7 @@
 #include "NanoOsTermios.h"
 #include "NanoOsUnistd.h"
 
-int tcgetattr(int fd, struct termios *termios) {
+int nanoOsTcgetattr(int fd, struct termios *termios) {
   if ((termios == NULL) || (fd != STDIN_FILENO)) {
     // Unsupported right now.
     errno = EINVAL;
@@ -51,7 +51,9 @@ int tcgetattr(int fd, struct termios *termios) {
   return 0;
 }
 
-int tcsetattr(int fd, int optionalActions, const struct termios *termios) {
+int nanoOsTcsetattr(int fd, int optionalActions,
+  const struct termios *termios
+) {
   if ((termios == NULL) || (fd != STDIN_FILENO)) {
     // Unsupported right now.
     errno = EINVAL;
