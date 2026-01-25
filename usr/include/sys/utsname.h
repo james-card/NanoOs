@@ -38,8 +38,9 @@
 
 #include "NanoOsUser.h"
 
-#define uname(buf) \
-  overlayMap.header.osApi->uname(buf)
+static inline int uname(struct utsname *buf) {
+  return overlayMap.header.osApi->uname(buf);
+}
 
 #endif // SYS_UTSNAME_H
 
