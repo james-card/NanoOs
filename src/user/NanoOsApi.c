@@ -35,6 +35,7 @@
 #include "../kernel/NanoOs.h"
 #include "../kernel/NanoOsOverlayFunctions.h"
 #include "../kernel/Scheduler.h"
+#include "../kernel/Tasks.h"
 #include "NanoOsLibC.h"
 #include "NanoOsTermios.h"
 #include "NanoOsUnistd.h"
@@ -154,5 +155,6 @@ NanoOsApi nanoOsApi = {
   
   // NanoOs-specific functionality
   .callOverlayFunction = callOverlayFunction,
+  .parseArgs = parseArgs,
 };
 
