@@ -54,6 +54,8 @@ extern NanoOsOverlayMap overlayMap;
 
 #define callOverlayFunction(overlay, function, args) \
   overlayMap.header.osApi->callOverlayFunction(overlay, function, args)
+#define parseArgs(command, argcPointer) \
+  overlayMap.header.osApi->parseArgs(command, argcPointer)
 
 #ifdef __cplusplus
 }
