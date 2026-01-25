@@ -33,19 +33,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "NanoOsUser.h"
 
 extern char **environ;
 
-int runFilesystemCommand(const char *commandLine) {
+int runFilesystemCommand(char *commandLine) {
   const char *charAt = strchr(commandLine, ' ');
   if (charAt == NULL) {
     charAt = commandLine + strlen(commandLine);
   }
   size_t commandNameLength = ((uintptr_t) charAt) - ((uintptr_t) commandLine);
   
-  bool commandFound = false;
+  char *commandPath = NULL;
   const char *path = getenv("PATH");
   while ((path != NULL) && (*path != '\0')) {
     charAt = strchr(path, ':');
@@ -59,7 +60,7 @@ int runFilesystemCommand(const char *commandLine) {
     // for the command name, and one more for the slash for that directory.
     // Then, we need 4 bytes for "main", and OVERLAY_EXT_LEN bytes on top of
     // that plus the NULL byte // at the end.
-    char *commandPath
+    commandPath
       = (char*) malloc(pathDirLength + commandNameLength + OVERLAY_EXT_LEN + 7);
     if (commandPath == NULL) {
       return -ENOMEM;
@@ -79,29 +80,47 @@ int runFilesystemCommand(const char *commandLine) {
     strcat(commandPath, OVERLAY_EXT);
     
     FILE *filesystemEntry = fopen(commandPath, "r");
-    free(commandPath); commandPath = NULL;
     if (filesystemEntry != NULL) {
       // There is a valid command to run on the filesystem and filesystemEntry
       // is a valid FILE pointer.  Close the file and run the command.
       fclose(filesystemEntry); filesystemEntry = NULL;
-      commandFound = true;
       break;
     }
     
     // If we made it this far then filesystemEntry is NULL and we need to
     // evaluate the next directory in the path.
+    free(commandPath); commandPath = NULL;
   }
   
-  if (commandFound == false) {
+  if (commandPath == NULL) {
     // No such command on the filesystem.
     fputs(commandLine, stdout);
     fputs(": command not found\n", stdout);
     return -ENOENT;
   }
   
-  // Exec the command on the filesystem.
+  // The file we opened above is the full path to the main.overlay of the
+  // executable.  The fact that programs are broken up into overlays with the
+  // entrypoint being in main.overlay is an implementation detail of NanoOs and
+  // is not exposed to userspace.  execve expects a path to the base directory
+  // of the command, *NOT* a path to the main.overlay file.  It will at that
+  // itself.  So, we need to terminate the path we pass into execve at the last
+  // slash in the path.  We're guaranteed that exists because of the logic
+  // above, so we can blindly dereference the value returned by strrchr here.
+  *strrchr(commandPath, '/') = '\0';
   
-  return 0;
+  // Exec the command on the filesystem.
+  char **argv = parseArgs(commandLine, NULL);
+  if (argv == NULL) {
+    fprintf(stderr, "Failed to parse command line\n");
+    free(commandPath); commandPath = NULL;
+    return -EINVAL;
+  }
+  execve(commandPath, argv, environ);
+  
+  // If we made it this far then execve failed and we need to return a negative
+  // errno.  Use the one provided by execve.
+  return -errno;
 }
 
 int main(int argc, char **argv) {
