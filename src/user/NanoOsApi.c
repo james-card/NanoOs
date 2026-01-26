@@ -145,6 +145,7 @@ NanoOsApi nanoOsApi = {
   
   // pwd.h functions:
   .getpwnam_r = nanoOsGetpwnam_r,
+  .getpwuid_r = nanoOsGetpwuid_r,
   
   // NanoOs-specific functionality
   .callOverlayFunction = callOverlayFunction,
