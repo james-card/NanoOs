@@ -1141,12 +1141,12 @@ UserId schedulerGetTaskUser(void) {
   return userId;
 }
 
-/// @fn int schedulerSetTaskUser(UserId userId)
+/// @fn int schedulerSetTaskUser(uid_t userId)
 ///
 /// @brief Set the user ID of the current task to the specified user ID.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int schedulerSetTaskUser(UserId userId) {
+int schedulerSetTaskUser(uid_t userId) {
   int returnValue = -1;
   TaskMessage *taskMessage
     = sendNanoOsMessageToTaskId(
