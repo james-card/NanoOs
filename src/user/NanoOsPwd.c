@@ -118,11 +118,12 @@ int populatePasswd(struct passwd *pwd, char *buf, size_t buflen,
 /// pointer and 0 is returned.  If no error occurs but the user is not found,
 /// the result pointer is set to NULL and 0 is returned.  The result pointer is
 /// set to NULL and an errno value is returned on error.
-int nanoOsGetpwnam_r(const char *name,
-               struct passwd *pwd,
-               char *buf,
-               size_t buflen,
-               struct passwd **result
+int nanoOsGetpwnam_r(
+  const char *name,
+  struct passwd *pwd,
+  char *buf,
+  size_t buflen,
+  struct passwd **result
 ) {
   if ((name == NULL) || (pwd == NULL) || (buf == NULL) || (buflen == 0)) {
     if (result != NULL) {
@@ -143,6 +144,50 @@ int nanoOsGetpwnam_r(const char *name,
     /* gecos= */ "User 1", /* dir= */ "/home/user1",
     /* shell= */ "/usr/bin/mush");
   } else if (strcmp(name, "user2") == 0) {
+    returnValue = populatePasswd(pwd, buf, buflen,
+    /* name= */ "user2", /* passwd= */ "user2user2", /* uid= */ 2, /* gid= */ 2,
+    /* gecos= */ "User 2", /* dir= */ "/home/user2",
+    /* shell= */ "/usr/bin/mush");
+  } else {
+    // User not found.  Set result to NULL and return 0 as per spec.
+    if (result != NULL) {
+      *result = NULL;
+    }
+    return 0;
+  }
+  
+  if ((returnValue == 0) && (result != NULL)) {
+    *result = pwd;
+  }
+  return -returnValue;
+}
+
+int nanoOsGetpwuid_r(
+  uid_t uid,
+  struct passwd *pwd,
+  char *buf,
+  size_t buflen,
+  struct passwd **result
+) {
+  if ((pwd == NULL) || (buf == NULL) || (buflen == 0)) {
+    if (result != NULL) {
+      *result = NULL;
+    }
+    return EIO;
+  }
+  
+  int returnValue = 0;
+  if (uid == 0) {
+    returnValue = populatePasswd(pwd, buf, buflen,
+    /* name= */ "root", /* passwd= */ "rootroot", /* uid= */ 0, /* gid= */ 0,
+    /* gecos= */ "Root User", /* dir= */ "/root",
+    /* shell= */ "/usr/bin/mush");
+  } else if (uid == 1) {
+    returnValue = populatePasswd(pwd, buf, buflen,
+    /* name= */ "user1", /* passwd= */ "user1user1", /* uid= */ 1, /* gid= */ 1,
+    /* gecos= */ "User 1", /* dir= */ "/home/user1",
+    /* shell= */ "/usr/bin/mush");
+  } else if (uid == 2) {
     returnValue = populatePasswd(pwd, buf, buflen,
     /* name= */ "user2", /* passwd= */ "user2user2", /* uid= */ 2, /* gid= */ 2,
     /* gecos= */ "User 2", /* dir= */ "/home/user2",
