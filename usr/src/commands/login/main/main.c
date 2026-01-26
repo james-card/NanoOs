@@ -162,6 +162,10 @@ int main(int argc, char **argv) {
     goto freeNew;
   }
   
+  if (setuid(pwd->pw_uid) != 0) {
+    fputs("ERROR:  Could not set the user ID of the process.\n", stderr);
+  }
+  
   // The login succeeded, so exec the shell rather than exiting.
   char *shellArgv[] = {
     SHELL_NAME,
