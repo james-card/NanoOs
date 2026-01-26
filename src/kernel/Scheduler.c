@@ -1151,7 +1151,7 @@ int schedulerSetTaskUser(uid_t userId) {
   TaskMessage *taskMessage
     = sendNanoOsMessageToTaskId(
     NANO_OS_SCHEDULER_TASK_ID, SCHEDULER_SET_TASK_USER,
-    /* func= */ 0, /* data= */ userId, true);
+    /* func= */ 0, /* data= */ (UserId) userId, true);
   if (taskMessage == NULL) {
     printString("ERROR: Could not communicate with scheduler.\n");
     return returnValue; // -1
