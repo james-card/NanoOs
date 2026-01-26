@@ -54,6 +54,9 @@ static inline int execve(const char *pathname,
 ) {
   return overlayMap.header.osApi->execve(pathname, argv, envp);
 }
+static inline int setuid(uid_t uid) {
+  return overlayMap.header.osApi->setuid(uid);
+}
 
 #endif // UNISTD_H
 
