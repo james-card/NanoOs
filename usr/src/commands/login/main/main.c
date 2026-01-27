@@ -51,17 +51,6 @@
 /// This will be used as argv[0] in the args we pass in to execve.
 #define SHELL_NAME "mush"
 
-/// @def MAX_PASSWORD_LENGTH
-///
-/// @brief The maximum number of characters that a user password can be.
-#define MAX_PASSWORD_LENGTH 32
-
-/// @def PASSWD_STRING_BUF_SIZE
-///
-/// @brief The size to use for the character buffer that holds the strings in
-/// the call to getpwnam_r.
-#define PASSWD_STRING_BUF_SIZE 96
-
 int main(int argc, char **argv) {
   int returnValue = 0;
   
@@ -71,7 +60,7 @@ int main(int argc, char **argv) {
   }
   const char *username = argv[1];
   
-  char *passwdStringBuffer = (char*) malloc(PASSWD_STRING_BUF_SIZE);
+  char *passwdStringBuffer = (char*) malloc(NANO_OS_PASSWD_STRING_BUF_SIZE);
   if (passwdStringBuffer == NULL) {
     fprintf(stderr,
       "ERROR! Could not allocate space for passwdStringBuffer in %s.\n",
@@ -89,7 +78,7 @@ int main(int argc, char **argv) {
   
   struct passwd *result = NULL;
   returnValue = getpwnam_r(username, pwd,
-    passwdStringBuffer, PASSWD_STRING_BUF_SIZE, &result);
+    passwdStringBuffer, NANO_OS_PASSWD_STRING_BUF_SIZE, &result);
   if (returnValue != 0) {
     fprintf(stderr, "getpwnam_r returned status %d\n", returnValue);
     returnValue = 1;
@@ -105,7 +94,7 @@ int main(int argc, char **argv) {
     pwd->pw_passwd = passwdStringBuffer;
   }
   
-  char *userPassword = (char*) malloc(MAX_PASSWORD_LENGTH + 1);
+  char *userPassword = (char*) malloc(NANO_OS_MAX_PASSWORD_LENGTH + 1);
   if (userPassword == NULL) {
     fprintf(stderr,
       "ERROR! Could not allocate space for userPassword in %s.\n",
@@ -139,7 +128,7 @@ int main(int argc, char **argv) {
   new->c_lflag &= ~ECHO;
   overlayMap.header.osApi->tcsetattr(STDIN_FILENO, TCSANOW, new);
   
-  char *input = fgets(userPassword, MAX_PASSWORD_LENGTH + 1, stdin);
+  char *input = fgets(userPassword, NANO_OS_MAX_PASSWORD_LENGTH + 1, stdin);
   
   // Restore echo
   overlayMap.header.osApi->tcsetattr(STDIN_FILENO, TCSANOW, old);
