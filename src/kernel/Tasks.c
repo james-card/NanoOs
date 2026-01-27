@@ -35,6 +35,7 @@
 #include "Tasks.h"
 #include "Scheduler.h"
 #include "../user/NanoOsLibC.h"
+#include "../user/NanoOsPwd.h"
 
 // Must come last
 #include "../user/NanoOsStdio.h"
@@ -334,7 +335,6 @@ void* execCommand(void *args) {
   char *pathname = execArgs->pathname;
   char **argv = execArgs->argv;
   char **envp = execArgs->envp;
-  SchedulerState *schedulerState = execArgs->schedulerState;
 
   if ((argv == NULL) || (argv[0] == NULL)) {
     // Fail.
@@ -349,11 +349,50 @@ void* execCommand(void *args) {
   // Call the task function.
   int returnValue = runOverlayCommand(pathname, argc, argv, envp);
 
-  if (execArgs->callingTaskId != getRunningTaskId()) {
+  TaskDescriptor *taskDescriptor = getRunningTask();
+  if (execArgs->callingTaskId == taskDescriptor->taskId) {
+    // This command either was a shell task or replaced one.  If it was a shell
+    // task then we need to clear out the user ID.  Check.
+    char *passwdStringBuffer = NULL;
+    struct passwd *pwd = NULL;
+    do {
+      passwdStringBuffer = (char*) malloc(NANO_OS_PASSWD_STRING_BUF_SIZE);
+      if (passwdStringBuffer == NULL) {
+        fprintf(stderr,
+          "ERROR! Could not allocate space for passwdStringBuffer in %s.\n",
+          argv[0]);
+        break;
+      }
+      
+      pwd = (struct passwd*) malloc(sizeof(struct passwd));
+      if (pwd == NULL) {
+        fprintf(stderr,
+          "ERROR! Could not allocate space for pwd in %s.\n", argv[0]);
+        returnValue = 1;
+        break;
+      }
+      
+      struct passwd *result = NULL;
+      returnValue = nanoOsGetpwuid_r(taskDescriptor->userId, pwd,
+        passwdStringBuffer, NANO_OS_PASSWD_STRING_BUF_SIZE, &result);
+      if (result == NULL) {
+        fprintf(stderr,
+          "Could not find passwd info for uid %d\n", taskDescriptor->userId);
+        returnValue = 1;
+        break;
+      }
+      
+      if (strcmp(pwd->pw_shell, taskDescriptor->overlayDir) == 0) {
+        // This is the user's shell exiting.  Clear the tasks's user ID.
+        taskDescriptor->userId = NO_USER_ID;
+      }
+    } while (0);
+    free(pwd);
+    free(passwdStringBuffer);
+  } else {
     // This command did NOT replace a shell task.  Mark its slot in the
     // task table as unowned.
-    schedulerState->allTasks[
-      taskId(getRunningTask()) - 1].userId = NO_USER_ID;
+    taskDescriptor->userId = NO_USER_ID;
   }
 
   execArgs = execArgsDestroy(execArgs);
