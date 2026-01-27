@@ -43,6 +43,17 @@ extern "C"
 {
 #endif
 
+/// @def NANO_OS_MAX_PASSWORD_LENGTH
+///
+/// @brief The maximum number of characters that a user password can be.
+#define NANO_OS_MAX_PASSWORD_LENGTH 32
+
+/// @def NANO_OS_PASSWD_STRING_BUF_SIZE
+///
+/// @brief The size to use for the character buffer that holds the strings in
+/// the call to getpwnam_r.
+#define NANO_OS_PASSWD_STRING_BUF_SIZE 96
+
 struct passwd {
     char   *pw_name;   /* username */
     char   *pw_passwd; /* user password (usually 'x' nowadays) */
