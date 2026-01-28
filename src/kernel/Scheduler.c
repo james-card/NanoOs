@@ -1141,12 +1141,12 @@ UserId schedulerGetTaskUser(void) {
   return userId;
 }
 
-/// @fn int schedulerSetTaskUser(uid_t userId)
+/// @fn int schedulerSetTaskUser(UserId userId)
 ///
 /// @brief Set the user ID of the current task to the specified user ID.
 ///
 /// @return Returns 0 on success, -1 on failure.
-int schedulerSetTaskUser(uid_t userId) {
+int schedulerSetTaskUser(UserId userId) {
   int returnValue = -1;
   TaskMessage *taskMessage
     = sendNanoOsMessageToTaskId(
@@ -3081,7 +3081,7 @@ void runScheduler(SchedulerState *schedulerState) {
     } else {
       // User task exited.  Re-launch the shell.
       if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-        "/usr/bin/mush", mushArgs, NULL) != 0
+        "/usr/bin/mush", mushArgs, (const char**) taskDescriptor->envp) != 0
       ) {
         removeTask(schedulerState, taskDescriptor, "Failed to load mush");
         return;

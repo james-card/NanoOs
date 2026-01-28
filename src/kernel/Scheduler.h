@@ -83,7 +83,7 @@ int schedulerKillTask(TaskId taskId);
 int schedulerRunTask(
   const CommandEntry *commandEntry, char *consoleInput, int consolePort);
 UserId schedulerGetTaskUser(void);
-int schedulerSetTaskUser(uid_t userId);
+int schedulerSetTaskUser(UserId userId);
 FileDescriptor* schedulerGetFileDescriptor(FILE *stream);
 int schedulerCloseAllFileDescriptors(void);
 const char* schedulerGetHostname(void);
