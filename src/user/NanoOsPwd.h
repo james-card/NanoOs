@@ -43,6 +43,10 @@ extern "C"
 {
 #endif
 
+#ifndef uid_t
+#define uid_t int16_t
+#endif // uid_t
+
 /// @def NANO_OS_MAX_PASSWORD_LENGTH
 ///
 /// @brief The maximum number of characters that a user password can be.
