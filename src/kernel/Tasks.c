@@ -52,6 +52,25 @@ TaskMessage *messages = NULL;
 /// scheduler function's stack.
 NanoOsMessage *nanoOsMessages = NULL;
 
+/// @fn char** stringArrayDestroy(char **stringArray)
+///
+/// @brief Destroy a NULL-terminated array of C strings.
+///
+/// @param stringArray An array of C strings that's terminated with a NULl
+///   pointer.  This parameter may be NULL.
+///
+/// @return This function always succeeds and always returns NULL.
+char** stringArrayDestroy(char **stringArray) {
+  if (stringArray != NULL) {
+    for (int ii = 0; stringArray[ii] != NULL; ii++) {
+      free(stringArray[ii]);
+    }
+    free(stringArray);
+  }
+  
+  return NULL;
+}
+
 /// @fn ExecArgs* execArgsDestroy(ExecArgs *execArgs)
 ///
 /// @brief Free all of an ExecArgs structure.
@@ -62,22 +81,8 @@ NanoOsMessage *nanoOsMessages = NULL;
 ExecArgs* execArgsDestroy(ExecArgs *execArgs) {
   free(execArgs->pathname);
 
-  char **argv = execArgs->argv;
-  // argv *SHOULD* never be NULL, but check just in case.
-  if (argv != NULL) {
-    for (int ii = 0; argv[ii] != NULL; ii++) {
-      free(argv[ii]);
-    }
-    free(argv);
-  }
-
-  char **envp = execArgs->envp;
-  if (envp != NULL) {
-    for (int ii = 0; envp[ii] != NULL; ii++) {
-      free(envp[ii]);
-    }
-    free(envp);
-  }
+  execArgs->argv = stringArrayDestroy(execArgs->argv);
+  execArgs->envp = stringArrayDestroy(execArgs->envp);
 
   // We don't need to and SHOULD NOT touch execArgs->schedulerState.
 
@@ -350,9 +355,9 @@ void* execCommand(void *args) {
   int returnValue = runOverlayCommand(pathname, argc, argv, envp);
 
   TaskDescriptor *taskDescriptor = getRunningTask();
-  if (execArgs->callingTaskId == taskDescriptor->taskId) {
-    // This command either was a shell task or replaced one.  If it was a shell
-    // task then we need to clear out the user ID.  Check.
+  if (taskDescriptor->userId != NO_USER_ID) {
+    // If this command was a shell task then we need to clear out the user ID
+    // and environment variables.  Check.
     char *passwdStringBuffer = NULL;
     struct passwd *pwd = NULL;
     do {
@@ -389,10 +394,6 @@ void* execCommand(void *args) {
     } while (0);
     free(pwd);
     free(passwdStringBuffer);
-  } else {
-    // This command did NOT replace a shell task.  Mark its slot in the
-    // task table as unowned.
-    taskDescriptor->userId = NO_USER_ID;
   }
 
   execArgs = execArgsDestroy(execArgs);
