@@ -2997,18 +2997,55 @@ int schedulerLoadOverlay(SchedulerState *schedulerState,
 /// @return Returns 0 on success, -errno on failure.
 int schedulerRunOverlayCommand(
   SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
-  const char *commandPath, const char **argv, const char **envp
+  char *commandPath, char **argv, char **envp
 ) {
   ExecArgs *execArgs = schedMalloc(sizeof(ExecArgs));
   execArgs->callingTaskId = taskDescriptor->taskId;
-  execArgs->pathname = (char*) commandPath;
-  execArgs->argv = (char**) argv;
-  execArgs->envp = (char**) envp;
+  execArgs->pathname = commandPath;
+  execArgs->argv = argv;
+  execArgs->envp = envp;
   execArgs->schedulerState = schedulerState;
 
   if (assignMemory(execArgs, taskDescriptor->taskId) != 0) {
     printString("WARNING: Could not assign execArgs to exec task.\n");
     printString("Undefined behavior.\n");
+  }
+
+  if (assignMemory(commandPath, taskDescriptor->taskId) != 0) {
+    printString("WARNING: Could not assign commandTask to exec task.\n");
+    printString("Undefined behavior.\n");
+  }
+
+  if (argv != NULL) {
+    if (assignMemory(argv, taskDescriptor->taskId) != 0) {
+      printString("WARNING: Could not assign argv to exec task.\n");
+      printString("Undefined behavior.\n");
+    }
+
+    for (int ii = 0; argv[ii] != NULL; ii++) {
+      if (assignMemory(argv[ii], taskDescriptor->taskId) != 0) {
+        printString("WARNING: Could not assign argv[");
+        printInt(ii);
+        printString("] to exec task.\n");
+        printString("Undefined behavior.\n");
+      }
+    }
+  }
+
+  if (envp != NULL) {
+    if (assignMemory(envp, taskDescriptor->taskId) != 0) {
+      printString("WARNING: Could not assign envp to exec task.\n");
+      printString("Undefined behavior.\n");
+    }
+
+    for (int ii = 0; envp[ii] != NULL; ii++) {
+      if (assignMemory(envp[ii], taskDescriptor->taskId) != 0) {
+        printString("WARNING: Could not assign envp[");
+        printInt(ii);
+        printString("] to exec task.\n");
+        printString("Undefined behavior.\n");
+      }
+    }
   }
 
   if (taskCreate(taskDescriptor, execCommand, execArgs) == taskError) {
@@ -3020,7 +3057,7 @@ int schedulerRunOverlayCommand(
 
   taskDescriptor->overlayDir = commandPath;
   taskDescriptor->overlay = "main";
-  taskDescriptor->envp = (char**) envp;
+  taskDescriptor->envp = envp;
   taskDescriptor->name = argv[0];
 
   taskDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
@@ -3112,7 +3149,7 @@ void runScheduler(SchedulerState *schedulerState) {
     if (taskDescriptor->userId == NO_USER_ID) {
       // Login failed.  Re-launch getty.
       if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-        "/usr/bin/getty", gettyArgs, NULL) != 0
+        "/usr/bin/getty", (char**) gettyArgs, NULL) != 0
       ) {
         removeTask(schedulerState, taskDescriptor, "Failed to load getty");
         return;
@@ -3120,7 +3157,7 @@ void runScheduler(SchedulerState *schedulerState) {
     } else {
       // User task exited.  Re-launch the shell.
       if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-        "/usr/bin/mush", mushArgs, (const char**) taskDescriptor->envp) != 0
+        "/usr/bin/mush", (char**) mushArgs, taskDescriptor->envp) != 0
       ) {
         removeTask(schedulerState, taskDescriptor, "Failed to load mush");
         return;
