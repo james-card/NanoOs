@@ -1385,6 +1385,41 @@ freeExecArgs:
   return -1;
 }
 
+/// @fn int schedulerAssignMemory(void *ptr)
+///
+/// @brief Assign a piece of memory to be owned by the scheduler.  This
+/// protects the memory from being automatically deleted when the process
+/// exits.
+///
+/// @param ptr A pointer to the block of memory to assign to the scheduler.
+///
+/// @return Returns 0 on success, -errno on failure.
+int schedulerAssignMemory(void *ptr) {
+  TaskMessage *taskMessage = getAvailableMessage();
+  while (taskMessage == NULL) {
+    taskYield();
+    taskMessage = getAvailableMessage();
+  }
+
+  taskMessageInit(taskMessage, SCHEDULER_ASSIGN_MEMORY, ptr, 0, true);
+
+  if (sendTaskMessageToTaskId(NANO_OS_SCHEDULER_TASK_ID, taskMessage)
+    != taskSuccess
+  ) {
+    taskMessageRelease(taskMessage);
+    fprintf(stderr,
+      "ERROR: Could not send SCHEDULER_ASSIGN_MEMORY message to scheduler\n");
+    return -EIO;
+  }
+
+  taskMessageWaitForDone(taskMessage, NULL);
+
+  int returnValue = (int) ((intptr_t) taskMessageData(taskMessage));
+  taskMessageRelease(taskMessage);
+
+  return returnValue;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Scheduler command handlers and support functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -2705,6 +2740,44 @@ int schedulerExecveCommandHandler(
   return returnValue;
 }
 
+/// @fn int schedulerAssignMemoryCommandHandler(
+///   SchedulerState *schedulerState, TaskMessage *taskMessage)
+///
+/// @brief Assign a piece of memory to the scheduler for ownership.
+///
+/// @param schedulerState A pointer to the SchedulerState maintained by the
+///   scheduler task.
+/// @param taskMessage A pointer to the TaskMessage that was received.
+///
+/// @return Returns 0 on success, non-zero error code on failure.
+int schedulerAssignMemoryCommandHandler(
+  SchedulerState *schedulerState, TaskMessage *taskMessage
+) {
+  (void) schedulerState;
+
+  if (taskMessage == NULL) {
+    // This should be impossible, but there's nothing to do.  Return good
+    // status.
+    return 0;
+  }
+
+  void *ptr = taskMessageData(taskMessage);
+  int returnValue = assignMemory(ptr, NANO_OS_SCHEDULER_TASK_ID);
+  if (returnValue == 0) {
+    taskMessageInit(taskMessage, 0, (void*) ((intptr_t) 0), 0, true);
+  } else {
+    printString("WARNING: Could not assign memory from task ");
+    printInt(taskId(taskMessageFrom(taskMessage)));
+    printString(" to the scheduler\n");
+    printString("Undefined behavior.\n");
+    taskMessageInit(taskMessage, 0, (void*) ((intptr_t) returnValue), 0, true);
+  }
+
+  taskMessageSetDone(taskMessage);
+
+  return 0;
+}
+
 /// @typedef SchedulerCommandHandler
 ///
 /// @brief Signature of command handler for a scheduler command.
@@ -2726,6 +2799,7 @@ const SchedulerCommandHandler schedulerCommandHandlers[] = {
   schedulerCloseAllFileDescriptorsCommandHandler,
   schedulerGetHostnameCommandHandler,       // SCHEDULER_GET_HOSTNAME
   schedulerExecveCommandHandler,            // SCHEDULER_EXECVE
+  schedulerAssignMemoryCommandHandler,      // SCHEDULER_ASSIGN_MEMORY,
 };
 
 /// @fn void handleSchedulerMessage(SchedulerState *schedulerState)

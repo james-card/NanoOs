@@ -67,6 +67,7 @@ typedef enum SchedulerCommandResponse {
   SCHEDULER_CLOSE_ALL_FILE_DESCRIPTORS,
   SCHEDULER_GET_HOSTNAME,
   SCHEDULER_EXECVE,
+  SCHEDULER_ASSIGN_MEMORY,
   NUM_SCHEDULER_COMMANDS,
   // Responses:
   SCHEDULER_TASK_COMPLETE,
@@ -89,6 +90,7 @@ int schedulerCloseAllFileDescriptors(void);
 const char* schedulerGetHostname(void);
 int schedulerExecve(const char *pathname,
   char *const argv[], char *const envp[]);
+int schedulerAssignMemory(void *ptr);
 
 // Coroutine setup functions used in the loader.
 void coroutineYieldCallback(void *stateData, Coroutine *coroutine);
