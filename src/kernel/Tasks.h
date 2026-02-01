@@ -210,7 +210,7 @@ extern "C"
 #define taskMessageFrom(taskMessagePointer) \
   ((TaskDescriptor*) coroutineContext(msg_from(taskMessagePointer).coro))
 #define taskMessageTo(taskMessagePointer) \
-  msg_to(taskMessagePointer).coro
+  ((TaskDescriptor*) coroutineContext(msg_to(taskMessagePointer).coro))
 #define taskMessageConfigured(taskMessagePointer) \
   msg_configured(taskMessagePointer)
 
