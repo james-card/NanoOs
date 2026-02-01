@@ -712,6 +712,45 @@ void schedFree(void *ptr) {
   return;
 }
 
+/// @fn int assignMemory(void *ptr, TaskId taskId) {
+///
+/// @brief Assign a piece of memory to a specific task.
+///
+/// @param ptr The pointer to the memory to assign.
+/// @param taskId The ID of the task to assign the memory to.
+///
+/// @return Returns 0 on success, -errno on failure.
+int assignMemory(void *ptr, TaskId taskId) {
+  TaskMessage *sent = getAvailableMessage();
+  if (sent == NULL) {
+    // Nothing we can do.  The scheduler can't yield.  Bail.
+    return -ENOMEM;
+  }
+  
+  AssignMemoryParams assignMemoryParams = {
+    .ptr = ptr,
+    .taskId = taskId,
+  };
+  taskMessageInit(sent, MEMORY_MANAGER_ASSIGN_MEMORY,
+    &assignMemoryParams, sizeof(assignMemoryParams), true);
+
+  // sent->from would normally be set during taskMessageQueuePush.  We're
+  // not using that mechanism here, so we have to do it manually.  Things will
+  // get messed up if we don't.
+  msg_from(sent).coro = schedulerTaskHandle;
+
+  int returnValue = 0;
+  taskResume(&allTasks[NANO_OS_MEMORY_MANAGER_TASK_ID - 1], sent);
+  if (taskMessageDone(sent) == false) {
+    printString(
+      "Warning:  Memory manager did not mark assignMemory message done.\n");
+    returnValue = -ETIMEDOUT;
+  }
+  taskMessageRelease(sent);
+
+  return returnValue;
+}
+
 /// @fn int schedulerAssignPortToTaskId(
 ///   SchedulerState *schedulerState,
 ///   uint8_t consolePort, TaskId owner)

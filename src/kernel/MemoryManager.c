@@ -428,6 +428,45 @@ int memoryManagerFreeTaskMemoryCommandHandler(
   return returnValue;
 }
 
+/// @fn int memoryManagerAssignMemoryCommandHandler(
+///   MemoryManagerState *memoryManagerState, TaskMessage *incoming)
+///
+/// @brief Command handler for the MEMORY_MANAGER_ASSIGN_MEMORY command. Makes
+/// sure that the memory falls in the range of dynamic memory and, if so,
+/// assigns it to the specified task ID.  If the provided pointer is not in the
+/// range of dynamic memory, no action is taken.
+///
+/// @note This function can only be called from the scheduler.
+///
+/// @param memoryManagerState A pointer to the MemoryManagerState
+///   structure that holds the values used for memory allocation and
+///   deallocation.
+/// @param incoming A pointer to the message received from the requesting
+///   task.
+///
+/// @return Returns 0 on success, error code on failure.
+int memoryManagerAssignMemoryCommandHandler(
+  MemoryManagerState *memoryManagerState, TaskMessage *incoming
+) {
+  int returnValue = 0;
+  
+  if (taskId(taskMessageFrom(incoming)) == NANO_OS_SCHEDULER_TASK_ID) {
+    AssignMemoryParams *assignMemoryParams
+      = (AssignMemoryParams*) taskMessageData(incoming);
+    if (isDynamicPointer(assignMemoryParams->ptr)) {
+      memNode(assignMemoryParams->ptr)->owner = assignMemoryParams->taskId;
+    }
+  } else {
+    printString(
+      "ERROR: Only the scheduler may assign memory to another task.\n");
+    returnValue = -1;
+  }
+  
+  taskMessageSetDone(incoming);
+  
+  return returnValue;
+}
+
 /// @typedef MemoryManagerCommandHandler
 ///
 /// @brief Signature of command handler for a memory manager command.
@@ -444,6 +483,7 @@ const MemoryManagerCommandHandler memoryManagerCommandHandlers[] = {
   memoryManagerGetFreeMemoryCommandHandler, // MEMORY_MANAGER_GET_FREE_MEMORY
   // MEMORY_MANAGER_FREE_TASK_MEMORY:
   memoryManagerFreeTaskMemoryCommandHandler,
+  memoryManagerAssignMemoryCommandHandler,  // MEMORY_MANAGER_ASSIGN_MEMORY
 };
 
 /// @fn void handleMemoryManagerMessages(
@@ -807,36 +847,6 @@ void* memoryManagerCalloc(size_t nmemb, size_t size) {
   if (returnValue != NULL) {
     memset(returnValue, 0, totalSize);
   }
-  return returnValue;
-}
-
-/// @fn int assignMemory(void *ptr, TaskId pid)
-///
-/// @brief Assign ownership of a piece of memory to a specified task.
-///
-/// @note Only the scheduler may execute this function.  Requests from any other
-/// task will fail.
-///
-/// @param ptr A pointer to the memory to assign.
-/// @param pid The ID of the task to assign the memory to.
-///
-/// @return Returns 0 on success, -1 on failure.
-int assignMemory(void *ptr, TaskId pid) {
-  int returnValue = 0;
-  
-  if ((ptr != NULL)
-    && (taskId(getRunningTask()) == NANO_OS_SCHEDULER_TASK_ID)
-  ) {
-    memNode(ptr)->owner = pid;
-  } else if (ptr != NULL) {
-    printString(
-      "ERROR: Only the scheduler may assign memory to another task.\n");
-    returnValue = -1;
-  } else {
-    printString("ERROR: NULL pointer passed to assignMemory.\n");
-    returnValue = -1;
-  }
-  
   return returnValue;
 }
 
