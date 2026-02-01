@@ -373,21 +373,37 @@ void* execCommand(void *args) {
       if (pwd == NULL) {
         fprintf(stderr,
           "ERROR! Could not allocate space for pwd in %s.\n", argv[0]);
-        returnValue = 1;
         break;
       }
       
       struct passwd *result = NULL;
-      returnValue = nanoOsGetpwuid_r(taskDescriptor->userId, pwd,
+      nanoOsGetpwuid_r(taskDescriptor->userId, pwd,
         passwdStringBuffer, NANO_OS_PASSWD_STRING_BUF_SIZE, &result);
       if (result == NULL) {
         fprintf(stderr,
           "Could not find passwd info for uid %d\n", taskDescriptor->userId);
-        returnValue = 1;
         break;
       }
       
-      if (strcmp(pwd->pw_shell, taskDescriptor->overlayDir) == 0) {
+      if (strcmp(pwd->pw_shell, taskDescriptor->overlayDir) != 0) {
+        // The task exiting is not the user's shell.  We want to keep the
+        // environment variables from being destroyed.
+        if (envp != NULL) {
+          execArgs->envp = NULL;
+          if (schedulerAssignMemory(envp) != 0) {
+            fprintf(stderr, "WARNING: Could not assign envp to scheduler\n");
+            fprintf(stderr, "Undefined behavior\n");
+          }
+
+          for (int ii = 0; envp[ii] != NULL; ii++) {
+            if (schedulerAssignMemory(envp[ii]) != 0) {
+              fprintf(stderr,
+                "WARNING: Could not assign envp[%d] to scheduler\n", ii);
+              fprintf(stderr, "Undefined behavior\n");
+            }
+          }
+        }
+      } else {
         // This is the user's shell exiting.  Clear the tasks's user ID.
         taskDescriptor->userId = NO_USER_ID;
       }
