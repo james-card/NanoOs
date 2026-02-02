@@ -3153,12 +3153,12 @@ static const char *gettyArgs[] = {
   NULL,
 };
 
-/// @var mushArgs
+/// @var shellArgs
 ///
-/// @brief Command line arguments used to launch the mush process.  These have
-/// to be declared global because they're referenced by the launched process on
-/// its own stack.
-static const char *mushArgs[] = {
+/// @brief Command line arguments used to launch the user's shell process.
+/// These have to be declared global because they're referenced by the launched
+/// process on its own stack.
+static const char *shellArgs[] = {
   "mush",
   NULL,
 };
@@ -3259,7 +3259,7 @@ void runScheduler(SchedulerState *schedulerState) {
         }
         
         if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-          pwd->pw_shell, (char**) mushArgs, taskDescriptor->envp) != 0
+          pwd->pw_shell, (char**) shellArgs, taskDescriptor->envp) != 0
         ) {
           removeTask(schedulerState, taskDescriptor, "Failed to load mush");
           schedFree(pwd);
