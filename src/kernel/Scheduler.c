@@ -3230,12 +3230,45 @@ void runScheduler(SchedulerState *schedulerState) {
       }
     } else {
       // User task exited.  Re-launch the shell.
-      if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
-        "/usr/bin/mush", (char**) mushArgs, taskDescriptor->envp) != 0
-      ) {
-        removeTask(schedulerState, taskDescriptor, "Failed to load mush");
-        return;
-      }
+      char *passwdStringBuffer = NULL;
+      struct passwd *pwd = NULL;
+      do {
+        passwdStringBuffer
+          = (char*) schedMalloc(NANO_OS_PASSWD_STRING_BUF_SIZE);
+        if (passwdStringBuffer == NULL) {
+          fprintf(stderr,
+            "ERROR! Could not allocate space for passwdStringBuffer in %s.\n",
+            "runScheduler");
+          break;
+        }
+        
+        pwd = (struct passwd*) schedMalloc(sizeof(struct passwd));
+        if (pwd == NULL) {
+          fprintf(stderr,
+            "ERROR! Could not allocate space for pwd in %s.\n", "runScheduler");
+          break;
+        }
+        
+        struct passwd *result = NULL;
+        nanoOsGetpwuid_r(taskDescriptor->userId, pwd,
+          passwdStringBuffer, NANO_OS_PASSWD_STRING_BUF_SIZE, &result);
+        if (result == NULL) {
+          fprintf(stderr,
+            "Could not find passwd info for uid %d\n", taskDescriptor->userId);
+          break;
+        }
+        
+        if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
+          pwd->pw_shell, (char**) mushArgs, taskDescriptor->envp) != 0
+        ) {
+          removeTask(schedulerState, taskDescriptor, "Failed to load mush");
+          schedFree(pwd);
+          schedFree(passwdStringBuffer);
+          return;
+        }
+      } while (0);
+      schedFree(pwd);
+      schedFree(passwdStringBuffer);
     }
   }
 
