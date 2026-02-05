@@ -3241,7 +3241,7 @@ static const char *gettyArgs[] = {
 /// These have to be declared global because they're referenced by the launched
 /// process on its own stack.
 static const char *shellArgs[] = {
-  "mush",
+  NULL, // argv[0], set by runScheduler
   NULL,
 };
 
@@ -3340,6 +3340,9 @@ void runScheduler(SchedulerState *schedulerState) {
           break;
         }
         
+        // strrchr(pwd->pw_shell, '/') must be non-NULL in order for pw_shell
+        // to be valid.
+        shellArgs[0] = strrchr(pwd->pw_shell, '/') + 1;
         if (schedulerRunOverlayCommand(schedulerState, taskDescriptor,
           pwd->pw_shell, (char**) shellArgs, taskDescriptor->envp) != 0
         ) {
