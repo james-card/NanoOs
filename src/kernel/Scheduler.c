@@ -3073,11 +3073,70 @@ int schedulerRunOverlayCommand(
   SchedulerState *schedulerState, TaskDescriptor *taskDescriptor,
   char *commandPath, char **argv, char **envp
 ) {
+  int returnValue = 0;
+
+  // Copy over the exec args.
   ExecArgs *execArgs = schedMalloc(sizeof(ExecArgs));
   execArgs->callingTaskId = taskDescriptor->taskId;
-  execArgs->pathname = commandPath;
-  execArgs->argv = argv;
-  execArgs->envp = envp;
+
+  execArgs->pathname = (char*) schedMalloc(strlen(commandPath) + 1);
+  if (execArgs->pathname == NULL) {
+    returnValue = -ENOMEM;
+    goto freeExecArgs;
+  }
+  strcpy(execArgs->pathname, commandPath);
+
+  size_t argvLen = 0;
+  for (; argv[argvLen] != NULL; argvLen++);
+  argvLen++; // Account for the terminating NULL element
+  execArgs->argv = (char**) schedMalloc(argvLen * sizeof(char*));
+  if (execArgs->argv == NULL) {
+    returnValue = -ENOMEM;
+    goto freeExecArgs;
+  }
+
+  // argvLen is guaranteed to always be at least 1, so it's safe to run to
+  // (argvLen - 1) here.
+  size_t ii = 0;
+  for (; ii < (argvLen - 1); ii++) {
+    // We know that argv[ii] isn't NULL because of the calculation for argvLen
+    // above, so it's safe to use strlen.
+    execArgs->argv[ii] = (char*) schedMalloc(strlen(argv[ii]) + 1);
+    if (execArgs->argv[ii] == NULL) {
+      returnValue = -ENOMEM;
+      goto freeExecArgs;
+    }
+    strcpy(execArgs->argv[ii], argv[ii]);
+  }
+  execArgs->argv[ii] = NULL; // NULL-terminate the array
+
+  if (envp != NULL) {
+    size_t envpLen = 0;
+    for (; envp[envpLen] != NULL; envpLen++);
+    envpLen++; // Account for the terminating NULL element
+    execArgs->envp = (char**) schedMalloc(envpLen * sizeof(char*));
+    if (execArgs->envp == NULL) {
+      returnValue = -ENOMEM;
+      goto freeExecArgs;
+    }
+
+    // envpLen is guaranteed to always be at least 1, so it's safe to run to
+    // (envpLen - 1) here.
+    for (ii = 0; ii < (envpLen - 1); ii++) {
+      // We know that envp[ii] isn't NULL because of the calculation for envpLen
+      // above, so it's safe to use strlen.
+      execArgs->envp[ii] = (char*) schedMalloc(strlen(envp[ii]) + 1);
+      if (execArgs->envp[ii] == NULL) {
+        returnValue = -ENOMEM;
+        goto freeExecArgs;
+      }
+      strcpy(execArgs->envp[ii], envp[ii]);
+    }
+    execArgs->envp[ii] = NULL; // NULL-terminate the array
+  } else {
+    execArgs->envp = NULL;
+  }
+
   execArgs->schedulerState = schedulerState;
 
   if (assignMemory(execArgs, taskDescriptor->taskId) != 0) {
@@ -3085,20 +3144,20 @@ int schedulerRunOverlayCommand(
     printString("Undefined behavior.\n");
   }
 
-  if (assignMemory(commandPath, taskDescriptor->taskId) != 0) {
-    printString("WARNING: Could not assign commandTask to exec task.\n");
+  if (assignMemory(execArgs->pathname, taskDescriptor->taskId) != 0) {
+    printString("WARNING: Could not assign execArgs->pathname to exec task.\n");
     printString("Undefined behavior.\n");
   }
 
-  if (argv != NULL) {
-    if (assignMemory(argv, taskDescriptor->taskId) != 0) {
+  if (execArgs->argv != NULL) {
+    if (assignMemory(execArgs->argv, taskDescriptor->taskId) != 0) {
       printString("WARNING: Could not assign argv to exec task.\n");
       printString("Undefined behavior.\n");
     }
 
-    for (int ii = 0; argv[ii] != NULL; ii++) {
-      if (assignMemory(argv[ii], taskDescriptor->taskId) != 0) {
-        printString("WARNING: Could not assign argv[");
+    for (int ii = 0; execArgs->argv[ii] != NULL; ii++) {
+      if (assignMemory(execArgs->argv[ii], taskDescriptor->taskId) != 0) {
+        printString("WARNING: Could not assign execArgs->argv[");
         printInt(ii);
         printString("] to exec task.\n");
         printString("Undefined behavior.\n");
@@ -3106,15 +3165,15 @@ int schedulerRunOverlayCommand(
     }
   }
 
-  if (envp != NULL) {
-    if (assignMemory(envp, taskDescriptor->taskId) != 0) {
-      printString("WARNING: Could not assign envp to exec task.\n");
+  if (execArgs->envp != NULL) {
+    if (assignMemory(execArgs->envp, taskDescriptor->taskId) != 0) {
+      printString("WARNING: Could not assign execArgs->envp to exec task.\n");
       printString("Undefined behavior.\n");
     }
 
-    for (int ii = 0; envp[ii] != NULL; ii++) {
-      if (assignMemory(envp[ii], taskDescriptor->taskId) != 0) {
-        printString("WARNING: Could not assign envp[");
+    for (int ii = 0; execArgs->envp[ii] != NULL; ii++) {
+      if (assignMemory(execArgs->envp[ii], taskDescriptor->taskId) != 0) {
+        printString("WARNING: Could not assign execArgs->envp[");
         printInt(ii);
         printString("] to exec task.\n");
         printString("Undefined behavior.\n");
@@ -3129,10 +3188,10 @@ int schedulerRunOverlayCommand(
     return -ENOEXEC;
   }
 
-  taskDescriptor->overlayDir = commandPath;
+  taskDescriptor->overlayDir = execArgs->pathname;
   taskDescriptor->overlay = "main";
-  taskDescriptor->envp = envp;
-  taskDescriptor->name = argv[0];
+  taskDescriptor->envp = execArgs->envp;
+  taskDescriptor->name = execArgs->argv[0];
 
   taskDescriptor->numFileDescriptors = NUM_STANDARD_FILE_DESCRIPTORS;
   taskDescriptor->fileDescriptors
@@ -3140,7 +3199,30 @@ int schedulerRunOverlayCommand(
 
   taskResume(taskDescriptor, NULL);
 
-  return 0;
+  return returnValue;
+
+freeExecArgs:
+  schedFree(execArgs->pathname);
+
+  if (execArgs->argv != NULL) {
+    for (int ii = 0; execArgs->argv[ii] != NULL; ii++) {
+      schedFree(execArgs->argv[ii]);
+    }
+    schedFree(execArgs->argv);
+  }
+
+  if (execArgs->envp != NULL) {
+    for (int ii = 0; execArgs->envp[ii] != NULL; ii++) {
+      schedFree(execArgs->envp[ii]);
+    }
+    schedFree(execArgs->envp);
+  }
+
+  // We don't need to and SHOULD NOT touch execArgs->schedulerState.
+
+  schedFree(execArgs);
+
+  return returnValue;
 }
 
 /// @var gettyArgs
